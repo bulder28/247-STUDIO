@@ -1,0 +1,293 @@
+import React, { useMemo } from 'react';
+import { UserDomainModel } from '@/shared/domain/types';
+import { Belt, beltLabelEs } from '@/widgets/Belt';
+
+interface FifaFighterCardProps {
+  athlete: UserDomainModel;
+  onClick?: () => void;
+  className?: string;
+  size?: 'sm' | 'md' | 'lg';
+}
+
+export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
+  athlete,
+  onClick,
+  className = '',
+  size = 'md',
+}) => {
+  const stats = athlete.stats || {
+    tecnica: 70,
+    fuerza: 65,
+    elasticidad: 60,
+    guardia: 75,
+    pase: 70,
+    derribos: 60,
+    leglocks: 55,
+    finalizacion: 70,
+  };
+
+  // 1. Cálculo de Media OVR FIFA
+  const { ovr, cardTier } = useMemo(() => {
+    const vals = [
+      stats.tecnica ?? 65,
+      stats.fuerza ?? 60,
+      stats.elasticidad ?? 55,
+      stats.guardia ?? 70,
+      stats.pase ?? 65,
+      stats.derribos ?? 55,
+      stats.leglocks ?? 50,
+      stats.finalizacion ?? 65,
+    ];
+    const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+
+    // Detección de edición de carta FIFA
+    if (athlete.belt === 'BLACK' || athlete.pricingTier === 'SF') {
+      return { ovr: avg, cardTier: 'ICON_BLACK' as const };
+    }
+    if (avg >= 75) {
+      return { ovr: avg, cardTier: 'GOLD' as const };
+    }
+    if (avg >= 65) {
+      return { ovr: avg, cardTier: 'SILVER' as const };
+    }
+    return { ovr: avg, cardTier: 'BRONZE' as const };
+  }, [stats, athlete.belt, athlete.pricingTier]);
+
+  // 2. Estilos según el tier de la carta (Gold, Icon Black, Silver, Bronze)
+  const tierStyles = useMemo(() => {
+    switch (cardTier) {
+      case 'ICON_BLACK':
+        return {
+          cardBg: 'from-[#2D303E] via-[#1A1D2E] to-[#0D0F18]',
+          border: 'border-[#E5C158]',
+          innerBorder: 'border-[#F3E29F]/40',
+          textColor: 'text-[#F5E296]',
+          numColor: 'text-[#FFFFFF]',
+          statNumColor: 'text-[#FFFFFF]',
+          statLabelColor: 'text-[#D4AF37]',
+          divider: 'border-[#E5C158]/30',
+          badgeBg: 'bg-[#D4AF37] text-slate-900',
+          glow: 'shadow-[0_15px_35px_rgba(229,193,88,0.25)]',
+          badgeText: 'TOTW / SF',
+        };
+      case 'GOLD':
+        return {
+          cardBg: 'from-[#F9EBB2] via-[#E2BE64] to-[#B38C32]',
+          border: 'border-[#946F19]',
+          innerBorder: 'border-[#FFF3C4]/60',
+          textColor: 'text-[#3E2D07]',
+          numColor: 'text-[#2D1F02]',
+          statNumColor: 'text-[#2D1F02]',
+          statLabelColor: 'text-[#4A370B]',
+          divider: 'border-[#8C6713]/30',
+          badgeBg: 'bg-[#3E2D07] text-[#F9EBB2]',
+          glow: 'shadow-[0_15px_30px_rgba(179,140,50,0.3)]',
+          badgeText: 'ORO RARO',
+        };
+      case 'SILVER':
+        return {
+          cardBg: 'from-[#F3F4F8] via-[#C9CBD5] to-[#979AA8]',
+          border: 'border-[#767988]',
+          innerBorder: 'border-white/70',
+          textColor: 'text-[#20222B]',
+          numColor: 'text-[#181920]',
+          statNumColor: 'text-[#181920]',
+          statLabelColor: 'text-[#3B3E4D]',
+          divider: 'border-[#767988]/30',
+          badgeBg: 'bg-[#20222B] text-white',
+          glow: 'shadow-[0_15px_25px_rgba(151,154,168,0.25)]',
+          badgeText: 'PLATA',
+        };
+      case 'BRONZE':
+      default:
+        return {
+          cardBg: 'from-[#E4C9B5] via-[#B88C6D] to-[#825537]',
+          border: 'border-[#5A351D]',
+          innerBorder: 'border-[#F2DFD2]/50',
+          textColor: 'text-[#2B1508]',
+          numColor: 'text-[#1E0D03]',
+          statNumColor: 'text-[#1E0D03]',
+          statLabelColor: 'text-[#3C2010]',
+          divider: 'border-[#5A351D]/30',
+          badgeBg: 'bg-[#2B1508] text-[#E4C9B5]',
+          glow: 'shadow-[0_15px_25px_rgba(130,85,55,0.25)]',
+          badgeText: 'BRONCE',
+        };
+    }
+  }, [cardTier]);
+
+  // Posición/Modalidad deportiva
+  const positionLabel = athlete.beltSystem === 'KIDS' ? 'KIDS' : athlete.belt === 'BLACK' ? 'PROF' : 'BJJ';
+
+  // 6 Estadísticas clave FUT BJJ
+  const coreStats = [
+    { label: 'TEC', val: stats.tecnica },
+    { label: 'GUA', val: stats.guardia },
+    { label: 'PAS', val: stats.pase },
+    { label: 'FIN', val: stats.finalizacion },
+    { label: 'DER', val: stats.derribos },
+    { label: 'FÍS', val: Math.round(((stats.fuerza || 60) + (stats.elasticidad || 60)) / 2) },
+  ];
+
+  // Escala según tamaño
+  const scaleClass = size === 'sm' ? 'w-[220px]' : size === 'lg' ? 'w-[320px]' : 'w-[270px]';
+
+  return (
+    <div
+      onClick={onClick}
+      className={`group relative select-none cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] ${scaleClass} ${className}`}
+    >
+      {/* ======================================================== */}
+      {/* SILUETA ESCUDO FIFA ULTIMATE TEAM (SVG MASK & BORDER)    */}
+      {/* ======================================================== */}
+      <div
+        className={`relative w-full aspect-[1/1.52] p-3 rounded-[32px] bg-gradient-to-b ${tierStyles.cardBg} border-2 ${tierStyles.border} ${tierStyles.glow} overflow-hidden flex flex-col justify-between`}
+        style={{
+          clipPath:
+            'polygon(14% 0%, 86% 0%, 100% 8%, 100% 89%, 50% 100%, 0% 89%, 0% 8%)',
+        }}
+      >
+        {/* Textura Láser / Diagonal Sheen estilo FIFA */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-25 mix-blend-overlay"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.4) 10px, rgba(255,255,255,0.4) 20px)',
+          }}
+        />
+
+        {/* Marco interno fino */}
+        <div
+          className={`absolute inset-1.5 rounded-[28px] border ${tierStyles.innerBorder} pointer-events-none`}
+          style={{
+            clipPath:
+              'polygon(14% 0%, 86% 0%, 100% 8%, 100% 89%, 50% 100%, 0% 89%, 0% 8%)',
+          }}
+        />
+
+        {/* ======================================================== */}
+        {/* PARTE SUPERIOR: OVR, POSICIÓN Y FOTO CENTRAL             */}
+        {/* ======================================================== */}
+        <div className="relative z-10 pt-2 px-2 flex justify-between items-start">
+          {/* Bloque Izquierdo: OVR, Posición, Bandera y Logo 247 */}
+          <div className="flex flex-col items-center">
+            {/* Número OVR */}
+            <span
+              className={`font-mono text-4xl sm:text-5xl font-black tracking-tighter leading-none ${tierStyles.numColor} drop-shadow-sm`}
+            >
+              {ovr}
+            </span>
+
+            {/* Posición / Disciplina */}
+            <span
+              className={`text-xs font-black tracking-wider uppercase mt-0.5 ${tierStyles.textColor}`}
+            >
+              {positionLabel}
+            </span>
+
+            {/* Divisor sutil */}
+            <div className={`w-6 h-0.5 my-1.5 border-b ${tierStyles.divider}`} />
+
+            {/* Bandera Nacional (España por defecto en Pinto) */}
+            <div
+              className="w-5 h-3.5 rounded-sm overflow-hidden shadow-2xs border border-black/20 my-0.5"
+              title="Madrid / España"
+            >
+              <div className="h-1 bg-[#AA151B]" />
+              <div className="h-1.5 bg-[#F1BF00]" />
+              <div className="h-1 bg-[#AA151B]" />
+            </div>
+
+            {/* Insignia Club 247 Studio */}
+            <div
+              className="w-6 h-6 rounded-full bg-slate-900 border border-[#D4AF37] flex items-center justify-center p-0.5 shadow-sm mt-1"
+              title="247Studio Pinto"
+            >
+              <img src="/logo.webp" alt="247" className="w-4 h-4 object-contain" />
+            </div>
+          </div>
+
+          {/* Foto del Atleta (Recorte Estilo FIFA FUT) */}
+          <div className="relative flex-1 flex justify-center -mt-2 -mr-1">
+            <div className="relative w-36 sm:w-40 h-40 sm:h-44 overflow-hidden flex items-end justify-center">
+              {athlete.photoUrl ? (
+                <img
+                  src={athlete.photoUrl}
+                  alt={athlete.alias}
+                  className="w-full h-full object-cover object-top filter contrast-[1.05] drop-shadow-[0_8px_12px_rgba(0,0,0,0.35)]"
+                />
+              ) : (
+                <div className="w-28 h-32 rounded-2xl bg-black/10 border border-black/10 flex items-center justify-center text-4xl">
+                  🥋
+                </div>
+              )}
+
+              {/* Degradado inferior para fundir la foto con la tarjeta */}
+              <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/40 to-transparent" />
+            </div>
+          </div>
+        </div>
+
+        {/* ======================================================== */}
+        {/* PARTE INFERIOR: NOMBRE, CINTURÓN Y 6 STATS FIFA          */}
+        {/* ======================================================== */}
+        <div className="relative z-10 px-2 pb-2">
+          {/* Nombre / Alias del Atleta */}
+          <div className="text-center mb-1">
+            <h3
+              className={`font-headline text-2xl uppercase tracking-tight font-black leading-none truncate ${tierStyles.textColor} drop-shadow-sm`}
+            >
+              {athlete.alias}
+            </h3>
+
+            {/* Cinturón Oficial BJJ miniaturizado */}
+            <div className="flex items-center justify-center gap-1.5 mt-1">
+              <div className="w-16">
+                <Belt
+                  belt={athlete.belt}
+                  stripes={athlete.stripes}
+                  decorative
+                  className="h-2.5 rounded shadow-2xs"
+                />
+              </div>
+              <span className={`text-[9px] font-extrabold uppercase ${tierStyles.statLabelColor}`}>
+                {beltLabelEs(athlete.belt)}
+              </span>
+            </div>
+          </div>
+
+          {/* Línea divisoria dorada */}
+          <div className={`w-full h-px border-b ${tierStyles.divider} my-2`} />
+
+          {/* Rejilla de 6 Estadísticas (FUT Style) */}
+          <div className="grid grid-cols-6 gap-1 text-center py-1">
+            {coreStats.map((st) => (
+              <div key={st.label} className="flex flex-col items-center">
+                <span
+                  className={`text-[9px] font-black tracking-tighter ${tierStyles.statLabelColor}`}
+                >
+                  {st.label}
+                </span>
+                <span
+                  className={`font-mono text-sm font-black leading-none mt-0.5 ${tierStyles.statNumColor}`}
+                >
+                  {st.val}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer de la tarjeta con insignia de socio */}
+          <div className="mt-2 pt-1 flex items-center justify-between border-t border-black/10 text-[8px] font-black uppercase tracking-wider">
+            <span className={tierStyles.statLabelColor}>247STUDIO PINTO</span>
+            <span
+              className={`px-1.5 py-0.2 rounded ${tierStyles.badgeBg} text-[8px] font-mono tracking-widest`}
+            >
+              {athlete.pricingTier === 'SF' ? '★ SOCIO FUNDADOR' : tierStyles.badgeText}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

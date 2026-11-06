@@ -11,6 +11,8 @@ import {
   AlertTriangle,
   Award,
   HeartPulse,
+  LayoutGrid,
+  List,
   MessageCircle,
   Plus,
   Search,
@@ -18,11 +20,13 @@ import {
   Sparkles,
   TrendingDown,
   UserCheck,
+  Users,
   X,
 } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
 import { deriveRetentionRisk } from '@/shared/domain/attendance';
 import { calculateExactAge } from '@/shared/domain/minor';
+import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
 import {
   AccountStatus,
   AdultBelt,
@@ -34,6 +38,7 @@ import {
   RetentionRisk,
   UserDomainModel,
 } from '@/shared/domain/types';
+import { FifaFighterCard } from '@/widgets/FifaFighterCard';
 import { FighterRadarChart } from '@/widgets/FighterRadarChart';
 
 export const PersonalPage: React.FC = () => {
@@ -43,6 +48,9 @@ export const PersonalPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | AccountStatus>('ALL');
   const [tierFilter, setTierFilter] = useState<'ALL' | PricingTier>('ALL');
   const [riskFilter, setRiskFilter] = useState<'ALL' | RetentionRisk>('ALL');
+  const [displayMode, setDisplayMode] = useState<'CARDS' | 'TABLE'>('CARDS');
+  const [includeMockAthletes, setIncludeMockAthletes] = useState(true);
+  const [modalPreviewMode, setModalPreviewMode] = useState<'RADAR' | 'CARD'>('CARD');
   const [selectedUser, setSelectedUser] = useState<UserDomainModel | null>(null);
   const [editingStats, setEditingStats] = useState<FighterStats | null>(null);
   const [editingBelt, setEditingBelt] = useState<Belt>('WHITE');
@@ -144,13 +152,21 @@ export const PersonalPage: React.FC = () => {
     }
   };
 
+  // 20 Atletas de muestra combinados para visualización top
+  const effectiveUsers = React.useMemo(() => {
+    if (!includeMockAthletes) return users;
+    const realUids = new Set(users.map((u) => u.uid));
+    const mocks = SAMPLE_ATHLETES_20.filter((m) => !realUids.has(m.uid));
+    return [...users, ...mocks];
+  }, [users, includeMockAthletes]);
+
   // Resumen del Radar Anti-Abandono
   const retentionStats = React.useMemo(() => {
     let high = 0;
     let medium = 0;
     let low = 0;
 
-    users.forEach((u) => {
+    effectiveUsers.forEach((u) => {
       if (u.accountStatus !== 'ACTIVE') return;
       const risk = getRetentionRiskForUser(u.uid);
       if (risk === 'HIGH') high++;
@@ -159,9 +175,9 @@ export const PersonalPage: React.FC = () => {
     });
 
     return { high, medium, low };
-  }, [users, bookings]);
+  }, [effectiveUsers, bookings]);
 
-  const filteredUsers = users.filter((u) => {
+  const filteredUsers = effectiveUsers.filter((u) => {
     const matchesSearch =
       u.alias?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.contactEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -314,6 +330,47 @@ export const PersonalPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {/* Toggle Vista: Cartas FIFA vs Tabla Censo */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setDisplayMode('CARDS')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition ${
+                displayMode === 'CARDS'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-amber-500" /> Cartas FIFA
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisplayMode('TABLE')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition ${
+                displayMode === 'TABLE'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" /> Tabla Censo
+            </button>
+          </div>
+
+          {/* Toggle 20 Atletas Demo para Preview Top */}
+          <button
+            type="button"
+            onClick={() => setIncludeMockAthletes(!includeMockAthletes)}
+            title="Activar o desactivar los 20 atletas de muestra con fotos y stats completas"
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+              includeMockAthletes
+                ? 'bg-amber-50 text-amber-900 border-amber-300'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 text-amber-600" />
+            <span>20 Demo: {includeMockAthletes ? 'ON' : 'OFF'}</span>
+          </button>
+
           {riskFilter !== 'ALL' && (
             <button
               onClick={() => setRiskFilter('ALL')}
@@ -326,7 +383,7 @@ export const PersonalPage: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
+            className="px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
           >
             <option value="ALL">Todos los Estados</option>
             <option value="ACTIVE">Activos</option>
@@ -337,7 +394,7 @@ export const PersonalPage: React.FC = () => {
           <select
             value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value as any)}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
+            className="px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
           >
             <option value="ALL">Todas las Tarifas</option>
             <option value="STD">Estándar (STD)</option>
@@ -347,10 +404,36 @@ export const PersonalPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabla de Alumnos */}
+      {/* Contenido Principal: Cartas FIFA vs Tabla Censo */}
       {loading ? (
         <div className="py-12 flex justify-center items-center">
           <div className="w-8 h-8 border-3 border-brand-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : displayMode === 'CARDS' ? (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 px-1 gap-2">
+            <span>
+              Mostrando <strong className="text-slate-900 font-bold">{filteredUsers.length}</strong> atletas en formato{' '}
+              <span className="font-extrabold text-amber-600">FIFA Ultimate Team</span>. Haz clic en cualquier carta para ver/editar su radar y atributos.
+            </span>
+            {includeMockAthletes && (
+              <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 self-start sm:self-auto">
+                <Sparkles className="w-3 h-3 text-amber-600" /> 20 Atletas demo cargados
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 justify-items-center pt-2">
+            {filteredUsers.map((athlete) => (
+              <div
+                key={athlete.uid}
+                onClick={() => openEditor(athlete)}
+                className="cursor-pointer group flex flex-col items-center"
+              >
+                <FifaFighterCard athlete={athlete} />
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-3xl overflow-hidden shadow-sm">
@@ -525,12 +608,48 @@ export const PersonalPage: React.FC = () => {
             </div>
 
             <div className="space-y-6">
-              {/* Radar FIFA en Vivo */}
+              {/* Preview Interactivo: Polígono Radar vs Carta FIFA Shield */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col items-center">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">
-                  Vista Previa del Polígono de Habilidades
-                </span>
-                <FighterRadarChart stats={editingStats} alias={selectedUser.alias} size={250} />
+                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 mb-3 shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setModalPreviewMode('CARD')}
+                    className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider transition ${
+                      modalPreviewMode === 'CARD'
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Carta FIFA FUT
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalPreviewMode('RADAR')}
+                    className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider transition ${
+                      modalPreviewMode === 'RADAR'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Polígono Radar
+                  </button>
+                </div>
+
+                {modalPreviewMode === 'CARD' ? (
+                  <div className="py-2">
+                    <FifaFighterCard
+                      athlete={{
+                        ...selectedUser,
+                        belt: editingBelt,
+                        stripes: editingStripes,
+                        stats: editingStats,
+                      }}
+                      size="sm"
+                    />
+                  </div>
+                ) : (
+                  <FighterRadarChart stats={editingStats} alias={selectedUser.alias} size={250} />
+                )}
               </div>
 
               {/* Selector de Cinturón y Grados */}

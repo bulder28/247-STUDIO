@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Award, Flame, Shield, Sparkles, Target, User as UserIcon } from 'lucide-react';
 import { FighterStats, UserDomainModel } from '@/shared/domain/types';
 import { Belt, beltLabelEs } from '@/widgets/Belt';
+import { FifaFighterCard } from '@/widgets/FifaFighterCard';
 import { FighterRadarChart } from '@/widgets/FighterRadarChart';
 
 interface FighterCardProps {
@@ -31,7 +32,7 @@ const DEFAULT_STATS: FighterStats = {
 };
 
 export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
-  const [viewMode, setViewMode] = useState<'radar' | 'bars'>('radar');
+  const [viewMode, setViewMode] = useState<'fut' | 'radar' | 'bars'>('fut');
   const stats = user.stats || DEFAULT_STATS;
   const stripesLabel = `${user.stripes} ${user.stripes === 1 ? 'grado' : 'grados'}`;
 
@@ -106,8 +107,20 @@ export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
             </div>
           </div>
 
-          {/* Selector de Vista: Radar FIFA vs Lista */}
+          {/* Selector de Vista: Carta FUT vs Radar FIFA vs Lista */}
           <div className="inline-flex p-1 bg-slate-100 rounded-xl self-start sm:self-auto border border-slate-200/60">
+            <button
+              type="button"
+              onClick={() => setViewMode('fut')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                viewMode === 'fut'
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Carta FUT</span>
+            </button>
             <button
               type="button"
               onClick={() => setViewMode('radar')}
@@ -163,8 +176,34 @@ export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
           </div>
         </div>
 
-        {/* VISTA 1: RADAR CHART ESTILO FIFA */}
-        {viewMode === 'radar' ? (
+        {/* VISTA 1: CARTA SHIELD FIFA ULTIMATE TEAM */}
+        {viewMode === 'fut' ? (
+          <div className="flex flex-col lg:flex-row items-center justify-around gap-8 pt-2">
+            <div className="w-full flex justify-center py-2">
+              <FifaFighterCard athlete={user} size="lg" />
+            </div>
+
+            <div className="w-full lg:max-w-md space-y-3">
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                Tu Carta Oficial FIFA Ultimate Team en 247Studio
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Esta es tu tarjeta deportiva conmemorativa oficial de 247Studio. Tu valoración general (OVR) y atributos de combate
+                (Técnica, Guardia, Pase, Finalización, Derribos y Físico) se recalculan automáticamente conforme progresas en el tatami
+                y recibes nuevas evaluaciones de los instructores.
+              </p>
+
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-1.5">
+                <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider block">
+                  ★ Edición Coleccionable 247
+                </span>
+                <p className="text-xs text-amber-800">
+                  Desbloquea la versión <strong className="font-extrabold">Oro Raro</strong> al superar los 75 de media OVR o el estatus <strong className="font-extrabold">Icon Black</strong> al graduarte a cinturón negro o tarifa Socio Fundador.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : viewMode === 'radar' ? (
           <div className="flex flex-col lg:flex-row items-center justify-around gap-8 pt-2">
             <div className="w-full max-w-sm flex justify-center">
               <FighterRadarChart stats={stats} alias={user.alias} showOvrBadge={false} size={300} />
