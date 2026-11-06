@@ -198,28 +198,28 @@ export const CajaPage: React.FC = () => {
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-wide text-white">Seguimiento Mensual y Caja</h1>
-          <p className="text-xs text-studio-cream/70 mt-0.5">
+          <h1 className="text-2xl font-black uppercase tracking-wide text-slate-900">Seguimiento Mensual y Caja</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
             Validación 1-click de Bizum y Efectivo, arqueo fiscal con desglose de IVA y solicitudes de freeze.
           </p>
         </div>
 
         {/* Selector de periodo */}
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-studio-cream/60" />
+          <Clock className="w-4 h-4 text-slate-400" />
           <input
             type="month"
             value={filterPeriod}
             onChange={(e) => setFilterPeriod(e.target.value)}
-            className="px-3.5 py-2 bg-studio-navy-light border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-studio-red"
+            className="px-3.5 py-2 bg-white border border-slate-200/80 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-studio-red"
           />
         </div>
       </div>
 
       {/* KPI Cards de Caja */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-studio-navy-light/90 border border-white/10 rounded-2xl p-5 shadow-xl">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-studio-cream/60 block mb-1">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xl">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
             Total Recaudado (IVA Inc.)
           </span>
           <div className="text-2xl font-black text-white">
@@ -230,26 +230,26 @@ export const CajaPage: React.FC = () => {
           </span>
         </div>
 
-        <div className="bg-studio-navy-light/90 border border-white/10 rounded-2xl p-5 shadow-xl">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-studio-cream/60 block mb-1">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xl">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
             Base Imponible Neta
           </span>
-          <div className="text-2xl font-black text-studio-cream">
+          <div className="text-2xl font-black text-slate-700">
             {(totalBaseCents / 100).toFixed(2)} €
           </div>
-          <span className="text-[10px] text-studio-cream/60 block mt-1">
+          <span className="text-[10px] text-slate-400 block mt-1">
             Cuota IVA deducible: {(totalVatCents / 100).toFixed(2)} €
           </span>
         </div>
 
-        <div className="bg-studio-navy-light/90 border border-amber-500/30 rounded-2xl p-5 shadow-xl">
+        <div className="bg-white border border-amber-500/30 rounded-2xl p-5 shadow-xl">
           <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 block mb-1">
             Abonos Pendientes de Validar
           </span>
           <div className="text-2xl font-black text-amber-400">
             {pendingPayments.length}
           </div>
-          <span className="text-[10px] text-studio-cream/60 block mt-1">
+          <span className="text-[10px] text-slate-400 block mt-1">
             Requiere cotejo con Bizum / Banco
           </span>
         </div>
@@ -257,7 +257,7 @@ export const CajaPage: React.FC = () => {
 
       {/* Solicitudes de Suspensión Temporal (Freeze) Pendientes */}
       {pendingFreezeRequests.length > 0 && (
-        <div className="bg-studio-navy-light/95 border border-amber-500/40 rounded-3xl p-6 shadow-xl space-y-3">
+        <div className="bg-white border border-amber-500/40 rounded-3xl p-6 shadow-xl space-y-3">
           <div className="flex items-center gap-2 text-amber-400 font-extrabold text-xs uppercase tracking-wider">
             <PauseCircle className="w-4 h-4 text-studio-red" />
             <span>Solicitudes de Freeze / Baja Temporal de Alumnos ({pendingFreezeRequests.length})</span>
@@ -267,11 +267,11 @@ export const CajaPage: React.FC = () => {
             {pendingFreezeRequests.map((req) => (
               <div
                 key={req.id}
-                className="p-3.5 bg-studio-navy rounded-xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
               >
                 <div>
                   <span className="font-extrabold text-white block">{req.alias}</span>
-                  <span className="text-studio-cream/70 block text-[11px]">
+                  <span className="text-slate-500 block text-[11px]">
                     Motivo: {req.reason === 'INJURY' ? 'Lesión deportiva' : 'Laboral / viaje'} • {req.notes || 'Sin notas'}
                   </span>
                 </div>
@@ -297,16 +297,16 @@ export const CajaPage: React.FC = () => {
       )}
 
       {/* Tabla de Cobros y Liquidaciones */}
-      <div className="bg-studio-navy-light/90 border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md">
-        <div className="p-5 border-b border-white/10 flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-wider text-white">
+      <div className="bg-white border border-slate-200/80 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md">
+        <div className="p-5 border-b border-slate-200/80 flex items-center justify-between">
+          <h2 className="text-sm font-black uppercase tracking-wider text-slate-900">
             Órdenes de Pago del Periodo {filterPeriod}
           </h2>
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-1.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white focus:outline-none"
+            className="px-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white focus:outline-none"
           >
             <option value="ALL">Todos los Estados</option>
             <option value="PENDING_APPROVAL">En Revisión (Pendientes)</option>
@@ -316,8 +316,8 @@ export const CajaPage: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-studio-cream">
-            <thead className="bg-studio-navy text-[10px] font-black uppercase tracking-widest text-studio-cream/70 border-b border-white/10">
+          <table className="w-full text-left text-xs text-slate-700">
+            <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200/80">
               <tr>
                 <th className="py-4 px-5">Alumno</th>
                 <th className="py-4 px-4">Método</th>
@@ -338,7 +338,7 @@ export const CajaPage: React.FC = () => {
                         <span className="font-extrabold text-sm text-white block">
                           {student?.alias || pay.uid}
                         </span>
-                        <span className="text-[11px] text-studio-cream/60">{student?.phone}</span>
+                        <span className="text-[11px] text-slate-400">{student?.phone}</span>
                       </td>
 
                       <td className="py-4 px-4">
@@ -362,7 +362,7 @@ export const CajaPage: React.FC = () => {
                           {pay.amountCents ? `${(pay.amountCents / 100).toFixed(2)} €` : '65,00 € (Est.)'}
                         </div>
                         {pay.baseCents !== undefined && pay.vatCents !== undefined && (
-                          <div className="text-[10px] text-studio-cream/60">
+                          <div className="text-[10px] text-slate-400">
                             Base: {(pay.baseCents / 100).toFixed(2)} € • IVA: {(pay.vatCents / 100).toFixed(2)} €
                           </div>
                         )}
@@ -406,7 +406,7 @@ export const CajaPage: React.FC = () => {
                             </button>
                           </div>
                         ) : (
-                          <span className="text-[10px] text-studio-cream/50 italic">Validado</span>
+                          <span className="text-[10px] text-slate-400 italic">Validado</span>
                         )}
                       </td>
                     </tr>
@@ -420,16 +420,16 @@ export const CajaPage: React.FC = () => {
       {/* Modal de confirmación de rechazo */}
       {rejectingPayment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-studio-navy-light border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <h3 className="font-display text-2xl text-white">Rechazar Pago</h3>
-            <p className="mt-2 text-xs text-studio-cream/80">
+          <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xl">
+            <h3 className="font-display text-2xl text-slate-900">Rechazar Pago</h3>
+            <p className="mt-2 text-xs text-slate-600">
               Indica el motivo por el cual no se valida este pago (el alumno verá este motivo en su panel):
             </p>
             <input
               type="text"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              className="mt-4 w-full px-3 py-2.5 bg-studio-navy border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+              className="mt-4 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
               placeholder="Ej. Transferencia no reflejada en cuenta"
             />
             <div className="mt-6 flex justify-end gap-3">

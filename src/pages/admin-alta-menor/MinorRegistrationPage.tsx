@@ -88,8 +88,8 @@ export const MinorRegistrationPage: React.FC = () => {
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-12 animate-in fade-in duration-300">
       <div>
-        <h1 className="text-2xl font-black uppercase tracking-wide text-white">Alta Presencial de Alumno</h1>
-        <p className="text-xs text-studio-cream/70 mt-0.5">
+        <h1 className="text-2xl font-black uppercase tracking-wide text-slate-900">Alta Presencial de Alumno</h1>
+        <p className="text-xs text-slate-500 mt-0.5">
           Formalización del registro en el gimnasio tras la reunión inicial de funcionamiento.
         </p>
       </div>
@@ -107,15 +107,15 @@ export const MinorRegistrationPage: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-studio-navy-light/95 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
         <div className="space-y-4">
-          <h2 className="text-xs font-extrabold uppercase tracking-wider text-studio-cream border-b border-white/10 pb-2 flex items-center gap-2">
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 border-b border-slate-200/80 pb-2 flex items-center gap-2">
             <User className="w-4 h-4 text-studio-red" /> Identificación del Atleta
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Alias en el Tatami *
               </label>
               <input
@@ -125,12 +125,12 @@ export const MinorRegistrationPage: React.FC = () => {
                 placeholder="Nombre o apodo deportivo"
                 value={formData.alias}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-studio-red"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Fecha de Nacimiento *
               </label>
               <input
@@ -139,10 +139,10 @@ export const MinorRegistrationPage: React.FC = () => {
                 required
                 value={formData.birthDate}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
               />
               {age !== null && (
-                <span className="text-[11px] text-studio-cream/70 block mt-1">
+                <span className="text-[11px] text-slate-500 block mt-1">
                   Edad calculada: <strong>{age} años</strong> ({isMinor ? 'Menor tutelado < 16' : 'Mayor de 16'})
                 </span>
               )}
@@ -151,7 +151,7 @@ export const MinorRegistrationPage: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Correo Electrónico *
               </label>
               <input
@@ -161,12 +161,12 @@ export const MinorRegistrationPage: React.FC = () => {
                 placeholder="correo@ejemplo.com"
                 value={formData.contactEmail}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-studio-red"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Teléfono de Contacto *
               </label>
               <input
@@ -176,7 +176,7 @@ export const MinorRegistrationPage: React.FC = () => {
                 placeholder="+34 600 000 000"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-studio-red"
               />
             </div>
           </div>
@@ -184,7 +184,7 @@ export const MinorRegistrationPage: React.FC = () => {
 
         {/* Sección de Menor de 16 Años */}
         {isMinor && (
-          <div className="p-4 bg-studio-navy rounded-2xl border border-amber-500/40 space-y-3">
+          <div className="p-4 bg-slate-50 rounded-2xl border border-amber-500/40 space-y-3">
             <div className="flex items-center gap-2 text-amber-400 font-extrabold text-xs uppercase tracking-wider">
               <Shield className="w-4 h-4 text-studio-red" />
               <span>Registro de Tutor Legal (Menor de 16 Años)</span>
@@ -192,7 +192,7 @@ export const MinorRegistrationPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-studio-cream mb-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                   Nombre del Tutor / Padre / Madre *
                 </label>
                 <input
@@ -202,12 +202,12 @@ export const MinorRegistrationPage: React.FC = () => {
                   placeholder="Nombre completo del tutor"
                   value={formData.guardianName}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 bg-studio-navy-light border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+                  className="w-full px-3 py-2 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-studio-cream mb-1">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                   DNI / UID del Tutor *
                 </label>
                 <input
@@ -217,7 +217,7 @@ export const MinorRegistrationPage: React.FC = () => {
                   placeholder="DNI o UID del tutor en 247Studio"
                   value={formData.guardianUid}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 bg-studio-navy-light border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+                  className="w-full px-3 py-2 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
                 />
               </div>
             </div>
@@ -225,21 +225,21 @@ export const MinorRegistrationPage: React.FC = () => {
         )}
 
         {/* Graduación y Tarifa */}
-        <div className="space-y-4 pt-3 border-t border-white/10">
-          <h2 className="text-xs font-extrabold uppercase tracking-wider text-studio-cream">
+        <div className="space-y-4 pt-3 border-t border-slate-200/80">
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
             Graduación Inicial y Tarifa
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Cinturón
               </label>
               <select
                 name="belt"
                 value={formData.belt}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
               >
                 <option value="WHITE">Blanco (WHITE)</option>
                 <option value="BLUE">Azul (BLUE)</option>
@@ -250,7 +250,7 @@ export const MinorRegistrationPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Grados (0-4)
               </label>
               <input
@@ -260,19 +260,19 @@ export const MinorRegistrationPage: React.FC = () => {
                 max={4}
                 value={formData.stripes}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Segmento Tarifa
               </label>
               <select
                 name="pricingTier"
                 value={formData.pricingTier}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
               >
                 <option value="STD">Estándar (STD)</option>
                 <option value="SF">Socio Fundador (SF)</option>
@@ -283,13 +283,13 @@ export const MinorRegistrationPage: React.FC = () => {
         </div>
 
         {/* Modalidad de Firma de Waiver (Pregunta 2) */}
-        <div className="space-y-3 pt-3 border-t border-white/10">
-          <label className="block text-xs font-extrabold uppercase tracking-wider text-studio-cream flex items-center gap-1.5">
+        <div className="space-y-3 pt-3 border-t border-slate-200/80">
+          <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
             <FileCheck2 className="w-4 h-4 text-studio-red" /> Modalidad de Firma del Waiver Legal
           </label>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="flex items-center gap-3 p-3.5 rounded-2xl bg-studio-navy border border-white/10 cursor-pointer">
+            <label className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 cursor-pointer">
               <input
                 type="radio"
                 name="waiverMethod"
@@ -300,11 +300,11 @@ export const MinorRegistrationPage: React.FC = () => {
               />
               <div>
                 <span className="font-bold text-xs text-white block">Firmado en Papel en el Centro</span>
-                <span className="text-[11px] text-studio-cream/60">Recogido físicamente hoy en recepción</span>
+                <span className="text-[11px] text-slate-400">Recogido físicamente hoy en recepción</span>
               </div>
             </label>
 
-            <label className="flex items-center gap-3 p-3.5 rounded-2xl bg-studio-navy border border-white/10 cursor-pointer">
+            <label className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 cursor-pointer">
               <input
                 type="radio"
                 name="waiverMethod"
@@ -315,7 +315,7 @@ export const MinorRegistrationPage: React.FC = () => {
               />
               <div>
                 <span className="font-bold text-xs text-white block">Firma Digital Pendiente en App</span>
-                <span className="text-[11px] text-studio-cream/60">El alumno firmará desde su móvil</span>
+                <span className="text-[11px] text-slate-400">El alumno firmará desde su móvil</span>
               </div>
             </label>
           </div>

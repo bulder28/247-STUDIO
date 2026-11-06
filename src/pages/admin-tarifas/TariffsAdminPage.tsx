@@ -83,8 +83,8 @@ export const TariffsAdminPage: React.FC = () => {
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-wide text-white">Catálogo de Tarifas</h1>
-          <p className="text-xs text-studio-cream/70 mt-0.5">
+          <h1 className="text-2xl font-black uppercase tracking-wide text-slate-900">Catálogo de Tarifas</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
             Gestión inmutable de cuotas mensuales, bonos PASS y descuentos de socio fundador.
           </p>
         </div>
@@ -110,8 +110,8 @@ export const TariffsAdminPage: React.FC = () => {
                 key={t.id}
                 className={`p-5 rounded-3xl border transition-all ${
                   t.active
-                    ? 'bg-studio-navy-light/90 border-white/10 shadow-xl'
-                    : 'bg-studio-navy/40 border-white/5 opacity-50'
+                    ? 'bg-white border-slate-200/80 shadow-xl'
+                    : 'bg-slate-50 border-slate-100 opacity-50'
                 }`}
               >
                 <div className="flex items-start justify-between mb-3">
@@ -119,28 +119,28 @@ export const TariffsAdminPage: React.FC = () => {
                     className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
                       t.tier === 'SF'
                         ? 'bg-studio-red text-white'
-                        : 'bg-white/10 text-studio-cream'
+                        : 'bg-white/10 text-slate-700'
                     }`}
                   >
                     {t.tier === 'SF' ? 'Socio Fundador' : t.tier}
                   </span>
-                  <span className="text-[11px] font-bold text-studio-cream/70 uppercase">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">
                     {t.billingType}
                   </span>
                 </div>
 
-                <h3 className="font-black text-lg text-white mb-1">{t.name}</h3>
+                <h3 className="font-black text-lg text-slate-900 mb-1">{t.name}</h3>
                 <div className="text-2xl font-black text-white mb-2">
                   {(t.priceCents / 100).toFixed(2)} €
-                  <span className="text-xs font-normal text-studio-cream/60 ml-1">IVA Inc.</span>
+                  <span className="text-xs font-normal text-slate-400 ml-1">IVA Inc.</span>
                 </div>
 
-                <div className="text-[11px] bg-studio-navy p-2.5 rounded-xl border border-white/5 space-y-0.5 text-studio-cream/70 mb-4">
+                <div className="text-[11px] bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-0.5 text-slate-500 mb-4">
                   <div>Base: {(vat.baseCents / 100).toFixed(2)} €</div>
                   <div>IVA ({(t.vatRate * 100).toFixed(0)}%): {(vat.vatCents / 100).toFixed(2)} €</div>
                 </div>
 
-                <div className="text-xs text-studio-cream/80 mb-4">
+                <div className="text-xs text-slate-600 mb-4">
                   <span className="font-bold text-white block mb-1">Disciplinas incluidas:</span>
                   <div className="flex flex-wrap gap-1">
                     {t.programs?.map((prog: string, i: number) => (
@@ -151,8 +151,8 @@ export const TariffsAdminPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-white/5 flex justify-between items-center">
-                  <span className="text-[11px] text-studio-cream/60">
+                <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[11px] text-slate-400">
                     {t.active ? 'Disponible' : 'Archivada'}
                   </span>
                   {t.active && (
@@ -173,34 +173,34 @@ export const TariffsAdminPage: React.FC = () => {
       {/* Modal Nueva Tarifa */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-studio-navy-light border border-white/20 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-sm uppercase text-white">Nueva Tarifa Inmutable</h3>
-              <button onClick={() => setShowModal(false)} className="text-studio-cream/60 hover:text-white">
+              <h3 className="font-black text-sm uppercase text-slate-900">Nueva Tarifa Inmutable</h3>
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateTariff} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Nombre</label>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Nombre</label>
                 <input
                   type="text"
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="Ej. Mensual Ilimitado BJJ"
-                  className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Segmento</label>
+                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Segmento</label>
                   <select
                     value={form.tier}
                     onChange={(e) => setForm({ ...form, tier: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                   >
                     <option value="STD">Estándar (STD)</option>
                     <option value="SF">Socio Fundador (SF)</option>
@@ -209,11 +209,11 @@ export const TariffsAdminPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Cobro</label>
+                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Cobro</label>
                   <select
                     value={form.billingType}
                     onChange={(e) => setForm({ ...form, billingType: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                   >
                     <option value="MONTHLY">Mensual (MONTHLY)</option>
                     <option value="PASS">Bono Sesiones (PASS)</option>
@@ -223,24 +223,24 @@ export const TariffsAdminPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Precio Total (€ IVA Inc.)</label>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Precio Total (€ IVA Inc.)</label>
                 <input
                   type="number"
                   step="0.01"
                   required
                   value={form.priceEuros}
                   onChange={(e) => setForm({ ...form, priceEuros: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Programas (Separados por coma)</label>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Programas (Separados por coma)</label>
                 <input
                   type="text"
                   value={form.programs}
                   onChange={(e) => setForm({ ...form, programs: e.target.value })}
-                  className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                 />
               </div>
 
@@ -248,7 +248,7 @@ export const TariffsAdminPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-xs font-bold text-studio-cream"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-700"
                 >
                   Cancelar
                 </button>

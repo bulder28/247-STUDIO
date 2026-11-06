@@ -53,8 +53,8 @@ export const LeadsAdminPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       <div>
-        <h1 className="text-2xl font-black uppercase tracking-wide text-white">Embudo de Clases de Prueba (Leads)</h1>
-        <p className="text-xs text-studio-cream/70 mt-0.5">
+        <h1 className="text-2xl font-black uppercase tracking-wide text-slate-900">Embudo de Clases de Prueba (Leads)</h1>
+        <p className="text-xs text-slate-500 mt-0.5">
           Prospectos captados en la web pública para su primera clase gratuita de Brazilian Jiu-Jitsu.
         </p>
       </div>
@@ -64,14 +64,14 @@ export const LeadsAdminPage: React.FC = () => {
           <div className="w-8 h-8 border-3 border-studio-red border-t-transparent rounded-full animate-spin" />
         </div>
       ) : leads.length === 0 ? (
-        <div className="p-8 text-center bg-studio-navy-light/50 border border-white/5 rounded-3xl">
+        <div className="p-8 text-center bg-white border border-slate-100 rounded-3xl">
           <p className="text-sm font-bold text-white">No hay leads registrados en este momento.</p>
         </div>
       ) : (
-        <div className="bg-studio-navy-light/90 border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md">
+        <div className="bg-white border border-slate-200/80 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-studio-cream">
-              <thead className="bg-studio-navy text-[10px] font-black uppercase tracking-widest text-studio-cream/70 border-b border-white/10">
+            <table className="w-full text-left text-xs text-slate-700">
+              <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200/80">
                 <tr>
                   <th className="py-4 px-5">Interesado / Contacto</th>
                   <th className="py-4 px-4">Franja Seleccionada</th>
@@ -84,11 +84,11 @@ export const LeadsAdminPage: React.FC = () => {
                   <tr key={lead.id} className="hover:bg-white/[0.02] transition">
                     <td className="py-4 px-5">
                       <span className="font-extrabold text-sm text-white block">{lead.name}</span>
-                      <span className="text-[11px] text-studio-cream/70 flex items-center gap-1">
-                        <Mail className="w-3 h-3 text-studio-cream/40" /> {lead.email}
+                      <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <Mail className="w-3 h-3 text-slate-700/40" /> {lead.email}
                       </span>
-                      <span className="text-[10px] text-studio-cream/50 flex items-center gap-1">
-                        <Phone className="w-3 h-3 text-studio-cream/40" /> {lead.phone}
+                      <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-slate-700/40" /> {lead.phone}
                       </span>
                     </td>
 

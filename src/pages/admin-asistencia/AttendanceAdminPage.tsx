@@ -438,26 +438,26 @@ export const AttendanceAdminPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="font-display text-4xl sm:text-5xl uppercase tracking-wide text-white">
+            <h1 className="font-display text-4xl sm:text-5xl uppercase tracking-wide text-slate-900">
               Hoja de Asistencia
             </h1>
-            <span className="text-[10px] bg-studio-red text-white font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider">
+            <span className="text-[10px] bg-brand-accent text-white font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider">
               Profesor / MatGoat
             </span>
           </div>
-          <p className="text-xs text-studio-cream/70 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Control de asistencia en tatami, confirmación masiva, corrección de sesiones pasadas y cálculo para graduaciones.
           </p>
         </div>
 
         {/* Toggle entre Hoja Diaria e Informe Mensual */}
-        <div className="flex items-center gap-2 bg-studio-navy-light p-1.5 rounded-xl border border-white/10 self-start sm:self-auto">
+        <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200/80 self-start sm:self-auto">
           <button
             onClick={() => setViewMode('SHEET')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               viewMode === 'SHEET'
-                ? 'bg-studio-red text-white shadow'
-                : 'text-studio-cream/70 hover:text-white'
+                ? 'bg-brand-accent text-white shadow'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             <UserCheck className="w-3.5 h-3.5" />
@@ -467,8 +467,8 @@ export const AttendanceAdminPage: React.FC = () => {
             onClick={() => setViewMode('MONTHLY_REPORT')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
               viewMode === 'MONTHLY_REPORT'
-                ? 'bg-studio-red text-white shadow'
-                : 'text-studio-cream/70 hover:text-white'
+                ? 'bg-brand-accent text-white shadow'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -496,18 +496,18 @@ export const AttendanceAdminPage: React.FC = () => {
       {viewMode === 'SHEET' && (
         <div className="space-y-6">
           {/* Selector de Fecha y Atajos */}
-          <div className="bg-studio-navy-light p-4 rounded-2xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-studio-red" />
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-wider text-studio-cream/60">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
                   Fecha de la Clase
                 </label>
                 <input
                   type="date"
                   value={selectedDateStr}
                   onChange={(e) => setSelectedDateStr(e.target.value)}
-                  className="bg-studio-navy text-white text-sm font-bold px-3 py-1.5 rounded-xl border border-white/15 focus:outline-none focus:border-studio-red"
+                  className="bg-slate-50 text-slate-900 text-sm font-bold px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:border-studio-red"
                 />
               </div>
             </div>
@@ -519,7 +519,7 @@ export const AttendanceAdminPage: React.FC = () => {
                   const d = new Date(new Date(selectedDateStr).getTime() - 24 * 60 * 60 * 1000);
                   setSelectedDateStr(getMadridTimeComponents(d).dateStr);
                 }}
-                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-studio-cream rounded-xl text-xs font-bold flex items-center gap-1 border border-white/10"
+                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 border border-slate-200/80"
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> Anterior
               </button>
@@ -528,7 +528,7 @@ export const AttendanceAdminPage: React.FC = () => {
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
                   selectedDateStr === madridNow.dateStr
                     ? 'bg-studio-red/20 text-studio-red border-studio-red/40'
-                    : 'bg-white/5 hover:bg-white/10 text-studio-cream border-white/10'
+                    : 'bg-white/5 hover:bg-white/10 text-slate-700 border-slate-200/80'
                 }`}
               >
                 Hoy
@@ -538,7 +538,7 @@ export const AttendanceAdminPage: React.FC = () => {
                   const d = new Date(new Date(selectedDateStr).getTime() + 24 * 60 * 60 * 1000);
                   setSelectedDateStr(getMadridTimeComponents(d).dateStr);
                 }}
-                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-studio-cream rounded-xl text-xs font-bold flex items-center gap-1 border border-white/10"
+                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 border border-slate-200/80"
               >
                 Siguiente <ChevronRight className="w-3.5 h-3.5" />
               </button>
@@ -547,11 +547,11 @@ export const AttendanceAdminPage: React.FC = () => {
 
           {/* Carrusel / Parrilla de clases del día seleccionado */}
           <div>
-            <span className="block text-xs font-bold uppercase tracking-wider text-studio-cream/80 mb-2">
+            <span className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
               Clases programadas ({daySchedules.length})
             </span>
             {daySchedules.length === 0 ? (
-              <div className="bg-studio-navy-light/60 p-6 rounded-2xl border border-white/10 text-center text-sm text-studio-cream/70">
+              <div className="bg-white/60 p-6 rounded-2xl border border-slate-200/80 text-center text-sm text-slate-500">
                 No hay clases registradas en la parrilla oficial para este día de la semana.
               </div>
             ) : (
@@ -565,20 +565,20 @@ export const AttendanceAdminPage: React.FC = () => {
                       className={`p-3.5 rounded-2xl text-left border transition relative flex flex-col justify-between gap-2 ${
                         isSelected
                           ? 'bg-studio-red/15 border-studio-red shadow-lg shadow-studio-red/10'
-                          : 'bg-studio-navy-light/90 border-white/10 hover:border-white/20'
+                          : 'bg-white border-slate-200/80 hover:border-slate-200'
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-display text-lg text-white">{sched.startTime}</span>
-                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-white/10 text-studio-cream">
+                        <span className="font-display text-lg text-slate-900">{sched.startTime}</span>
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-white/10 text-slate-700">
                           {sched.program}
                         </span>
                       </div>
                       <div>
-                        <span className="block text-xs font-bold text-white truncate">
+                        <span className="block text-xs font-bold text-slate-900 truncate">
                           {sched.program}
                         </span>
-                        <span className="text-[10px] text-studio-cream/60">
+                        <span className="text-[10px] text-slate-400">
                           Prof. {sched.professor}
                         </span>
                       </div>
@@ -591,20 +591,20 @@ export const AttendanceAdminPage: React.FC = () => {
 
           {/* Ficha Resumen de la Sesión Activa */}
           {activeSchedule && (
-            <div className="bg-gradient-to-r from-studio-navy-light via-studio-navy-light to-studio-red/10 p-5 rounded-2xl border border-white/10 shadow-lg">
+            <div className="bg-gradient-to-r from-studio-navy-light via-studio-navy-light to-studio-red/10 p-5 rounded-2xl border border-slate-200/80 shadow-lg">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h2 className="font-display text-3xl uppercase text-white">
+                    <h2 className="font-display text-3xl uppercase text-slate-900">
                       {activeSchedule.program}
                     </h2>
-                    <span className="px-2.5 py-0.5 rounded bg-studio-red text-white text-xs font-black">
+                    <span className="px-2.5 py-0.5 rounded bg-brand-accent text-white text-xs font-black">
                       {activeSchedule.startTime} - {activeSchedule.endTime}
                     </span>
                   </div>
-                  <p className="text-xs text-studio-cream/80 mt-1">
-                    Profesor: <strong className="text-white">{activeSchedule.professor}</strong> • Capacidad máxima:{' '}
-                    <strong className="text-white">{maxCapacity} alumnos</strong>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Profesor: <strong className="text-slate-900">{activeSchedule.professor}</strong> • Capacidad máxima:{' '}
+                    <strong className="text-slate-900">{maxCapacity} alumnos</strong>
                   </p>
                 </div>
 
@@ -622,7 +622,7 @@ export const AttendanceAdminPage: React.FC = () => {
 
                   <button
                     onClick={() => setAddModalOpen(true)}
-                    className="px-4 py-2.5 bg-studio-red hover:bg-studio-red-dark text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-2.5 bg-studio-red hover:bg-studio-red-dark text-slate-900 font-bold text-xs uppercase tracking-wider rounded-xl transition shadow flex items-center gap-1.5 cursor-pointer"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>Añadir Alumno</span>
@@ -630,7 +630,7 @@ export const AttendanceAdminPage: React.FC = () => {
 
                   <button
                     onClick={() => window.print()}
-                    className="p-2.5 bg-white/10 hover:bg-white/15 text-white rounded-xl transition"
+                    className="p-2.5 bg-white/10 hover:bg-white/15 text-slate-900 rounded-xl transition"
                     title="Imprimir hoja de asistencia"
                   >
                     <Printer className="w-4 h-4" />
@@ -639,54 +639,54 @@ export const AttendanceAdminPage: React.FC = () => {
               </div>
 
               {/* Tarjetas de Contadores en Tiempo Real */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-white/10">
-                <div className="bg-studio-navy/60 p-3 rounded-xl border border-white/10">
-                  <span className="block text-[10px] font-black uppercase tracking-wider text-studio-cream/60">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-slate-200/80">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                  <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Presentes en Tatami
                   </span>
                   <div className="font-display num text-3xl text-emerald-400 mt-0.5">
                     {attendedBookings.length}
-                    <span className="text-xs font-sans text-studio-cream/60 ml-1.5">
+                    <span className="text-xs font-sans text-slate-400 ml-1.5">
                       / {maxCapacity}
                     </span>
                   </div>
-                  <span className="text-[10px] text-studio-cream/60 block mt-0.5">
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
                     {participantCount} part. • {observerCount} obs.{graduationCount > 0 ? ` • ${graduationCount} grad.` : ''}
                   </span>
                 </div>
 
-                <div className="bg-studio-navy/60 p-3 rounded-xl border border-white/10">
-                  <span className="block text-[10px] font-black uppercase tracking-wider text-studio-cream/60">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                  <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Reservados Pendientes
                   </span>
                   <div className="font-display num text-3xl text-amber-400 mt-0.5">
                     {pendingBookings.length}
                   </div>
-                  <span className="text-[10px] text-studio-cream/60 block mt-0.5">
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
                     Reservaron por app
                   </span>
                 </div>
 
-                <div className="bg-studio-navy/60 p-3 rounded-xl border border-white/10">
-                  <span className="block text-[10px] font-black uppercase tracking-wider text-studio-cream/60">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                  <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Lista de Espera
                   </span>
                   <div className="font-display num text-3xl text-blue-400 mt-0.5">
                     {waitlistedBookings.length}
                   </div>
-                  <span className="text-[10px] text-studio-cream/60 block mt-0.5">
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
                     En cola por aforo lleno
                   </span>
                 </div>
 
-                <div className="bg-studio-navy/60 p-3 rounded-xl border border-white/10">
-                  <span className="block text-[10px] font-black uppercase tracking-wider text-studio-cream/60">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                  <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
                     Puntos de Graduación
                   </span>
                   <div className="font-display num text-3xl text-purple-400 mt-0.5">
                     {attendedBookings.reduce((sum, b) => sum + (b.attendanceWeight || 1.0), 0).toFixed(1)}
                   </div>
-                  <span className="text-[10px] text-studio-cream/60 block mt-0.5">
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
                     Suma total ponderada
                   </span>
                 </div>
@@ -695,12 +695,12 @@ export const AttendanceAdminPage: React.FC = () => {
           )}
 
           {/* Tabla / Lista de Alumnos de la Sesión */}
-          <div className="bg-studio-navy-light rounded-2xl border border-white/10 overflow-hidden shadow-xl">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <span className="font-display text-xl text-white">
+          <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xl">
+            <div className="p-4 border-b border-slate-200/80 flex items-center justify-between">
+              <span className="font-display text-xl text-slate-900">
                 Lista de Alumnos ({bookings.length})
               </span>
-              <span className="text-xs text-studio-cream/70">
+              <span className="text-xs text-slate-500">
                 {activeSchedule ? `${activeSchedule.program} • ${selectedDateStr}` : ''}
               </span>
             </div>
@@ -710,13 +710,13 @@ export const AttendanceAdminPage: React.FC = () => {
                 <div className="w-8 h-8 border-3 border-studio-red border-t-transparent rounded-full animate-spin" />
               </div>
             ) : bookings.length === 0 ? (
-              <div className="py-12 text-center text-sm text-studio-cream/60">
+              <div className="py-12 text-center text-sm text-slate-400">
                 No hay reservas registradas para esta sesión. Pulsa en <strong>“Añadir Alumno”</strong> para registrar a alguien directamente en el tatami.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-studio-cream">
-                  <thead className="bg-studio-navy text-[10px] font-black uppercase tracking-widest text-studio-cream/70 border-b border-white/10">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200/80">
                     <tr>
                       <th className="py-3.5 px-4">Alumno</th>
                       <th className="py-3.5 px-4">Cinturón</th>
@@ -746,10 +746,10 @@ export const AttendanceAdminPage: React.FC = () => {
                           }`}
                         >
                           <td className="py-3.5 px-4">
-                            <span className="font-bold text-sm text-white block">
+                            <span className="font-bold text-sm text-slate-900 block">
                               {student.alias}
                             </span>
-                            <span className="text-[11px] text-studio-cream/60">
+                            <span className="text-[11px] text-slate-400">
                               {student.phone || 'Sin teléfono'}
                             </span>
                           </td>
@@ -759,7 +759,7 @@ export const AttendanceAdminPage: React.FC = () => {
                               <div className="w-16">
                                 <Belt belt={student.belt} stripes={student.stripes} decorative className="h-4" />
                               </div>
-                              <span className="text-[11px] font-semibold text-white">
+                              <span className="text-[11px] font-semibold text-slate-900">
                                 {beltLabelEs(student.belt)}
                               </span>
                             </div>
@@ -772,7 +772,7 @@ export const AttendanceAdminPage: React.FC = () => {
                                 handleChangeSessionType(booking, e.target.value as SessionType)
                               }
                               disabled={actionLoading === booking.id}
-                              className="bg-studio-navy text-white text-[11px] font-semibold px-2 py-1 rounded-lg border border-white/15 focus:outline-none"
+                              className="bg-slate-50 text-slate-900 text-[11px] font-semibold px-2 py-1 rounded-lg border border-slate-200 focus:outline-none"
                             >
                               <option value="PARTICIPANT">Participante (x1.0)</option>
                               <option value="OBSERVER">Observador / Lesionado (x0.5)</option>
@@ -781,7 +781,7 @@ export const AttendanceAdminPage: React.FC = () => {
                           </td>
 
                           <td className="py-3.5 px-4">
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-studio-cream/80 border border-white/10 uppercase">
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-600 border border-slate-200/80 uppercase">
                               {booking.checkInSource || 'APP'}
                             </span>
                           </td>
@@ -815,7 +815,7 @@ export const AttendanceAdminPage: React.FC = () => {
                                 disabled={actionLoading === booking.id}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition flex items-center gap-1 cursor-pointer ${
                                   isAttended
-                                    ? 'bg-white/10 hover:bg-white/15 text-studio-cream'
+                                    ? 'bg-white/10 hover:bg-white/15 text-slate-700'
                                     : 'bg-emerald-500 hover:bg-emerald-600 text-studio-navy shadow'
                                 }`}
                                 title={isAttended ? 'Deshacer check-in' : 'Confirmar check-in'}
@@ -857,37 +857,37 @@ export const AttendanceAdminPage: React.FC = () => {
       {/* ========================================================================= */}
       {viewMode === 'MONTHLY_REPORT' && (
         <div className="space-y-6">
-          <div className="bg-studio-navy-light p-5 rounded-2xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-studio-red" />
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-wider text-studio-cream/60">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
                   Mes del Informe
                 </label>
                 <input
                   type="month"
                   value={reportMonth}
                   onChange={(e) => setReportMonth(e.target.value)}
-                  className="bg-studio-navy text-white text-sm font-bold px-3 py-1.5 rounded-xl border border-white/15 focus:outline-none"
+                  className="bg-slate-50 text-slate-900 text-sm font-bold px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none"
                 />
               </div>
             </div>
 
             <button
               onClick={() => window.print()}
-              className="px-4 py-2.5 bg-studio-red hover:bg-studio-red-dark text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 self-start sm:self-auto shadow"
+              className="px-4 py-2.5 bg-studio-red hover:bg-studio-red-dark text-slate-900 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 self-start sm:self-auto shadow"
             >
               <Printer className="w-4 h-4" />
               <span>Imprimir Informe Oficial</span>
             </button>
           </div>
 
-          <div className="bg-studio-navy-light rounded-2xl border border-white/10 overflow-hidden shadow-xl">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <span className="font-display text-xl text-white">
+          <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xl">
+            <div className="p-4 border-b border-slate-200/80 flex items-center justify-between">
+              <span className="font-display text-xl text-slate-900">
                 Ranking de Asistencias y Puntos — {reportMonth}
               </span>
-              <span className="text-xs text-studio-cream/60">
+              <span className="text-xs text-slate-400">
                 {studentMonthlyAggregates.length} atletas activos
               </span>
             </div>
@@ -897,13 +897,13 @@ export const AttendanceAdminPage: React.FC = () => {
                 <div className="w-8 h-8 border-3 border-studio-red border-t-transparent rounded-full animate-spin" />
               </div>
             ) : studentMonthlyAggregates.length === 0 ? (
-              <div className="py-12 text-center text-sm text-studio-cream/60">
+              <div className="py-12 text-center text-sm text-slate-400">
                 No hay asistencias registradas en el mes seleccionado ({reportMonth}).
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-studio-cream">
-                  <thead className="bg-studio-navy text-[10px] font-black uppercase tracking-widest text-studio-cream/70 border-b border-white/10">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200/80">
                     <tr>
                       <th className="py-3.5 px-4">#</th>
                       <th className="py-3.5 px-4">Atleta</th>
@@ -916,26 +916,26 @@ export const AttendanceAdminPage: React.FC = () => {
                   <tbody className="divide-y divide-white/5">
                     {studentMonthlyAggregates.map((item, index) => (
                       <tr key={item.student.uid} className="hover:bg-white/[0.02] transition">
-                        <td className="py-3.5 px-4 font-mono font-bold text-studio-cream/60">
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-400">
                           {index + 1}
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="font-bold text-white text-sm block">
+                          <span className="font-bold text-slate-900 text-sm block">
                             {item.student.alias}
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="font-semibold text-studio-cream">
+                          <span className="font-semibold text-slate-700">
                             {beltLabelEs(item.student.belt)}, {item.student.stripes} grados
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-center font-display num text-lg text-white">
+                        <td className="py-3.5 px-4 text-center font-display num text-lg text-slate-900">
                           {item.totalAttendances}
                         </td>
                         <td className="py-3.5 px-4 text-center font-display num text-lg text-purple-400 font-bold">
                           {item.totalPoints.toFixed(1)}
                         </td>
-                        <td className="py-3.5 px-4 text-right font-mono text-[11px] text-studio-cream/70">
+                        <td className="py-3.5 px-4 text-right font-mono text-[11px] text-slate-500">
                           {item.participantCount} / {item.observerCount} / {item.graduationCount}
                         </td>
                       </tr>
@@ -953,14 +953,14 @@ export const AttendanceAdminPage: React.FC = () => {
       {/* ========================================================================= */}
       {addModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-studio-navy-light border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
-              <h3 className="font-display text-2xl text-white">
+          <div className="w-full max-w-lg bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200/80">
+              <h3 className="font-display text-2xl text-slate-900">
                 Añadir Alumno al Tatami
               </h3>
               <button
                 onClick={() => setAddModalOpen(false)}
-                className="p-1 rounded-lg text-studio-cream hover:text-white"
+                className="p-1 rounded-lg text-slate-700 hover:text-slate-900"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -968,24 +968,24 @@ export const AttendanceAdminPage: React.FC = () => {
 
             <div className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                   Buscar Atleta por Nombre
                 </label>
                 <div className="relative">
-                  <Search className="w-4 h-4 text-studio-cream/50 absolute left-3.5 top-3.5" />
+                  <Search className="w-4 h-4 text-slate-700/50 absolute left-3.5 top-3.5" />
                   <input
                     type="text"
                     value={addSearchTerm}
                     onChange={(e) => setAddSearchTerm(e.target.value)}
                     placeholder="Escribe el nombre del alumno..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-studio-navy border border-white/15 rounded-xl text-sm text-white focus:outline-none focus:border-studio-red"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
                     autoFocus
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                   Modalidad de Asistencia
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -994,8 +994,8 @@ export const AttendanceAdminPage: React.FC = () => {
                     onClick={() => setAddSessionType('PARTICIPANT')}
                     className={`p-2 rounded-xl text-xs font-bold border transition text-center ${
                       addSessionType === 'PARTICIPANT'
-                        ? 'bg-studio-red/20 border-studio-red text-white'
-                        : 'bg-studio-navy border-white/10 text-studio-cream/70'
+                        ? 'bg-studio-red/20 border-studio-red text-slate-900'
+                        : 'bg-slate-50 border-slate-200/80 text-slate-500'
                     }`}
                   >
                     Participante (1.0)
@@ -1005,8 +1005,8 @@ export const AttendanceAdminPage: React.FC = () => {
                     onClick={() => setAddSessionType('OBSERVER')}
                     className={`p-2 rounded-xl text-xs font-bold border transition text-center ${
                       addSessionType === 'OBSERVER'
-                        ? 'bg-studio-red/20 border-studio-red text-white'
-                        : 'bg-studio-navy border-white/10 text-studio-cream/70'
+                        ? 'bg-studio-red/20 border-studio-red text-slate-900'
+                        : 'bg-slate-50 border-slate-200/80 text-slate-500'
                     }`}
                   >
                     Observador (0.5)
@@ -1016,8 +1016,8 @@ export const AttendanceAdminPage: React.FC = () => {
                     onClick={() => setAddSessionType('GRADUATION_CLASS')}
                     className={`p-2 rounded-xl text-xs font-bold border transition text-center ${
                       addSessionType === 'GRADUATION_CLASS'
-                        ? 'bg-studio-red/20 border-studio-red text-white'
-                        : 'bg-studio-navy border-white/10 text-studio-cream/70'
+                        ? 'bg-studio-red/20 border-studio-red text-slate-900'
+                        : 'bg-slate-50 border-slate-200/80 text-slate-500'
                     }`}
                   >
                     Graduación (3.0)
@@ -1028,22 +1028,22 @@ export const AttendanceAdminPage: React.FC = () => {
               {/* Lista de resultados filtrados */}
               <div className="max-h-60 overflow-y-auto space-y-1.5 pt-2">
                 {filteredStudentsToAdd.length === 0 ? (
-                  <p className="text-center py-6 text-xs text-studio-cream/60">
+                  <p className="text-center py-6 text-xs text-slate-400">
                     {addSearchTerm ? 'No se encontraron alumnos con ese nombre.' : 'Escribe para buscar...'}
                   </p>
                 ) : (
                   filteredStudentsToAdd.slice(0, 8).map((st) => (
                     <div
                       key={st.uid}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-studio-navy border border-white/5 hover:border-white/20 transition"
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-12">
                           <Belt belt={st.belt} stripes={st.stripes} decorative className="h-3.5" />
                         </div>
                         <div>
-                          <span className="font-bold text-xs text-white block">{st.alias}</span>
-                          <span className="text-[10px] text-studio-cream/60">
+                          <span className="font-bold text-xs text-slate-900 block">{st.alias}</span>
+                          <span className="text-[10px] text-slate-400">
                             {beltLabelEs(st.belt)} • {st.stripes} grados
                           </span>
                         </div>

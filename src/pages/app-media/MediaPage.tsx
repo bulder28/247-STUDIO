@@ -63,15 +63,15 @@ export const MediaPage: React.FC = () => {
             <Image className="w-4 h-4" />
             <span>Galería Oficial</span>
           </div>
-          <h1 className="text-2xl font-black text-white uppercase tracking-wider">Media & Fotos</h1>
-          <p className="text-xs text-studio-cream/70 mt-1">
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-wider">Media & Fotos</h1>
+          <p className="text-xs text-slate-500 mt-1">
             Fotos y vídeos de entrenamientos, seminarios y graduaciones.
           </p>
         </div>
 
         <button
           onClick={() => alert('Función de subida activada para administradores y alumnos autorizados.')}
-          className="py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 border border-white/10 w-fit"
+          className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 border border-slate-200/80 w-fit"
         >
           <Upload className="w-4 h-4 text-studio-red" />
           <span>Compartir Foto / Vídeo</span>
@@ -87,7 +87,7 @@ export const MediaPage: React.FC = () => {
             className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition ${
               filter === d
                 ? 'bg-studio-red text-white shadow-md'
-                : 'bg-studio-navy-light border border-white/10 text-studio-cream/70 hover:text-white'
+                : 'bg-white border border-slate-200/80 text-slate-500 hover:text-white'
             }`}
           >
             {d}
@@ -100,7 +100,7 @@ export const MediaPage: React.FC = () => {
         {filteredItems.map((item) => (
           <div
             key={item.id}
-            className="rounded-2xl bg-studio-navy-light border border-white/10 overflow-hidden group hover:border-white/30 transition flex flex-col justify-between"
+            className="rounded-2xl bg-white border border-slate-200/80 overflow-hidden group hover:border-white/30 transition flex flex-col justify-between"
           >
             <div
               className={`h-48 bg-gradient-to-br ${item.thumbnailGradient} flex items-center justify-center relative p-4`}
@@ -111,21 +111,21 @@ export const MediaPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="w-12 h-12 rounded-full bg-black/40 text-white flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition">
-                  <Camera className="w-5 h-5 text-studio-cream" />
+                  <Camera className="w-5 h-5 text-slate-700" />
                 </div>
               )}
 
-              <span className="absolute top-3 right-3 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-black/60 text-white border border-white/10">
+              <span className="absolute top-3 right-3 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-black/60 text-white border border-slate-200/80">
                 {item.discipline}
               </span>
             </div>
 
             <div className="p-4 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-white group-hover:text-studio-red transition">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-studio-red transition">
                   {item.title}
                 </h3>
-                <span className="text-[11px] text-studio-cream/50">{item.date}</span>
+                <span className="text-[11px] text-slate-400">{item.date}</span>
               </div>
             </div>
           </div>

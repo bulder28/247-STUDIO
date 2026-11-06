@@ -55,8 +55,8 @@ export const AvisosPage: React.FC = () => {
           <Bell className="w-4 h-4" />
           <span>Tablón Oficial</span>
         </div>
-        <h1 className="text-2xl font-black text-white uppercase tracking-wider">Avisos y Comunicados</h1>
-        <p className="text-xs text-studio-cream/70 mt-1">
+        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-wider">Avisos y Comunicados</h1>
+        <p className="text-xs text-slate-500 mt-1">
           Avisos personalizados para tu perfil y comunicados oficiales de la academia.
         </p>
       </div>
@@ -68,7 +68,7 @@ export const AvisosPage: React.FC = () => {
           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition uppercase ${
             filter === 'all'
               ? 'bg-studio-red text-white'
-              : 'bg-white/5 text-studio-cream/70 hover:bg-white/10'
+              : 'bg-white/5 text-slate-500 hover:bg-white/10'
           }`}
         >
           Todos los avisos
@@ -78,7 +78,7 @@ export const AvisosPage: React.FC = () => {
           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition uppercase ${
             filter === 'personal'
               ? 'bg-studio-red text-white'
-              : 'bg-white/5 text-studio-cream/70 hover:bg-white/10'
+              : 'bg-white/5 text-slate-500 hover:bg-white/10'
           }`}
         >
           Mis avisos personales
@@ -88,7 +88,7 @@ export const AvisosPage: React.FC = () => {
           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition uppercase ${
             filter === 'general'
               ? 'bg-studio-red text-white'
-              : 'bg-white/5 text-studio-cream/70 hover:bg-white/10'
+              : 'bg-white/5 text-slate-500 hover:bg-white/10'
           }`}
         >
           Comunicados del centro
@@ -98,7 +98,7 @@ export const AvisosPage: React.FC = () => {
       {/* SECCIÓN 1: Avisos Personales (si aplican) */}
       {(filter === 'all' || filter === 'personal') && (
         <div className="space-y-3">
-          <h2 className="text-xs font-extrabold text-studio-cream uppercase tracking-wider flex items-center gap-2">
+          <h2 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-2">
             <span>Avisos Personales</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono">
               {(hasPendingPayment ? 1 : 0) + (hasWaiverPending ? 1 : 0) + 1}
@@ -109,8 +109,8 @@ export const AvisosPage: React.FC = () => {
             <div className="p-4 rounded-2xl bg-studio-red/15 border border-studio-red/40 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-studio-red shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-white">Cuota Mensual Pendiente de Regularización</h3>
-                <p className="text-xs text-studio-cream/80">
+                <h3 className="text-sm font-bold text-slate-900">Cuota Mensual Pendiente de Regularización</h3>
+                <p className="text-xs text-slate-600">
                   Tu cuota actual requiere validación. Puedes abonarla en metálico en recepción o mediante transferencia/Bizum para mantener activo tu acceso.
                 </p>
               </div>
@@ -121,19 +121,19 @@ export const AvisosPage: React.FC = () => {
             <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-start gap-3">
               <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-white">Consentimiento y Exención de Responsabilidad Pendiente</h3>
-                <p className="text-xs text-studio-cream/80">
+                <h3 className="text-sm font-bold text-slate-900">Consentimiento y Exención de Responsabilidad Pendiente</h3>
+                <p className="text-xs text-slate-600">
                   Por normativa del seguro deportivo, firma digitalmente la exención de responsabilidad desde tu sección de Perfil.
                 </p>
               </div>
             </div>
           )}
 
-          <div className="p-4 rounded-2xl bg-studio-navy-light/80 border border-white/10 flex items-start gap-3">
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/80 flex items-start gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white">Asistencia y Progresión Registrada</h3>
-              <p className="text-xs text-studio-cream/70">
+              <h3 className="text-sm font-bold text-slate-900">Asistencia y Progresión Registrada</h3>
+              <p className="text-xs text-slate-500">
                 Tu registro en la tablet de recepción está al día. Cada check-in acumula para tus horas de tatami y evaluación de grados.
               </p>
             </div>
@@ -144,7 +144,7 @@ export const AvisosPage: React.FC = () => {
       {/* SECCIÓN 2: Comunicados Generales */}
       {(filter === 'all' || filter === 'general') && (
         <div className="space-y-3">
-          <h2 className="text-xs font-extrabold text-studio-cream uppercase tracking-wider flex items-center gap-2">
+          <h2 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-2">
             <span>Comunicados Oficiales de 247Studio</span>
           </h2>
 
@@ -152,7 +152,7 @@ export const AvisosPage: React.FC = () => {
             {generalNotices.map((notice) => (
               <div
                 key={notice.id}
-                className="p-5 rounded-2xl bg-studio-navy-light border border-white/10 hover:border-white/20 transition space-y-2 relative"
+                className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-slate-200 transition space-y-2 relative"
               >
                 {notice.pinned && (
                   <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-studio-red mb-1">
@@ -161,16 +161,16 @@ export const AvisosPage: React.FC = () => {
                   </div>
                 )}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                  <h3 className="text-base font-extrabold text-white">{notice.title}</h3>
-                  <span className="text-[11px] text-studio-cream/60 flex items-center gap-1">
+                  <h3 className="text-base font-extrabold text-slate-900">{notice.title}</h3>
+                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
                     {notice.date}
                   </span>
                 </div>
-                <p className="text-xs text-studio-cream/80 leading-relaxed">{notice.message}</p>
-                <div className="pt-2 flex items-center justify-between text-[11px] text-studio-cream/50 border-t border-white/5">
+                <p className="text-xs text-slate-600 leading-relaxed">{notice.message}</p>
+                <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-100">
                   <span>Publicado por: <strong className="text-white">{notice.author}</strong></span>
-                  <span className="text-studio-cream/40">247Studio Academy</span>
+                  <span className="text-slate-700/40">247Studio Academy</span>
                 </div>
               </div>
             ))}

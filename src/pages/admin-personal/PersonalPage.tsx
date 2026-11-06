@@ -155,30 +155,30 @@ export const PersonalPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-wide text-white">BBDD Personal y Alumnos</h1>
-          <p className="text-xs text-studio-cream/70 mt-0.5">
+          <h1 className="text-2xl font-black uppercase tracking-wide text-slate-900">BBDD Personal y Alumnos</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
             Censo oficial de atletas de 247Studio, control de cinturones, grados y riesgo de retención.
           </p>
         </div>
 
         <Link
           to="/admin/alta-alumno"
-          className="py-3 px-5 bg-studio-red hover:bg-studio-red-dark text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 flex items-center justify-center gap-2"
+          className="py-3 px-5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 flex items-center justify-center gap-2"
         >
           <Plus className="w-4 h-4" /> Dar de Alta Alumno
         </Link>
       </div>
 
       {/* Barra de Filtros */}
-      <div className="bg-studio-navy-light/90 border border-white/10 rounded-2xl p-4 shadow-lg flex flex-col md:flex-row items-center gap-3">
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-lg flex flex-col md:flex-row items-center gap-3">
         <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-studio-cream/50 absolute left-3.5 top-3.5" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por alias, email o teléfono..."
-            className="w-full pl-10 pr-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-studio-red"
           />
         </div>
 
@@ -186,7 +186,7 @@ export const PersonalPage: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+            className="px-3 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
           >
             <option value="ALL">Todos los Estados</option>
             <option value="ACTIVE">Activos</option>
@@ -197,7 +197,7 @@ export const PersonalPage: React.FC = () => {
           <select
             value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value as any)}
-            className="px-3 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+            className="px-3 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
           >
             <option value="ALL">Todas las Tarifas</option>
             <option value="STD">Estándar (STD)</option>
@@ -213,10 +213,10 @@ export const PersonalPage: React.FC = () => {
           <div className="w-8 h-8 border-3 border-studio-red border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="bg-studio-navy-light/90 border border-white/10 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md">
+        <div className="bg-white border border-slate-200/80 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-studio-cream">
-              <thead className="bg-studio-navy text-[10px] font-black uppercase tracking-widest text-studio-cream/70 border-b border-white/10">
+            <table className="w-full text-left text-xs text-slate-700">
+              <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200/80">
                 <tr>
                   <th className="py-4 px-5">Atleta / Contacto</th>
                   <th className="py-4 px-4">Cinturón / Grados</th>
@@ -236,14 +236,14 @@ export const PersonalPage: React.FC = () => {
                   return (
                     <tr key={u.uid} className="hover:bg-white/[0.02] transition">
                       <td className="py-4 px-5">
-                        <div className="font-extrabold text-sm text-white">{u.alias}</div>
-                        <div className="text-[11px] text-studio-cream/70">{u.contactEmail}</div>
-                        <div className="text-[10px] text-studio-cream/50">{u.phone}</div>
+                        <div className="font-extrabold text-sm text-slate-900">{u.alias}</div>
+                        <div className="text-[11px] text-slate-500">{u.contactEmail}</div>
+                        <div className="text-[10px] text-slate-400">{u.phone}</div>
                       </td>
 
                       <td className="py-4 px-4">
-                        <span className="font-bold text-white uppercase">{u.belt}</span>
-                        <span className="text-studio-cream/60 block text-[11px]">
+                        <span className="font-bold text-slate-900 uppercase">{u.belt}</span>
+                        <span className="text-slate-400 block text-[11px]">
                           {u.stripes} {u.stripes === 1 ? 'grado' : 'grados'}
                         </span>
                       </td>
@@ -252,8 +252,8 @@ export const PersonalPage: React.FC = () => {
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
                             u.pricingTier === 'SF'
-                              ? 'bg-studio-red text-white'
-                              : 'bg-white/10 text-studio-cream'
+                              ? 'bg-slate-900 text-white'
+                              : 'bg-white/10 text-slate-700'
                           }`}
                         >
                           {u.pricingTier}
@@ -320,7 +320,7 @@ export const PersonalPage: React.FC = () => {
 
                         <button
                           onClick={() => openEditor(u)}
-                          className="px-2.5 py-1 bg-white/10 text-white rounded-lg font-bold text-[11px] hover:bg-white/20 transition"
+                          className="px-2.5 py-1 bg-white/10 text-slate-900 rounded-lg font-bold text-[11px] hover:bg-white/20 transition"
                         >
                           Grados & Stats
                         </button>
@@ -346,15 +346,15 @@ export const PersonalPage: React.FC = () => {
       {/* Modal Editor de Cinturón, Grados y 8 Atributos */}
       {selectedUser && editingStats && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="bg-studio-navy-light border border-white/20 rounded-3xl max-w-xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 mb-4">
               <div>
-                <h3 className="text-lg font-black text-white">{selectedUser.alias}</h3>
-                <span className="text-xs text-studio-cream/60">Editor Técnico y Ficha de Tatami</span>
+                <h3 className="text-lg font-black text-slate-900">{selectedUser.alias}</h3>
+                <span className="text-xs text-slate-400">Editor Técnico y Ficha de Tatami</span>
               </div>
               <button
                 onClick={() => setSelectedUser(null)}
-                className="p-1 rounded-full text-studio-cream/60 hover:text-white"
+                className="p-1 rounded-full text-slate-400 hover:text-slate-900"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -362,15 +362,15 @@ export const PersonalPage: React.FC = () => {
 
             <div className="space-y-4">
               {/* Selector de Cinturón y Grados */}
-              <div className="grid grid-cols-2 gap-3 bg-studio-navy p-3.5 rounded-2xl border border-white/5">
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-studio-cream mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                     Cinturón
                   </label>
                   <select
                     value={editingBelt}
                     onChange={(e) => setEditingBelt(e.target.value as Belt)}
-                    className="w-full px-3 py-2 bg-studio-navy-light border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
                   >
                     {adultBelts.map((b) => (
                       <option key={b} value={b}>
@@ -381,7 +381,7 @@ export const PersonalPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-studio-cream mb-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                     Grados (Stripes: 0 a 4)
                   </label>
                   <input
@@ -390,25 +390,25 @@ export const PersonalPage: React.FC = () => {
                     max={4}
                     value={editingStripes}
                     onChange={(e) => setEditingStripes(parseInt(e.target.value, 10) || 0)}
-                    className="w-full px-3 py-2 bg-studio-navy-light border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
                   />
                 </div>
               </div>
 
               {/* 8 Atributos Técnicos del Luchador (0 a 100) */}
               <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-studio-cream mb-2 flex items-center gap-1.5">
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5">
                   <Award className="w-4 h-4 text-studio-red" /> 8 Atributos del Atleta (247Studio)
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {(Object.keys(editingStats) as (keyof FighterStats)[]).map((key) => (
-                    <div key={key} className="bg-studio-navy p-3 rounded-xl border border-white/5">
+                    <div key={key} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="font-bold uppercase tracking-wider text-studio-cream text-[11px]">
+                        <span className="font-bold uppercase tracking-wider text-slate-700 text-[11px]">
                           {key}
                         </span>
-                        <span className="font-black text-white">{editingStats[key]}%</span>
+                        <span className="font-black text-slate-900">{editingStats[key]}%</span>
                       </div>
                       <input
                         type="range"
@@ -428,11 +428,11 @@ export const PersonalPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-6 flex gap-3 pt-3 border-t border-white/10">
+            <div className="mt-6 flex gap-3 pt-3 border-t border-slate-200/80">
               <button
                 type="button"
                 onClick={() => setSelectedUser(null)}
-                className="flex-1 py-2.5 rounded-xl border border-white/10 text-xs font-bold text-studio-cream hover:bg-white/5"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-700 hover:bg-white/5"
               >
                 Cancelar
               </button>
@@ -440,7 +440,7 @@ export const PersonalPage: React.FC = () => {
                 type="button"
                 disabled={saving}
                 onClick={handleSaveEditor}
-                className="flex-1 py-2.5 rounded-xl bg-studio-red hover:bg-studio-red-dark text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-studio-red/30 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-studio-red/30 flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

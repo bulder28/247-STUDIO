@@ -123,8 +123,8 @@ export const SchedulesAdminPage: React.FC = () => {
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-wide text-white">Configuración de Horarios</h1>
-          <p className="text-xs text-studio-cream/70 mt-0.5">
+          <h1 className="text-2xl font-black uppercase tracking-wide text-slate-900">Configuración de Horarios</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
             Parrilla semanal, cupos de tatami y excepciones de festivos.
           </p>
         </div>
@@ -147,7 +147,7 @@ export const SchedulesAdminPage: React.FC = () => {
 
       {/* Lista de Excepciones Activas */}
       {exceptions.length > 0 && (
-        <div className="bg-studio-navy-light border border-amber-500/30 rounded-2xl p-4 space-y-2">
+        <div className="bg-white border border-amber-500/30 rounded-2xl p-4 space-y-2">
           <span className="text-[11px] font-black uppercase tracking-wider text-amber-400 block">
             Excepciones de Calendario Registradas ({exceptions.length})
           </span>
@@ -155,15 +155,15 @@ export const SchedulesAdminPage: React.FC = () => {
             {exceptions.map((ex) => (
               <div
                 key={ex.id}
-                className="p-2.5 bg-studio-navy rounded-xl border border-white/5 flex items-center justify-between text-xs"
+                className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs"
               >
                 <div>
                   <span className="font-bold text-white block">{ex.date}</span>
-                  <span className="text-[11px] text-studio-cream/60">{ex.reason}</span>
+                  <span className="text-[11px] text-slate-400">{ex.reason}</span>
                 </div>
                 <button
                   onClick={() => handleDeleteException(ex.id)}
-                  className="p-1 text-studio-cream/50 hover:text-studio-red"
+                  className="p-1 text-slate-400 hover:text-studio-red"
                   title="Eliminar excepción"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -183,8 +183,8 @@ export const SchedulesAdminPage: React.FC = () => {
               key={s.id}
               className={`p-4 rounded-2xl border transition-all ${
                 s.active
-                  ? 'bg-studio-navy-light/90 border-white/10'
-                  : 'bg-studio-navy/40 border-white/5 opacity-50'
+                  ? 'bg-white border-slate-200/80'
+                  : 'bg-slate-50 border-slate-100 opacity-50'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
@@ -196,9 +196,9 @@ export const SchedulesAdminPage: React.FC = () => {
                 </span>
               </div>
 
-              <h3 className="font-black text-sm text-white mb-2">{s.program}</h3>
+              <h3 className="font-black text-sm text-slate-900 mb-2">{s.program}</h3>
 
-              <div className="flex items-center justify-between text-xs text-studio-cream/70 pt-2 border-t border-white/5">
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
                 <span className="flex items-center gap-1 font-semibold">
                   <User className="w-3.5 h-3.5 text-studio-red" /> {s.professor}
                 </span>
@@ -212,7 +212,7 @@ export const SchedulesAdminPage: React.FC = () => {
                   onClick={() => handleToggleActive(s)}
                   className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition ${
                     s.active
-                      ? 'bg-white/5 hover:bg-studio-red/20 text-studio-cream/70 hover:text-studio-red'
+                      ? 'bg-white/5 hover:bg-studio-red/20 text-slate-500 hover:text-studio-red'
                       : 'bg-emerald-500/20 text-emerald-400'
                   }`}
                 >
@@ -226,21 +226,21 @@ export const SchedulesAdminPage: React.FC = () => {
       {/* Modal Nueva Clase */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-studio-navy-light border border-white/20 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-sm uppercase text-white">Nueva Franja Horaria</h3>
-              <button onClick={() => setShowScheduleModal(false)} className="text-studio-cream/60 hover:text-white">
+              <h3 className="font-black text-sm uppercase text-slate-900">Nueva Franja Horaria</h3>
+              <button onClick={() => setShowScheduleModal(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateSchedule} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Día</label>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Día</label>
                 <select
                   value={schedForm.dayOfWeek}
                   onChange={(e) => setSchedForm({ ...schedForm, dayOfWeek: parseInt(e.target.value, 10) })}
-                  className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                 >
                   <option value={1}>Lunes</option>
                   <option value={2}>Martes</option>
@@ -252,53 +252,53 @@ export const SchedulesAdminPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Inicio</label>
+                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Inicio</label>
                   <input
                     type="time"
                     value={schedForm.startTime}
                     onChange={(e) => setSchedForm({ ...schedForm, startTime: e.target.value })}
-                    className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Fin</label>
+                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Fin</label>
                   <input
                     type="time"
                     value={schedForm.endTime}
                     onChange={(e) => setSchedForm({ ...schedForm, endTime: e.target.value })}
-                    className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Programa</label>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Programa</label>
                 <input
                   type="text"
                   value={schedForm.program}
                   onChange={(e) => setSchedForm({ ...schedForm, program: e.target.value })}
                   placeholder="GI / GRAPPLING / MMA / KIDS 1"
-                  className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Profesor</label>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Profesor</label>
                 <input
                   type="text"
                   value={schedForm.professor}
                   onChange={(e) => setSchedForm({ ...schedForm, professor: e.target.value })}
-                  className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Aforo Orientativo</label>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Aforo Orientativo</label>
                 <input
                   type="number"
                   value={schedForm.capacity}
                   onChange={(e) => setSchedForm({ ...schedForm, capacity: parseInt(e.target.value, 10) })}
-                  className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                 />
               </div>
 
@@ -306,7 +306,7 @@ export const SchedulesAdminPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowScheduleModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-xs font-bold text-studio-cream"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-700"
                 >
                   Cancelar
                 </button>
@@ -325,33 +325,33 @@ export const SchedulesAdminPage: React.FC = () => {
       {/* Modal Nueva Excepción */}
       {showExceptionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-studio-navy-light border border-white/20 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-sm uppercase text-white">Excepción de Calendario</h3>
-              <button onClick={() => setShowExceptionModal(false)} className="text-studio-cream/60 hover:text-white">
+              <h3 className="font-black text-sm uppercase text-slate-900">Excepción de Calendario</h3>
+              <button onClick={() => setShowExceptionModal(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateException} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Fecha (YYYY-MM-DD)</label>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Fecha (YYYY-MM-DD)</label>
                 <input
                   type="date"
                   required
                   value={excForm.date}
                   onChange={(e) => setExcForm({ ...excForm, date: e.target.value })}
-                  className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Clase Afectada</label>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Clase Afectada</label>
                 <select
                   required
                   value={excForm.scheduleId}
                   onChange={(e) => setExcForm({ ...excForm, scheduleId: e.target.value })}
-                  className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                 >
                   <option value="">Selecciona una franja</option>
                   {schedules.map((s) => (
@@ -363,14 +363,14 @@ export const SchedulesAdminPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase text-studio-cream mb-1">Causa</label>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Causa</label>
                 <input
                   type="text"
                   required
                   value={excForm.reason}
                   onChange={(e) => setExcForm({ ...excForm, reason: e.target.value })}
                   placeholder="Festivo / Seminario / Reparación tatami"
-                  className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
                 />
               </div>
 
@@ -378,7 +378,7 @@ export const SchedulesAdminPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowExceptionModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-xs font-bold text-studio-cream"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-700"
                 >
                   Cancelar
                 </button>

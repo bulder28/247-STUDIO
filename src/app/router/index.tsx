@@ -18,6 +18,9 @@ const LoginPage = React.lazy(() =>
 const HomePage = React.lazy(() =>
   import('@/pages/app-home/HomePage').then((m) => ({ default: m.HomePage }))
 );
+const AttendanceHistoryPage = React.lazy(() =>
+  import('@/pages/app-historial/AttendanceHistoryPage').then((m) => ({ default: m.AttendanceHistoryPage }))
+);
 const SchedulePage = React.lazy(() =>
   import('@/pages/app-horario/SchedulePage').then((m) => ({ default: m.SchedulePage }))
 );
@@ -159,6 +162,14 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <SchedulePage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'historial',
+        element: (
+          <LazyRoute>
+            <AttendanceHistoryPage />
           </LazyRoute>
         ),
       },

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
 import {
+  Activity,
   Bell,
   Calendar,
   CreditCard,
@@ -29,6 +30,7 @@ export const AppLayout: React.FC = () => {
   const getPageTitle = () => {
     const path = location.pathname;
     if (path.includes('/app/home')) return 'Bienvenido';
+    if (path.includes('/app/historial')) return 'Historial & Asistencia';
     if (path.includes('/app/horario')) return 'Mi Calendario & Horarios';
     if (path.includes('/app/perfil')) return 'Personal Info';
     if (path.includes('/app/programas')) return 'Programas & Tarifas';
@@ -47,6 +49,7 @@ export const AppLayout: React.FC = () => {
     {
       title: 'ENTRENAMIENTO',
       items: [
+        { to: '/app/historial', label: 'Historial', icon: Activity, badge: null },
         { to: '/app/horario', label: 'Mi Calendario', icon: Calendar, badge: null },
         { to: '/app/programas', label: 'Programas & Tarifas', icon: CreditCard, badge: null },
       ],

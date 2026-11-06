@@ -92,28 +92,28 @@ export const ForoPage: React.FC = () => {
           <MessageSquare className="w-4 h-4" />
           <span>Comunidad & Foro</span>
         </div>
-        <h1 className="text-2xl font-black text-white uppercase tracking-wider">Foro de la Academia</h1>
-        <p className="text-xs text-studio-cream/70 mt-1">
+        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-wider">Foro de la Academia</h1>
+        <p className="text-xs text-slate-500 mt-1">
           Publica preguntas, avisos de tatami o drills filtrados por disciplina.
         </p>
       </div>
 
       {/* Formulario de Nueva Publicación (Diseño Slide 9) */}
-      <div className="p-5 rounded-2xl bg-studio-navy-light border border-white/10 space-y-4">
-        <h2 className="text-xs font-black uppercase tracking-wider text-studio-cream">
+      <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-4">
+        <h2 className="text-xs font-black uppercase tracking-wider text-slate-700">
           Crear Nuevo Mensaje
         </h2>
 
         <form onSubmit={handleCreatePost} className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-1">
-              <label className="block text-[11px] font-bold text-studio-cream/70 uppercase mb-1">
+              <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
                 Seleccione Disciplina
               </label>
               <select
                 value={newPostDiscipline}
                 onChange={(e) => setNewPostDiscipline(e.target.value as DisciplineFilter)}
-                className="w-full px-3 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-studio-red"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-studio-red"
               >
                 {DISCIPLINES.filter((d) => d !== 'TODAS').map((disc) => (
                   <option key={disc} value={disc}>
@@ -124,7 +124,7 @@ export const ForoPage: React.FC = () => {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-[11px] font-bold text-studio-cream/70 uppercase mb-1">
+              <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
                 Escriba el Texto
               </label>
               <textarea
@@ -132,7 +132,7 @@ export const ForoPage: React.FC = () => {
                 onChange={(e) => setNewPostText(e.target.value)}
                 placeholder="Escribe tu mensaje para los compañeros o instructores..."
                 rows={2}
-                className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red resize-none"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-studio-red resize-none"
               />
             </div>
           </div>
@@ -153,10 +153,10 @@ export const ForoPage: React.FC = () => {
       {/* Filtros por disciplina */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-studio-cream/60">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
             Filtrar por disciplina:
           </span>
-          <span className="text-[11px] text-studio-cream/50">
+          <span className="text-[11px] text-slate-400">
             {filteredPosts.length} publicaciones
           </span>
         </div>
@@ -169,7 +169,7 @@ export const ForoPage: React.FC = () => {
               className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition ${
                 selectedDiscipline === d
                   ? 'bg-studio-red text-white shadow-md'
-                  : 'bg-studio-navy-light border border-white/10 text-studio-cream/70 hover:text-white hover:bg-white/5'
+                  : 'bg-white border border-slate-200/80 text-slate-500 hover:text-white hover:bg-white/5'
               }`}
             >
               {d}
@@ -183,7 +183,7 @@ export const ForoPage: React.FC = () => {
         {filteredPosts.map((post) => (
           <div
             key={post.id}
-            className="p-5 rounded-2xl bg-studio-navy-light border border-white/10 hover:border-white/20 transition space-y-3"
+            className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-slate-200 transition space-y-3"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -193,20 +193,20 @@ export const ForoPage: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-extrabold text-white">{post.author}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-studio-cream/80 font-bold">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-slate-600 font-bold">
                       {post.discipline}
                     </span>
                   </div>
-                  <span className="text-[11px] text-studio-cream/50 block">{post.belt}</span>
+                  <span className="text-[11px] text-slate-400 block">{post.belt}</span>
                 </div>
               </div>
 
-              <span className="text-[11px] text-studio-cream/40">{post.date}</span>
+              <span className="text-[11px] text-slate-700/40">{post.date}</span>
             </div>
 
-            <p className="text-xs text-studio-cream/90 leading-relaxed">{post.content}</p>
+            <p className="text-xs text-slate-700/90 leading-relaxed">{post.content}</p>
 
-            <div className="pt-2 flex items-center gap-4 text-xs text-studio-cream/60 border-t border-white/5">
+            <div className="pt-2 flex items-center gap-4 text-xs text-slate-400 border-t border-slate-100">
               <button
                 onClick={() =>
                   setPosts(

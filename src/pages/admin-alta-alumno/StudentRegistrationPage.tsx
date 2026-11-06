@@ -153,7 +153,7 @@ export const StudentRegistrationPage: React.FC = () => {
       {/* Botón Volver */}
       <Link
         to="/admin/personal"
-        className="inline-flex items-center gap-2 text-xs font-bold text-studio-cream/70 hover:text-white transition"
+        className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-white transition"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Volver a BBDD Personal</span>
@@ -165,20 +165,20 @@ export const StudentRegistrationPage: React.FC = () => {
           <UserPlus className="w-4 h-4" />
           <span>Gestión de Membresías</span>
         </div>
-        <h1 className="text-2xl font-black text-white uppercase tracking-wider">Alta de Nuevo Alumno</h1>
-        <p className="text-xs text-studio-cream/70 mt-1">
+        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-wider">Alta de Nuevo Alumno</h1>
+        <p className="text-xs text-slate-500 mt-1">
           Registro presencial de atletas adultos y menores con cálculo automático de categoría y sincronización segura con la tablet de recepción.
         </p>
       </div>
 
       {/* Mensaje de Éxito */}
       {successUid ? (
-        <div className="p-8 rounded-3xl bg-studio-navy-light border border-emerald-500/30 text-center space-y-4">
+        <div className="p-8 rounded-3xl bg-white border border-emerald-500/30 text-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
             <CheckCircle2 className="w-10 h-10" />
           </div>
-          <h2 className="text-xl font-black uppercase text-white">¡Alumno Registrado con Éxito!</h2>
-          <p className="text-xs text-studio-cream/80 max-w-md mx-auto">
+          <h2 className="text-xl font-black uppercase text-slate-900">¡Alumno Registrado con Éxito!</h2>
+          <p className="text-xs text-slate-600 max-w-md mx-auto">
             El perfil de <strong className="text-white">{formData.alias}</strong> ha sido dado de alta como <strong>ACTIVE</strong> y ya está sincronizado con la tablet de recepción para hacer check-in inmediato.
           </p>
 
@@ -206,7 +206,7 @@ export const StudentRegistrationPage: React.FC = () => {
                   waiverMethod: 'PAPER',
                 });
               }}
-              className="py-2.5 px-5 bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition"
+              className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs uppercase tracking-wider rounded-xl transition"
             >
               Registrar Otro Alumno
             </button>
@@ -228,15 +228,15 @@ export const StudentRegistrationPage: React.FC = () => {
           )}
 
           {/* Bloque 1: Datos Personales */}
-          <div className="p-6 rounded-3xl bg-studio-navy-light border border-white/10 space-y-4">
-            <h2 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+          <div className="p-6 rounded-3xl bg-white border border-slate-200/80 space-y-4">
+            <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
               <User className="w-4 h-4 text-studio-red" />
               <span>1. Datos del Atleta</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                   Nombre Completo / Alias *
                 </label>
                 <input
@@ -246,12 +246,12 @@ export const StudentRegistrationPage: React.FC = () => {
                   value={formData.alias}
                   onChange={handleChange}
                   placeholder="Ej: Marcos Silva"
-                  className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                   Fecha de Nacimiento *
                 </label>
                 <input
@@ -260,10 +260,10 @@ export const StudentRegistrationPage: React.FC = () => {
                   required
                   value={formData.birthDate}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
                 />
                 {age !== null && (
-                  <span className="text-[11px] font-bold mt-1 block text-studio-cream/70">
+                  <span className="text-[11px] font-bold mt-1 block text-slate-500">
                     Edad calculada: <strong className="text-white">{age} años</strong> · Categoría:{' '}
                     <strong className={isMinor ? 'text-amber-400' : 'text-emerald-400'}>
                       {isMinor ? 'Menor (< 16 años)' : 'Adulto (≥ 16 años)'}
@@ -273,7 +273,7 @@ export const StudentRegistrationPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                   Teléfono de Contacto
                 </label>
                 <input
@@ -282,12 +282,12 @@ export const StudentRegistrationPage: React.FC = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="+34 600 000 000"
-                  className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                   Correo Electrónico
                 </label>
                 <input
@@ -296,7 +296,7 @@ export const StudentRegistrationPage: React.FC = () => {
                   value={formData.contactEmail}
                   onChange={handleChange}
                   placeholder="alumno@ejemplo.com"
-                  className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
                 />
               </div>
             </div>
@@ -309,13 +309,13 @@ export const StudentRegistrationPage: React.FC = () => {
                 <Shield className="w-4 h-4" />
                 <span>2. Tutor Legal Responsable (Obligatorio para menores)</span>
               </h2>
-              <p className="text-xs text-studio-cream/80">
+              <p className="text-xs text-slate-600">
                 Por normativa RGPD y responsabilidad deportiva, los datos del padre, madre o tutor legal son obligatorios para el acceso a tatami.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                     Nombre del Tutor *
                   </label>
                   <input
@@ -325,12 +325,12 @@ export const StudentRegistrationPage: React.FC = () => {
                     value={formData.guardianName}
                     onChange={handleChange}
                     placeholder="Nombre y apellidos del padre/madre"
-                    className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-400"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                     Teléfono del Tutor *
                   </label>
                   <input
@@ -340,12 +340,12 @@ export const StudentRegistrationPage: React.FC = () => {
                     value={formData.guardianPhone}
                     onChange={handleChange}
                     placeholder="+34 600 000 000"
-                    className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-400"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                     DNI / NIE del Tutor
                   </label>
                   <input
@@ -354,12 +354,12 @@ export const StudentRegistrationPage: React.FC = () => {
                     value={formData.guardianDni}
                     onChange={handleChange}
                     placeholder="12345678Z"
-                    className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-400"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                     Email del Tutor
                   </label>
                   <input
@@ -368,7 +368,7 @@ export const StudentRegistrationPage: React.FC = () => {
                     value={formData.guardianEmail}
                     onChange={handleChange}
                     placeholder="tutor@ejemplo.com"
-                    className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-400"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
                   />
                 </div>
               </div>
@@ -376,22 +376,22 @@ export const StudentRegistrationPage: React.FC = () => {
           )}
 
           {/* Bloque 3: Cinturón y Tarifa */}
-          <div className="p-6 rounded-3xl bg-studio-navy-light border border-white/10 space-y-4">
-            <h2 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+          <div className="p-6 rounded-3xl bg-white border border-slate-200/80 space-y-4">
+            <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
               <UserCheck className="w-4 h-4 text-studio-red" />
               <span>{isMinor ? '3' : '2'}. Graduación y Plan</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                   Cinturón Inicial
                 </label>
                 <select
                   name="belt"
                   value={formData.belt}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
                 >
                   <option value="WHITE">Blanco</option>
                   <option value="BLUE">Azul</option>
@@ -402,14 +402,14 @@ export const StudentRegistrationPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                   Grados (Stripes)
                 </label>
                 <select
                   name="stripes"
                   value={formData.stripes}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
                 >
                   <option value={0}>0 grados</option>
                   <option value={1}>1 grado</option>
@@ -420,14 +420,14 @@ export const StudentRegistrationPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-studio-cream mb-1">
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
                   Modalidad de Cuota (Pricing Tier)
                 </label>
                 <select
                   name="pricingTier"
                   value={formData.pricingTier}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
                 >
                   <option value="STD">Estándar (STD)</option>
                   <option value="SF">Socio Fundador (SF)</option>
@@ -438,8 +438,8 @@ export const StudentRegistrationPage: React.FC = () => {
           </div>
 
           {/* Bloque 4: Exención de Responsabilidad (Waiver) */}
-          <div className="p-6 rounded-3xl bg-studio-navy-light border border-white/10 space-y-4">
-            <h2 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+          <div className="p-6 rounded-3xl bg-white border border-slate-200/80 space-y-4">
+            <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
               <FileCheck2 className="w-4 h-4 text-studio-red" />
               <span>{isMinor ? '4' : '3'}. Exención de Responsabilidad (Waiver)</span>
             </h2>
@@ -449,7 +449,7 @@ export const StudentRegistrationPage: React.FC = () => {
                 className={`p-4 rounded-2xl border cursor-pointer transition flex items-start gap-3 ${
                   formData.waiverMethod === 'PAPER'
                     ? 'bg-studio-red/15 border-studio-red text-white'
-                    : 'bg-studio-navy border-white/10 text-studio-cream/70'
+                    : 'bg-slate-50 border-slate-200/80 text-slate-500'
                 }`}
               >
                 <input
@@ -462,7 +462,7 @@ export const StudentRegistrationPage: React.FC = () => {
                 />
                 <div>
                   <span className="text-xs font-black uppercase block">Firmado en Papel en el Gym</span>
-                  <p className="text-[11px] text-studio-cream/70 mt-1">
+                  <p className="text-[11px] text-slate-500 mt-1">
                     El alumno ha firmado físicamente el documento en recepción. Quedará validado de inmediato.
                   </p>
                 </div>
@@ -472,7 +472,7 @@ export const StudentRegistrationPage: React.FC = () => {
                 className={`p-4 rounded-2xl border cursor-pointer transition flex items-start gap-3 ${
                   formData.waiverMethod === 'DIGITAL_APP'
                     ? 'bg-studio-red/15 border-studio-red text-white'
-                    : 'bg-studio-navy border-white/10 text-studio-cream/70'
+                    : 'bg-slate-50 border-slate-200/80 text-slate-500'
                 }`}
               >
                 <input
@@ -485,7 +485,7 @@ export const StudentRegistrationPage: React.FC = () => {
                 />
                 <div>
                   <span className="text-xs font-black uppercase block">Firma Digital en la App</span>
-                  <p className="text-[11px] text-studio-cream/70 mt-1">
+                  <p className="text-[11px] text-slate-500 mt-1">
                     El alumno firmará digitalmente con el dedo en su móvil al iniciar sesión en la PWA.
                   </p>
                 </div>
@@ -498,7 +498,7 @@ export const StudentRegistrationPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/admin/personal')}
-              className="py-3 px-6 bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition"
+              className="py-3 px-6 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs uppercase tracking-wider rounded-xl transition"
             >
               Cancelar
             </button>
