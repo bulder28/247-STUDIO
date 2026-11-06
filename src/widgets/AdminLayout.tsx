@@ -27,13 +27,15 @@ export const AdminLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-studio-navy flex flex-col md:flex-row">
       {/* Sidebar Desktop */}
-      <aside className="w-full md:w-64 bg-studio-navy-light/95 border-b md:border-b-0 md:border-r border-white/10 p-5 flex flex-col justify-between">
+      <aside className="w-full md:w-64 lg:w-72 bg-[#0c0f24] border-b md:border-b-0 md:border-r border-white/10 p-5 flex flex-col justify-between shrink-0">
         <div>
           <div className="flex items-center gap-3 pb-6 border-b border-white/10">
-            <img src="/logo.svg" alt="247Studio" className="w-9 h-9 rounded-xl shadow" />
+            <img src="/logo.svg" alt="247Studio" className="w-10 h-10 rounded-xl shadow" />
             <div>
               <span className="font-black text-sm tracking-widest uppercase text-white block">247Studio</span>
-              <span className="text-[10px] text-studio-red font-bold block tracking-wider uppercase">Panel de Control</span>
+              <span className="text-[10px] text-studio-red font-black block tracking-wider uppercase bg-studio-red/10 px-2 py-0.5 rounded-full inline-block border border-studio-red/20">
+                Área Administrador
+              </span>
             </div>
           </div>
 
@@ -61,6 +63,14 @@ export const AdminLayout: React.FC = () => {
         </div>
 
         <div className="mt-8 pt-4 border-t border-white/10 flex flex-col gap-2">
+          <NavLink
+            to="/app/home"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-studio-cream/80 hover:bg-white/5 hover:text-white border border-white/10 transition"
+          >
+            <Shield className="w-4 h-4 text-studio-red" />
+            <span>Ver como Alumno</span>
+          </NavLink>
+
           <NavLink
             to="/kiosk/check-in"
             className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-studio-cream/80 hover:bg-white/5 hover:text-white border border-white/10 transition"

@@ -27,6 +27,18 @@ const ProgramsPage = React.lazy(() =>
 const ProfilePage = React.lazy(() =>
   import('@/pages/app-perfil/ProfilePage').then((m) => ({ default: m.ProfilePage }))
 );
+const AvisosPage = React.lazy(() =>
+  import('@/pages/app-avisos/AvisosPage').then((m) => ({ default: m.AvisosPage }))
+);
+const ForoPage = React.lazy(() =>
+  import('@/pages/app-foro/ForoPage').then((m) => ({ default: m.ForoPage }))
+);
+const FaqsPage = React.lazy(() =>
+  import('@/pages/app-faqs/FaqsPage').then((m) => ({ default: m.FaqsPage }))
+);
+const MediaPage = React.lazy(() =>
+  import('@/pages/app-media/MediaPage').then((m) => ({ default: m.MediaPage }))
+);
 const PersonalPage = React.lazy(() =>
   import('@/pages/admin-personal/PersonalPage').then((m) => ({ default: m.PersonalPage }))
 );
@@ -138,6 +150,38 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <ProfilePage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'avisos',
+        element: (
+          <LazyRoute>
+            <AvisosPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'foro',
+        element: (
+          <LazyRoute>
+            <ForoPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'faqs',
+        element: (
+          <LazyRoute>
+            <FaqsPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'media',
+        element: (
+          <LazyRoute>
+            <MediaPage />
           </LazyRoute>
         ),
       },
