@@ -17,6 +17,7 @@ import {
   CheckCheck,
   ChevronLeft,
   ChevronRight,
+  Download,
   FileText,
   Plus,
   Printer,
@@ -431,6 +432,51 @@ export const AttendanceAdminPage: React.FC = () => {
       graduationCount,
     };
   }).filter((item) => item.totalAttendances > 0).sort((a, b) => b.totalPoints - a.totalPoints);
+
+  const handleExportCsv = () => {
+    if (studentMonthlyAggregates.length === 0) {
+      alert('No hay datos de asistencia para exportar en el mes seleccionado.');
+      return;
+    }
+
+    const headers = [
+      'Posición',
+      'Alumno',
+      'Cinturón',
+      'Grados',
+      'Total Clases',
+      'Puntos Graduación',
+      'Participante',
+      'Observador',
+      'Graduación',
+    ];
+
+    const rows = studentMonthlyAggregates.map((item, index) => [
+      index + 1,
+      `"${item.student.alias.replace(/"/g, '""')}"`,
+      `"${beltLabelEs(item.student.belt)}"`,
+      item.student.stripes,
+      item.totalAttendances,
+      item.totalPoints.toFixed(1),
+      item.participantCount,
+      item.observerCount,
+      item.graduationCount,
+    ]);
+
+    const csvContent =
+      '\ufeff' +
+      [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `247studio_asistencias_${reportMonth}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
@@ -873,13 +919,24 @@ export const AttendanceAdminPage: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => window.print()}
-              className="px-4 py-2.5 bg-studio-red hover:bg-studio-red-dark text-slate-900 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 self-start sm:self-auto shadow"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Imprimir Informe Oficial</span>
-            </button>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="px-4 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow cursor-pointer transition"
+              >
+                <Download className="w-4 h-4" />
+                <span>Exportar CSV</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2.5 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow cursor-pointer transition"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Imprimir Informe</span>
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xl">

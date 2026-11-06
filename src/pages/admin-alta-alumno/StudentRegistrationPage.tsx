@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   FileCheck2,
+  PenTool,
   Shield,
   User,
   UserCheck,
@@ -15,6 +16,31 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { calculateExactAge, isLegalMinor } from '@/shared/domain/minor';
 import { Belt, BeltSystem, PricingTier } from '@/shared/domain/types';
+import { WaiverSignatureModal } from '@/widgets/WaiverSignatureModal';
+
+const KIDS_BELTS: { value: Belt; label: string }[] = [
+  { value: 'WHITE', label: 'Blanco' },
+  { value: 'GREY_WHITE', label: 'Gris y Blanco' },
+  { value: 'GREY', label: 'Gris' },
+  { value: 'GREY_BLACK', label: 'Gris y Negro' },
+  { value: 'YELLOW_WHITE', label: 'Amarillo y Blanco' },
+  { value: 'YELLOW', label: 'Amarillo' },
+  { value: 'YELLOW_BLACK', label: 'Amarillo y Negro' },
+  { value: 'ORANGE_WHITE', label: 'Naranja y Blanco' },
+  { value: 'ORANGE', label: 'Naranja' },
+  { value: 'ORANGE_BLACK', label: 'Naranja y Negro' },
+  { value: 'GREEN_WHITE', label: 'Verde y Blanco' },
+  { value: 'GREEN', label: 'Verde' },
+  { value: 'GREEN_BLACK', label: 'Verde y Negro' },
+];
+
+const ADULT_BELTS: { value: Belt; label: string }[] = [
+  { value: 'WHITE', label: 'Blanco' },
+  { value: 'BLUE', label: 'Azul' },
+  { value: 'PURPLE', label: 'Morado' },
+  { value: 'BROWN', label: 'Marrón' },
+  { value: 'BLACK', label: 'Negro' },
+];
 
 export const StudentRegistrationPage: React.FC = () => {
   const navigate = useNavigate();
@@ -38,11 +64,14 @@ export const StudentRegistrationPage: React.FC = () => {
     guardianPhone: '',
     guardianEmail: '',
     guardianDni: '',
+    guardianUid: searchParams.get('guardianUid') || '',
     medicalNotes: '',
     medicalConsent: true,
-    waiverMethod: 'PAPER', // 'PAPER' | 'DIGITAL_APP'
+    waiverMethod: 'PAPER' as 'PAPER' | 'DIGITAL_APP' | 'DIGITAL_TABLET',
   });
 
+  const [tabletWaiverSvg, setTabletWaiverSvg] = useState<string | null>(null);
+  const [showWaiverModal, setShowWaiverModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [successUid, setSuccessUid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +84,11 @@ export const StudentRegistrationPage: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleTabletWaiverConfirmed = async (svgContent: string) => {
+    setTabletWaiverSvg(svgContent);
+    setFormData((prev) => ({ ...prev, waiverMethod: 'DIGITAL_TABLET' }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,8 +104,11 @@ export const StudentRegistrationPage: React.FC = () => {
         throw new Error('Para atletas menores de 16 años es obligatorio registrar el tutor legal (nombre y teléfono).');
       }
 
+      if (formData.waiverMethod === 'DIGITAL_TABLET' && !tabletWaiverSvg) {
+        throw new Error('Has seleccionado firmar en tablet, pero aún no se ha estampado la firma. Pulsa en "Estampar Firma Ahora".');
+      }
+
       const uid = `usr_${Date.now()}`;
-      const isPaperWaiver = formData.waiverMethod === 'PAPER';
       const adminUid = adminAuthUser?.uid || 'admin_presencial';
 
       // 1. Guardar documento maestro en users/{uid}
@@ -89,6 +126,7 @@ export const StudentRegistrationPage: React.FC = () => {
         guardianPhone: isMinor ? formData.guardianPhone : undefined,
         guardianDni: isMinor ? formData.guardianDni : undefined,
         guardianEmail: isMinor ? formData.guardianEmail : undefined,
+        guardianUid: isMinor ? (formData.guardianUid?.trim() || undefined) : undefined,
         beltSystem,
         belt: formData.belt,
         stripes: Number(formData.stripes),
@@ -118,10 +156,15 @@ export const StudentRegistrationPage: React.FC = () => {
         userPayload.medicalConsentVersion = 'v1.0';
       }
 
-      if (isPaperWaiver) {
+      if (formData.waiverMethod === 'PAPER') {
         userPayload.waiverVersion = 'PAPER_PRESENCIAL_V1';
         userPayload.waiverSignedAt = now.toISOString();
         userPayload.waiverSignedByUid = adminUid;
+      } else if (formData.waiverMethod === 'DIGITAL_TABLET' && tabletWaiverSvg) {
+        userPayload.waiverVersion = 'TABLET_PRESENCIAL_V1';
+        userPayload.waiverSignedAt = now.toISOString();
+        userPayload.waiverSignatureSvg = tabletWaiverSvg;
+        userPayload.waiverSignedByUid = isMinor ? (formData.guardianUid || adminUid) : adminUid;
       }
 
       await setDoc(doc(db, 'users', uid), userPayload);
@@ -159,41 +202,49 @@ export const StudentRegistrationPage: React.FC = () => {
     }
   };
 
+  const beltOptions = isMinor ? KIDS_BELTS : ADULT_BELTS;
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12 animate-in fade-in duration-200">
       {/* Botón Volver */}
       <Link
         to="/admin/personal"
-        className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-white transition"
+        className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Volver a BBDD Personal</span>
       </Link>
 
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 text-studio-red text-xs font-black uppercase tracking-wider mb-1">
-          <UserPlus className="w-4 h-4" />
-          <span>Gestión de Membresías</span>
+      {/* Cabecera */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <UserPlus className="w-7 h-7 text-brand-accent" />
+            <span>Alta Presencial de Alumno</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+            Registro de nuevo miembro en recepción (Adultos o Menores con tutor legal según RGPD).
+          </p>
         </div>
-        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-wider">Alta de Nuevo Alumno</h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Registro presencial de atletas adultos y menores con cálculo automático de categoría y sincronización segura con la tablet de recepción.
-        </p>
       </div>
 
-      {/* Mensaje de Éxito */}
-      {successUid ? (
-        <div className="p-8 rounded-3xl bg-white border border-emerald-500/30 text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
-            <CheckCircle2 className="w-10 h-10" />
-          </div>
-          <h2 className="text-xl font-black uppercase text-slate-900">¡Alumno Registrado con Éxito!</h2>
-          <p className="text-xs text-slate-600 max-w-md mx-auto">
-            El perfil de <strong className="text-white">{formData.alias}</strong> ha sido dado de alta como <strong>ACTIVE</strong> y ya está sincronizado con la tablet de recepción para hacer check-in inmediato.
-          </p>
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+          <span>{error}</span>
+        </div>
+      )}
 
-          <div className="pt-4 flex justify-center gap-3">
+      {successUid ? (
+        <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-xl text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 mx-auto flex items-center justify-center">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-extrabold text-slate-900">¡Alumno dado de alta con éxito!</h2>
+          <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+            Se ha creado la ficha en la BBDD, asignado su plan y sincronizado con el Kiosco de recepción para que pueda hacer check-in con su nombre o pase QR.
+          </p>
+          <div className="pt-2 flex justify-center gap-3">
             <button
               onClick={() => {
                 setSuccessUid(null);
@@ -212,36 +263,31 @@ export const StudentRegistrationPage: React.FC = () => {
                   guardianPhone: '',
                   guardianEmail: '',
                   guardianDni: '',
+                  guardianUid: '',
                   medicalNotes: '',
                   medicalConsent: true,
                   waiverMethod: 'PAPER',
                 });
+                setTabletWaiverSvg(null);
               }}
-              className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs uppercase tracking-wider rounded-xl transition"
+              className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition"
             >
-              Registrar Otro Alumno
+              Dar de alta a otro alumno
             </button>
-            <button
-              onClick={() => navigate('/admin/personal')}
-              className="py-2.5 px-5 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/20"
+            <Link
+              to="/admin/personal"
+              className="py-2.5 px-6 bg-brand-accent hover:bg-brand-accent/90 text-white font-bold text-xs rounded-xl transition shadow-sm inline-block"
             >
-              Ir a BBDD Personal
-            </button>
+              Ir al Censo de Alumnos →
+            </Link>
           </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="p-4 bg-studio-red/15 border border-studio-red/40 rounded-2xl text-xs text-studio-red font-bold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
           {/* Bloque 1: Datos Personales */}
-          <div className="p-6 rounded-3xl bg-white border border-slate-200/80 space-y-4">
-            <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <User className="w-4 h-4 text-studio-red" />
+          <div className="p-6 rounded-3xl bg-white border border-slate-200/80 space-y-4 shadow-sm">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+              <User className="w-4 h-4 text-brand-accent" />
               <span>1. Datos del Atleta</span>
             </h2>
 
@@ -257,7 +303,7 @@ export const StudentRegistrationPage: React.FC = () => {
                   value={formData.alias}
                   onChange={handleChange}
                   placeholder="Ej: Marcos Silva"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
                 />
               </div>
 
@@ -271,13 +317,13 @@ export const StudentRegistrationPage: React.FC = () => {
                   required
                   value={formData.birthDate}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
                 />
                 {age !== null && (
-                  <span className="text-[11px] font-bold mt-1 block text-slate-500">
-                    Edad calculada: <strong className="text-white">{age} años</strong> · Categoría:{' '}
-                    <strong className={isMinor ? 'text-amber-400' : 'text-emerald-400'}>
-                      {isMinor ? 'Menor (< 16 años)' : 'Adulto (≥ 16 años)'}
+                  <span className="text-[11px] font-semibold mt-1 block text-slate-500">
+                    Edad calculada: <strong className="text-slate-900 font-bold">{age} años</strong> · Categoría:{' '}
+                    <strong className={isMinor ? 'text-amber-700' : 'text-emerald-700'}>
+                      {isMinor ? 'Menor formativo (< 16 años)' : 'Adulto (≥ 16 años)'}
                     </strong>
                   </span>
                 )}
@@ -293,7 +339,7 @@ export const StudentRegistrationPage: React.FC = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="+34 600 000 000"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
                 />
               </div>
 
@@ -307,7 +353,7 @@ export const StudentRegistrationPage: React.FC = () => {
                   value={formData.contactEmail}
                   onChange={handleChange}
                   placeholder="alumno@ejemplo.com"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
                 />
               </div>
             </div>
@@ -315,12 +361,12 @@ export const StudentRegistrationPage: React.FC = () => {
 
           {/* Bloque 2: Tutor Legal si es Menor de 16 */}
           {isMinor && (
-            <div className="p-6 rounded-3xl bg-amber-500/10 border border-amber-500/30 space-y-4 animate-in fade-in duration-200">
-              <h2 className="text-sm font-black uppercase tracking-wider text-amber-400 flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                <span>2. Tutor Legal Responsable (Obligatorio para menores)</span>
+            <div className="p-6 rounded-3xl bg-amber-50/70 border border-amber-200 space-y-4 animate-in fade-in duration-200 shadow-sm">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-amber-600" />
+                <span>2. Tutor Legal Responsable (Obligatorio para menores de 16)</span>
               </h2>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-amber-800 leading-relaxed">
                 Por normativa RGPD y responsabilidad deportiva, los datos del padre, madre o tutor legal son obligatorios para el acceso a tatami.
               </p>
 
@@ -336,7 +382,7 @@ export const StudentRegistrationPage: React.FC = () => {
                     value={formData.guardianName}
                     onChange={handleChange}
                     placeholder="Nombre y apellidos del padre/madre"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
@@ -351,7 +397,7 @@ export const StudentRegistrationPage: React.FC = () => {
                     value={formData.guardianPhone}
                     onChange={handleChange}
                     placeholder="+34 600 000 000"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
@@ -365,7 +411,7 @@ export const StudentRegistrationPage: React.FC = () => {
                     value={formData.guardianDni}
                     onChange={handleChange}
                     placeholder="12345678Z"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
@@ -379,7 +425,21 @@ export const StudentRegistrationPage: React.FC = () => {
                     value={formData.guardianEmail}
                     onChange={handleChange}
                     placeholder="tutor@ejemplo.com"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                    ID de Usuario del Tutor en la App (Opcional, si el tutor ya está registrado como alumno)
+                  </label>
+                  <input
+                    type="text"
+                    name="guardianUid"
+                    value={formData.guardianUid}
+                    onChange={handleChange}
+                    placeholder="usr_123456789"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-mono text-slate-900 focus:outline-none focus:border-amber-400"
                   />
                 </div>
               </div>
@@ -387,28 +447,28 @@ export const StudentRegistrationPage: React.FC = () => {
           )}
 
           {/* Bloque 3: Cinturón y Tarifa */}
-          <div className="p-6 rounded-3xl bg-white border border-slate-200/80 space-y-4">
-            <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-studio-red" />
-              <span>{isMinor ? '3' : '2'}. Graduación y Plan</span>
+          <div className="p-6 rounded-3xl bg-white border border-slate-200/80 space-y-4 shadow-sm">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-brand-accent" />
+              <span>{isMinor ? '3' : '2'}. Graduación y Plan ({isMinor ? 'Sistema Infantil Kids' : 'Sistema Adultos'})</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Cinturón Inicial
+                  Cinturón Inicial {isMinor ? '(Kids BJJ)' : '(Adultos)'}
                 </label>
                 <select
                   name="belt"
                   value={formData.belt}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
                 >
-                  <option value="WHITE">Blanco</option>
-                  <option value="BLUE">Azul</option>
-                  <option value="PURPLE">Morado</option>
-                  <option value="BROWN">Marrón</option>
-                  <option value="BLACK">Negro</option>
+                  {beltOptions.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -420,7 +480,7 @@ export const StudentRegistrationPage: React.FC = () => {
                   name="stripes"
                   value={formData.stripes}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
                 >
                   <option value={0}>0 grados</option>
                   <option value={1}>1 grado</option>
@@ -432,13 +492,13 @@ export const StudentRegistrationPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Modalidad de Cuota (Pricing Tier)
+                  Tarifa / Modalidad
                 </label>
                 <select
                   name="pricingTier"
                   value={formData.pricingTier}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-studio-red"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
                 >
                   <option value="STD">Estándar (STD)</option>
                   <option value="SF">Socio Fundador (SF)</option>
@@ -449,18 +509,18 @@ export const StudentRegistrationPage: React.FC = () => {
           </div>
 
           {/* Bloque 4: Exención de Responsabilidad (Waiver) */}
-          <div className="p-6 rounded-3xl bg-white border border-slate-200/80 space-y-4">
-            <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <FileCheck2 className="w-4 h-4 text-studio-red" />
-              <span>{isMinor ? '4' : '3'}. Exención de Responsabilidad (Waiver)</span>
+          <div className="p-6 rounded-3xl bg-white border border-slate-200/80 space-y-4 shadow-sm">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+              <FileCheck2 className="w-4 h-4 text-brand-accent" />
+              <span>{isMinor ? '4' : '3'}. Exención de Responsabilidad (Waiver Legal)</span>
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <label
                 className={`p-4 rounded-2xl border cursor-pointer transition flex items-start gap-3 ${
                   formData.waiverMethod === 'PAPER'
-                    ? 'bg-studio-red/15 border-studio-red text-white'
-                    : 'bg-slate-50 border-slate-200/80 text-slate-500'
+                    ? 'bg-rose-50 border-brand-accent text-slate-900 shadow-sm'
+                    : 'bg-slate-50 border-slate-200 text-slate-600'
                 }`}
               >
                 <input
@@ -472,9 +532,32 @@ export const StudentRegistrationPage: React.FC = () => {
                   className="mt-1"
                 />
                 <div>
-                  <span className="text-xs font-black uppercase block">Firmado en Papel en el Gym</span>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    El alumno ha firmado físicamente el documento en recepción. Quedará validado de inmediato.
+                  <span className="text-xs font-bold uppercase block">Firmado en Papel</span>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    Ha firmado físicamente en recepción.
+                  </p>
+                </div>
+              </label>
+
+              <label
+                className={`p-4 rounded-2xl border cursor-pointer transition flex items-start gap-3 ${
+                  formData.waiverMethod === 'DIGITAL_TABLET'
+                    ? 'bg-rose-50 border-brand-accent text-slate-900 shadow-sm'
+                    : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="waiverMethod"
+                  value="DIGITAL_TABLET"
+                  checked={formData.waiverMethod === 'DIGITAL_TABLET'}
+                  onChange={handleChange}
+                  className="mt-1"
+                />
+                <div>
+                  <span className="text-xs font-bold uppercase block">Firma en Tablet Ahora</span>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    El {isMinor ? 'tutor' : 'alumno'} estampa su firma manuscrita in situ.
                   </p>
                 </div>
               </label>
@@ -482,8 +565,8 @@ export const StudentRegistrationPage: React.FC = () => {
               <label
                 className={`p-4 rounded-2xl border cursor-pointer transition flex items-start gap-3 ${
                   formData.waiverMethod === 'DIGITAL_APP'
-                    ? 'bg-studio-red/15 border-studio-red text-white'
-                    : 'bg-slate-50 border-slate-200/80 text-slate-500'
+                    ? 'bg-rose-50 border-brand-accent text-slate-900 shadow-sm'
+                    : 'bg-slate-50 border-slate-200 text-slate-600'
                 }`}
               >
                 <input
@@ -495,13 +578,43 @@ export const StudentRegistrationPage: React.FC = () => {
                   className="mt-1"
                 />
                 <div>
-                  <span className="text-xs font-black uppercase block">Firma Digital en la App</span>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    El alumno firmará digitalmente con el dedo en su móvil al iniciar sesión en la PWA.
+                  <span className="text-xs font-bold uppercase block">Firma en la PWA</span>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                    Firmará desde su móvil al iniciar sesión.
                   </p>
                 </div>
               </label>
             </div>
+
+            {/* Accionador de firma táctil si se elige firma en tablet */}
+            {formData.waiverMethod === 'DIGITAL_TABLET' && (
+              <div className="pt-2">
+                {tabletWaiverSvg ? (
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Firma manuscrita capturada correctamente en tablet</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowWaiverModal(true)}
+                      className="text-xs font-bold text-emerald-700 underline cursor-pointer"
+                    >
+                      Volver a firmar
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowWaiverModal(true)}
+                    className="py-2.5 px-4 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-2 transition cursor-pointer"
+                  >
+                    <PenTool className="w-3.5 h-3.5" />
+                    <span>Abrir Lienzo para Firmar en Tablet Ahora</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Botón Guardar */}
@@ -509,20 +622,28 @@ export const StudentRegistrationPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/admin/personal')}
-              className="py-3 px-6 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs uppercase tracking-wider rounded-xl transition"
+              className="py-3 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="py-3 px-8 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-xl shadow-studio-red/25 disabled:opacity-50"
+              className="py-3 px-8 bg-brand-accent hover:bg-brand-accent/90 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-brand-accent/25 disabled:opacity-50 cursor-pointer"
             >
               {loading ? 'Guardando Alumno...' : 'Dar de Alta Alumno'}
             </button>
           </div>
         </form>
       )}
+
+      {/* Modal de Firma para Tablet */}
+      <WaiverSignatureModal
+        isOpen={showWaiverModal}
+        waiverVersion="v2.0"
+        onClose={() => setShowWaiverModal(false)}
+        onConfirmSignature={handleTabletWaiverConfirmed}
+      />
     </div>
   );
 };

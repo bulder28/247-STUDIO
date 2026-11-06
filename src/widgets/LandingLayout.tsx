@@ -12,6 +12,12 @@ export const LandingLayout: React.FC = () => {
     return '/app/home';
   };
 
+  const getPanelText = () => {
+    if (role === 'admin') return 'Ir a mi panel';
+    if (userData?.alias) return `Hola, ${userData.alias} — Ir a mi panel`;
+    return 'Ir a mi panel';
+  };
+
   return (
     <div className="min-h-screen bg-brand-background text-brand-text flex flex-col font-sans">
       {/* Cabecera cristalizada sobre fondo tatami cálido */}
@@ -51,7 +57,7 @@ export const LandingLayout: React.FC = () => {
                 to={getPanelLink()}
                 className="inline-flex items-center justify-center rounded-xl bg-brand-accent px-4 py-2 text-xs sm:text-sm font-headline tracking-tight text-white hover:bg-brand-accent-dark transition shadow-sm"
               >
-                <span>{userData ? `Mi Panel (${userData.alias})` : 'Mi Panel'}</span>
+                <span>{getPanelText()}</span>
               </Link>
             ) : (
               <>
