@@ -22,13 +22,16 @@ import {
   Lock,
   QrCode,
   Search,
+  Sparkles,
   Swords,
   UserPlus,
+  Users,
   X,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { db } from '@/shared/api/firebase';
 import { getAttendanceWeight } from '@/shared/domain/attendance';
+import { calculateAthleteXP, calculateGraduationProgress, getNextPromotion } from '@/shared/domain/graduation';
 import { getMadridTimeComponents, isClassInProgress } from '@/shared/domain/schedule';
 import {
   ScheduleDomainModel,
@@ -47,6 +50,39 @@ export interface KioskMember {
   photoUrl?: string;
 }
 
+function playCheckinChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(523.25, now); // C5
+    gain1.gain.setValueAtTime(0.12, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.35);
+
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(659.25, now + 0.12); // E5
+    gain2.gain.setValueAtTime(0.18, now + 0.12);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.12);
+    osc2.stop(now + 0.6);
+  } catch {
+    // Silencioso si audio está restringido por navegador
+  }
+}
+
 export const KioskCheckinPage: React.FC = () => {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -61,8 +97,19 @@ export const KioskCheckinPage: React.FC = () => {
     alias: string;
     sessionType: SessionType;
     belt: string;
+    stripes: number;
+    beltSystem: string;
+    classNumber: number;
+    xpEarned: number;
+    totalXp: number;
+    classesRemainingForPromotion: number;
+    nextPromotionGoal: string;
     timestamp: Date;
   } | null>(null);
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(5);
+  const [todayAttendees, setTodayAttendees] = useState<
+    { uid: string; alias: string; belt: string; stripes: number; time: string }[]
+  >([]);
 
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState('');
@@ -107,6 +154,58 @@ export const KioskCheckinPage: React.FC = () => {
     fetchKioskConfig();
   }, []);
 
+  // Cuenta atrás para auto-cerrar el banner de celebración de check-in
+  useEffect(() => {
+    if (!lastCheckedInStudent) return;
+    setCountdownSeconds(5);
+    const interval = setInterval(() => {
+      setCountdownSeconds((prev) => {
+        if (prev <= 1) {
+          setLastCheckedInStudent(null);
+          return 5;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lastCheckedInStudent]);
+
+  const fetchTodayAttendees = async (scheduleId: string) => {
+    try {
+      const q = query(
+        collection(db, 'bookings'),
+        where('scheduleId', '==', scheduleId),
+        where('date', '==', madridNow.dateStr),
+        where('status', '==', 'ATTENDED')
+      );
+      const snap = await getDocs(q);
+      const list: { uid: string; alias: string; belt: string; stripes: number; time: string }[] = [];
+
+      const membersSnap = await getDocs(collection(db, 'kiosk_members'));
+      const memberMap: Record<string, any> = {};
+      membersSnap.forEach((d) => {
+        memberMap[d.id] = d.data();
+      });
+
+      snap.forEach((d) => {
+        const data = d.data();
+        const m = memberMap[data.uid];
+        list.push({
+          uid: data.uid,
+          alias: m?.alias || 'Atleta',
+          belt: m?.belt || 'WHITE',
+          stripes: Number(m?.stripes || 0),
+          time: data.createdAt?.toDate
+            ? data.createdAt.toDate().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+            : 'Hoy',
+        });
+      });
+      setTodayAttendees(list);
+    } catch (err) {
+      console.warn('Error cargando asistentes de hoy:', err);
+    }
+  };
+
   // 2. Cargar horarios y detectar clase en curso en Madrid
   useEffect(() => {
     const loadSchedules = async () => {
@@ -120,7 +219,11 @@ export const KioskCheckinPage: React.FC = () => {
         excSnap.forEach((d) => eList.push({ id: d.id, ...(d.data() as Omit<ScheduleExceptionDomainModel, 'id'>) }));
 
         const inProgress = sList.find((s) => isClassInProgress(s, eList, now));
-        setActiveSchedule(inProgress || sList[0] || null);
+        const sched = inProgress || sList[0] || null;
+        setActiveSchedule(sched);
+        if (sched) {
+          fetchTodayAttendees(sched.id);
+        }
       } catch (err) {
         console.error('Error cargando horarios en kiosco:', err);
       }
@@ -322,17 +425,45 @@ export const KioskCheckinPage: React.FC = () => {
         { merge: true }
       );
 
-      // Notificación visual de bienvenida
+      // Cálculo de gamificación y número de clase
+      let classNumber = 1;
+      try {
+        const pastSnap = await getDocs(
+          query(collection(db, 'bookings'), where('uid', '==', student.uid), where('status', '==', 'ATTENDED'))
+        );
+        classNumber = pastSnap.size + (existingBooking.exists() ? 0 : 1);
+      } catch {
+        classNumber = 1;
+      }
+
+      const xpData = calculateAthleteXP(classNumber);
+      const promotion = getNextPromotion(student.belt as any, student.stripes, student.beltSystem as any);
+      const progress = calculateGraduationProgress((classNumber % 25) || 25, 25);
+
+      // Reproducir sonido sutil de confirmación
+      playCheckinChime();
+
+      // Notificación visual de bienvenida y gamificación
       setLastCheckedInStudent({
         alias: student.alias,
         sessionType,
         belt: student.belt,
+        stripes: student.stripes,
+        beltSystem: student.beltSystem,
+        classNumber,
+        xpEarned: 100,
+        totalXp: xpData.xp,
+        classesRemainingForPromotion: progress.classesRemaining,
+        nextPromotionGoal: promotion.isBeltPromotion
+          ? `Cinturón ${beltLabelEs(promotion.nextBelt)}`
+          : `${promotion.nextStripes}º Grado`,
         timestamp: new Date(),
       });
 
       setSelectedStudent(null);
       setSearchTerm('');
       setSearchResults([]);
+      await fetchTodayAttendees(activeSchedule.id);
     } catch (err) {
       console.error('Error confirmando check-in en kiosco:', err);
     } finally {
@@ -437,25 +568,68 @@ export const KioskCheckinPage: React.FC = () => {
       {/* 2. CONTENIDO PRINCIPAL                                    */}
       {/* ======================================================== */}
       <main className="flex-1 my-6 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
-        {/* Banner de Bienvenida tras Check-in Exitoso */}
+        {/* Banner de Bienvenida y Gamificación tras Check-in Exitoso */}
         {lastCheckedInStudent && (
-          <div className="w-full mb-6 p-5 rounded-3xl bg-emerald-50 border border-emerald-200/90 flex items-center justify-between shadow-sm animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-sm">
-                <CheckCircle2 className="w-6 h-6" />
+          <div className="w-full mb-6 p-6 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 border-2 border-emerald-300 shadow-xl animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-lg shadow-emerald-600/20 shrink-0">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                      ¡Buen entreno, {lastCheckedInStudent.alias}!
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-emerald-700" /> +{lastCheckedInStudent.xpEarned} XP
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                    Clase #{lastCheckedInStudent.classNumber} registrada como{' '}
+                    <strong className="text-slate-900">
+                      {lastCheckedInStudent.sessionType === 'PARTICIPANT' ? 'Participante' : 'Observador'}
+                    </strong>
+                  </p>
+
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="w-20">
+                      <Belt
+                        belt={lastCheckedInStudent.belt}
+                        stripes={lastCheckedInStudent.stripes}
+                        decorative
+                        className="h-4"
+                      />
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-600">
+                      {beltLabelEs(lastCheckedInStudent.belt)} · {lastCheckedInStudent.stripes}{' '}
+                      {lastCheckedInStudent.stripes === 1 ? 'grado' : 'grados'}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
-                  ¡Bienvenido al tatami, {lastCheckedInStudent.alias}!
-                </h3>
-                <span className="text-xs text-slate-600 font-medium">
-                  Asistencia registrada como{' '}
-                  <strong className="text-slate-900 font-bold">
-                    {lastCheckedInStudent.sessionType === 'PARTICIPANT' ? 'Participante (1.0)' : 'Observador (0.5)'}
-                  </strong>{' '}
-                  · {beltLabelEs(lastCheckedInStudent.belt)}
+
+              {/* Próximo Objetivo y Contador */}
+              <div className="bg-white p-3.5 rounded-2xl border border-emerald-200 text-left sm:text-right shrink-0 shadow-sm">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  Próximo Objetivo
+                </span>
+                <span className="text-xs font-black text-emerald-700 block mt-0.5">
+                  Faltan {lastCheckedInStudent.classesRemainingForPromotion} clases ({lastCheckedInStudent.nextPromotionGoal})
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 block mt-1">
+                  Volviendo en {countdownSeconds}s...
                 </span>
               </div>
+            </div>
+
+            {/* Barra animada de progreso de cuenta atrás */}
+            <div className="w-full bg-emerald-100 h-1.5 rounded-full overflow-hidden mt-4">
+              <div
+                className="bg-emerald-600 h-full transition-all duration-1000 ease-linear rounded-full"
+                style={{ width: `${(countdownSeconds / 5) * 100}%` }}
+              />
             </div>
           </div>
         )}
@@ -642,6 +816,40 @@ export const KioskCheckinPage: React.FC = () => {
                 <QrCode className="w-4 h-4 text-brand-accent" />
                 <span>Ver QR de Prueba</span>
               </button>
+            </div>
+
+            {/* Opción 4: Compañeros en el Tatami Hoy */}
+            <div className="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-brand-accent" />
+                  <span>En el Tatami Hoy ({todayAttendees.length})</span>
+                </span>
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {activeSchedule ? activeSchedule.program : 'Sesión activa'}
+                </span>
+              </div>
+
+              {todayAttendees.length === 0 ? (
+                <p className="text-xs text-slate-400 py-2">
+                  Aún no hay atletas registrados en esta sesión. ¡Sé el primero en entrar!
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {todayAttendees.map((att, idx) => (
+                    <div
+                      key={`${att.uid}_${idx}`}
+                      className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-2 shadow-2xs"
+                    >
+                      <div className="w-7">
+                        <Belt belt={att.belt} stripes={att.stripes} decorative className="h-2.5" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">{att.alias}</span>
+                      <span className="text-[10px] font-mono text-slate-400 font-semibold">{att.time}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
