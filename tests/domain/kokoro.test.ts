@@ -37,6 +37,11 @@ describe('Dominio Puro: Cerebro de KOKORO AI', () => {
     it('detecta SCHEDULE_INQUIRY para consultas de clases', () => {
       expect(interpretKokoroIntent('¿A qué hora es la clase de no-gi hoy?', 'student')).toBe('SCHEDULE_INQUIRY');
     });
+
+    it('detecta IMPROVEMENTS_FEEDBACK ante preguntas de mejoras, ideas y Kaizen', () => {
+      expect(interpretKokoroIntent('crres que podemos incluir alguna mejora?', 'admin')).toBe('IMPROVEMENTS_FEEDBACK');
+      expect(interpretKokoroIntent('¿Qué ideas propones para el futuro de la app?', 'admin')).toBe('IMPROVEMENTS_FEEDBACK');
+    });
   });
 
   describe('Generador de Respuestas Grounded (generateKokoroResponse)', () => {
@@ -93,5 +98,15 @@ describe('Dominio Puro: Cerebro de KOKORO AI', () => {
       expect(res.text).toContain('Chanclas SIEMPRE obligatorias');
       expect(res.text).toContain('Kimono limpio');
     });
+
+    it('propone 4 mejoras clave de alto impacto cuando se le pide feedback', () => {
+      const ctx: KokoroContext = { role: 'admin' };
+      const res = generateKokoroResponse('IMPROVEMENTS_FEEDBACK', ctx);
+      expect(res.badge).toBe('KAIZEN & MEJORAS 247');
+      expect(res.text).toContain('Self-Service de Fotos');
+      expect(res.text).toContain('Desafíos Semanales');
+      expect(res.text).toContain('Gemini');
+    });
   });
 });
+

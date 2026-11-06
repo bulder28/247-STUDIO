@@ -11,6 +11,7 @@ export type KokoroIntentType =
   | 'ETIQUETTE_RULES'
   | 'FINANCIAL_SUMMARY'
   | 'TECHNIQUE_ADVICE'
+  | 'IMPROVEMENTS_FEEDBACK'
   | 'GENERAL_KOKORO';
 
 export interface KokoroContext {
@@ -148,6 +149,24 @@ export function interpretKokoroIntent(query: string, role: KokoroRole): KokoroIn
     q.includes('leglock')
   ) {
     return 'TECHNIQUE_ADVICE';
+  }
+
+  // 9. Mejoras, ideas, sugerencias y evolución del club (Kaizen)
+  if (
+    q.includes('mejora') ||
+    q.includes('mejorar') ||
+    q.includes('idea') ||
+    q.includes('sugerencia') ||
+    q.includes('feedback') ||
+    q.includes('crecer') ||
+    q.includes('futuro') ||
+    q.includes('avanzar') ||
+    q.includes('incluir') ||
+    q.includes('opinion') ||
+    q.includes('opinión') ||
+    q.includes('proponer')
+  ) {
+    return 'IMPROVEMENTS_FEEDBACK';
   }
 
   return 'GENERAL_KOKORO';
@@ -297,21 +316,35 @@ export function generateKokoroResponse(
       };
     }
 
+    case 'IMPROVEMENTS_FEEDBACK': {
+      return {
+        intent,
+        badge: 'KAIZEN & MEJORAS 247',
+        text: `¡Oss! En el Jiu-Jitsu la mejora continua (Kaizen) es el pilar fundamental. Analizando la academia y el funcionamiento de la app, aquí tienes 4 mejoras de alto impacto que podemos activar:\n\n1. 📸 Self-Service de Fotos de Alumnos: Permitir que cada alumno o instructor suba selfies recortados automáticamente para sus Cartas FIFA FUT.\n2. 🔥 Sistema de Desafíos Semanales: Otorgar XP extra a los chavales que asistan a 3 clases en la misma semana o racha de 12 clases al mes.\n3. 🏆 Podio del Mes en el Kiosco: Mostrar en la tablet de recepción el TOP 3 de compañeros con más horas de tatami acumuladas.\n4. 🤖 Conexión LLM en Tiempo Real: Activar la API de Google Gemini en Kokoro para razonar sobre cualquier duda estratégica, táctica o de negocio sin límites predefinidos.`,
+        action: {
+          type: 'NAVIGATE',
+          label: 'Ver Álbum y Censo',
+          url: context.role === 'admin' ? '/admin/personal' : '/app/home',
+        },
+      };
+    }
+
     case 'GENERAL_KOKORO':
     default: {
       if (context.role === 'admin') {
         return {
           intent: 'GENERAL_KOKORO',
           badge: 'KOKORO COPILOTO',
-          text: `Oss Mario y David. Soy KOKORO, vuestro copiloto operativo para 247Studio. Puedo ayudaros a revisar el radar de retención de alumnos, verificar la caja, consultar graduaciones pendientes o analizar el censo. ¿Qué necesitáis consultar hoy?`,
+          text: `Oss Mario y David. Os escucho con atención marcial. Para una respuesta 100% libre e improvisada sobre cualquier tema podéis conectar mi clave de Google Gemini pulsando en la tuerca ⚙️ superior. Mientras tanto, puedo orientaros sobre retención de alumnos, caja, graduaciones, sugerencias de mejora o el censo. ¿Qué necesitáis analizar?`,
         };
       }
 
       return {
         intent: 'GENERAL_KOKORO',
         badge: 'KOKORO SENSEI',
-        text: `¡Oss ${alias}! Soy KOKORO, el asistente y sensei virtual de 247Studio. Pregúntame sobre tus clases, cómo subir tu carta FIFA a Oro, tus horas para el próximo cinturón o cualquier duda del tatami. ¡Nos vemos entrenando!`,
+        text: `¡Oss ${alias}! Te escucho con atención de tatami. Puedes preguntarme sobre cómo subir tu carta FIFA a Oro, tus horas para el próximo cinturón, horarios de clase, normas de kimono o consejos técnicos. ¿En qué te ayudo a mejorar hoy?`,
       };
     }
   }
 }
+

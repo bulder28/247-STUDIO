@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   Send,
+  Settings,
   Sparkles,
   X,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { askGeminiKokoro } from '@/shared/ai/geminiClient';
 import {
   generateKokoroResponse,
   interpretKokoroIntent,
@@ -30,6 +32,8 @@ export const KokoroAssistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('kokoro_gemini_key') || '');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -64,6 +68,7 @@ export const KokoroAssistant: React.FC = () => {
     kokoroRole === 'admin'
       ? [
           { label: '🔴 Alumnos ausentes > 15 días', query: '¿Qué alumnos están en riesgo de abandono?' },
+          { label: '💡 ¿Qué mejoras sugieres?', query: '¿Crees que podemos incluir alguna mejora en la app y el club?' },
           { label: '📊 Balance de caja este mes', query: '¿Cuánto dinero hemos cobrado este mes en caja?' },
           { label: '🥋 Alumnos listos para graduar', query: '¿Cómo van las graduaciones y promociones?' },
           { label: '🩴 Normas sagradas del tatami', query: '¿Cuáles son las reglas de kimono y chanclas?' },
@@ -76,7 +81,7 @@ export const KokoroAssistant: React.FC = () => {
           { label: '🔥 Consejo para pasar la guardia', query: 'Dame un consejo de técnica para pasar la guardia' },
         ];
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
     if (!text) return;
 
@@ -91,18 +96,36 @@ export const KokoroAssistant: React.FC = () => {
     setInputText('');
     setIsTyping(true);
 
-    // Contexto enriquecido para el motor determinista de KOKORO
-    const context: KokoroContext = {
-      role: kokoroRole,
-      currentUser: userData || SAMPLE_ATHLETES_20[0],
-      totalActiveUsers: 24,
-      atRiskCount: 3,
-      todayClassesCount: 4,
-      monthlyRevenueEstimateCents: 145000,
-    };
+    // 1. Intentar responder mediante el modelo LLM real (Google Gemini) si hay API key
+    try {
+      const llmText = await askGeminiKokoro(text, apiKey || undefined, kokoroRole);
+      if (llmText) {
+        const botMsg: ChatMessage = {
+          id: `kok_${Date.now()}`,
+          sender: 'kokoro',
+          badge: 'GEMINI AI ⚡ LIVE',
+          text: llmText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, botMsg]);
+        setIsTyping(false);
+        return;
+      }
+    } catch {
+      // Continuar al motor determinista si falla
+    }
 
-    // Respuesta inteligente simulando procesamiento cognitivo (< 400ms)
+    // 2. Motor determinista enriquecido con conocimiento Kaizen
     setTimeout(() => {
+      const context: KokoroContext = {
+        role: kokoroRole,
+        currentUser: userData || SAMPLE_ATHLETES_20[0],
+        totalActiveUsers: 24,
+        atRiskCount: 3,
+        todayClassesCount: 4,
+        monthlyRevenueEstimateCents: 145000,
+      };
+
       const intent = interpretKokoroIntent(text, kokoroRole);
       const res = generateKokoroResponse(intent, context);
 
@@ -117,7 +140,7 @@ export const KokoroAssistant: React.FC = () => {
 
       setMessages((prev) => [...prev, botMsg]);
       setIsTyping(false);
-    }, 450);
+    }, 350);
   };
 
   const handleActionClick = (action?: KokoroActionPayload) => {
@@ -187,20 +210,87 @@ export const KokoroAssistant: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1.5 mt-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                  <span className="text-[10px] text-slate-300 font-medium">Tatami 247 · En Línea</span>
+                  <span className="text-[10px] text-slate-300 font-medium">
+                    {apiKey ? '⚡ Gemini LLM Activo' : 'Tatami 247 · En Línea'}
+                  </span>
                 </div>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition"
-              aria-label="Cerrar chat con Kokoro"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowSettings(!showSettings)}
+                title="Configuración de IA Gemini"
+                className={`p-1.5 rounded-full transition cursor-pointer ${
+                  apiKey ? 'text-amber-400 bg-amber-500/20' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                aria-label="Cerrar chat con Kokoro"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
+
+          {/* Panel de Configuración Gemini LLM */}
+          {showSettings && (
+            <div className="bg-slate-900 text-white p-3.5 border-b border-amber-500/30 text-xs space-y-2 animate-in slide-in-from-top-2">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-amber-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" /> Motor LLM Generativo (Google Gemini)
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  {apiKey ? '🟢 Live API' : '🟡 Motor Base'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-tight">
+                Para que KOKORO razone con total libertad sobre cualquier tema, introduce tu clave gratuita de Google AI Studio:
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => {
+                    const val = e.target.value.trim();
+                    setApiKey(val);
+                    if (val) localStorage.setItem('kokoro_gemini_key', val);
+                    else localStorage.removeItem('kokoro_gemini_key');
+                  }}
+                  placeholder="Pega tu clave AIzaSy..."
+                  className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                />
+                {apiKey && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApiKey('');
+                      localStorage.removeItem('kokoro_gemini_key');
+                    }}
+                    className="px-2 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/40 rounded-lg text-[10px] font-bold cursor-pointer"
+                  >
+                    Borrar
+                  </button>
+                )}
+              </div>
+              <div className="text-[10px] text-slate-400">
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-400 underline hover:text-amber-300 font-semibold"
+                >
+                  Obtener clave gratis en Google AI Studio →
+                </a>
+              </div>
+            </div>
+          )}
 
           {/* Historial de Mensajes */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/60">
@@ -286,7 +376,7 @@ export const KokoroAssistant: React.FC = () => {
               onChange={(e) => setInputText(e.target.value)}
               placeholder={
                 kokoroRole === 'admin'
-                  ? 'Consulta a Kokoro sobre caja, alumnos, faltas...'
+                  ? 'Pregunta a Kokoro sobre mejoras, caja, ausencias...'
                   : 'Pregunta sobre tu carta FIFA, cinturón, clases...'
               }
               className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800"
