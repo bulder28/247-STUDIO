@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   query,
   serverTimestamp,
   setDoc,
@@ -12,15 +13,19 @@ import {
   where,
 } from 'firebase/firestore';
 import {
+  AlertTriangle,
   Camera,
   CheckCircle2,
   Eye,
   KeyRound,
   Lock,
+  QrCode,
   Search,
   Swords,
+  UserPlus,
   X,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { db } from '@/shared/api/firebase';
 import { getAttendanceWeight } from '@/shared/domain/attendance';
 import { getMadridTimeComponents, isClassInProgress } from '@/shared/domain/schedule';
@@ -29,6 +34,7 @@ import {
   ScheduleExceptionDomainModel,
   SessionType,
 } from '@/shared/domain/types';
+import { Belt, beltLabelEs } from '@/widgets/Belt';
 
 export interface KioskMember {
   uid: string;
@@ -63,8 +69,27 @@ export const KioskCheckinPage: React.FC = () => {
   const [loadingCheckin, setLoadingCheckin] = useState(false);
   const [kioskPin, setKioskPin] = useState<string>('2470');
 
+  // Estados para Alta Exprés de Prueba en Kiosco
+  const [trialModalOpen, setTrialModalOpen] = useState(false);
+  const [trialQrDataUrl, setTrialQrDataUrl] = useState<string>('');
+  const [trialName, setTrialName] = useState('');
+  const [trialPhone, setTrialPhone] = useState('');
+  const [trialSuccess, setTrialSuccess] = useState(false);
+  const [trialLoading, setTrialLoading] = useState(false);
+
+  // Estado para advertencia de cuenta pausada / bloqueada
+  const [accountAlert, setAccountAlert] = useState<{ alias: string; status: string } | null>(null);
+
   const now = new Date();
   const madridNow = getMadridTimeComponents(now);
+
+  // Generar QR para el alta de prueba exprés desde el móvil del visitante
+  useEffect(() => {
+    const trialUrl = `${window.location.origin}/reserva-prueba?source=kiosk`;
+    QRCode.toDataURL(trialUrl, { width: 220, margin: 1, color: { dark: '#11152E', light: '#FFFFFF' } })
+      .then(setTrialQrDataUrl)
+      .catch(console.error);
+  }, []);
 
   // 1. Cargar configuración de seguridad (PIN) desde Firestore
   useEffect(() => {
@@ -114,9 +139,7 @@ export const KioskCheckinPage: React.FC = () => {
 
     const searchMembers = async () => {
       try {
-        const membersSnap = await getDocs(
-          query(collection(db, 'kiosk_members'), where('accountStatus', '==', 'ACTIVE'))
-        );
+        const membersSnap = await getDocs(collection(db, 'kiosk_members'));
         const term = searchTerm.toLowerCase();
         const matches: KioskMember[] = [];
 
@@ -187,6 +210,14 @@ export const KioskCheckinPage: React.FC = () => {
     };
   }, [scannerActive]);
 
+  const handleSelectStudent = (member: KioskMember) => {
+    if (member.accountStatus === 'PAUSED' || member.accountStatus === 'SUSPENDED') {
+      setAccountAlert({ alias: member.alias, status: member.accountStatus });
+      return;
+    }
+    setSelectedStudent(member);
+  };
+
   const handleQrDetected = async (rawQr: string) => {
     try {
       const parsed = JSON.parse(rawQr);
@@ -195,13 +226,18 @@ export const KioskCheckinPage: React.FC = () => {
         const memberDoc = await getDoc(doc(db, 'kiosk_members', parsed.uid));
         if (memberDoc.exists()) {
           const data = memberDoc.data();
+          const status = data.accountStatus || 'ACTIVE';
+          if (status === 'PAUSED' || status === 'SUSPENDED') {
+            setAccountAlert({ alias: data.alias || parsed.alias || 'Atleta', status });
+            return;
+          }
           setSelectedStudent({
             uid: memberDoc.id,
             alias: data.alias || parsed.alias || 'Alumno',
             belt: data.belt || 'WHITE',
             stripes: Number(data.stripes || 0),
             beltSystem: data.beltSystem || 'ADULT',
-            accountStatus: data.accountStatus || 'ACTIVE',
+            accountStatus: status,
             photoUrl: data.photoUrl || '',
           });
         }
@@ -244,6 +280,19 @@ export const KioskCheckinPage: React.FC = () => {
         });
       }
 
+      // Sincronizar contador agregado en class_capacity
+      const capRef = doc(db, 'class_capacity', `cap_${activeSchedule.id}_${madridNow.dateStr}`);
+      await setDoc(
+        capRef,
+        {
+          scheduleId: activeSchedule.id,
+          date: madridNow.dateStr,
+          bookedCount: increment(existingBooking.exists() ? 0 : 1),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
       // Notificación visual de bienvenida
       setLastCheckedInStudent({
         alias: student.alias,
@@ -259,6 +308,37 @@ export const KioskCheckinPage: React.FC = () => {
       console.error('Error confirmando check-in en kiosco:', err);
     } finally {
       setLoadingCheckin(false);
+    }
+  };
+
+  const handleExpressTrialSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trialName.trim() || !trialPhone.trim()) return;
+    setTrialLoading(true);
+
+    try {
+      const leadId = `lead_kiosk_${Date.now()}`;
+      await setDoc(doc(db, 'leads', leadId), {
+        name: trialName.trim(),
+        email: `prueba_${Date.now()}@247studio.local`,
+        phone: trialPhone.trim(),
+        scheduleId: activeSchedule?.id || 'trial_kiosk',
+        status: 'NEW',
+        honeypot: '',
+        createdAt: serverTimestamp(),
+      });
+
+      setTrialSuccess(true);
+      setTimeout(() => {
+        setTrialSuccess(false);
+        setTrialModalOpen(false);
+        setTrialName('');
+        setTrialPhone('');
+      }, 2500);
+    } catch (err) {
+      console.error('Error registrando prueba exprés:', err);
+    } finally {
+      setTrialLoading(false);
     }
   };
 
@@ -343,14 +423,14 @@ export const KioskCheckinPage: React.FC = () => {
         {selectedStudent ? (
           <div className="w-full p-6 sm:p-8 rounded-3xl bg-[#0c0f24] border border-white/15 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-studio-red/20 border border-studio-red/40 flex items-center justify-center text-studio-red font-black text-lg">
-                  {selectedStudent.alias.slice(0, 2).toUpperCase()}
+              <div className="flex items-center gap-4">
+                <div className="w-20 shrink-0">
+                  <Belt belt={selectedStudent.belt} stripes={selectedStudent.stripes} decorative className="h-5" />
                 </div>
                 <div>
                   <h2 className="text-lg font-black text-white">{selectedStudent.alias}</h2>
-                  <span className="text-xs text-studio-cream/70 font-mono">
-                    Cinturón {selectedStudent.belt} · {selectedStudent.stripes} grados
+                  <span className="text-xs text-studio-cream/70">
+                    Cinturón {beltLabelEs(selectedStudent.belt)} · {selectedStudent.stripes} grados
                   </span>
                 </div>
               </div>
@@ -466,17 +546,22 @@ export const KioskCheckinPage: React.FC = () => {
                   {searchResults.map((member) => (
                     <button
                       key={member.uid}
-                      onClick={() => setSelectedStudent(member)}
+                      onClick={() => handleSelectStudent(member)}
                       className="w-full p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition flex items-center justify-between text-left"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-studio-red/20 border border-studio-red/30 flex items-center justify-center text-studio-red font-black text-sm">
-                          {member.alias.slice(0, 2).toUpperCase()}
+                        <div className="w-14 shrink-0">
+                          <Belt belt={member.belt} stripes={member.stripes} decorative className="h-3.5" />
                         </div>
                         <div>
                           <span className="text-sm font-bold text-white block">{member.alias}</span>
                           <span className="text-[11px] text-studio-cream/60">
-                            Cinturón {member.belt} · {member.stripes} grados
+                            {beltLabelEs(member.belt)} · {member.stripes} grados
+                            {member.accountStatus !== 'ACTIVE' && (
+                              <span className="ml-2 text-studio-red font-mono text-[10px]">
+                                ({member.accountStatus})
+                              </span>
+                            )}
                           </span>
                         </div>
                       </div>
@@ -488,6 +573,30 @@ export const KioskCheckinPage: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Opción 3: Alta Exprés para Clase de Prueba */}
+            <div className="p-5 rounded-3xl bg-gradient-to-r from-studio-red/20 via-studio-red/10 to-transparent border border-studio-red/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-studio-red block">
+                  ¿Primera vez en 247Studio?
+                </span>
+                <h3 className="font-display text-xl text-white uppercase mt-0.5">
+                  Clase de Prueba Exprés
+                </h3>
+                <p className="text-xs text-studio-cream/80 mt-0.5">
+                  Escanea el código QR con tu móvil para firmar el waiver y entrar ya mismo.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setTrialModalOpen(true)}
+                className="px-4 py-2.5 bg-studio-red hover:bg-studio-red-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-studio-red/20 shrink-0 cursor-pointer"
+              >
+                <QrCode className="w-4 h-4" />
+                <span>Escanear QR</span>
+              </button>
             </div>
           </div>
         )}
@@ -542,6 +651,114 @@ export const KioskCheckinPage: React.FC = () => {
                 Acceder a Administración
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Alerta para Cuenta Pausada / Regularización */}
+      {accountAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-sm bg-[#0c0f24] border border-studio-red/50 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-studio-red/20 text-studio-red mx-auto flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-black uppercase text-white">Membresía Pausada</h3>
+            <p className="text-xs text-studio-cream/80 leading-relaxed">
+              Hola, <strong className="text-white">{accountAlert.alias}</strong>. Tu cuenta se encuentra actualmente en estado{' '}
+              <strong className="text-studio-red font-mono">“{accountAlert.status}”</strong>.
+            </p>
+            <p className="text-xs text-studio-cream/60">
+              Por favor acude al mostrador de recepción con el profesor para revisar tu ficha antes de pasar al tatami.
+            </p>
+            <button
+              onClick={() => setAccountAlert(null)}
+              className="w-full py-3 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Alta Exprés de Prueba con QR y Formulario */}
+      {trialModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-md bg-[#0c0f24] border border-white/15 rounded-3xl p-6 relative shadow-2xl space-y-4">
+            <button
+              onClick={() => setTrialModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 text-studio-cream hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="text-center">
+              <span className="text-[10px] font-black uppercase tracking-widest text-studio-red bg-studio-red/10 px-2.5 py-0.5 rounded-full inline-block border border-studio-red/20 mb-2">
+                Clase de Prueba Gratuita
+              </span>
+              <h3 className="font-display text-2xl uppercase text-white">
+                Alta Exprés en Recepción
+              </h3>
+            </div>
+
+            {trialSuccess ? (
+              <div className="p-6 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-center space-y-2">
+                <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                <h4 className="font-display text-xl text-white">¡Bienvenido al Tatami!</h4>
+                <p className="text-xs text-studio-cream/80">
+                  Tus datos han quedado registrados. Pasa al tatami y habla con el profesor.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* QR para hacerlo en el móvil */}
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center space-y-3">
+                  <span className="text-xs font-bold text-white block">
+                    Escanea con tu cámara móvil para firmar en tu teléfono:
+                  </span>
+                  {trialQrDataUrl && (
+                    <img
+                      src={trialQrDataUrl}
+                      alt="QR Alta Exprés"
+                      className="w-40 h-40 mx-auto rounded-xl shadow-lg border border-white/20 p-1 bg-white"
+                    />
+                  )}
+                  <span className="text-[10px] text-studio-cream/60 block font-mono">
+                    247studio.netlify.app/reserva-prueba
+                  </span>
+                </div>
+
+                {/* Formulario rápido en tablet si no tiene móvil a mano */}
+                <form onSubmit={handleExpressTrialSubmit} className="space-y-3 pt-2 border-t border-white/10">
+                  <span className="text-xs font-semibold text-studio-cream/80 block">
+                    O introduce tus datos directamente en esta tablet:
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={trialName}
+                    onChange={(e) => setTrialName(e.target.value)}
+                    placeholder="Nombre y apellidos"
+                    className="w-full px-3 py-2.5 bg-[#070914] border border-white/15 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
+                  />
+                  <input
+                    type="tel"
+                    required
+                    value={trialPhone}
+                    onChange={(e) => setTrialPhone(e.target.value)}
+                    placeholder="Número de teléfono móvil"
+                    className="w-full px-3 py-2.5 bg-[#070914] border border-white/15 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
+                  />
+                  <button
+                    type="submit"
+                    disabled={trialLoading}
+                    className="w-full py-3 bg-studio-red hover:bg-studio-red-dark text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>{trialLoading ? 'Registrando...' : 'Entrar a la clase de prueba'}</span>
+                  </button>
+                </form>
+              </>
+            )}
           </div>
         </div>
       )}

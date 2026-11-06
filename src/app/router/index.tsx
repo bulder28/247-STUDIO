@@ -54,6 +54,9 @@ const TariffsAdminPage = React.lazy(() =>
 const LeadsAdminPage = React.lazy(() =>
   import('@/pages/admin-leads/LeadsAdminPage').then((m) => ({ default: m.LeadsAdminPage }))
 );
+const AttendanceAdminPage = React.lazy(() =>
+  import('@/pages/admin-asistencia/AttendanceAdminPage').then((m) => ({ default: m.AttendanceAdminPage }))
+);
 const StudentRegistrationPage = React.lazy(() =>
   import('@/pages/admin-alta-alumno/StudentRegistrationPage').then((m) => ({ default: m.StudentRegistrationPage }))
 );
@@ -233,6 +236,14 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <CajaPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'asistencia',
+        element: (
+          <LazyRoute>
+            <AttendanceAdminPage />
           </LazyRoute>
         ),
       },

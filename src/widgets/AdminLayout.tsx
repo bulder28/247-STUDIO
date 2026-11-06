@@ -7,6 +7,7 @@ import {
   Shield,
   Tablet,
   Tags,
+  UserCheck,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ export const AdminLayout: React.FC = () => {
 
   const links = [
     { to: '/admin/personal', label: 'BBDD Personal', icon: Users },
+    { to: '/admin/asistencia', label: 'Hoja de Asistencia', icon: UserCheck },
     { to: '/admin/caja', label: 'Caja y Pagos', icon: CreditCard },
     { to: '/admin/horarios', label: 'Horarios', icon: CalendarDays },
     { to: '/admin/tarifas', label: 'Tarifas', icon: Tags },
