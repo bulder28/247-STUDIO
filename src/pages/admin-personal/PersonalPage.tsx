@@ -213,7 +213,7 @@ export const PersonalPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-wide text-slate-900">BBDD Personal y Alumnos</h1>
+          <h1 className="text-2xl font-black uppercase tracking-wide text-slate-900">Alumnos</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Censo oficial de atletas de 247Studio, control de cinturones, grados y radar de retención.
           </p>

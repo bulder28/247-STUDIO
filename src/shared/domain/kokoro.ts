@@ -221,7 +221,7 @@ export function generateKokoroResponse(
       return {
         intent,
         badge: 'RADAR ANTI-ABANDONO',
-        text: `Mario y David, actualmente el radar anti-abandono detecta ${atRisk} atleta(s) en zona de riesgo por llevar entre 12 y 21 días sin registrar entrada en el tatami. Recuerda que puedes enviarles un mensaje directo de reactivación por WhatsApp con un solo clic desde la BBDD de Personal.`,
+        text: `Mario y David, actualmente el radar anti-abandono detecta ${atRisk} atleta(s) en zona de riesgo por llevar entre 12 y 21 días sin registrar entrada en el tatami. Recuerda que puedes enviarles un mensaje directo de reactivación por WhatsApp con un solo clic desde la sección de Alumnos.`,
         action: {
           type: 'SHOW_RISK_LIST',
           label: 'Abrir Radar de Retención',

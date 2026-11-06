@@ -18,7 +18,7 @@ export const AdminLayout: React.FC = () => {
   const { logout } = useAuth();
 
   const links = [
-    { to: '/admin/personal', label: 'BBDD Personal', icon: Users },
+    { to: '/admin/personal', label: 'Alumnos', icon: Users },
     { to: '/admin/asistencia', label: 'Hoja de Asistencia', icon: UserCheck },
     { to: '/admin/caja', label: 'Caja y Pagos', icon: CreditCard },
     { to: '/admin/horarios', label: 'Horarios', icon: CalendarDays },
