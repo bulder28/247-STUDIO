@@ -27,65 +27,73 @@ export const AdminLayout: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-brand-text flex flex-col md:flex-row font-sans text-white">
-      {/* Sidebar Desktop */}
-      <aside className="w-full md:w-64 lg:w-72 bg-[#141624] border-b md:border-b-0 md:border-r border-white/10 p-5 flex flex-col justify-between shrink-0">
+    <div className="min-h-screen bg-[#F8F9FA] flex flex-col md:flex-row font-sans text-slate-900 antialiased">
+      {/* Sidebar Desktop MatGoat Clean */}
+      <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200/80 p-5 flex flex-col justify-between shrink-0">
         <div>
-          <div className="flex items-center gap-3 pb-6 border-b border-white/10">
-            <img src="/logo.webp" alt="247Studio" className="w-10 h-10 object-contain brightness-110" />
+          <div className="flex items-center gap-2.5 pb-5 border-b border-slate-100">
+            <img src="/logo.webp" alt="247Studio" className="w-8 h-8 object-contain" />
             <div>
-              <span className="font-headline text-xl tracking-tighter uppercase text-white block leading-none">
-                247Studio
-              </span>
-              <span className="text-[10px] text-brand-accent font-headline font-bold block tracking-wider uppercase bg-brand-accent/10 px-2 py-0.5 rounded inline-block border border-brand-accent/20 mt-1">
-                Administración
+              <div className="flex items-center gap-1.5">
+                <span className="font-headline text-xl tracking-tighter uppercase text-slate-900 block leading-none">
+                  247Studio
+                </span>
+                <span className="w-2 h-2 rounded-full bg-brand-accent inline-block" />
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mt-0.5">
+                Panel Gestión
               </span>
             </div>
           </div>
 
-          <nav className="mt-6 space-y-1.5">
-            {links.map((link) => {
-              const Icon = link.icon;
-              return (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition tracking-wide ${
-                      isActive
-                        ? 'bg-brand-accent text-white shadow-md shadow-brand-accent/20'
-                        : 'text-brand-background/70 hover:bg-white/5 hover:text-white'
-                    }`
-                  }
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{link.label}</span>
-                </NavLink>
-              );
-            })}
-          </nav>
+          <div className="mt-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 pb-1">
+              GESTIÓN
+            </p>
+            <nav className="space-y-1">
+              {links.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                        isActive
+                          ? 'bg-slate-100 text-slate-900 font-bold'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`
+                    }
+                  >
+                    <Icon className="w-4 h-4 text-slate-500" />
+                    <span>{link.label}</span>
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
         </div>
 
-        <div className="mt-8 pt-4 border-t border-white/10 flex flex-col gap-2">
+        <div className="mt-8 pt-4 border-t border-slate-100 flex flex-col gap-1.5">
           <NavLink
             to="/app/home"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-brand-background/80 hover:bg-white/5 hover:text-white border border-white/10 transition"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
           >
-            <Shield className="w-4 h-4 text-brand-accent" />
+            <Shield className="w-4 h-4 text-slate-500" />
             <span>Ver como Alumno</span>
           </NavLink>
 
           <NavLink
             to="/kiosk/check-in"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-brand-background/80 hover:bg-white/5 hover:text-white border border-white/10 transition"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
           >
-            <Tablet className="w-4 h-4 text-brand-background" />
+            <Tablet className="w-4 h-4 text-slate-500" />
             <span>Modo Kiosco (Tablet)</span>
           </NavLink>
 
           <button
             onClick={logout}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-brand-accent hover:bg-brand-accent/10 transition"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-brand-accent hover:bg-brand-accent/5 transition"
           >
             <LogOut className="w-4 h-4" />
             <span>Cerrar Sesión</span>
