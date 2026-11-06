@@ -99,7 +99,16 @@ export const LoginPage: React.FC = () => {
       navigate(destination, { replace: true });
     } catch (err: unknown) {
       console.error(err);
-      setError('No se pudo completar el acceso con Google. Inténtalo de nuevo.');
+      const firebaseError = err as { code?: string; message?: string };
+      if (firebaseError?.code === 'auth/unauthorized-domain') {
+        setError('El dominio "247studio.netlify.app" debe agregarse a "Dominios autorizados" en la consola de Firebase Authentication.');
+      } else if (firebaseError?.code === 'auth/operation-not-allowed') {
+        setError('El proveedor Google no está habilitado en Authentication > Sign-in method de Firebase.');
+      } else if (firebaseError?.code === 'auth/popup-closed-by-user') {
+        setError('Acceso cancelado: se cerró la ventana de Google antes de finalizar.');
+      } else {
+        setError(`No se pudo completar el acceso con Google (${firebaseError?.code || 'error desconocido'}).`);
+      }
     } finally {
       setSubmitting(false);
     }
