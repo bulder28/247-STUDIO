@@ -240,6 +240,36 @@ export const KioskCheckinPage: React.FC = () => {
             accountStatus: status,
             photoUrl: data.photoUrl || '',
           });
+        } else {
+          // Si el alumno aún no está indexado en kiosk_members, intentar leer de users o fallback con datos de QR
+          try {
+            const userDoc = await getDoc(doc(db, 'users', parsed.uid));
+            if (userDoc.exists()) {
+              const uData = userDoc.data();
+              setSelectedStudent({
+                uid: userDoc.id,
+                alias: uData.alias || parsed.alias || 'Alumno',
+                belt: uData.belt || 'WHITE',
+                stripes: Number(uData.stripes || 0),
+                beltSystem: uData.beltSystem || 'ADULT',
+                accountStatus: uData.accountStatus || 'ACTIVE',
+                photoUrl: uData.photoUrl || '',
+              });
+              return;
+            }
+          } catch {
+            // Regla de Firestore deniega lectura si es rol kiosk
+          }
+
+          // Fallback inmediato con el payload firmado
+          setSelectedStudent({
+            uid: parsed.uid,
+            alias: parsed.alias || 'Alumno',
+            belt: 'WHITE',
+            stripes: 0,
+            beltSystem: 'ADULT',
+            accountStatus: 'ACTIVE',
+          });
         }
       }
     } catch {

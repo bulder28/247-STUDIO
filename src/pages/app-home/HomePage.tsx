@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { Bell, ChevronRight, X } from 'lucide-react';
+import { Bell, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { derivePaymentStatus } from '@/shared/domain/payment-status';
@@ -350,19 +350,10 @@ export const HomePage: React.FC = () => {
       )}
 
       {/* Modal Pase QR */}
-      {showQrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-white rounded-3xl p-6 relative shadow-2xl border border-slate-200">
-            <button
-              onClick={() => setShowQrModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <h3 className="text-base font-bold text-slate-900 mb-4 text-center">
-              Pase Digital 247Studio
-            </h3>
-            <QrCodePassCard user={userData} />
+      {showQrModal && userData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm relative">
+            <QrCodePassCard user={userData} onClose={() => setShowQrModal(false)} />
           </div>
         </div>
       )}

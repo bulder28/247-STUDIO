@@ -295,7 +295,18 @@ export const AppLayout: React.FC = () => {
               </nav>
             </div>
 
-            <div className="pt-4 border-t border-slate-100">
+            <div className="pt-4 border-t border-slate-100 space-y-2">
+              <button
+                onClick={() => {
+                  setMobileDrawerOpen(false);
+                  setQrModalOpen(true);
+                }}
+                className="w-full py-2.5 text-xs font-bold text-slate-900 bg-slate-100 hover:bg-slate-200 flex items-center justify-center gap-2 rounded-xl transition cursor-pointer"
+              >
+                <QrCode className="w-4 h-4 text-brand-accent" />
+                <span>Ver mi Pase QR</span>
+              </button>
+
               <button
                 onClick={logout}
                 className="w-full py-2.5 text-xs font-semibold text-slate-600 hover:text-brand-accent flex items-center justify-center gap-2 rounded-xl border border-slate-200"
@@ -312,18 +323,9 @@ export const AppLayout: React.FC = () => {
       {/* 5. MODAL PASE QR                                          */}
       {/* ======================================================== */}
       {qrModalOpen && userData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-white rounded-3xl p-6 relative shadow-2xl border border-slate-200">
-            <button
-              onClick={() => setQrModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <h3 className="text-base font-bold text-slate-900 mb-4 text-center">
-              Pase Digital 247Studio
-            </h3>
-            <QrCodePassCard user={userData} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm relative">
+            <QrCodePassCard user={userData} onClose={() => setQrModalOpen(false)} />
           </div>
         </div>
       )}
