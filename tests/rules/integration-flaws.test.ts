@@ -171,3 +171,4 @@ describe('Reproducción de Fallos de Integración con firestore.rules', () => {
     await assertSucceeds(modifyApprovedPayment);
   });
 });
+

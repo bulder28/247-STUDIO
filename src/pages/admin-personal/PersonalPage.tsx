@@ -162,7 +162,7 @@ export const PersonalPage: React.FC = () => {
         </div>
 
         <Link
-          to="/admin/alta-menor"
+          to="/admin/alta-alumno"
           className="py-3 px-5 bg-studio-red hover:bg-studio-red-dark text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 flex items-center justify-center gap-2"
         >
           <Plus className="w-4 h-4" /> Dar de Alta Alumno

@@ -54,8 +54,14 @@ const TariffsAdminPage = React.lazy(() =>
 const LeadsAdminPage = React.lazy(() =>
   import('@/pages/admin-leads/LeadsAdminPage').then((m) => ({ default: m.LeadsAdminPage }))
 );
-const MinorRegistrationPage = React.lazy(() =>
-  import('@/pages/admin-alta-menor/MinorRegistrationPage').then((m) => ({ default: m.MinorRegistrationPage }))
+const StudentRegistrationPage = React.lazy(() =>
+  import('@/pages/admin-alta-alumno/StudentRegistrationPage').then((m) => ({ default: m.StudentRegistrationPage }))
+);
+const PrivacyPage = React.lazy(() =>
+  import('@/pages/public-legal/PrivacyPage').then((m) => ({ default: m.PrivacyPage }))
+);
+const TermsPage = React.lazy(() =>
+  import('@/pages/public-legal/TermsPage').then((m) => ({ default: m.TermsPage }))
 );
 const KioskCheckinPage = React.lazy(() =>
   import('@/pages/kiosk-checkin/KioskCheckinPage').then((m) => ({ default: m.KioskCheckinPage }))
@@ -92,6 +98,22 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <TrialClassPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'privacidad',
+        element: (
+          <LazyRoute>
+            <PrivacyPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'terminos',
+        element: (
+          <LazyRoute>
+            <TermsPage />
           </LazyRoute>
         ),
       },
@@ -239,12 +261,16 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'alta-menor',
+        path: 'alta-alumno',
         element: (
           <LazyRoute>
-            <MinorRegistrationPage />
+            <StudentRegistrationPage />
           </LazyRoute>
         ),
+      },
+      {
+        path: 'alta-menor',
+        element: <Navigate to="/admin/alta-alumno" replace />,
       },
     ],
   },

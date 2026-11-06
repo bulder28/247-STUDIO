@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 import {
@@ -17,7 +19,6 @@ import {
   Lock,
   Search,
   Swords,
-  User,
   X,
 } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
@@ -27,8 +28,17 @@ import {
   ScheduleDomainModel,
   ScheduleExceptionDomainModel,
   SessionType,
-  UserDomainModel,
 } from '@/shared/domain/types';
+
+export interface KioskMember {
+  uid: string;
+  alias: string;
+  belt: string;
+  stripes: number;
+  beltSystem: string;
+  accountStatus: string;
+  photoUrl?: string;
+}
 
 export const KioskCheckinPage: React.FC = () => {
   const navigate = useNavigate();
@@ -36,8 +46,8 @@ export const KioskCheckinPage: React.FC = () => {
 
   const [activeSchedule, setActiveSchedule] = useState<ScheduleDomainModel | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<UserDomainModel[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<UserDomainModel | null>(null);
+  const [searchResults, setSearchResults] = useState<KioskMember[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<KioskMember | null>(null);
   const [sessionType, setSessionType] = useState<SessionType>('PARTICIPANT');
   const [scannerActive, setScannerActive] = useState(false);
   const [lastCheckedInStudent, setLastCheckedInStudent] = useState<{
@@ -51,11 +61,28 @@ export const KioskCheckinPage: React.FC = () => {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [loadingCheckin, setLoadingCheckin] = useState(false);
+  const [kioskPin, setKioskPin] = useState<string>('2470');
 
   const now = new Date();
   const madridNow = getMadridTimeComponents(now);
 
-  // Cargar horarios y detectar clase en curso
+  // 1. Cargar configuración de seguridad (PIN) desde Firestore
+  useEffect(() => {
+    const fetchKioskConfig = async () => {
+      try {
+        const configSnap = await getDoc(doc(db, 'kiosk_config', 'security'));
+        if (configSnap.exists() && configSnap.data().pin) {
+          setKioskPin(String(configSnap.data().pin));
+        }
+      } catch (err) {
+        // Fallback seguro al PIN predeterminado si no hay conexión
+        console.warn('Usando configuración local de kiosco');
+      }
+    };
+    fetchKioskConfig();
+  }, []);
+
+  // 2. Cargar horarios y detectar clase en curso en Madrid
   useEffect(() => {
     const loadSchedules = async () => {
       try {
@@ -67,53 +94,58 @@ export const KioskCheckinPage: React.FC = () => {
         const eList: ScheduleExceptionDomainModel[] = [];
         excSnap.forEach((d) => eList.push({ id: d.id, ...(d.data() as Omit<ScheduleExceptionDomainModel, 'id'>) }));
 
-        // Encontrar clase en curso en Madrid
+        // Encontrar clase en curso en horario peninsular
         const inProgress = sList.find((s) => isClassInProgress(s, eList, now));
         setActiveSchedule(inProgress || sList[0] || null);
       } catch (err) {
-        console.error('Error in kiosk:', err);
+        console.error('Error cargando horarios en kiosco:', err);
       }
     };
 
     loadSchedules();
   }, []);
 
-  // Búsqueda por nombre (mínimo 2 letras)
+  // 3. Búsqueda segura en directorio público kiosk_members (SIN notas médicas ni datos privados)
   useEffect(() => {
     if (searchTerm.trim().length < 2) {
       setSearchResults([]);
       return;
     }
 
-    const searchUsers = async () => {
+    const searchMembers = async () => {
       try {
-        const usersSnap = await getDocs(
-          query(collection(db, 'users'), where('accountStatus', '==', 'ACTIVE'))
+        const membersSnap = await getDocs(
+          query(collection(db, 'kiosk_members'), where('accountStatus', '==', 'ACTIVE'))
         );
         const term = searchTerm.toLowerCase();
-        const matches: UserDomainModel[] = [];
+        const matches: KioskMember[] = [];
 
-        usersSnap.forEach((d) => {
-          const data = d.data() as Omit<UserDomainModel, 'uid'>;
-          if (
-            data.alias?.toLowerCase().includes(term) ||
-            data.contactEmail?.toLowerCase().includes(term)
-          ) {
-            matches.push({ uid: d.id, ...data } as UserDomainModel);
+        membersSnap.forEach((d) => {
+          const data = d.data();
+          if (data.alias?.toLowerCase().includes(term)) {
+            matches.push({
+              uid: d.id,
+              alias: data.alias || 'Alumno',
+              belt: data.belt || 'WHITE',
+              stripes: Number(data.stripes || 0),
+              beltSystem: data.beltSystem || 'ADULT',
+              accountStatus: data.accountStatus || 'ACTIVE',
+              photoUrl: data.photoUrl || '',
+            });
           }
         });
 
         setSearchResults(matches.slice(0, 5));
       } catch (err) {
-        console.error('Error searching users in kiosk:', err);
+        console.error('Error buscando atletas en kiosco:', err);
       }
     };
 
-    const timer = setTimeout(searchUsers, 250);
+    const timer = setTimeout(searchMembers, 250);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Manejo de escáner de cámara para leer QR del móvil
+  // 4. Manejo de escáner de cámara para leer QR del móvil
   useEffect(() => {
     let stream: MediaStream | null = null;
     let detectorTimer: NodeJS.Timeout | null = null;
@@ -128,7 +160,6 @@ export const KioskCheckinPage: React.FC = () => {
             videoRef.current.play();
           }
 
-          // BarcodeDetector API si está disponible en Chromium/Android
           if ('BarcodeDetector' in window) {
             const barcodeDetector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
             detectorTimer = setInterval(async () => {
@@ -136,8 +167,7 @@ export const KioskCheckinPage: React.FC = () => {
                 try {
                   const codes = await barcodeDetector.detect(videoRef.current);
                   if (codes.length > 0) {
-                    const rawValue = codes[0].rawValue;
-                    handleQrDetected(rawValue);
+                    handleQrDetected(codes[0].rawValue);
                   }
                 } catch {
                   // Fallback silencioso
@@ -162,10 +192,18 @@ export const KioskCheckinPage: React.FC = () => {
       const parsed = JSON.parse(rawQr);
       if (parsed.prefix === '247STUDIO' && parsed.uid) {
         setScannerActive(false);
-        const snap = await getDocs(query(collection(db, 'users'), where('__name__', '==', parsed.uid)));
-        if (!snap.empty) {
-          const uData = { uid: snap.docs[0].id, ...(snap.docs[0].data() as Omit<UserDomainModel, 'uid'>) };
-          setSelectedStudent(uData);
+        const memberDoc = await getDoc(doc(db, 'kiosk_members', parsed.uid));
+        if (memberDoc.exists()) {
+          const data = memberDoc.data();
+          setSelectedStudent({
+            uid: memberDoc.id,
+            alias: data.alias || parsed.alias || 'Alumno',
+            belt: data.belt || 'WHITE',
+            stripes: Number(data.stripes || 0),
+            beltSystem: data.beltSystem || 'ADULT',
+            accountStatus: data.accountStatus || 'ACTIVE',
+            photoUrl: data.photoUrl || '',
+          });
         }
       }
     } catch {
@@ -173,17 +211,28 @@ export const KioskCheckinPage: React.FC = () => {
     }
   };
 
-  const handleConfirmCheckin = async (student: UserDomainModel) => {
+  // 5. Confirmación de Check-in respetando reservas previas e inmutabilidad de createdAt
+  const handleConfirmCheckin = async (student: KioskMember) => {
     if (!activeSchedule) return;
     setLoadingCheckin(true);
 
     try {
       const bookingId = `bk_${student.uid}_${activeSchedule.id}_${madridNow.dateStr}`;
       const weight = getAttendanceWeight(sessionType);
+      const bookingRef = doc(db, 'bookings', bookingId);
+      const existingBooking = await getDoc(bookingRef);
 
-      await setDoc(
-        doc(db, 'bookings', bookingId),
-        {
+      if (existingBooking.exists()) {
+        // Si el alumno ya tenía reserva: actualizamos a ATTENDED sin sobreescribir createdAt
+        await updateDoc(bookingRef, {
+          status: 'ATTENDED',
+          sessionType,
+          attendanceWeight: weight,
+          checkInSource: 'TABLET',
+        });
+      } else {
+        // Si es drop-in o check-in sin reserva previa: creamos el booking inicial
+        await setDoc(bookingRef, {
           uid: student.uid,
           scheduleId: activeSchedule.id,
           date: madridNow.dateStr,
@@ -192,11 +241,10 @@ export const KioskCheckinPage: React.FC = () => {
           attendanceWeight: weight,
           checkInSource: 'TABLET',
           createdAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+        });
+      }
 
-      // Notificación sonora/visual de bienvenida
+      // Notificación visual de bienvenida
       setLastCheckedInStudent({
         alias: student.alias,
         sessionType,
@@ -208,16 +256,16 @@ export const KioskCheckinPage: React.FC = () => {
       setSearchTerm('');
       setSearchResults([]);
     } catch (err) {
-      console.error('Error confirming kiosk checkin:', err);
+      console.error('Error confirmando check-in en kiosco:', err);
     } finally {
       setLoadingCheckin(false);
     }
   };
 
+  // 6. Validación de PIN dinámico de administrador
   const handleVerifyPin = (e: React.FormEvent) => {
     e.preventDefault();
-    // PIN por defecto para el centro 2470
-    if (pinInput === '2470') {
+    if (pinInput === kioskPin) {
       navigate('/admin/personal');
     } else {
       setPinError(true);
@@ -233,190 +281,208 @@ export const KioskCheckinPage: React.FC = () => {
           <img src="/logo.svg" alt="247Studio" className="w-12 h-12 rounded-2xl shadow-xl" />
           <div>
             <h1 className="text-xl font-black uppercase tracking-wider text-white">247Studio Check-in</h1>
-            <p className="text-xs text-studio-cream/70 font-semibold tracking-wide">
-              Tablet de Recepción • Registro Presencial
-            </p>
+            <span className="text-xs text-studio-red font-bold uppercase tracking-widest block">
+              Tablet de Recepción
+            </span>
           </div>
         </div>
 
-        {/* Bloqueo PIN Admin */}
-        <button
-          onClick={() => {
-            setPinModalOpen(true);
-            setPinError(false);
-          }}
-          className="p-3 bg-white/5 hover:bg-white/10 text-studio-cream rounded-2xl border border-white/10 transition"
-          title="Salir del Modo Kiosco"
-        >
-          <Lock className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-3">
+          {activeSchedule ? (
+            <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-2xl text-right">
+              <span className="text-[10px] text-studio-cream/60 uppercase font-black tracking-wider block">
+                Clase en Curso
+              </span>
+              <span className="text-sm font-black text-white">
+                {activeSchedule.program} ({activeSchedule.startTime} - {activeSchedule.endTime})
+              </span>
+              <span className="text-xs text-studio-cream/70 block">Prof. {activeSchedule.professor}</span>
+            </div>
+          ) : (
+            <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-2xl text-right">
+              <span className="text-xs text-studio-cream/60">Sin clase activa ahora</span>
+            </div>
+          )}
+
+          <button
+            onClick={() => setPinModalOpen(true)}
+            className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 text-studio-cream hover:text-white transition"
+            title="Panel de Administración"
+          >
+            <Lock className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
-      {/* Main Kiosk Content */}
-      <main className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full my-6">
-        {/* Banner de Clase Activa */}
-        <div className="mb-6 p-4 rounded-3xl bg-studio-navy-light/95 border border-white/15 shadow-xl flex items-center justify-between">
-          <div className="flex items-center gap-3.5">
-            <div className="p-3 bg-studio-red text-white rounded-2xl shadow-lg shadow-studio-red/30">
-              <Swords className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 block flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Clase en Tatami
-              </span>
-              <h2 className="text-lg font-black text-white">
-                {activeSchedule ? activeSchedule.program : 'Entrenamiento Libre'}
-              </h2>
-              <span className="text-xs text-studio-cream/70">
-                {activeSchedule ? `${activeSchedule.startTime} a ${activeSchedule.endTime} • Prof. ${activeSchedule.professor}` : ''}
-              </span>
+      {/* Contenido Principal Kiosco */}
+      <main className="flex-1 my-6 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+        {/* Banner de Bienvenida tras Check-in Exitoso */}
+        {lastCheckedInStudent && (
+          <div className="w-full mb-6 p-5 rounded-3xl bg-gradient-to-r from-emerald-500/20 via-emerald-600/10 to-transparent border border-emerald-500/40 flex items-center justify-between animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black shadow-lg">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white uppercase tracking-wide">
+                  ¡Bienvenido al Tatami, {lastCheckedInStudent.alias}!
+                </h3>
+                <span className="text-xs text-studio-cream/80">
+                  Asistencia registrada como{' '}
+                  <strong className="text-white">
+                    {lastCheckedInStudent.sessionType === 'PARTICIPANT' ? 'Participante' : 'Observador'}
+                  </strong>{' '}
+                  · {lastCheckedInStudent.belt}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Modal / Selector de Estudiante Identificado */}
+        {/* Modal de Selección / Confirmación del Alumno */}
         {selectedStudent ? (
-          <div className="bg-studio-navy-light border-2 border-studio-red rounded-3xl p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="text-center mb-6">
-              <div className="w-20 h-20 rounded-2xl bg-studio-navy border-2 border-studio-cream/40 flex items-center justify-center mx-auto mb-3 shadow">
-                <User className="w-10 h-10 text-studio-cream" />
+          <div className="w-full p-6 sm:p-8 rounded-3xl bg-[#0c0f24] border border-white/15 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-studio-red/20 border border-studio-red/40 flex items-center justify-center text-studio-red font-black text-lg">
+                  {selectedStudent.alias.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-white">{selectedStudent.alias}</h2>
+                  <span className="text-xs text-studio-cream/70 font-mono">
+                    Cinturón {selectedStudent.belt} · {selectedStudent.stripes} grados
+                  </span>
+                </div>
               </div>
-              <h3 className="text-2xl font-black text-white">{selectedStudent.alias}</h3>
-              <p className="text-xs text-studio-cream/70 mt-1 uppercase font-bold tracking-wider">
-                Cinturón {selectedStudent.belt} ({selectedStudent.stripes} grados)
-              </p>
+
+              <button
+                onClick={() => setSelectedStudent(null)}
+                className="p-2 rounded-xl bg-white/5 text-studio-cream hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            {/* Selector Participante vs Observador */}
-            <div className="mb-6">
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-2 text-center">
-                ¿Cómo entrenas hoy?
+            {/* Selector de Modalidad: Participante vs Observador */}
+            <div className="space-y-2">
+              <label className="block text-xs font-black uppercase text-studio-cream tracking-wider">
+                Modalidad de la Sesión de Hoy:
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setSessionType('PARTICIPANT')}
-                  className={`py-3.5 px-4 rounded-2xl border text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition ${
+                  className={`p-4 rounded-2xl border text-left transition flex items-center gap-3 ${
                     sessionType === 'PARTICIPANT'
-                      ? 'bg-studio-red text-white border-studio-red shadow-lg shadow-studio-red/30'
-                      : 'bg-studio-navy text-studio-cream/70 border-white/10'
+                      ? 'bg-studio-red/20 border-studio-red text-white shadow-lg'
+                      : 'bg-white/5 border-white/10 text-studio-cream/70 hover:bg-white/10'
                   }`}
                 >
-                  <Swords className="w-4 h-4" />
-                  <span>Participante (1.0)</span>
+                  <Swords className="w-5 h-5 text-studio-red shrink-0" />
+                  <div>
+                    <span className="text-xs font-black uppercase block">Participante</span>
+                    <span className="text-[10px] opacity-70 block">Entrena y lucha (1.0)</span>
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setSessionType('OBSERVER')}
-                  className={`py-3.5 px-4 rounded-2xl border text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition ${
+                  className={`p-4 rounded-2xl border text-left transition flex items-center gap-3 ${
                     sessionType === 'OBSERVER'
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/30'
-                      : 'bg-studio-navy text-studio-cream/70 border-white/10'
+                      ? 'bg-amber-500/20 border-amber-500 text-white shadow-lg'
+                      : 'bg-white/5 border-white/10 text-studio-cream/70 hover:bg-white/10'
                   }`}
                 >
-                  <Eye className="w-4 h-4" />
-                  <span>Observador (0.5)</span>
+                  <Eye className="w-5 h-5 text-amber-400 shrink-0" />
+                  <div>
+                    <span className="text-xs font-black uppercase block">Observador</span>
+                    <span className="text-[10px] opacity-70 block">Lesión o estudio (0.5)</span>
+                  </div>
                 </button>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectedStudent(null)}
-                className="flex-1 py-3.5 rounded-2xl border border-white/10 text-xs font-bold uppercase text-studio-cream hover:bg-white/5"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={loadingCheckin}
-                onClick={() => handleConfirmCheckin(selectedStudent)}
-                className="flex-1 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-studio-navy font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
-              >
-                {loadingCheckin ? (
-                  <div className="w-5 h-5 border-2 border-studio-navy border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-5 h-5" /> Confirmar Check-in
-                  </>
-                )}
-              </button>
-            </div>
+            <button
+              onClick={() => handleConfirmCheckin(selectedStudent)}
+              disabled={loadingCheckin}
+              className="w-full py-4 bg-studio-red hover:bg-studio-red-dark text-white font-black text-sm uppercase tracking-wider rounded-2xl transition shadow-xl shadow-studio-red/30 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+              <span>{loadingCheckin ? 'Registrando...' : 'Confirmar Entrada al Tatami'}</span>
+            </button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* Opción 1: Escanear QR con Cámara */}
-            <div className="bg-studio-navy-light/95 border border-white/15 rounded-3xl p-6 text-center shadow-xl">
+          /* Opciones de Identificación: Escaneo QR o Búsqueda por Nombre */
+          <div className="w-full space-y-6">
+            {/* Opción 1: Escáner QR con la Cámara */}
+            <div className="p-6 rounded-3xl bg-[#0c0f24] border border-white/10 text-center space-y-4">
+              <h2 className="text-sm font-black uppercase tracking-wider text-white">
+                Opción 1: Escanear Código QR del Móvil
+              </h2>
+
               {scannerActive ? (
-                <div className="space-y-3">
-                  <div className="relative w-full max-w-xs mx-auto aspect-square rounded-2xl overflow-hidden border-2 border-studio-red bg-black">
-                    <video ref={videoRef} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 border-2 border-studio-cream/40 rounded-2xl pointer-events-none" />
-                  </div>
+                <div className="relative rounded-2xl overflow-hidden max-w-xs mx-auto border-2 border-studio-red shadow-2xl">
+                  <video ref={videoRef} className="w-full h-56 object-cover" />
+                  <div className="absolute inset-0 border-2 border-studio-red/50 rounded-2xl animate-pulse pointer-events-none" />
                   <button
                     onClick={() => setScannerActive(false)}
-                    className="py-2 px-4 rounded-xl bg-white/10 text-xs font-bold text-studio-cream hover:bg-white/20"
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white"
                   >
-                    Detener Cámara
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={() => setScannerActive(true)}
-                  className="w-full py-5 px-6 rounded-2xl bg-gradient-to-r from-studio-red to-studio-red-dark hover:brightness-110 text-white font-black text-sm uppercase tracking-wider shadow-xl shadow-studio-red/30 flex items-center justify-center gap-3 transition"
+                  className="py-3 px-6 bg-studio-red hover:bg-studio-red-dark text-white font-black text-xs uppercase tracking-wider rounded-2xl transition shadow-lg shadow-studio-red/20 inline-flex items-center gap-2"
                 >
-                  <Camera className="w-6 h-6" />
-                  <span>Escanear QR de mi Móvil</span>
+                  <Camera className="w-4 h-4" />
+                  <span>Activar Cámara de la Tablet</span>
                 </button>
               )}
             </div>
 
-            {/* Separador */}
-            <div className="flex items-center gap-3 text-studio-cream/40 text-xs font-bold uppercase tracking-wider">
-              <div className="flex-1 h-px bg-white/10" />
-              <span>O busca por tu nombre</span>
-              <div className="flex-1 h-px bg-white/10" />
-            </div>
+            {/* Opción 2: Búsqueda rápida por nombre (kiosk_members) */}
+            <div className="p-6 rounded-3xl bg-[#0c0f24] border border-white/10 space-y-4">
+              <h2 className="text-sm font-black uppercase tracking-wider text-white">
+                Opción 2: Buscar por Nombre o Alias
+              </h2>
 
-            {/* Opción 2: Búsqueda Táctil por Nombre */}
-            <div className="bg-studio-navy-light/95 border border-white/15 rounded-3xl p-6 shadow-xl space-y-4">
               <div className="relative">
-                <Search className="w-5 h-5 text-studio-cream/50 absolute left-4 top-4" />
+                <Search className="w-4 h-4 text-studio-cream/50 absolute left-4 top-3.5" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Escribe tu nombre o alias (mínimo 2 letras)..."
-                  className="w-full pl-12 pr-4 py-3.5 bg-studio-navy border border-white/10 rounded-2xl text-base text-white placeholder-white/30 focus:outline-none focus:border-studio-red shadow-inner"
+                  placeholder="Escribe tu nombre (mínimo 2 letras)..."
+                  className="w-full pl-11 pr-4 py-3 bg-[#070914] border border-white/10 rounded-2xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
                 />
               </div>
 
-              {/* Resultados */}
+              {/* Resultados de Búsqueda Seguros */}
               {searchResults.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-white/10">
-                  {searchResults.map((user) => (
+                <div className="space-y-2 pt-2">
+                  {searchResults.map((member) => (
                     <button
-                      key={user.uid}
-                      onClick={() => setSelectedStudent(user)}
-                      className="w-full p-3.5 bg-studio-navy hover:bg-white/10 rounded-xl border border-white/10 flex items-center justify-between text-left transition"
+                      key={member.uid}
+                      onClick={() => setSelectedStudent(member)}
+                      className="w-full p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition flex items-center justify-between text-left"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-studio-navy-light border border-white/10 flex items-center justify-center font-black text-sm text-studio-cream">
-                          {user.alias?.slice(0, 2).toUpperCase()}
+                        <div className="w-10 h-10 rounded-xl bg-studio-red/20 border border-studio-red/30 flex items-center justify-center text-studio-red font-black text-sm">
+                          {member.alias.slice(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <span className="font-extrabold text-sm text-white block">{user.alias}</span>
+                          <span className="text-sm font-bold text-white block">{member.alias}</span>
                           <span className="text-[11px] text-studio-cream/60">
-                            Cinturón {user.belt} ({user.stripes} grados)
+                            Cinturón {member.belt} · {member.stripes} grados
                           </span>
                         </div>
                       </div>
 
-                      <span className="text-xs font-black text-studio-red uppercase tracking-wider">
-                        Registrar →
+                      <span className="text-xs font-black text-studio-red uppercase">
+                        Seleccionar →
                       </span>
                     </button>
                   ))}
@@ -425,68 +491,65 @@ export const KioskCheckinPage: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Notificación de Último Check-in */}
-        {lastCheckedInStudent && (
-          <div className="mt-6 p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold text-center flex items-center justify-center gap-2 animate-in fade-in duration-300">
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-            <span>
-              ¡Check-in confirmado para <strong>{lastCheckedInStudent.alias}</strong>! Disfruta del entrenamiento.
-            </span>
-          </div>
-        )}
       </main>
 
-      {/* Footer Kiosco */}
-      <footer className="text-center text-xs text-studio-cream/50 pt-4 border-t border-white/10">
-        247Studio WebApp • Modo Kiosco v1.0
-      </footer>
-
-      {/* Modal Salida por PIN */}
+      {/* Modal de PIN de Seguridad para salir a Admin */}
       {pinModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="bg-studio-navy-light border border-white/20 rounded-3xl max-w-xs w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-sm uppercase text-white flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-studio-red" /> PIN de Seguridad
-              </h3>
-              <button
-                onClick={() => setPinModalOpen(false)}
-                className="p-1 rounded-full text-studio-cream/60 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-xs bg-[#0c0f24] border border-white/15 rounded-3xl p-6 relative shadow-2xl text-center space-y-4">
+            <button
+              onClick={() => {
+                setPinModalOpen(false);
+                setPinError(false);
+                setPinInput('');
+              }}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 text-studio-cream hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-studio-red/20 text-studio-red mx-auto flex items-center justify-center">
+              <KeyRound className="w-6 h-6" />
             </div>
 
-            <p className="text-xs text-studio-cream/70 mb-4">
-              Introduce el PIN de 4 dígitos para salir al panel de administración.
+            <h3 className="text-base font-black uppercase text-white">Desbloqueo de Gestión</h3>
+            <p className="text-xs text-studio-cream/70">
+              Introduce el PIN de 4 dígitos para acceder al panel de administración.
             </p>
 
-            <form onSubmit={handleVerifyPin} className="space-y-4">
+            <form onSubmit={handleVerifyPin} className="space-y-3">
               <input
                 type="password"
                 maxLength={4}
                 autoFocus
                 value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
+                onChange={(e) => {
+                  setPinInput(e.target.value);
+                  setPinError(false);
+                }}
                 placeholder="••••"
-                className="w-full text-center text-2xl font-mono tracking-widest py-3 bg-studio-navy border border-white/10 rounded-xl text-white focus:outline-none focus:border-studio-red"
+                className="w-full py-3 bg-[#070914] border border-white/20 rounded-2xl text-center text-2xl font-mono tracking-widest text-white focus:outline-none focus:border-studio-red"
               />
 
               {pinError && (
-                <p className="text-xs text-studio-red font-bold text-center">PIN incorrecto.</p>
+                <span className="text-xs text-studio-red font-bold block">PIN incorrecto</span>
               )}
 
               <button
                 type="submit"
-                className="w-full py-3 bg-studio-red hover:bg-studio-red-dark text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow"
+                className="w-full py-3 bg-studio-red hover:bg-studio-red-dark text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30"
               >
-                Desbloquear
+                Acceder a Administración
               </button>
             </form>
           </div>
         </div>
       )}
+
+      {/* Footer Kiosco */}
+      <footer className="text-center text-[11px] text-studio-cream/40 border-t border-white/5 pt-3">
+        247Studio Academy Check-in System · Madrid
+      </footer>
     </div>
   );
 };

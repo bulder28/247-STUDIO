@@ -117,7 +117,8 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'contactEmail', 'phone', 'emergencyContactName', 'emergencyContactPhone',
           'alias', 'photoUrl', 'medicalNotes', 'medicalConsentAt',
-          'medicalConsentVersion', 'updatedAt'
+          'medicalConsentVersion', 'waiverVersion', 'waiverSignedAt',
+          'waiverSignatureSvg', 'waiverSignedByUid', 'updatedAt'
         ]) &&
         request.resource.data.updatedAt == request.time &&
         // photoUrl opcional pero con HTTPS estricto
@@ -133,6 +134,15 @@ service cloud.firestore {
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['medicalConsentAt']) ||
           (resource.data.medicalConsentAt == null && request.resource.data.medicalConsentAt == request.time)
         ) &&
+        (
+          // Firma de waiver por primera vez (no modificable una vez firmado)
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['waiverSignedAt']) ||
+          (!('waiverSignedAt' in resource.data) || resource.data.waiverSignedAt == null)
+        ) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['waiverSignatureSvg']) ||
+          isValidSvgSignature(request.resource.data.waiverSignatureSvg)
+        ) &&
         // Inmutabilidad de campos sensibles para el alumno
         request.resource.data.authEmail == resource.data.authEmail &&
         request.resource.data.birthDate == resource.data.birthDate &&
@@ -142,8 +152,7 @@ service cloud.firestore {
         request.resource.data.stripes == resource.data.stripes &&
         request.resource.data.pricingTier == resource.data.pricingTier &&
         request.resource.data.activeTariffId == resource.data.activeTariffId &&
-        request.resource.data.accountStatus == resource.data.accountStatus &&
-        (!('waiverSignedAt' in resource.data) || request.resource.data.waiverSignedAt == resource.data.waiverSignedAt);
+        request.resource.data.accountStatus == resource.data.accountStatus;
 
       // El Admin tiene control completo de create y update
       allow create, update: if isAdmin();
@@ -179,7 +188,9 @@ service cloud.firestore {
         !('validatedAt' in request.resource.data);
 
       // Actualización: Exclusiva del Admin (Aprobación / Rechazo)
+      // Invariante de auditoría: Nadie puede modificar un pago que ya esté en status APPROVED
       allow update: if isAdmin() &&
+        resource.data.status != 'APPROVED' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'amountCents', 'baseCents', 'vatCents',
           'sessionsIncluded', 'validatedBy', 'validatedAt', 'rejectedReason'
@@ -312,6 +323,47 @@ service cloud.firestore {
     match /config/{configId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // COLECCIÓN: kiosk_members (Directorio público seguro para recepción)
+    // =========================================================================
+    match /kiosk_members/{memberId} {
+      // Legible por el kiosco, admin y alumnos (sin datos médicos ni privados)
+      allow read: if isKiosk() || isAdmin() || isStudent();
+      allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // COLECCIÓN: kiosk_config (Configuración de hardware y PIN de acceso)
+    // =========================================================================
+    match /kiosk_config/{docId} {
+      allow read: if isKiosk() || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // COLECCIÓN: freezeRequests (Solicitudes de congelación iniciadas por alumno)
+    // =========================================================================
+    match /freezeRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.status == 'PENDING_ADMIN' &&
+        request.resource.data.createdAt == request.time;
+      allow update: if isAdmin() &&
+        request.resource.data.status in ['APPROVED', 'REJECTED'];
+      allow delete: if false;
+    }
+
+    // =========================================================================
+    // COLECCIÓN: class_capacity (Contador agregado de aforo por clase y fecha)
+    // =========================================================================
+    match /class_capacity/{capacityId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isKiosk();
     }
   }
 }

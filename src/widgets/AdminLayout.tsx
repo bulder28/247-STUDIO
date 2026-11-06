@@ -20,8 +20,8 @@ export const AdminLayout: React.FC = () => {
     { to: '/admin/caja', label: 'Caja y Pagos', icon: CreditCard },
     { to: '/admin/horarios', label: 'Horarios', icon: CalendarDays },
     { to: '/admin/tarifas', label: 'Tarifas', icon: Tags },
-    { to: '/admin/leads', label: 'Leads de Prueba', icon: UserPlus },
-    { to: '/admin/alta-menor', label: 'Alta de Menor', icon: Shield },
+    { to: '/admin/leads', label: 'Leads de Prueba', icon: Shield },
+    { to: '/admin/alta-alumno', label: 'Alta de Alumno', icon: UserPlus },
   ];
 
   return (

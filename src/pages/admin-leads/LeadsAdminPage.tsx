@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   collection,
   doc,
@@ -131,6 +132,13 @@ export const LeadsAdminPage: React.FC = () => {
                           Convertido (Alta)
                         </button>
                       )}
+
+                      <Link
+                        to={`/admin/alta-alumno?name=${encodeURIComponent(lead.name)}&email=${encodeURIComponent(lead.email)}&phone=${encodeURIComponent(lead.phone)}`}
+                        className="px-2.5 py-1 bg-studio-red/20 text-studio-red hover:bg-studio-red/30 rounded-lg font-bold text-[11px] transition inline-block"
+                      >
+                        Crear Ficha →
+                      </Link>
 
                       {lead.status !== 'LOST' && (
                         <button
