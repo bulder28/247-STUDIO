@@ -363,7 +363,8 @@ service cloud.firestore {
     // =========================================================================
     match /class_capacity/{capacityId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || isKiosk();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
     }
   }
 }

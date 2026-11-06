@@ -1,14 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import {
-  ArrowRight,
-  Sparkles,
-  Swords,
-  User,
-} from 'lucide-react';
 import { db } from '@/shared/api/firebase';
+import { DEFAULT_OFFICIAL_SCHEDULES } from '@/shared/domain/schedule';
 import { ScheduleDomainModel } from '@/shared/domain/types';
+import { BeltLadder } from '@/widgets/Belt';
+
+const programs = [
+  { title: 'BJJ GI', who: '', desc: 'Jiu-jitsu tradicional con kimono. Defensa personal, estrangulaciones y palancas articulares.' },
+  { title: 'GRAPPLING', who: '', desc: 'Sumisión sin kimono. Lucha cuerpo a cuerpo, ritmo alto y transiciones rápidas.' },
+  { title: 'MMA', who: '', desc: 'Artes marciales mixtas: golpeo, derribos y control en el suelo.' },
+  { title: 'LUCHA', who: '', desc: 'Lucha olímpica y libre: derribos, agarres y control de pie.' },
+  { title: 'OPEN MAT', who: '', desc: 'Tatami abierto para sparring libre, resolver dudas y rodar con compañeros.' },
+  { title: 'BJJ FEM', who: 'Mujeres', desc: 'Clase femenina: técnica depurada y comunidad.' },
+  { title: 'KIDS 1', who: 'Niños', desc: 'Iniciación marcial: psicomotricidad, coordinación y disciplina para los más pequeños.' },
+  { title: 'KIDS 2', who: 'Niños', desc: 'Técnica deportiva infantil, respeto y autocontrol en el tatami.' },
+];
+
+const instructors = [
+  {
+    name: 'Mario',
+    role: 'Head coach, cinturón negro',
+    bio: 'Especialista en BJJ de competición. Metodología técnica y desarrollo de atletas.',
+  },
+  {
+    name: 'David',
+    role: 'Instructor de grappling y lucha',
+    bio: 'Derribos, transiciones explosivas y sumisiones de piernas.',
+  },
+];
+
+const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+const wrap = 'max-w-6xl mx-auto px-5 sm:px-8';
 
 export const LandingPage: React.FC = () => {
   const [activeSchedules, setActiveSchedules] = useState<ScheduleDomainModel[]>([]);
@@ -22,7 +46,8 @@ export const LandingPage: React.FC = () => {
         const snap = await getDocs(q);
         const list: ScheduleDomainModel[] = [];
         snap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) }));
-        setActiveSchedules(list);
+        list.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
+        setActiveSchedules(list.length > 0 ? list : DEFAULT_OFFICIAL_SCHEDULES);
       } catch (err) {
         console.error('Error fetching public schedule preview:', err);
       } finally {
@@ -33,184 +58,126 @@ export const LandingPage: React.FC = () => {
     fetchPublicSchedules();
   }, []);
 
-  const programs = [
-    { title: 'BJJ GI', desc: 'Jiu-Jitsu tradicional con kimono. Defensa personal, estrangulaciones y palancas articulares.' },
-    { title: 'GRAPPLING', desc: 'No-Gi y sumisión sin kimono. Enfoque dinámico, lucha cuerpo a cuerpo y transiciones rápidas.' },
-    { title: 'KIDS 1', desc: 'Iniciación marcial, psicomotricidad, coordinación y disciplina para los más pequeños.' },
-    { title: 'KIDS 2', desc: 'Técnica deportiva infantil, respeto, autocontrol y valores esenciales del tatami.' },
-    { title: 'MMA', desc: 'Artes marciales mixtas: golpeo, derribos en la jaula y control en el suelo.' },
-    { title: 'LUCHA', desc: 'Lucha olímpica y libre: dominio de derribos, agarres y control posicional de pie.' },
-    { title: 'BJJ FEM', desc: 'Clase femenina exclusiva: técnica depurada, empoderamiento y comunidad.' },
-    { title: 'OPEN MAT', desc: 'Tatami abierto para sparring libre, resolución de dudas y rodar con compañeros.' },
-  ];
-
-  const instructors = [
-    { name: 'Mario', role: 'Head Coach & Cinturón Negro', bio: 'Especialista en BJJ de competición, metodología técnica y desarrollo de atletas.' },
-    { name: 'David', role: 'Instructor & Especialista Grappling/Lucha', bio: 'Enfoque en derribos, transiciones explosivas y sumisiones de piernas.' },
-  ];
-
-  const days = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-
   return (
-    <div className="space-y-24 py-8 sm:py-16">
-      {/* 1. HERO SECTION */}
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-6">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-studio-red/15 text-studio-red border border-studio-red/30 text-xs font-black uppercase tracking-wider">
-          <Sparkles className="w-3.5 h-3.5" /> Brazilian Jiu-Jitsu & Grappling en Madrid
-        </div>
+    <>
+      {/* Portada */}
+      <section className="bg-studio-navy">
+        <div className={`${wrap} py-16 sm:py-24 grid gap-14 lg:grid-cols-[1fr_1fr] lg:items-center`}>
+          <div>
+            <h1 className="font-display text-[4.25rem] sm:text-[6.5rem] lg:text-[7.5rem] uppercase text-white">
+              Todos empezamos de blanco.
+            </h1>
+            <p className="mt-8 max-w-md text-lg leading-relaxed text-studio-cream">
+              Jiu-jitsu brasileño, grappling, MMA y lucha en Madrid. Tu primera clase es gratis y no hay
+              permanencia.
+            </p>
+            <div className="mt-9">
+              <Link to="/reserva-prueba" className="btn-red text-lg px-8 py-4">
+                Reserva tu clase de prueba
+              </Link>
+            </div>
+          </div>
 
-        <h1 className="text-4xl sm:text-6xl font-black uppercase tracking-tight text-white leading-tight">
-          Entrena, Evoluciona y Domina el Tatami en <span className="text-studio-red">247Studio</span>
-        </h1>
-
-        <p className="text-base sm:text-lg text-studio-cream/80 max-w-2xl mx-auto leading-relaxed">
-          Digitalizamos tu experiencia deportiva. Horarios en vivo, control de asistencia en tablet y seguimiento
-          técnico de tu progresión de cinturón en una sola plataforma.
-        </p>
-
-        {/* Un único CTA grande */}
-        <div className="pt-4">
-          <Link
-            to="/reserva-prueba"
-            className="inline-flex items-center gap-3 py-4 px-8 rounded-2xl bg-studio-red hover:bg-studio-red-dark text-white font-black text-sm uppercase tracking-wider transition shadow-2xl shadow-studio-red/40 transform hover:scale-[1.02]"
-          >
-            <span>Reserva tu clase de prueba</span>
-            <ArrowRight className="w-5 h-5" />
-          </Link>
-          <span className="block text-xs text-studio-cream/60 mt-3 font-semibold">
-            100% gratuita • Sin permanencia • Tatami abierto
-          </span>
+          <BeltLadder className="lg:pl-6" />
         </div>
       </section>
 
-      {/* 2. PROGRAMAS (8 Cards Reales) */}
-      <section id="programas" className="max-w-6xl mx-auto px-4 sm:px-6 space-y-8">
-        <div className="text-center space-y-2">
-          <span className="text-xs font-black uppercase tracking-widest text-studio-red">Nuestras Disciplinas</span>
-          <h2 className="text-3xl font-black uppercase text-white">Programas de Entrenamiento</h2>
-          <p className="text-xs text-studio-cream/70 max-w-lg mx-auto">
-            Planes adaptados desde principiantes absolutos hasta competidores de alto rendimiento.
-          </p>
-        </div>
+      {/* Programas */}
+      <section id="programas" className="bg-studio-cream text-studio-navy">
+        <div className={`${wrap} py-20 sm:py-28`}>
+          <h2 className="font-display text-5xl sm:text-6xl">Qué puedes entrenar</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {programs.map((p, idx) => (
-            <div
-              key={idx}
-              className="bg-studio-navy-light/80 border border-white/10 rounded-3xl p-5 shadow-xl hover:border-studio-red/40 transition group"
-            >
-              <div className="w-10 h-10 rounded-xl bg-studio-navy border border-white/10 flex items-center justify-center mb-3 group-hover:scale-105 transition">
-                <Swords className="w-5 h-5 text-studio-red" />
-              </div>
-              <h3 className="font-black text-sm uppercase text-white mb-1.5">{p.title}</h3>
-              <p className="text-xs text-studio-cream/70 leading-relaxed">{p.desc}</p>
-            </div>
-          ))}
+          <ul className="mt-12 border-t-2 border-studio-navy">
+            {programs.map((p) => (
+              <li
+                key={p.title}
+                className="grid gap-x-10 gap-y-1 border-b border-studio-navy/25 py-5 sm:grid-cols-[13rem_1fr_6rem] sm:items-baseline"
+              >
+                <h3 className="font-display text-3xl uppercase">{p.title}</h3>
+                <p className="max-w-lg text-[15px] leading-relaxed text-studio-navy/85">{p.desc}</p>
+                <span className="text-sm font-semibold text-studio-red-dark sm:text-right">{p.who}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      {/* 3. HORARIO PREVIEW (Lectura pública acotada) */}
-      <section id="horario" className="max-w-5xl mx-auto px-4 sm:px-6 space-y-6">
-        <div className="bg-gradient-to-b from-studio-navy-light/90 to-studio-navy border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10">
-            <div>
-              <span className="text-xs font-black uppercase tracking-widest text-studio-red">Parrilla Semanal</span>
-              <h2 className="text-2xl font-black uppercase text-white">Próximas Clases Destacadas</h2>
-              <p className="text-xs text-studio-cream/70 mt-0.5">
-                Consulta en vivo algunas de las sesiones semanales activas en el centro.
-              </p>
-            </div>
-
-            <Link
-              to="/reserva-prueba"
-              className="py-2.5 px-4 bg-white/10 hover:bg-white/15 text-white font-black text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 shrink-0"
-            >
-              <span>Ver horario completo</span>
-              <ArrowRight className="w-4 h-4" />
+      {/* Horario */}
+      <section id="horario" className="bg-studio-navy">
+        <div className={`${wrap} py-20 sm:py-28`}>
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <h2 className="font-display text-5xl sm:text-6xl text-white">Cuándo se entrena</h2>
+            <Link to="/reserva-prueba" className="btn-outline text-studio-cream self-start sm:self-auto">
+              Ver horario completo
             </Link>
           </div>
 
-          <div className="mt-6">
+          <div className="mt-12 border-t-2 border-studio-cream">
             {loadingSchedule ? (
-              <div className="py-8 flex justify-center">
-                <div className="w-6 h-6 border-2 border-studio-red border-t-transparent rounded-full animate-spin" />
+              <div className="py-10" role="status" aria-label="Cargando horario">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-studio-red border-t-transparent" />
               </div>
             ) : activeSchedules.length === 0 ? (
-              <p className="text-xs text-studio-cream/60 text-center py-6">
+              <p className="py-8 text-studio-cream">
                 Horario en actualización. Consulta los detalles al reservar tu clase.
               </p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {activeSchedules.slice(0, 3).map((s) => (
-                  <div
+              <ul>
+                {activeSchedules.slice(0, 6).map((s) => (
+                  <li
                     key={s.id}
-                    className="p-4 bg-studio-navy rounded-2xl border border-white/5 space-y-2"
+                    className="grid grid-cols-[6.5rem_1fr] gap-x-6 gap-y-0.5 border-b border-white/15 py-4 sm:grid-cols-[9rem_10rem_1fr_auto] sm:items-baseline"
                   >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-black uppercase text-studio-red">{days[s.dayOfWeek]}</span>
-                      <span className="font-mono font-bold text-white/90">{s.startTime} - {s.endTime}</span>
-                    </div>
-                    <div className="font-extrabold text-sm text-white">{s.program}</div>
-                    <div className="text-[11px] text-studio-cream/70 flex items-center gap-1">
-                      <User className="w-3 h-3 text-studio-cream/50" /> Prof. {s.professor}
-                    </div>
-                  </div>
+                    <span className="font-display text-2xl text-white">{DAYS[s.dayOfWeek]}</span>
+                    <span className="num text-lg font-semibold text-studio-cream">
+                      {s.startTime} a {s.endTime}
+                    </span>
+                    <span className="col-span-2 sm:col-span-1 font-semibold text-white">{s.program}</span>
+                    <span className="col-span-2 sm:col-span-1 text-sm text-studio-cream/75">
+                      Prof. {s.professor}
+                    </span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </div>
       </section>
 
-      {/* 4. INSTRUCTORES (Mario y David) */}
-      <section id="instructores" className="max-w-5xl mx-auto px-4 sm:px-6 space-y-8">
-        <div className="text-center space-y-2">
-          <span className="text-xs font-black uppercase tracking-widest text-studio-red">Equipo Técnico</span>
-          <h2 className="text-3xl font-black uppercase text-white">Nuestros Instructores</h2>
-          <p className="text-xs text-studio-cream/70 max-w-lg mx-auto">
-            Pasión marcial y dedicación pedagógica para acompañarte desde tu primera guardia.
-          </p>
-        </div>
+      {/* Instructores */}
+      <section id="instructores" className="bg-studio-cream text-studio-navy">
+        <div className={`${wrap} py-20 sm:py-28`}>
+          <h2 className="font-display text-5xl sm:text-6xl">Quién te da la clase</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {instructors.map((inst, i) => (
-            <div
-              key={i}
-              className="bg-studio-navy-light/90 border border-white/10 rounded-3xl p-6 shadow-xl flex items-start gap-4"
-            >
-              <div className="w-14 h-14 rounded-2xl bg-studio-navy border-2 border-studio-cream/30 flex items-center justify-center font-black text-xl text-studio-cream shrink-0">
-                {inst.name[0]}
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-black text-lg text-white">{inst.name}</h3>
-                <span className="text-xs font-bold text-studio-red block">{inst.role}</span>
-                <p className="text-xs text-studio-cream/70 leading-relaxed pt-1">{inst.bio}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 5. CTA FINAL */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-        <div className="bg-gradient-to-r from-studio-red-dark via-studio-red to-studio-navy p-8 sm:p-12 rounded-3xl shadow-2xl space-y-4">
-          <h2 className="text-2xl sm:text-4xl font-black uppercase text-white tracking-tight">
-            ¿Listo para Probar el Tatami de 247Studio?
-          </h2>
-          <p className="text-xs sm:text-sm text-studio-cream/90 max-w-xl mx-auto leading-relaxed">
-            Ven a conocernos, rueda con nosotros y experimenta el Brazilian Jiu-Jitsu en un ambiente seguro y familiar.
-          </p>
-          <div className="pt-2">
-            <Link
-              to="/reserva-prueba"
-              className="inline-flex items-center gap-2 py-3.5 px-6 rounded-xl bg-white text-studio-navy font-black text-xs uppercase tracking-wider hover:bg-studio-cream transition shadow-xl"
-            >
-              <span>Reserva tu clase de prueba gratis</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+          <div className="mt-12 grid gap-12 sm:grid-cols-2 sm:gap-16">
+            {instructors.map((inst) => (
+              <article key={inst.name} className="border-t-2 border-studio-navy pt-6">
+                <h3 className="font-display text-7xl sm:text-8xl">{inst.name}</h3>
+                <p className="mt-4 font-bold text-studio-red-dark">{inst.role}</p>
+                <p className="mt-2 max-w-sm leading-relaxed text-studio-navy/85">{inst.bio}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
-    </div>
+
+      {/* Cierre */}
+      <section className="bg-studio-red on-red">
+        <div className={`${wrap} py-20 sm:py-28 flex flex-col gap-10 md:flex-row md:items-end md:justify-between`}>
+          <h2 className="font-display text-6xl sm:text-8xl uppercase text-white max-w-3xl">
+            Tu primera clase no cuesta nada.
+          </h2>
+          <div className="shrink-0">
+            <Link
+              to="/reserva-prueba"
+              className="inline-flex items-center justify-center rounded-xl bg-studio-navy px-8 py-4 text-lg font-bold text-white hover:bg-studio-navy-deep"
+            >
+              Reservar clase de prueba
+            </Link>
+            <p className="mt-3 text-sm font-medium text-white">Sin permanencia.</p>
+          </div>
+        </div>
+      </section>
+    </>
   );
 };

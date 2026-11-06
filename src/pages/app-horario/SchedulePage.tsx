@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
+  increment,
   query,
   serverTimestamp,
   setDoc,
@@ -47,7 +49,7 @@ export const SchedulePage: React.FC = () => {
   const [schedules, setSchedules] = useState<ScheduleDomainModel[]>([]);
   const [exceptions, setExceptions] = useState<ScheduleExceptionDomainModel[]>([]);
   const [myBookings, setMyBookings] = useState<BookingDomainModel[]>([]);
-  const [allDateBookings, setAllDateBookings] = useState<BookingDomainModel[]>([]);
+  const [classCapacities, setClassCapacities] = useState<Record<string, { bookedCount: number; waitlistCount: number }>>({});
   const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number>(1); // 1 = Lunes
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('TODAS');
   const [loading, setLoading] = useState(true);
@@ -105,12 +107,20 @@ export const SchedulePage: React.FC = () => {
         setMyBookings(bList);
       }
 
-      // 4. Obtener bookings globales para conteo de aforo
-      const allBQuery = query(collection(db, 'bookings'), where('date', '==', selectedDateStr));
-      const allBSnap = await getDocs(allBQuery);
-      const allBList: BookingDomainModel[] = [];
-      allBSnap.forEach((d) => allBList.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) }));
-      setAllDateBookings(allBList);
+      // 4. Obtener contadores agregados de aforo (class_capacity) sin violar reglas de reservas privadas
+      const capQuery = query(collection(db, 'class_capacity'), where('date', '==', selectedDateStr));
+      const capSnap = await getDocs(capQuery);
+      const capMap: Record<string, { bookedCount: number; waitlistCount: number }> = {};
+      capSnap.forEach((d) => {
+        const data = d.data();
+        if (data.scheduleId) {
+          capMap[data.scheduleId] = {
+            bookedCount: Math.max(0, data.bookedCount || 0),
+            waitlistCount: Math.max(0, data.waitlistCount || 0),
+          };
+        }
+      });
+      setClassCapacities(capMap);
     } catch (err) {
       console.error('Error fetching schedules:', err);
     } finally {
@@ -138,13 +148,11 @@ export const SchedulePage: React.FC = () => {
 
     try {
       const bookingId = `bk_${user.uid}_${schedule.id}_${selectedDateStr}`;
-
-      // Comprobar aforo orientativo
-      const activeBookingsForClass = allDateBookings.filter(
-        (b) => b.scheduleId === schedule.id && (b.status === 'BOOKED' || b.status === 'ATTENDED')
-      );
+      const capDocRef = doc(db, 'class_capacity', `cap_${schedule.id}_${selectedDateStr}`);
+      const capSnap = await getDoc(capDocRef);
+      const currentBooked = capSnap.exists() ? (capSnap.data()?.bookedCount || 0) : 0;
       const capacity = schedule.capacity || 24;
-      const isWaitlist = activeBookingsForClass.length >= capacity;
+      const isWaitlist = currentBooked >= capacity;
 
       await setDoc(doc(db, 'bookings', bookingId), {
         uid: user.uid,
@@ -156,6 +164,19 @@ export const SchedulePage: React.FC = () => {
         checkInSource: 'APP',
         createdAt: serverTimestamp(),
       });
+
+      // Actualizar contador agregado de aforo en class_capacity
+      await setDoc(
+        capDocRef,
+        {
+          scheduleId: schedule.id,
+          date: selectedDateStr,
+          bookedCount: isWaitlist ? increment(0) : increment(1),
+          waitlistCount: isWaitlist ? increment(1) : increment(0),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
 
       setMessage({
         text: isWaitlist
@@ -189,6 +210,31 @@ export const SchedulePage: React.FC = () => {
         status: 'CANCELLED',
         cancelledAt: serverTimestamp(),
       });
+
+      const capDocRef = doc(db, 'class_capacity', `cap_${schedule.id}_${selectedDateStr}`);
+      if (booking.status === 'BOOKED') {
+        await setDoc(
+          capDocRef,
+          {
+            scheduleId: schedule.id,
+            date: selectedDateStr,
+            bookedCount: increment(-1),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } else if (booking.status === 'WAITLISTED') {
+        await setDoc(
+          capDocRef,
+          {
+            scheduleId: schedule.id,
+            date: selectedDateStr,
+            waitlistCount: increment(-1),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
 
       setMessage({ text: 'Reserva cancelada correctamente.', type: 'success' });
       await fetchScheduleData();
@@ -321,10 +367,9 @@ export const SchedulePage: React.FC = () => {
                   (b.status === 'BOOKED' || b.status === 'WAITLISTED')
               );
 
-              // Conteo de asistentes activos
-              const currentAttendees = allDateBookings.filter(
-                (b) => b.scheduleId === schedule.id && (b.status === 'BOOKED' || b.status === 'ATTENDED')
-              ).length;
+              // Conteo agregado de aforo y lista de espera
+              const capData = classCapacities[schedule.id] || { bookedCount: 0, waitlistCount: 0 };
+              const currentAttendees = capData.bookedCount;
               const capacity = schedule.capacity || 24;
               const isFull = currentAttendees >= capacity;
 

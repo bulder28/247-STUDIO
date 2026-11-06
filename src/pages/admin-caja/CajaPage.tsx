@@ -42,6 +42,9 @@ export const CajaPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | PaymentStatus>('ALL');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const [rejectingPayment, setRejectingPayment] = useState<PaymentDomainModel | null>(null);
+  const [rejectReason, setRejectReason] = useState<string>('No recibido en cuenta bancaria / Bizum');
+
   const fetchCajaData = async () => {
     try {
       // 1. Pagos
@@ -75,8 +78,28 @@ export const CajaPage: React.FC = () => {
     setActionLoading(payment.id);
 
     try {
-      // Precio por defecto de cuota mensual si no venía asignado: 65,00 € (6500 céntimos)
-      const amountCents = payment.amountCents || 6500;
+      const student = users.find((u) => u.uid === payment.uid);
+
+      let amountCents = payment.amountCents;
+      if (!amountCents) {
+        if (payment.billingType === 'PASS') {
+          amountCents = 10000; // 100,00 € bono 10 sesiones
+        } else if (payment.billingType === 'DROP_IN') {
+          amountCents = 1500; // 15,00 € clase suelta
+        } else {
+          // Tarifa mensual según pricingTier del alumno
+          if (student?.pricingTier === 'SF') {
+            amountCents = 6000; // 60,00 € Fuerzas y Cuerpos de Seguridad / Bomberos
+          } else if (student?.pricingTier === 'FAM') {
+            amountCents = 5500; // 55,00 € Tarifa Familiar / Pareja
+          } else if (student?.activeTariffId === 'tariff-ilimitada') {
+            amountCents = 8500; // 85,00 € Tarifa plana ilimitada
+          } else {
+            amountCents = 6500; // 65,00 € Tarifa estándar 2 días/sem
+          }
+        }
+      }
+
       const vat = calculateVatBreakdown(amountCents, 0.21);
 
       const updateData: Record<string, any> = {
@@ -101,19 +124,22 @@ export const CajaPage: React.FC = () => {
     }
   };
 
-  const handleRejectPayment = async (payment: PaymentDomainModel) => {
-    if (!user) return;
-    const reason = prompt('Indica el motivo de rechazo del pago (ej. No recibido en banco):');
-    if (!reason) return;
+  const handleOpenRejectModal = (payment: PaymentDomainModel) => {
+    setRejectingPayment(payment);
+    setRejectReason('No recibido en cuenta bancaria / Bizum');
+  };
 
-    setActionLoading(payment.id);
+  const handleConfirmReject = async () => {
+    if (!user || !rejectingPayment) return;
+    setActionLoading(rejectingPayment.id);
     try {
-      await updateDoc(doc(db, 'payments', payment.id), {
+      await updateDoc(doc(db, 'payments', rejectingPayment.id), {
         status: 'REJECTED',
-        rejectedReason: reason,
+        rejectedReason: rejectReason,
         validatedBy: user.uid,
         validatedAt: serverTimestamp(),
       });
+      setRejectingPayment(null);
       await fetchCajaData();
     } catch (err) {
       console.error('Error rejecting payment:', err);
@@ -371,9 +397,10 @@ export const CajaPage: React.FC = () => {
                               <Check className="w-3.5 h-3.5" /> Aprobar
                             </button>
                             <button
-                              onClick={() => handleRejectPayment(pay)}
+                              onClick={() => handleOpenRejectModal(pay)}
                               disabled={actionLoading === pay.id}
                               className="px-2.5 py-1.5 bg-studio-red/10 hover:bg-studio-red/20 text-studio-red border border-studio-red/30 rounded-lg font-bold text-xs transition"
+                              title="Rechazar pago"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -389,6 +416,40 @@ export const CajaPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Modal de confirmación de rechazo */}
+      {rejectingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-studio-navy-light border border-white/10 rounded-2xl p-6 shadow-2xl">
+            <h3 className="font-display text-2xl text-white">Rechazar Pago</h3>
+            <p className="mt-2 text-xs text-studio-cream/80">
+              Indica el motivo por el cual no se valida este pago (el alumno verá este motivo en su panel):
+            </p>
+            <input
+              type="text"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              className="mt-4 w-full px-3 py-2.5 bg-studio-navy border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red"
+              placeholder="Ej. Transferencia no reflejada en cuenta"
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setRejectingPayment(null)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl text-xs font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmReject}
+                disabled={actionLoading === rejectingPayment.id || !rejectReason.trim()}
+                className="px-4 py-2 bg-studio-red hover:bg-studio-red-dark text-white rounded-xl text-xs font-bold disabled:opacity-50"
+              >
+                Confirmar Rechazo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

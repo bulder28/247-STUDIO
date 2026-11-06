@@ -6,30 +6,65 @@
   color-scheme: dark;
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
 body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
   background-color: #11152E;
   color: #FFFFFF;
+  font-feature-settings: 'tnum' 0, 'ss01' 0;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+@layer components {
+  /* Titulares: Archivo en su ancho condensado. Es la voz de cartel del gimnasio. */
+  .font-display {
+    font-family: 'Archivo Variable', Impact, system-ui, sans-serif;
+    font-stretch: 68%;
+    font-weight: 800;
+    line-height: 0.94;
+    letter-spacing: -0.005em;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  .btn-red {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-studio-red px-6 py-3.5 text-base font-bold text-white transition-colors hover:bg-studio-red-dark;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-current px-5 py-3 text-[15px] font-semibold transition-colors hover:bg-white/10;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: #11152E;
+/* Foco visible para teclado */
+:focus-visible {
+  outline: 2px solid #E60000;
+  outline-offset: 2px;
+}
+.on-red :focus-visible {
+  outline-color: #fff;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #1C224A;
-  border-radius: 3px;
+/* Único momento de movimiento: los cinturones entran al cargar la portada */
+@keyframes belt-in {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: none; }
+}
+.belt-enter {
+  animation: belt-in 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .belt-enter { animation: none; }
+  html { scroll-behavior: auto; }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #D8D2B8;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #11152E; }
+::-webkit-scrollbar-thumb { background: #1C224A; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #D8D2B8; }

@@ -13,48 +13,37 @@ export const StatusTrafficLight: React.FC<StatusTrafficLightProps> = ({
   subtext,
   className = '',
 }) => {
+  // Semáforo plano y legible desde lejos: color sólido + texto con contraste AA.
   const getStatusConfig = () => {
     switch (status) {
       case 'OK':
         return {
-          bg: 'bg-emerald-500/15 border-emerald-500/50',
-          text: 'text-emerald-400',
-          badgeBg: 'bg-emerald-500',
-          badgeText: 'text-studio-navy font-bold',
-          title: 'AL DÍA (OK)',
+          box: 'bg-[#2BD07F] text-studio-navy',
+          title: 'Al día',
           icon: CheckCircle2,
           description: subtext || 'Acceso permitido a todas las clases de tu tarifa.',
         };
       case 'PENDING_VALIDATION':
         return {
-          bg: 'bg-amber-500/15 border-amber-500/50',
-          text: 'text-amber-400',
-          badgeBg: 'bg-amber-500',
-          badgeText: 'text-studio-navy font-bold',
-          title: 'PAGO EN REVISIÓN',
+          box: 'bg-[#F5B731] text-studio-navy',
+          title: 'Pago en revisión',
           icon: Clock,
-          description: subtext || 'Pago notificado por el alumno. Pendiente de verificación por admin.',
+          description: subtext || 'Has notificado tu pago. Falta que recepción lo verifique.',
         };
       case 'GRACE':
         return {
-          bg: 'bg-blue-500/15 border-blue-500/50',
-          text: 'text-blue-400',
-          badgeBg: 'bg-blue-500',
-          badgeText: 'text-white font-bold',
-          title: 'PERIODO DE CORTESÍA (GRACIA)',
+          box: 'bg-[#6DB0FF] text-studio-navy',
+          title: 'Periodo de cortesía',
           icon: ShieldAlert,
           description: subtext || 'Tienes 7 días desde tu primera clase para regularizar tu cuota.',
         };
       case 'NOK':
       default:
         return {
-          bg: 'bg-studio-red/15 border-studio-red/50',
-          text: 'text-studio-red',
-          badgeBg: 'bg-studio-red',
-          badgeText: 'text-white font-bold',
-          title: 'PAGO PENDIENTE (BLOQUEADO)',
+          box: 'bg-studio-red-dark text-white',
+          title: 'Pago pendiente',
           icon: AlertOctagon,
-          description: subtext || 'Cuota vencida o saldo de sesiones agotado. Contacta con recepción.',
+          description: subtext || 'Cuota vencida o saldo de sesiones agotado. Habla con recepción.',
         };
     }
   };
@@ -64,26 +53,16 @@ export const StatusTrafficLight: React.FC<StatusTrafficLightProps> = ({
 
   return (
     <div
-      className={`rounded-2xl border p-5 transition-all duration-300 ${config.bg} ${className}`}
+      className={`rounded-2xl p-5 sm:p-6 ${config.box} ${className}`}
       role="status"
       aria-label={`Estado de membresía: ${config.title}`}
     >
-      <div className="flex items-center gap-4">
-        <div className={`p-3 rounded-xl ${config.badgeBg} ${config.badgeText} shadow-lg shadow-black/20`}>
-          <IconComponent className="w-8 h-8" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-studio-cream/70">
-              Estado de Membresía
-            </span>
-          </div>
-          <h2 className={`text-xl font-extrabold tracking-wide ${config.text}`}>
-            {config.title}
-          </h2>
-          <p className="text-xs text-studio-cream/80 mt-1 leading-relaxed">
-            {config.description}
-          </p>
+      <div className="flex items-center gap-5">
+        <IconComponent className="h-12 w-12 shrink-0" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold opacity-80">Tu membresía</p>
+          <h2 className="font-display text-5xl uppercase">{config.title}</h2>
+          <p className="mt-1.5 text-sm font-medium leading-snug">{config.description}</p>
         </div>
       </div>
     </div>

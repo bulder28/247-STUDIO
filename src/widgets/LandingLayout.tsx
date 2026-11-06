@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, Outlet } from 'react-router-dom';
-import { ArrowRight, ExternalLink, User } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 
 export const LandingLayout: React.FC = () => {
@@ -13,95 +13,94 @@ export const LandingLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-studio-navy text-white flex flex-col justify-between">
-      {/* Header Landing */}
-      <header className="sticky top-0 z-40 bg-studio-navy/95 backdrop-blur-md border-b border-white/10 px-4 sm:px-8 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 group">
-            <img src="/logo.svg" alt="247Studio Logo" className="w-9 h-9 rounded-xl shadow transition group-hover:scale-105" />
-            <div>
-              <span className="font-black text-base tracking-widest uppercase text-white block">247Studio</span>
-              <span className="text-[10px] text-studio-cream/70 font-semibold block tracking-wider">BJJ & Grappling Academy</span>
-            </div>
+    <div className="min-h-screen bg-studio-navy text-white flex flex-col">
+      <header className="sticky top-0 z-40 bg-studio-navy border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between gap-6">
+          <Link to="/" className="flex items-center gap-3">
+            <img src="/logo.svg" alt="" className="w-9 h-9" />
+            <span className="font-display text-[1.65rem] text-white">247Studio</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-6 text-xs font-bold uppercase tracking-wider text-studio-cream/80">
-            <a href="/#programas" className="hover:text-white transition">Programas</a>
-            <a href="/#horario" className="hover:text-white transition">Horario</a>
-            <a href="/#instructores" className="hover:text-white transition">Instructores</a>
-            <a href="https://www.247studiobjj.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition flex items-center gap-1">
-              <span>Web Oficial</span>
-              <ExternalLink className="w-3 h-3 text-studio-cream/50" />
+          <nav className="hidden md:flex items-center gap-7 text-[15px] font-medium text-studio-cream">
+            <a href="/#programas" className="hover:text-white">Programas</a>
+            <a href="/#horario" className="hover:text-white">Horario</a>
+            <a href="/#instructores" className="hover:text-white">Instructores</a>
+            <a
+              href="https://www.247studiobjj.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-white inline-flex items-center gap-1.5"
+            >
+              <span>Web oficial</span>
+              <ExternalLink className="w-3.5 h-3.5 opacity-60" aria-hidden="true" />
             </a>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {user ? (
               <Link
                 to={getPanelLink()}
-                className="py-2 px-4 rounded-xl bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider transition shadow-lg shadow-studio-red/20 flex items-center gap-1.5"
+                className="rounded-xl bg-studio-red px-4 py-2.5 text-sm font-bold text-white hover:bg-studio-red-dark"
               >
-                <User className="w-3.5 h-3.5" />
-                <span>
-                  {userData ? `Hola, ${userData.alias} — Ir a mi panel` : 'Ir a mi panel'}
-                </span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>{userData ? `Hola, ${userData.alias} — Ir a mi panel` : 'Ir a mi panel'}</span>
               </Link>
             ) : (
-              <div className="flex items-center gap-2">
+              <>
                 <Link
                   to="/login"
-                  className="py-2 px-3.5 rounded-xl border border-white/15 text-xs font-bold text-studio-cream hover:text-white hover:bg-white/5 transition"
+                  className="px-3 py-2.5 text-sm font-semibold text-studio-cream hover:text-white"
                 >
                   Acceder
                 </Link>
                 <Link
                   to="/reserva-prueba"
-                  className="hidden sm:inline-flex py-2 px-4 rounded-xl bg-studio-red hover:bg-studio-red-dark text-white font-black text-xs uppercase tracking-wider transition shadow-lg shadow-studio-red/20"
+                  className="hidden sm:inline-flex rounded-xl bg-studio-red px-4 py-2.5 text-sm font-bold text-white hover:bg-studio-red-dark"
                 >
-                  Clase de Prueba
+                  Clase de prueba
                 </Link>
-              </div>
+              </>
             )}
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1">
         <Outlet />
       </main>
 
-      {/* Footer Landing */}
-      <footer className="bg-studio-navy-light/80 border-t border-white/10 px-4 sm:px-8 py-10 mt-16">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+      <footer className="bg-studio-navy-deep">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 py-12 grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
           <div>
-            <div className="flex items-center justify-center md:justify-start gap-2.5 mb-2">
-              <img src="/logo.svg" alt="247Studio" className="w-7 h-7 rounded-lg" />
-              <span className="font-black text-sm uppercase tracking-wider text-white">247Studio BJJ</span>
+            <div className="flex items-center gap-3">
+              <img src="/logo.svg" alt="" className="w-8 h-8" />
+              <span className="font-display text-2xl text-white">247Studio</span>
             </div>
-            <p className="text-xs text-studio-cream/60 max-w-sm">
-              Academia especializada en Brazilian Jiu-Jitsu, Grappling, MMA y Lucha en Madrid.
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-studio-cream/75">
+              Brazilian jiu-jitsu, grappling, MMA y lucha en Madrid.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-studio-cream/70 font-semibold">
-            <a
-              href="https://www.247studiobjj.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-studio-cream hover:text-white font-bold flex items-center gap-1 underline underline-offset-4"
-            >
-              <span>Web oficial (247studiobjj.com)</span>
-              <ExternalLink className="w-3 h-3 text-studio-cream/60" />
-            </a>
-            <Link to="/reserva-prueba" className="hover:text-white transition">Reserva de Prueba</Link>
-            <Link to="/login" className="hover:text-white transition">Acceso Alumnos</Link>
-          </div>
+          <ul className="space-y-2.5 text-sm text-studio-cream">
+            <li><Link to="/reserva-prueba" className="hover:text-white">Reservar clase de prueba</Link></li>
+            <li><Link to="/login" className="hover:text-white">Acceso alumnos</Link></li>
+            <li><Link to="/privacidad" className="hover:text-white text-xs opacity-70">Política de privacidad</Link></li>
+            <li><Link to="/terminos" className="hover:text-white text-xs opacity-70">Términos y condiciones</Link></li>
+          </ul>
 
-          <div className="text-xs text-studio-cream/50">
-            © {new Date().getFullYear()} 247Studio. Todos los derechos reservados.
-          </div>
+          <ul className="space-y-2.5 text-sm text-studio-cream">
+            <li>
+              <a
+                href="https://www.247studiobjj.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white inline-flex items-center gap-1.5"
+              >
+                <span>247studiobjj.com</span>
+                <ExternalLink className="w-3.5 h-3.5 opacity-60" aria-hidden="true" />
+              </a>
+            </li>
+            <li className="text-studio-cream/60">© {new Date().getFullYear()} 247Studio</li>
+          </ul>
         </div>
       </footer>
     </div>

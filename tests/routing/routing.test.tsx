@@ -41,7 +41,7 @@ describe('Tests de routing y sitio público', () => {
 
       // Verificamos que el botón Acceder está visible y no hay redirección
       expect(screen.getByText('Acceder')).toBeDefined();
-      expect(screen.getByText('Clase de Prueba')).toBeDefined();
+      expect(screen.getByText('Clase de prueba')).toBeDefined();
       expect(screen.queryByText('Ir a mi panel')).toBeNull();
     });
 

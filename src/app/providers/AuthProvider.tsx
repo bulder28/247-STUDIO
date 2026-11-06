@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/shared/api/firebase';
 import { Role, UserDomainModel } from '@/shared/domain/types';
 
@@ -75,7 +75,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         try {
-          await setDoc(userDocRef, initialProfile, { merge: true });
+          if (userRole === 'admin') {
+            await setDoc(userDocRef, initialProfile, { merge: true });
+          } else {
+            // Auto-creación de atleta cumpliendo estrictamente con firestore.rules
+            const studentDoc = {
+              authEmail: firebaseUser.email || '',
+              contactEmail: firebaseUser.email || '',
+              alias: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Atleta 247',
+              phone: firebaseUser.phoneNumber || '',
+              emergencyContactName: 'Contacto de Emergencia',
+              emergencyContactPhone: '',
+              birthDate: '1998-01-01',
+              isMinor: false,
+              beltSystem: 'ADULT',
+              belt: 'WHITE',
+              stripes: 0,
+              pricingTier: 'STD',
+              activeTariffId: 'tariff-mensual-bjj',
+              accountStatus: 'PENDING',
+              permissions: ['student'],
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            };
+            await setDoc(userDocRef, studentDoc);
+          }
         } catch {
           // Si las reglas rechazan la escritura cliente, mantenemos el perfil en memoria
         }
