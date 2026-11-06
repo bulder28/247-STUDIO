@@ -31,14 +31,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchProfile = async (firebaseUser: User) => {
     try {
       const idTokenResult = await firebaseUser.getIdTokenResult(true);
-      const userRole = (idTokenResult.claims.role as Role) || 'student';
-      setRole(userRole);
+      let userRole = (idTokenResult.claims.role as Role);
 
       const userDocRef = doc(db, 'users', firebaseUser.uid);
       const snap = await getDoc(userDocRef);
       if (snap.exists()) {
-        setUserData({ uid: snap.id, ...(snap.data() as Omit<UserDomainModel, 'uid'>) });
-      } else {
+        const docData = snap.data();
+        if (!userRole) {
+          if (
+            docData?.role === 'admin' ||
+            docData?.permissions?.includes('ADMIN') ||
+            docData?.permissions?.includes('admin')
+          ) {
+            userRole = 'admin';
+          }
+        }
+        setUserData({ uid: snap.id, ...(docData as Omit<UserDomainModel, 'uid'>) });
+      }
+      setRole(userRole || 'student');
+      if (!snap.exists()) {
         // Auto-creación de perfil inicial para atletas o administradores recién registrados
         const initialProfile: UserDomainModel = {
           uid: firebaseUser.uid,
