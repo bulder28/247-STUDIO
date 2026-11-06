@@ -106,14 +106,15 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleWaiverConfirmed = async (signatureDataUrl: string) => {
+  const handleWaiverConfirmed = async (signatureSvg: string) => {
     if (!user) return;
     setShowWaiverModal(false);
     const userRef = doc(db, 'users', user.uid);
     await updateDoc(userRef, {
       waiverSignedAt: serverTimestamp(),
       waiverVersion: 'v2.0',
-      waiverSignatureData: signatureDataUrl,
+      waiverSignatureSvg: signatureSvg,
+      waiverSignedByUid: user.uid,
       updatedAt: serverTimestamp(),
     });
     await refreshProfile();

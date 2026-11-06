@@ -139,6 +139,17 @@ export const StudentRegistrationPage: React.FC = () => {
         updatedAt: serverTimestamp(),
       });
 
+      // 3. Si procede de un lead del embudo, marcarlo automáticamente como CONVERTED
+      const leadId = searchParams.get('leadId');
+      if (leadId) {
+        try {
+          const { updateDoc: updateLeadDoc } = await import('firebase/firestore');
+          await updateLeadDoc(doc(db, 'leads', leadId), { status: 'CONVERTED' });
+        } catch (leadErr) {
+          console.warn('No se pudo actualizar el estado del lead:', leadErr);
+        }
+      }
+
       setSuccessUid(uid);
     } catch (err: any) {
       console.error('Error registrando alumno:', err);
