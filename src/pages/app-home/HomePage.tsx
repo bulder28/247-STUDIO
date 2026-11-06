@@ -15,6 +15,7 @@ import {
   ScheduleExceptionDomainModel,
 } from '@/shared/domain/types';
 import { FighterCard } from '@/widgets/FighterCard';
+import { BeltProgressionCard } from '@/widgets/BeltProgressionCard';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 
 export const HomePage: React.FC = () => {
@@ -343,8 +344,9 @@ export const HomePage: React.FC = () => {
           </div>
         </>
       ) : (
-        /* Pestaña de Entrenamiento: Ficha de Atleta y Atributos */
+        /* Pestaña de Entrenamiento: Ficha de Atleta, Gamificación y Atributos */
         <div className="space-y-6">
+          <BeltProgressionCard user={userData} bookings={bookings} />
           <FighterCard user={userData} />
         </div>
       )}

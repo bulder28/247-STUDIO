@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import {
   AlertCircle,
+  Award,
   Calendar,
   Check,
   CheckCheck,
@@ -23,13 +24,17 @@ import {
   Printer,
   RotateCcw,
   Search,
+  Sparkles,
   Trash2,
+  Trophy,
   UserCheck,
   UserPlus,
   X,
+  Zap,
 } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
 import { getAttendanceWeight } from '@/shared/domain/attendance';
+import { calculateAthleteXP, getNextPromotion } from '@/shared/domain/graduation';
 import { DEFAULT_OFFICIAL_SCHEDULES, getMadridTimeComponents } from '@/shared/domain/schedule';
 import {
   BookingDomainModel,
@@ -67,8 +72,8 @@ export const AttendanceAdminPage: React.FC = () => {
   const [addSearchTerm, setAddSearchTerm] = useState('');
   const [addSessionType, setAddSessionType] = useState<SessionType>('PARTICIPANT');
 
-  // Vista de informe mensual
-  const [viewMode, setViewMode] = useState<'SHEET' | 'MONTHLY_REPORT'>('SHEET');
+  // Vista de informe mensual y graduaciones
+  const [viewMode, setViewMode] = useState<'SHEET' | 'MONTHLY_REPORT' | 'GRADUATIONS'>('SHEET');
   const [reportMonth, setReportMonth] = useState<string>(madridNow.dateStr.slice(0, 7)); // YYYY-MM
   const [monthlyBookings, setMonthlyBookings] = useState<BookingDomainModel[]>([]);
   const [loadingReport, setLoadingReport] = useState(false);
@@ -403,10 +408,55 @@ export const AttendanceAdminPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (viewMode === 'MONTHLY_REPORT') {
+    if (viewMode === 'MONTHLY_REPORT' || viewMode === 'GRADUATIONS') {
       fetchMonthlyReport();
     }
   }, [viewMode, reportMonth]);
+
+  // ACCIÓN DE GRADUACIÓN: Conceder raya o ascender cinturón
+  const handlePromoteStudent = async (student: StudentDirectoryItem) => {
+    const promotion = getNextPromotion(student.belt as any, student.stripes, student.beltSystem as any);
+    const label = promotion.isBeltPromotion
+      ? `ascender al Cinturón ${beltLabelEs(promotion.nextBelt)}`
+      : `otorgar la raya ${promotion.nextStripes}º grado`;
+
+    if (!confirm(`¿Confirmas ${label} a ${student.alias}?`)) {
+      return;
+    }
+
+    setActionLoading(`promote_${student.uid}`);
+    try {
+      await updateDoc(doc(db, 'users', student.uid), {
+        belt: promotion.nextBelt,
+        stripes: promotion.nextStripes,
+        beltDate: madridNow.dateStr,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Actualizar estado local en memoria
+      setStudents((prev) => ({
+        ...prev,
+        [student.uid]: {
+          ...prev[student.uid],
+          belt: promotion.nextBelt,
+          stripes: promotion.nextStripes,
+        },
+      }));
+
+      setMessage({
+        text: `¡Graduación completada! ${student.alias} ahora tiene ${beltLabelEs(promotion.nextBelt)} (${promotion.nextStripes} grados).`,
+        type: 'success',
+      });
+    } catch (err: unknown) {
+      console.error('Error graduando alumno:', err);
+      setMessage({
+        text: err instanceof Error ? err.message : 'Error al procesar graduación.',
+        type: 'error',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   // Alumnos filtrados para añadir manualmente
   const filteredStudentsToAdd = Object.values(students).filter((s) => {
@@ -496,8 +546,8 @@ export const AttendanceAdminPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Toggle entre Hoja Diaria e Informe Mensual */}
-        <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200/80 self-start sm:self-auto">
+        {/* Toggle entre Hoja Diaria, Informe Mensual y Graduaciones */}
+        <div className="flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200/80 self-start sm:self-auto">
           <button
             onClick={() => setViewMode('SHEET')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
@@ -519,6 +569,17 @@ export const AttendanceAdminPage: React.FC = () => {
           >
             <FileText className="w-3.5 h-3.5" />
             <span>Informe Mensual</span>
+          </button>
+          <button
+            onClick={() => setViewMode('GRADUATIONS')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              viewMode === 'GRADUATIONS'
+                ? 'bg-brand-accent text-white shadow'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <Award className="w-3.5 h-3.5" />
+            <span>Graduaciones & Gamificación</span>
           </button>
         </div>
       </div>
@@ -1001,6 +1062,178 @@ export const AttendanceAdminPage: React.FC = () => {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VISTA 3: CEREMONIA DE GRADUACIONES Y GAMIFICACIÓN (PROFESORES 247)         */}
+      {/* ========================================================================= */}
+      {viewMode === 'GRADUATIONS' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Cabecera de la Ceremonia */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Candidatos a Graduación
+              </span>
+              <div className="text-3xl font-black text-slate-900 mt-2 font-mono">
+                {studentMonthlyAggregates.filter((s) => s.totalPoints >= 25).length}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Alumnos con &ge; 25 puntos de tatami listos para raya o cinturón.
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Trophy className="w-3.5 h-3.5 text-brand-accent" /> Censo Total en Evaluación
+              </span>
+              <div className="text-3xl font-black text-slate-900 mt-2 font-mono">
+                {studentMonthlyAggregates.length}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Atletas activos con asistencia registrada este mes.
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" /> Criterio Oficial 247Studio
+              </span>
+              <div className="text-sm font-extrabold text-slate-800 mt-2">
+                25 Clases / 1 Raya BJJ
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Graduación por horas de tatami y evaluación técnica de Mario y David.
+              </p>
+            </div>
+          </div>
+
+          {/* Tabla de Graduación y Promoción Rápida */}
+          <div className="bg-white border border-slate-200/80 rounded-3xl overflow-hidden shadow-sm">
+            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  Panel de Evaluación y Ascenso de Grados
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Concede rayas (stripes) o ascensos de cinturón con un solo clic. El alumno verá su nueva ficha y medalla al instante.
+                </p>
+              </div>
+
+              <button
+                onClick={handleExportCsv}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition flex items-center gap-2 self-start sm:self-auto cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" /> Exportar Acta CSV
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200/80">
+                  <tr>
+                    <th className="py-4 px-5">Pos</th>
+                    <th className="py-4 px-4">Atleta</th>
+                    <th className="py-4 px-4">Cinturón Actual</th>
+                    <th className="py-4 px-4 text-center">Clases / Puntos</th>
+                    <th className="py-4 px-4">Progreso Raya</th>
+                    <th className="py-4 px-4">Próximo Escalón</th>
+                    <th className="py-4 px-5 text-right">Acción de Grado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {studentMonthlyAggregates.map((item, index) => {
+                    const st = item.student;
+                    const promotion = getNextPromotion(st.belt as any, st.stripes, st.beltSystem as any);
+                    const isReady = item.totalPoints >= 25;
+                    const pct = Math.min(100, Math.round((item.totalPoints / 25) * 100));
+                    const xpData = calculateAthleteXP(item.totalAttendances);
+
+                    return (
+                      <tr key={st.uid} className="hover:bg-slate-50/60 transition">
+                        <td className="py-4 px-5 font-mono font-bold text-slate-400">
+                          #{index + 1}
+                        </td>
+
+                        <td className="py-4 px-4">
+                          <div className="font-extrabold text-sm text-slate-900">{st.alias}</div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">
+                            {st.beltSystem === 'KIDS' ? 'Categoría Infantil' : 'Adulto'} · Nivel {xpData.level}
+                          </span>
+                        </td>
+
+                        <td className="py-4 px-4">
+                          <div className="w-24 mb-1">
+                            <Belt belt={st.belt} stripes={st.stripes} decorative className="h-4" />
+                          </div>
+                          <span className="font-bold text-slate-800 text-[11px] block">
+                            {beltLabelEs(st.belt)}, {st.stripes} {st.stripes === 1 ? 'grado' : 'grados'}
+                          </span>
+                        </td>
+
+                        <td className="py-4 px-4 text-center">
+                          <span className="font-mono text-base font-black text-slate-900 block">
+                            {item.totalAttendances}
+                          </span>
+                          <span className="font-mono text-[10px] font-bold text-purple-600 block">
+                            {item.totalPoints.toFixed(1)} pts
+                          </span>
+                        </td>
+
+                        <td className="py-4 px-4 min-w-[130px]">
+                          <div className="flex items-center justify-between text-[10px] font-bold mb-1">
+                            <span className={isReady ? 'text-emerald-700' : 'text-slate-500'}>
+                              {item.totalPoints.toFixed(0)} / 25
+                            </span>
+                            <span className="font-mono text-slate-400">{pct}%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                isReady ? 'bg-emerald-500' : 'bg-slate-900'
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </td>
+
+                        <td className="py-4 px-4">
+                          {isReady ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                              <Sparkles className="w-3 h-3 text-amber-600" /> ¡Listo para evaluar!
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 text-[11px] font-medium block">
+                              {promotion.isBeltPromotion ? `Cinturón ${beltLabelEs(promotion.nextBelt)}` : `${promotion.nextStripes}º Grado`}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="py-4 px-5 text-right">
+                          <button
+                            type="button"
+                            disabled={actionLoading === `promote_${st.uid}`}
+                            onClick={() => handlePromoteStudent(st)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition shadow-sm inline-flex items-center gap-1.5 cursor-pointer ${
+                              isReady
+                                ? 'bg-brand-accent hover:bg-red-700 text-white shadow-brand-accent/20'
+                                : 'bg-slate-900 hover:bg-slate-800 text-white'
+                            }`}
+                          >
+                            <Award className="w-3.5 h-3.5" />
+                            <span>
+                              {promotion.isBeltPromotion ? 'Ascender Cinturón' : '+1 Grado'}
+                            </span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

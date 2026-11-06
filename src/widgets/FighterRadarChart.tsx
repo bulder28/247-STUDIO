@@ -215,3 +215,4 @@ export const FighterRadarChart: React.FC<FighterRadarChartProps> = ({
     </div>
   );
 };
+
