@@ -1,0 +1,47 @@
+{
+  "kids": [
+    "kids1.webp",
+    "kids2.webp",
+    "kids3.webp",
+    "kids4.webp",
+    "kids5.webp",
+    "kids6.webp",
+    "kids7.webp",
+    "kids8.webp",
+    "kids9.webp",
+    "kids10.webp",
+    "kids11.webp"
+  ],
+  "lucha": [
+    "lucha1.webp",
+    "lucha2.webp",
+    "lucha3.webp",
+    "lucha4.webp",
+    "lucha5.webp"
+  ],
+  "bjj": [
+    "bjj1.webp",
+    "bjj2.webp",
+    "bjj3.webp",
+    "bjj4.webp",
+    "bjj5.webp",
+    "bjj6.webp",
+    "bjj8.webp",
+    "bjj9.webp",
+    "bjj10.webp",
+    "bjj11.webp"
+  ],
+  "grappling": [
+    "grappling1.webp",
+    "grappling2.webp",
+    "grappling3.webp",
+    "grappling4.webp",
+    "grappling5.webp",
+    "grappling6.webp",
+    "grappling7.webp",
+    "grappling8.webp",
+    "grappling9.webp",
+    "grappling10.webp",
+    "grappling11.webp"
+  ]
+}

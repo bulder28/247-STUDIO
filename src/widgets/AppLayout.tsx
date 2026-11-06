@@ -44,7 +44,7 @@ export const AppLayout: React.FC = () => {
     ? 'bg-emerald-500'
     : isGrace
     ? 'bg-amber-500'
-    : 'bg-studio-red';
+    : 'bg-brand-accent';
 
   const statusText = isOk
     ? 'Pago OK'
@@ -55,40 +55,40 @@ export const AppLayout: React.FC = () => {
     : 'Activo';
 
   return (
-    <div className="min-h-screen bg-studio-navy flex flex-col md:flex-row text-white">
+    <div className="min-h-screen bg-brand-text flex flex-col md:flex-row text-white font-sans">
       {/* ======================================================== */}
       {/* 1. BARRA LATERAL (SIDEBAR) FIJA - DESKTOP / TABLET       */}
       {/* ======================================================== */}
-      <aside className="hidden md:flex md:w-64 lg:w-72 bg-[#0c0f24] border-r border-white/10 flex-col justify-between shrink-0 h-screen sticky top-0">
+      <aside className="hidden md:flex md:w-64 lg:w-72 bg-[#141624] border-r border-white/10 flex-col justify-between shrink-0 h-screen sticky top-0">
         <div className="flex-1 flex flex-col overflow-y-auto">
-          {/* Logo y Encabezado del Área Cliente (Como en Slide 4) */}
+          {/* Logo y Encabezado del Área Cliente (Como en Slide 4 de Mario) */}
           <div className="p-5 border-b border-white/10">
             <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="247Studio" className="w-10 h-10 rounded-xl shadow-lg" />
+              <img src="/logo.webp" alt="247Studio" className="w-10 h-10 object-contain brightness-110" />
               <div>
-                <span className="font-black text-base tracking-widest uppercase text-white block">
+                <span className="font-headline text-xl tracking-tighter uppercase text-white block leading-none">
                   247STUDIO
                 </span>
-                <span className="text-[10px] font-black uppercase tracking-wider text-studio-red bg-studio-red/10 px-2 py-0.5 rounded-full inline-block border border-studio-red/20">
+                <span className="text-[10px] font-headline font-bold uppercase tracking-wider text-brand-accent bg-brand-accent/10 px-2 py-0.5 rounded inline-block border border-brand-accent/20 mt-1">
                   Área Cliente
                 </span>
               </div>
             </div>
 
-            {/* Ficha Resumen de Estado del Atleta (Slide 4) */}
+            {/* Ficha Resumen de Estado del Atleta */}
             <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-white truncate">
+                <span className="text-xs font-bold text-white truncate">
                   {userData?.alias || 'Atleta 247'}
                 </span>
-                <span className="flex items-center gap-1.5 text-[10px] font-bold text-studio-cream/80">
+                <span className="flex items-center gap-1.5 text-[10px] font-bold text-brand-background/80">
                   <span className={`w-2 h-2 rounded-full ${statusColor} animate-pulse`} />
                   {statusText}
                 </span>
               </div>
-              <div className="mt-1 flex items-center justify-between text-[11px] text-studio-cream/60">
+              <div className="mt-1 flex items-center justify-between text-[11px] text-brand-background/60">
                 <span>{userData?.belt ? `Cinturón ${userData.belt}` : (userData?.beltSystem === 'KIDS' ? 'Kids' : 'Adulto BJJ')}</span>
-                <span className="text-[10px] px-2 py-0.2 rounded bg-white/10 text-studio-cream/90 font-mono">
+                <span className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-white font-mono">
                   Socio #{userData?.uid?.slice(0, 5) || '247'}
                 </span>
               </div>
@@ -104,10 +104,10 @@ export const AppLayout: React.FC = () => {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition tracking-wide ${
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition tracking-wide ${
                     isActive
-                      ? 'bg-studio-red text-white shadow-lg shadow-studio-red/25'
-                      : 'text-studio-cream/75 hover:bg-white/5 hover:text-white'
+                      ? 'bg-brand-accent text-white shadow-md shadow-brand-accent/25'
+                      : 'text-brand-background/75 hover:bg-white/5 hover:text-white'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -115,7 +115,7 @@ export const AppLayout: React.FC = () => {
                     <span>{item.label}</span>
                   </div>
                   {item.badge && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-studio-red/30 text-white font-mono">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-brand-accent/30 text-white font-mono">
                       {item.badge}
                     </span>
                   )}
@@ -126,20 +126,20 @@ export const AppLayout: React.FC = () => {
         </div>
 
         {/* Pie de Barra Lateral */}
-        <div className="p-4 border-t border-white/10 space-y-2 bg-[#0a0c1d]">
+        <div className="p-4 border-t border-white/10 space-y-2 bg-[#0e101b]">
           {/* Botón Acceso Rápido QR de Check-in */}
           <button
             onClick={() => setQrModalOpen(true)}
             className="w-full py-2.5 px-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border border-white/10"
           >
-            <QrCode className="w-4 h-4 text-studio-cream" />
+            <QrCode className="w-4 h-4 text-brand-background" />
             <span>Ver Pase QR Check-in</span>
           </button>
 
           {role === 'admin' && (
             <NavLink
               to="/admin/personal"
-              className="w-full py-2 px-3 bg-studio-red/15 hover:bg-studio-red/25 text-studio-red rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border border-studio-red/30"
+              className="w-full py-2 px-3 bg-brand-accent/15 hover:bg-brand-accent/25 text-brand-accent rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border border-brand-accent/30"
             >
               <ShieldAlert className="w-4 h-4" />
               <span>Panel Administrador</span>
@@ -148,7 +148,7 @@ export const AppLayout: React.FC = () => {
 
           <button
             onClick={logout}
-            className="w-full py-2 px-3 text-studio-cream/60 hover:text-studio-red hover:bg-studio-red/10 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
+            className="w-full py-2 px-3 text-brand-background/60 hover:text-brand-accent hover:bg-brand-accent/10 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
           >
             <LogOut className="w-4 h-4" />
             <span>Cerrar Sesión</span>
@@ -159,7 +159,7 @@ export const AppLayout: React.FC = () => {
       {/* ======================================================== */}
       {/* 2. HEADER MÓVIL CON BOTÓN DE MENÚ LATERAL                */}
       {/* ======================================================== */}
-      <header className="md:hidden sticky top-0 z-40 bg-studio-navy/95 backdrop-blur-md border-b border-white/10 px-4 py-3 flex items-center justify-between">
+      <header className="md:hidden sticky top-0 z-40 bg-[#141624]/95 backdrop-blur-md border-b border-white/10 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileDrawerOpen(true)}
@@ -168,12 +168,12 @@ export const AppLayout: React.FC = () => {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <img src="/logo.svg" alt="247Studio Logo" className="w-7 h-7 rounded-lg" />
+          <img src="/logo.webp" alt="247Studio Logo" className="w-8 h-8 object-contain" />
           <div>
-            <span className="font-black text-xs tracking-wider uppercase text-white block">
+            <span className="font-headline text-base tracking-tighter uppercase text-white block leading-none">
               247STUDIO
             </span>
-            <span className="text-[10px] text-studio-red font-bold block uppercase">
+            <span className="text-[10px] text-brand-accent font-headline font-bold block uppercase mt-0.5">
               Área Cliente
             </span>
           </div>
@@ -182,14 +182,14 @@ export const AppLayout: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setQrModalOpen(true)}
-            className="p-2 rounded-xl bg-studio-red/20 text-studio-red border border-studio-red/30"
+            className="p-2 rounded-xl bg-brand-accent/20 text-brand-accent border border-brand-accent/30"
             title="Mi QR"
           >
             <QrCode className="w-4 h-4" />
           </button>
           <button
             onClick={logout}
-            className="p-2 rounded-xl bg-white/5 text-studio-cream/70 hover:text-studio-red"
+            className="p-2 rounded-xl bg-white/5 text-brand-background/70 hover:text-brand-accent"
             title="Cerrar sesión"
           >
             <LogOut className="w-4 h-4" />
@@ -198,7 +198,7 @@ export const AppLayout: React.FC = () => {
       </header>
 
       {/* ======================================================== */}
-      {/* 3. DRAWER DESPLEGABLE MÓVIL (LA MISMA BARRA LATERAL)     */}
+      {/* 3. DRAWER DESPLEGABLE MÓVIL                             */}
       {/* ======================================================== */}
       {mobileDrawerOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex">
@@ -206,18 +206,18 @@ export const AppLayout: React.FC = () => {
             className="fixed inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setMobileDrawerOpen(false)}
           />
-          <div className="relative w-72 bg-[#0c0f24] border-r border-white/10 h-full flex flex-col justify-between z-10 p-5 overflow-y-auto">
+          <div className="relative w-72 bg-[#141624] border-r border-white/10 h-full flex flex-col justify-between z-10 p-5 overflow-y-auto">
             <div>
               <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-2.5">
-                  <img src="/logo.svg" alt="247Studio" className="w-8 h-8 rounded-lg" />
-                  <span className="font-black text-sm tracking-widest uppercase text-white">
+                  <img src="/logo.webp" alt="247Studio" className="w-8 h-8 object-contain" />
+                  <span className="font-headline text-lg tracking-tighter uppercase text-white">
                     247Studio
                   </span>
                 </div>
                 <button
                   onClick={() => setMobileDrawerOpen(false)}
-                  className="p-1.5 rounded-lg bg-white/5 text-studio-cream hover:text-white"
+                  className="p-1.5 rounded-lg bg-white/5 text-brand-background hover:text-white"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -232,10 +232,10 @@ export const AppLayout: React.FC = () => {
                       key={item.to}
                       to={item.to}
                       onClick={() => setMobileDrawerOpen(false)}
-                      className={`flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-extrabold transition ${
+                      className={`flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-bold transition ${
                         isActive
-                          ? 'bg-studio-red text-white shadow-lg'
-                          : 'text-studio-cream/80 hover:bg-white/5 hover:text-white'
+                          ? 'bg-brand-accent text-white shadow-lg'
+                          : 'text-brand-background/80 hover:bg-white/5 hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -243,7 +243,7 @@ export const AppLayout: React.FC = () => {
                         <span>{item.label}</span>
                       </div>
                       {item.badge && (
-                        <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-studio-red/30 text-white font-mono">
+                        <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-brand-accent/30 text-white font-mono">
                           {item.badge}
                         </span>
                       )}
@@ -267,7 +267,7 @@ export const AppLayout: React.FC = () => {
 
               <button
                 onClick={logout}
-                className="w-full py-2 px-3 text-studio-red rounded-xl text-xs font-bold flex items-center justify-center gap-2"
+                className="w-full py-2 px-3 text-brand-accent rounded-xl text-xs font-bold flex items-center justify-center gap-2"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Cerrar Sesión</span>
@@ -289,14 +289,14 @@ export const AppLayout: React.FC = () => {
       {/* ======================================================== */}
       {qrModalOpen && userData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="w-full max-w-sm bg-studio-navy-light border border-white/15 rounded-3xl p-6 relative shadow-2xl">
+          <div className="w-full max-w-sm bg-[#1A1D2E] border border-white/15 rounded-3xl p-6 relative shadow-2xl">
             <button
               onClick={() => setQrModalOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 text-studio-cream hover:text-white"
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 text-brand-background hover:text-white"
             >
               <X className="w-4 h-4" />
             </button>
-            <h3 className="text-base font-black uppercase text-white mb-4 text-center">
+            <h3 className="text-base font-headline uppercase tracking-tight text-white mb-4 text-center">
               Pase Digital 247Studio
             </h3>
             <QrCodePassCard user={userData} />
@@ -307,7 +307,7 @@ export const AppLayout: React.FC = () => {
       {/* ======================================================== */}
       {/* 6. BOTTOM BAR RÁPIDA EN MÓVIL                             */}
       {/* ======================================================== */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0c0f24]/95 backdrop-blur-md border-t border-white/10 md:hidden px-2 py-2">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#141624]/95 backdrop-blur-md border-t border-white/10 md:hidden px-2 py-2">
         <div className="flex justify-around items-center">
           {navItems.slice(0, 4).map((item) => {
             const Icon = item.icon;
@@ -318,8 +318,8 @@ export const AppLayout: React.FC = () => {
                 to={item.to}
                 className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition text-[10px] font-bold ${
                   isActive
-                    ? 'text-studio-red font-black'
-                    : 'text-studio-cream/60 hover:text-white'
+                    ? 'text-brand-accent font-black'
+                    : 'text-brand-background/60 hover:text-white'
                 }`}
               >
                 <Icon className="w-4 h-4" />

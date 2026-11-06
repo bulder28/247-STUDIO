@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, query, serverTimestamp, setDoc, where, doc } from 'firebase/firestore';
-import { CheckCircle2, Flame, MapPin, Sparkles } from 'lucide-react';
+import { CheckCircle2, MapPin, ShieldCheck } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
 import { ScheduleDomainModel } from '@/shared/domain/types';
 
@@ -12,7 +12,7 @@ export const TrialClassPage: React.FC = () => {
     email: '',
     phone: '',
     scheduleId: '',
-    honeypot: '', // Campo trampa anti-spam
+    honeypot: '',
   });
 
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,6 @@ export const TrialClassPage: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    // Si el bot rellenó el honeypot, abortar silenciosamente
     if (formData.honeypot !== '') {
       console.warn('Bot detected via honeypot');
       return;
@@ -82,54 +81,68 @@ export const TrialClassPage: React.FC = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-studio-navy flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-studio-navy-light border border-emerald-500/40 rounded-3xl p-8 text-center shadow-2xl">
-          <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
+      <div className="min-h-screen bg-brand-background flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white/95 border border-brand-text/15 rounded-3xl p-8 text-center shadow-xl">
+          <div className="w-16 h-16 bg-emerald-500/15 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
             <CheckCircle2 className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-black uppercase text-white mb-2 tracking-wide">
+          <h2 className="text-2xl font-headline uppercase text-brand-text mb-2 tracking-tight">
             ¡Reserva Confirmada!
           </h2>
-          <p className="text-xs text-studio-cream/80 leading-relaxed mb-6">
+          <p className="text-sm text-brand-text/80 leading-relaxed mb-6">
             Te hemos asignado tu plaza para la clase de prueba gratuita. Recuerda venir con ropa deportiva cómoda 10
             minutos antes del inicio.
           </p>
-          <div className="p-4 bg-studio-navy rounded-2xl border border-white/5 text-left mb-6 space-y-1">
-            <p className="text-[11px] text-studio-cream/60 uppercase tracking-wider font-bold">Ubicación</p>
-            <p className="text-xs text-white flex items-center gap-1.5 font-semibold">
-              <MapPin className="w-3.5 h-3.5 text-studio-red" /> 247Studio BJJ Academy
+          <div className="p-4 bg-brand-text/5 rounded-2xl border border-brand-text/10 text-left mb-6 space-y-1">
+            <p className="text-[11px] text-brand-text/60 uppercase tracking-wider font-headline font-bold">Ubicación</p>
+            <p className="text-xs text-brand-text flex items-center gap-1.5 font-semibold">
+              <MapPin className="w-4 h-4 text-brand-accent" /> c/ Sisones 2, Nave 30, Pinto (Madrid)
             </p>
           </div>
           <Link
-            to="/login"
-            className="block w-full py-3 px-4 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30"
+            to="/"
+            className="cta-button w-full text-center"
           >
-            Volver al Inicio
+            Volver a la Portada
           </Link>
         </div>
       </div>
     );
   }
 
+  const inputCls =
+    'w-full px-4 py-3 bg-white border border-brand-text/25 rounded-xl text-sm text-brand-text placeholder-brand-text/40 focus:outline-none focus:border-brand-text';
+
   return (
-    <div className="min-h-screen bg-studio-navy flex flex-col justify-center items-center p-4 py-8">
-      <div className="w-full max-w-lg bg-studio-navy-light/90 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-studio-red/20 text-studio-red text-xs font-black uppercase tracking-wider mb-2 border border-studio-red/30">
-            <Sparkles className="w-3.5 h-3.5" /> 100% Gratuita y sin compromiso
+    <div className="min-h-screen bg-brand-background flex flex-col justify-center items-center p-4 py-12">
+      <div className="w-full max-w-lg bg-white/90 border border-brand-text/15 rounded-3xl p-6 sm:p-10 shadow-xl backdrop-blur-md">
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-2 mb-4">
+            <img src="/logo.webp" alt="247Studio" className="w-10 h-10 object-contain" />
+            <span className="font-headline text-2xl uppercase tracking-tighter text-brand-text">
+              247STUDIO
+            </span>
+          </Link>
+
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-accent/10 text-brand-accent text-xs font-headline font-bold uppercase tracking-wider mb-3">
+            <ShieldCheck className="w-3.5 h-3.5" /> 1ª Clase Gratuita · Sin Permanencia
           </div>
-          <h1 className="text-2xl font-black uppercase tracking-wide text-white">Reserva tu Clase de Prueba</h1>
-          <p className="text-xs text-studio-cream/70 mt-1">Conoce el tatami de 247Studio BJJ</p>
+
+          <h1 className="text-3xl font-headline uppercase tracking-tight text-brand-text">
+            Reserva tu Clase de Prueba
+          </h1>
+          <p className="text-sm text-brand-text/75 mt-1">
+            Ven a rodar en el tatami de 247Studio en Pinto.
+          </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-studio-red/15 border border-studio-red/40 rounded-xl text-xs text-studio-red font-bold">
+          <div className="mb-5 p-3.5 bg-brand-accent/15 border border-brand-accent/40 rounded-xl text-xs font-bold text-brand-accent">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Honeypot anti-spam oculto */}
           <input
             type="text"
             name="honeypot"
@@ -141,7 +154,7 @@ export const TrialClassPage: React.FC = () => {
           />
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+            <label className="block text-xs font-headline font-bold uppercase tracking-wider text-brand-text mb-1">
               Nombre y Apellidos *
             </label>
             <input
@@ -149,32 +162,32 @@ export const TrialClassPage: React.FC = () => {
               name="name"
               required
               maxLength={100}
-              placeholder="Ej. David Garcia"
+              placeholder="Ej. Mario Rodríguez"
               value={formData.name}
               onChange={handleChange}
-              className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
+              className={inputCls}
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
-                Email *
+              <label className="block text-xs font-headline font-bold uppercase tracking-wider text-brand-text mb-1">
+                Correo Electrónico *
               </label>
               <input
                 type="email"
                 name="email"
                 required
                 maxLength={120}
-                placeholder="tu@email.com"
+                placeholder="tu@correo.com"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
+                className={inputCls}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+              <label className="block text-xs font-headline font-bold uppercase tracking-wider text-brand-text mb-1">
                 Teléfono Móvil *
               </label>
               <input
@@ -182,55 +195,50 @@ export const TrialClassPage: React.FC = () => {
                 name="phone"
                 required
                 maxLength={25}
-                placeholder="+34 600 000 000"
+                placeholder="600 000 000"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
+                className={inputCls}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
-              Selecciona tu Horario de Preferencia *
+            <label className="block text-xs font-headline font-bold uppercase tracking-wider text-brand-text mb-1">
+              Horario de Preferencia *
             </label>
-            <div className="relative">
-              <select
-                name="scheduleId"
-                required
-                value={formData.scheduleId}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-studio-red appearance-none"
-              >
-                {schedules.map((s) => (
-                  <option key={s.id} value={s.id} className="bg-studio-navy text-white">
-                    {getDayName(s.dayOfWeek)} - {s.startTime} a {s.endTime} ({s.program}) - Prof. {s.professor}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              name="scheduleId"
+              required
+              value={formData.scheduleId}
+              onChange={handleChange}
+              className={`${inputCls} appearance-none cursor-pointer`}
+            >
+              {schedules.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {getDayName(s.dayOfWeek)} — {s.startTime} a {s.endTime} ({s.program})
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="p-3 bg-studio-navy/60 rounded-xl border border-white/5 text-[11px] text-studio-cream/80 flex items-start gap-2">
-            <Flame className="w-4 h-4 text-studio-red shrink-0 mt-0.5" />
-            <span>
-              La clase de prueba no genera cobro alguno. Si decides continuar, te ayudaremos a activar tu tarifa en el centro.
-            </span>
+          <div className="p-3.5 bg-brand-text/5 rounded-xl border border-brand-text/10 text-xs text-brand-text/80 leading-relaxed">
+            ✦ La clase de prueba no compromete a ninguna cuota. Si decides continuar tras probar, te ayudaremos a elegir la tarifa adecuada.
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-4 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 disabled:opacity-50 mt-2"
+            className="cta-button w-full py-4 text-base mt-2"
           >
-            {loading ? 'Reservando plaza...' : 'Confirmar Reserva Gratuita'}
+            {loading ? 'Confirmando...' : 'Confirmar Reserva de Plaza'}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-xs text-studio-cream/60">
-          ¿Ya eres alumno registrado?{' '}
-          <Link to="/login" className="text-studio-cream hover:text-white underline font-bold">
-            Inicia Sesión
+        <div className="mt-8 pt-4 border-t border-brand-text/10 text-center text-xs text-brand-text/70">
+          ¿Ya tienes cuenta de alumno?{' '}
+          <Link to="/login" className="text-brand-accent hover:underline font-bold">
+            Inicia sesión aquí
           </Link>
         </div>
       </div>

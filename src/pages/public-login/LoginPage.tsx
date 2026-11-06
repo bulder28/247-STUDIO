@@ -117,43 +117,71 @@ export const LoginPage: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-studio-navy flex items-center justify-center">
-        <div className="w-8 h-8 border-3 border-studio-red border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-brand-background flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-brand-accent border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   const inputCls =
-    'w-full rounded-xl border border-studio-navy/25 bg-white py-3 pl-10 pr-4 text-[15px] text-studio-navy placeholder-studio-navy/40 focus:border-studio-navy focus:outline-none';
+    'w-full rounded-xl border border-brand-text/25 bg-white py-3 pl-10 pr-4 text-sm text-brand-text placeholder-brand-text/40 focus:border-brand-text focus:outline-none';
 
   return (
-    <div className="min-h-screen bg-studio-navy lg:grid lg:grid-cols-[1fr_1fr]">
-      {/* Lado de marca */}
-      <div className="px-6 pt-8 pb-10 sm:px-10 lg:flex lg:flex-col lg:justify-between lg:py-12">
-        <Link to="/" className="inline-flex items-center gap-3">
-          <img src="/logo.svg" alt="" className="h-10 w-10" />
-          <span className="font-display text-3xl text-white">247Studio</span>
-        </Link>
+    <div className="min-h-screen bg-brand-background lg:grid lg:grid-cols-12">
+      {/* Lado de marca con fondo oscuro marcial */}
+      <div className="lg:col-span-5 bg-brand-text text-brand-background px-6 pt-10 pb-12 sm:px-12 flex flex-col justify-between relative overflow-hidden">
+        {/* Fondo sutil marcial */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <img src="/herobackground.webp" alt="" className="w-full h-full object-cover filter grayscale" />
+        </div>
 
-        <div className="mt-10 lg:mt-0">
-          <h1 className="font-display text-6xl uppercase text-white sm:text-7xl lg:text-8xl">
-            Vuelves al tatami.
+        <div className="relative z-10">
+          <Link to="/" className="inline-flex items-center gap-3">
+            <img src="/logo.webp" alt="247Studio" className="h-10 w-10 object-contain brightness-110" />
+            <div>
+              <span className="font-headline text-2xl uppercase tracking-tighter text-white block leading-none">
+                247STUDIO
+              </span>
+              <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-brand-accent block mt-0.5">
+                Área de Alumnos
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        <div className="relative z-10 my-10 lg:my-0">
+          <span className="text-xs font-headline font-bold uppercase tracking-widest text-brand-accent block mb-2">
+            Portal Oficial de Miembros
+          </span>
+          <h1 className="font-headline text-5xl sm:text-6xl uppercase text-white tracking-tight leading-[0.95]">
+            Vuelves al <br />Tatami.
           </h1>
-          <div className="mt-8 max-w-sm">
+          <p className="mt-4 text-sm text-brand-background/80 max-w-sm leading-relaxed">
+            Consulta tus asistencias, reservas de clase, estado de cuota y pase QR para el kiosco.
+          </p>
+          <div className="mt-6 max-w-xs">
             <Belt belt="WHITE" stripes={0} decorative />
           </div>
         </div>
 
-        <p className="hidden text-sm text-studio-cream/70 lg:block">Acceso para alumnos y administración.</p>
+        <div className="relative z-10 pt-4 border-t border-brand-background/10 flex items-center justify-between text-xs text-brand-background/60">
+          <span>Pinto, Madrid Sur</span>
+          <span>© 247Studio</span>
+        </div>
       </div>
 
-      {/* Formulario sobre papel crema */}
-      <div className="bg-studio-cream text-studio-navy px-6 py-10 sm:px-10 lg:flex lg:items-center lg:justify-center">
-        <div className="w-full max-w-sm">
-          <h2 className="font-display text-4xl">Acceder</h2>
+      {/* Formulario en panel cálido tatami */}
+      <div className="lg:col-span-7 bg-brand-background px-6 py-12 sm:px-12 flex items-center justify-center">
+        <div className="w-full max-w-md bg-white/90 backdrop-blur-md p-8 sm:p-10 rounded-3xl border border-brand-text/15 shadow-xl">
+          <h2 className="font-headline text-3xl sm:text-4xl uppercase tracking-tight text-brand-text">
+            Iniciar Sesión
+          </h2>
+          <p className="text-xs text-brand-text/75 mt-1">
+            Introduce tus credenciales para acceder a tu panel.
+          </p>
 
           {error && (
-            <div role="alert" className="mt-5 rounded-xl bg-studio-red-dark p-3 text-sm font-semibold text-white">
+            <div role="alert" className="mt-5 rounded-xl bg-brand-accent/15 border border-brand-accent/40 p-3 text-xs font-bold text-brand-accent">
               {error}
             </div>
           )}
@@ -162,7 +190,7 @@ export const LoginPage: React.FC = () => {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={submitting}
-            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl border border-studio-navy/25 bg-white py-3 text-[15px] font-semibold text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl border border-brand-text/20 bg-white py-3 text-sm font-bold text-brand-text hover:bg-brand-text/5 transition disabled:opacity-50 shadow-sm"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -173,15 +201,19 @@ export const LoginPage: React.FC = () => {
             Continuar con Google
           </button>
 
-          <p className="my-5 text-center text-sm text-studio-navy/70">o con tu correo</p>
+          <div className="my-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-brand-text/15" />
+            <span className="text-[11px] font-headline uppercase tracking-wider text-brand-text/50">o con tu email</span>
+            <span className="h-px flex-1 bg-brand-text/15" />
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="login-email" className="mb-1.5 block text-sm font-semibold">
+              <label htmlFor="login-email" className="mb-1.5 block text-xs font-headline font-bold uppercase tracking-wider text-brand-text">
                 Correo electrónico
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-studio-navy/50" aria-hidden="true" />
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-brand-text/40" aria-hidden="true" />
                 <input
                   id="login-email"
                   type="email"
@@ -196,11 +228,11 @@ export const LoginPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="login-password" className="mb-1.5 block text-sm font-semibold">
+              <label htmlFor="login-password" className="mb-1.5 block text-xs font-headline font-bold uppercase tracking-wider text-brand-text">
                 Contraseña
               </label>
               <div className="relative">
-                <KeyRound className="absolute left-3.5 top-3.5 h-4 w-4 text-studio-navy/50" aria-hidden="true" />
+                <KeyRound className="absolute left-3.5 top-3.5 h-4 w-4 text-brand-text/40" aria-hidden="true" />
                 <input
                   id="login-password"
                   type="password"
@@ -216,23 +248,25 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-xl bg-studio-navy py-3.5 text-base font-bold text-white hover:bg-studio-navy-deep disabled:opacity-50"
+              className="cta-button w-full py-3.5 text-base mt-2"
             >
-              {submitting ? 'Entrando…' : 'Entrar'}
+              {submitting ? 'Verificando…' : 'Entrar a mi Panel'}
             </button>
           </form>
 
-          <p className="mt-8 border-t border-studio-navy/20 pt-5 text-sm">
-            ¿Primera vez?{' '}
-            <Link to="/reserva-prueba" className="font-bold underline underline-offset-4 hover:text-studio-red-dark">
-              Reserva una clase de prueba gratis
-            </Link>
-          </p>
-          <p className="mt-3 text-sm">
-            <Link to="/" className="text-studio-navy/70 underline underline-offset-4 hover:text-studio-navy">
-              Volver a la portada
-            </Link>
-          </p>
+          <div className="mt-8 pt-4 border-t border-brand-text/10 space-y-2 text-center text-xs">
+            <p>
+              ¿Aún no eres alumno?{' '}
+              <Link to="/reserva-prueba" className="font-bold text-brand-accent hover:underline">
+                Reserva tu clase de prueba gratuita
+              </Link>
+            </p>
+            <p>
+              <Link to="/" className="text-brand-text/60 hover:text-brand-text">
+                ← Volver a la portada principal
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

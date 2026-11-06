@@ -27,16 +27,18 @@ export const AdminLayout: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-studio-navy flex flex-col md:flex-row">
+    <div className="min-h-screen bg-brand-text flex flex-col md:flex-row font-sans text-white">
       {/* Sidebar Desktop */}
-      <aside className="w-full md:w-64 lg:w-72 bg-[#0c0f24] border-b md:border-b-0 md:border-r border-white/10 p-5 flex flex-col justify-between shrink-0">
+      <aside className="w-full md:w-64 lg:w-72 bg-[#141624] border-b md:border-b-0 md:border-r border-white/10 p-5 flex flex-col justify-between shrink-0">
         <div>
           <div className="flex items-center gap-3 pb-6 border-b border-white/10">
-            <img src="/logo.svg" alt="247Studio" className="w-10 h-10 rounded-xl shadow" />
+            <img src="/logo.webp" alt="247Studio" className="w-10 h-10 object-contain brightness-110" />
             <div>
-              <span className="font-black text-sm tracking-widest uppercase text-white block">247Studio</span>
-              <span className="text-[10px] text-studio-red font-black block tracking-wider uppercase bg-studio-red/10 px-2 py-0.5 rounded-full inline-block border border-studio-red/20">
-                Área Administrador
+              <span className="font-headline text-xl tracking-tighter uppercase text-white block leading-none">
+                247Studio
+              </span>
+              <span className="text-[10px] text-brand-accent font-headline font-bold block tracking-wider uppercase bg-brand-accent/10 px-2 py-0.5 rounded inline-block border border-brand-accent/20 mt-1">
+                Administración
               </span>
             </div>
           </div>
@@ -51,8 +53,8 @@ export const AdminLayout: React.FC = () => {
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition tracking-wide ${
                       isActive
-                        ? 'bg-studio-red text-white shadow-lg shadow-studio-red/20'
-                        : 'text-studio-cream/70 hover:bg-white/5 hover:text-white'
+                        ? 'bg-brand-accent text-white shadow-md shadow-brand-accent/20'
+                        : 'text-brand-background/70 hover:bg-white/5 hover:text-white'
                     }`
                   }
                 >
@@ -67,23 +69,23 @@ export const AdminLayout: React.FC = () => {
         <div className="mt-8 pt-4 border-t border-white/10 flex flex-col gap-2">
           <NavLink
             to="/app/home"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-studio-cream/80 hover:bg-white/5 hover:text-white border border-white/10 transition"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-brand-background/80 hover:bg-white/5 hover:text-white border border-white/10 transition"
           >
-            <Shield className="w-4 h-4 text-studio-red" />
+            <Shield className="w-4 h-4 text-brand-accent" />
             <span>Ver como Alumno</span>
           </NavLink>
 
           <NavLink
             to="/kiosk/check-in"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-studio-cream/80 hover:bg-white/5 hover:text-white border border-white/10 transition"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-brand-background/80 hover:bg-white/5 hover:text-white border border-white/10 transition"
           >
-            <Tablet className="w-4 h-4 text-studio-cream" />
+            <Tablet className="w-4 h-4 text-brand-background" />
             <span>Modo Kiosco (Tablet)</span>
           </NavLink>
 
           <button
             onClick={logout}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-studio-red hover:bg-studio-red/10 transition"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-brand-accent hover:bg-brand-accent/10 transition"
           >
             <LogOut className="w-4 h-4" />
             <span>Cerrar Sesión</span>

@@ -4,28 +4,38 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Paleta oficial 247Studio extraída de www.247studiobjj.com
+        brand: {
+          background: '#DDD6B8', // Lienzo Tatami / Arena cálida oficial
+          sand: '#DDD6B8',
+          'sand-light': '#F4F0E1',
+          text: '#1A1D2E',       // Tinta azul oscuro oficial
+          accent: '#E11D2E',     // Rojo de rango BJJ oficial
+          'accent-dark': '#B91C1C',
+        },
         studio: {
-          navy: '#11152E',
-          'navy-light': '#1C224A',
-          'navy-deep': '#0C0F24',
-          red: '#E60000',
-          'red-dark': '#B80000',
-          cream: '#D8D2B8',
-          'cream-light': '#F4F2EB',
+          navy: '#1A1D2E',
+          'navy-light': '#252B44',
+          'navy-deep': '#111320',
+          red: '#E11D2E',
+          'red-dark': '#B91C1C',
+          cream: '#DDD6B8',
+          'cream-light': '#F5F2E6',
           white: '#FFFFFF',
           status: {
             ok: '#10B981',
             pending: '#F59E0B',
             grace: '#3B82F6',
-            nok: '#E60000',
+            nok: '#E11D2E',
           },
         },
       },
       fontFamily: {
-        sans: ['"Archivo Variable"', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
-        display: ['"Archivo Variable"', 'Impact', 'system-ui', 'sans-serif'],
+        headline: ['Oswald', 'system-ui', 'sans-serif'],
+        display: ['Oswald', '"Archivo Variable"', 'Impact', 'system-ui', 'sans-serif'],
+        sans: ['Inter', '"Archivo Variable"', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
       },
-      // Esquinas más secas en toda la app: un tatami no tiene esquinas de burbuja.
+      // Esquinas secas de academia de artes marciales
       borderRadius: {
         xl: '0.375rem',
         '2xl': '0.5rem',
