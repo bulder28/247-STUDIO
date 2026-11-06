@@ -1,0 +1,317 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // FUNCIONES AUXILIARES GLOBALES (SIN USO DE get())
+    // La seguridad se fundamenta estrictamente en request.auth.token y resource.data
+    // =========================================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() &&
+        'role' in request.auth.token &&
+        request.auth.token.role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    function isKiosk() {
+      return hasRole('kiosk');
+    }
+
+    function isStudent() {
+      return hasRole('student') || (!isAdmin() && !isKiosk() && isAuthenticated());
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.size() <= 120 &&
+        email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isValidHttpsUrl(url) {
+      return url is string && url.size() <= 500 && url.matches('^https://.+');
+    }
+
+    function isValidSvgSignature(svg) {
+      return svg is string &&
+        svg.size() <= 8192 &&
+        svg.matches('^<svg[\\s\\S]*');
+    }
+
+    function isValidPeriodFormat(period) {
+      return period is string && period.matches('^\\d{4}-(0[1-9]|1[0-2])$');
+    }
+
+    // Calcula si una fecha YYYY-MM coincide con el mes actual o mes anterior de request.time
+    function isAllowedPaymentPeriod(period) {
+      let curYear = request.time.year();
+      let curMonth = request.time.month();
+      let curPeriod = string(curYear) + '-' + (curMonth < 10 ? '0' + string(curMonth) : string(curMonth));
+      
+      let prevYear = curMonth == 1 ? curYear - 1 : curYear;
+      let prevMonth = curMonth == 1 ? 12 : curMonth - 1;
+      let prevPeriod = string(prevYear) + '-' + (prevMonth < 10 ? '0' + string(prevMonth) : string(prevMonth));
+
+      return period == curPeriod || period == prevPeriod;
+    }
+
+    // Valida que el usuario tenga al menos 16 años cumplidos respecto a request.time
+    function isAtLeast16YearsOld(birthDateStr) {
+      return birthDateStr is string &&
+        birthDateStr.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+        request.time >= timestamp.date(
+          int(birthDateStr.split('-')[0]) + 16,
+          int(birthDateStr.split('-')[1]),
+          int(birthDateStr.split('-')[2])
+        );
+    }
+
+    // Denegación por defecto
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // COLECCIÓN: users
+    // =========================================================================
+    match /users/{userId} {
+      // Lectura: el propio usuario, el tutor asignado (guardianUid) o el admin
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        isAdmin() ||
+        (resource.data.guardianUid == request.auth.uid)
+      );
+
+      // Auto-registro de alumnos (Prohibido < 16 años)
+      allow create: if isUser(userId) &&
+        request.resource.data.authEmail == request.auth.token.email &&
+        request.resource.data.accountStatus == 'PENDING' &&
+        request.resource.data.isMinor == false &&
+        request.resource.data.stripes == 0 &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        isAtLeast16YearsOld(request.resource.data.birthDate) &&
+        request.resource.data.keys().hasAll([
+          'authEmail', 'contactEmail', 'alias', 'phone', 'birthDate',
+          'isMinor', 'beltSystem', 'belt', 'stripes', 'pricingTier',
+          'activeTariffId', 'accountStatus', 'permissions', 'createdAt', 'updatedAt'
+        ]) &&
+        !('paymentStatusCache' in request.resource.data) &&
+        !('retentionRiskCache' in request.resource.data) &&
+        !('role' in request.resource.data);
+
+      // Edición de usuario (Alumno)
+      allow update: if isUser(userId) &&
+        // El alumno solo puede modificar este set restringido de campos
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'contactEmail', 'phone', 'emergencyContactName', 'emergencyContactPhone',
+          'alias', 'photoUrl', 'medicalNotes', 'medicalConsentAt',
+          'medicalConsentVersion', 'updatedAt'
+        ]) &&
+        request.resource.data.updatedAt == request.time &&
+        // photoUrl opcional pero con HTTPS estricto
+        (!('photoUrl' in request.resource.data) || isValidHttpsUrl(request.resource.data.photoUrl)) &&
+        // Reglas de consentimiento médico y notas (RGPD Art. 9)
+        (
+          // Si edita medicalNotes, el consentimiento previo no debe ser nulo o se debe otorgar ahora
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['medicalNotes']) ||
+          (resource.data.medicalConsentAt != null || request.resource.data.medicalConsentAt == request.time)
+        ) &&
+        (
+          // medicalConsentAt solo puede pasar de null a request.time
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['medicalConsentAt']) ||
+          (resource.data.medicalConsentAt == null && request.resource.data.medicalConsentAt == request.time)
+        ) &&
+        // Inmutabilidad de campos sensibles para el alumno
+        request.resource.data.authEmail == resource.data.authEmail &&
+        request.resource.data.birthDate == resource.data.birthDate &&
+        request.resource.data.isMinor == resource.data.isMinor &&
+        request.resource.data.beltSystem == resource.data.beltSystem &&
+        request.resource.data.belt == resource.data.belt &&
+        request.resource.data.stripes == resource.data.stripes &&
+        request.resource.data.pricingTier == resource.data.pricingTier &&
+        request.resource.data.activeTariffId == resource.data.activeTariffId &&
+        request.resource.data.accountStatus == resource.data.accountStatus &&
+        (!('waiverSignedAt' in resource.data) || request.resource.data.waiverSignedAt == resource.data.waiverSignedAt);
+
+      // El Admin tiene control completo de create y update
+      allow create, update: if isAdmin();
+      allow delete: if false; // Prohibido borrado físico de usuarios en MVP
+    }
+
+    // =========================================================================
+    // COLECCIÓN: payments
+    // =========================================================================
+    match /payments/{paymentId} {
+      // Lectura: propio alumno o admin
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid || isAdmin()
+      );
+
+      // Notificación de pago por parte del alumno
+      allow create: if isAuthenticated() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.status == 'PENDING_APPROVAL' &&
+        request.resource.data.method in ['BIZUM', 'CASH'] &&
+        isValidPeriodFormat(request.resource.data.period) &&
+        isAllowedPaymentPeriod(request.resource.data.period) &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.billingType in ['MONTHLY', 'PASS', 'DROP_IN'] &&
+        // Si es DROP_IN exige bookingId
+        (request.resource.data.billingType != 'DROP_IN' || ('bookingId' in request.resource.data && request.resource.data.bookingId is string)) &&
+        // El alumno no puede auto-asignar importes ni validaciones
+        !('amountCents' in request.resource.data) &&
+        !('baseCents' in request.resource.data) &&
+        !('vatCents' in request.resource.data) &&
+        !('sessionsIncluded' in request.resource.data) &&
+        !('validatedBy' in request.resource.data) &&
+        !('validatedAt' in request.resource.data);
+
+      // Actualización: Exclusiva del Admin (Aprobación / Rechazo)
+      allow update: if isAdmin() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'amountCents', 'baseCents', 'vatCents',
+          'sessionsIncluded', 'validatedBy', 'validatedAt', 'rejectedReason'
+        ]) &&
+        request.resource.data.status in ['APPROVED', 'REJECTED'] &&
+        request.resource.data.validatedBy == request.auth.uid &&
+        request.resource.data.validatedAt == request.time &&
+        (
+          // Si se aprueba, importes válidos requeridos
+          request.resource.data.status == 'REJECTED' ||
+          (
+            request.resource.data.amountCents is int && request.resource.data.amountCents > 0 &&
+            request.resource.data.baseCents is int && request.resource.data.baseCents >= 0 &&
+            request.resource.data.vatCents is int && request.resource.data.vatCents >= 0 &&
+            request.resource.data.baseCents + request.resource.data.vatCents == request.resource.data.amountCents &&
+            // Modalidad PASS exige sessionsIncluded positivo
+            (resource.data.billingType != 'PASS' || (request.resource.data.sessionsIncluded is int && request.resource.data.sessionsIncluded > 0)) &&
+            // Modalidad MONTHLY prohíbe sessionsIncluded
+            (resource.data.billingType != 'MONTHLY' || !('sessionsIncluded' in request.resource.data) || request.resource.data.sessionsIncluded == 0)
+          )
+        );
+
+      allow delete: if false; // Nadie puede borrar pagos (Invariante de auditoría contable)
+    }
+
+    // =========================================================================
+    // COLECCIÓN: bookings
+    // =========================================================================
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid || isAdmin() || isKiosk()
+      );
+
+      // Creación por el alumno
+      allow create: if isAuthenticated() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.status in ['BOOKED', 'WAITLISTED'] &&
+        request.resource.data.checkInSource in ['APP'] &&
+        request.resource.data.createdAt == request.time;
+
+      // Cancelación por el alumno
+      allow update: if isAuthenticated() &&
+        resource.data.uid == request.auth.uid &&
+        resource.data.status in ['BOOKED', 'WAITLISTED'] &&
+        request.resource.data.status == 'CANCELLED' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt']) &&
+        request.resource.data.cancelledAt == request.time;
+
+      // Kiosco Tablet: Puede crear o actualizar asistencia ATTENDED
+      allow create: if isKiosk() &&
+        request.resource.data.status == 'ATTENDED' &&
+        request.resource.data.checkInSource == 'TABLET' &&
+        request.resource.data.attendanceWeight in [0.5, 1.0, 3.0] &&
+        request.resource.data.createdAt == request.time;
+
+      allow update: if isKiosk() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'sessionType', 'attendanceWeight', 'checkInSource']) &&
+        request.resource.data.status == 'ATTENDED' &&
+        request.resource.data.checkInSource == 'TABLET' &&
+        request.resource.data.attendanceWeight in [0.5, 1.0, 3.0];
+
+      // Admin total
+      allow create, update, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // COLECCIÓN: schedules
+    // =========================================================================
+    match /schedules/{scheduleId} {
+      // Lectura pública si está activa; si está inactiva solo autenticados/admin
+      allow read: if resource.data.active == true || isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // COLECCIÓN: tariffs
+    // =========================================================================
+    match /tariffs/{tariffId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // COLECCIÓN: leads (Captación pública de clases de prueba)
+    // =========================================================================
+    match /leads/{leadId} {
+      // Creación pública protegida por honeypot
+      allow create: if request.resource.data.honeypot == '' &&
+        request.resource.data.status == 'NEW' &&
+        request.resource.data.name is string && request.resource.data.name.size() <= 100 &&
+        isValidEmail(request.resource.data.email) &&
+        request.resource.data.phone is string && request.resource.data.phone.size() <= 25 &&
+        request.resource.data.scheduleId is string &&
+        request.resource.data.createdAt == request.time;
+
+      allow read, update, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // COLECCIÓN: freezes
+    // =========================================================================
+    match /freezes/{freezeId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid || isAdmin()
+      );
+      // Solo el admin crea y cierra freezes. No retroactivo por defecto.
+      allow create: if isAdmin() &&
+        request.resource.data.startDate >= request.time &&
+        request.resource.data.reason in ['INJURY', 'OTHER'] &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.createdBy == request.auth.uid;
+
+      allow update: if isAdmin() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['endDate', 'openEnded']);
+
+      allow delete: if false;
+    }
+
+    // =========================================================================
+    // COLECCIÓN: scheduleExceptions
+    // =========================================================================
+    match /scheduleExceptions/{exceptionId} {
+      allow read: if true; // Lectura pública para visualización en parrilla horaria
+      allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // COLECCIÓN: config
+    // =========================================================================
+    match /config/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

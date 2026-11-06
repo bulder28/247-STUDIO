@@ -1,0 +1,17 @@
+{
+  "short_name": "247Studio",
+  "name": "247Studio BJJ WebApp",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/app/home",
+  "scope": "/",
+  "background_color": "#11152E",
+  "theme_color": "#11152E",
+  "display": "standalone",
+  "orientation": "portrait"
+}
