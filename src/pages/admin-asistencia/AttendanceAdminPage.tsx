@@ -591,7 +591,7 @@ export const AttendanceAdminPage: React.FC = () => {
 
           {/* Ficha Resumen de la Sesión Activa */}
           {activeSchedule && (
-            <div className="bg-gradient-to-r from-studio-navy-light via-studio-navy-light to-studio-red/10 p-5 rounded-2xl border border-slate-200/80 shadow-lg">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                 <div>
                   <div className="flex items-center gap-3">
@@ -613,7 +613,7 @@ export const AttendanceAdminPage: React.FC = () => {
                   <button
                     onClick={handleCheckInAll}
                     disabled={pendingBookings.length === 0 || actionLoading === 'ALL'}
-                    className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-studio-navy font-black text-xs uppercase tracking-wider rounded-xl transition shadow flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer"
                     title="Marca automáticamente todos los alumnos en reserva como presentes"
                   >
                     <CheckCheck className="w-4 h-4" />
@@ -622,7 +622,7 @@ export const AttendanceAdminPage: React.FC = () => {
 
                   <button
                     onClick={() => setAddModalOpen(true)}
-                    className="px-4 py-2.5 bg-studio-red hover:bg-studio-red-dark text-slate-900 font-bold text-xs uppercase tracking-wider rounded-xl transition shadow flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-2.5 bg-brand-accent hover:bg-brand-accent/90 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>Añadir Alumno</span>
@@ -815,8 +815,8 @@ export const AttendanceAdminPage: React.FC = () => {
                                 disabled={actionLoading === booking.id}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition flex items-center gap-1 cursor-pointer ${
                                   isAttended
-                                    ? 'bg-white/10 hover:bg-white/15 text-slate-700'
-                                    : 'bg-emerald-500 hover:bg-emerald-600 text-studio-navy shadow'
+                                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
                                 }`}
                                 title={isAttended ? 'Deshacer check-in' : 'Confirmar check-in'}
                               >
@@ -1052,7 +1052,7 @@ export const AttendanceAdminPage: React.FC = () => {
                       <button
                         onClick={() => handleAddStudentManual(st)}
                         disabled={actionLoading === `add_${st.uid}`}
-                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-studio-navy rounded-lg font-black text-xs uppercase tracking-wider transition shadow flex items-center gap-1"
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition shadow-sm flex items-center gap-1 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" /> Añadir
                       </button>
