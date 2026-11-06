@@ -1,0 +1,308 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowRight,
+  Send,
+  Sparkles,
+  X,
+} from 'lucide-react';
+import { useAuth } from '@/app/providers/AuthProvider';
+import {
+  generateKokoroResponse,
+  interpretKokoroIntent,
+  KokoroActionPayload,
+  KokoroContext,
+} from '@/shared/domain/kokoro';
+import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
+
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'kokoro';
+  text: string;
+  badge?: string;
+  action?: KokoroActionPayload;
+  timestamp: string;
+}
+
+export const KokoroAssistant: React.FC = () => {
+  const navigate = useNavigate();
+  const { role, userData } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const kokoroRole = role === 'admin' ? 'admin' : 'student';
+
+  // Mensaje inicial de bienvenida
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const defaultAlias = userData?.alias || (role === 'admin' ? 'Mario y David' : 'Guerrero');
+    return [
+      {
+        id: 'msg_init',
+        sender: 'kokoro',
+        badge: kokoroRole === 'admin' ? 'COPILOTO ADMIN' : 'SENSEI VIRTUAL',
+        text:
+          kokoroRole === 'admin'
+            ? `¡Oss ${defaultAlias}! Soy KOKORO, tu copiloto inteligente de 247Studio. Puedo ayudarte a revisar alumnos ausentes con riesgo de abandono, verificar la caja, planificar graduaciones o ajustar las cartas FIFA. ¿Qué revisamos hoy?`
+            : `¡Oss ${defaultAlias}! Soy KOKORO, el sensei virtual de 247Studio. Pregúntame sobre cómo subir tu carta FIFA a Oro, tus horas para el próximo grado, horarios de clase o reglas del tatami.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ];
+  });
+
+  // Auto-scroll al final del chat
+  useEffect(() => {
+    if (isOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isOpen, isTyping]);
+
+  // Preguntas sugeridas según el rol
+  const quickSuggestions =
+    kokoroRole === 'admin'
+      ? [
+          { label: '🔴 Alumnos ausentes > 15 días', query: '¿Qué alumnos están en riesgo de abandono?' },
+          { label: '📊 Balance de caja este mes', query: '¿Cuánto dinero hemos cobrado este mes en caja?' },
+          { label: '🥋 Alumnos listos para graduar', query: '¿Cómo van las graduaciones y promociones?' },
+          { label: '🩴 Normas sagradas del tatami', query: '¿Cuáles son las reglas de kimono y chanclas?' },
+        ]
+      : [
+          { label: '🥋 ¿Cómo subo mi carta a Oro?', query: '¿Cómo subo mi carta FIFA a Oro Raro?' },
+          { label: '🎯 Mi próximo grado y horas', query: '¿Cuándo me toca el siguiente cinturón y cuántas horas me faltan?' },
+          { label: '📅 Horario de clases hoy', query: '¿A qué hora son las clases de No-Gi y Gi hoy?' },
+          { label: '🩴 Normas de higiene y kimono', query: '¿Es obligatorio llevar chanclas y kimono limpio?' },
+          { label: '🔥 Consejo para pasar la guardia', query: 'Dame un consejo de técnica para pasar la guardia' },
+        ];
+
+  const handleSendMessage = (textToSend?: string) => {
+    const text = (textToSend || inputText).trim();
+    if (!text) return;
+
+    const userMsg: ChatMessage = {
+      id: `usr_${Date.now()}`,
+      sender: 'user',
+      text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setInputText('');
+    setIsTyping(true);
+
+    // Contexto enriquecido para el motor determinista de KOKORO
+    const context: KokoroContext = {
+      role: kokoroRole,
+      currentUser: userData || SAMPLE_ATHLETES_20[0],
+      totalActiveUsers: 24,
+      atRiskCount: 3,
+      todayClassesCount: 4,
+      monthlyRevenueEstimateCents: 145000,
+    };
+
+    // Respuesta inteligente simulando procesamiento cognitivo (< 400ms)
+    setTimeout(() => {
+      const intent = interpretKokoroIntent(text, kokoroRole);
+      const res = generateKokoroResponse(intent, context);
+
+      const botMsg: ChatMessage = {
+        id: `kok_${Date.now()}`,
+        sender: 'kokoro',
+        badge: res.badge,
+        text: res.text,
+        action: res.action,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setMessages((prev) => [...prev, botMsg]);
+      setIsTyping(false);
+    }, 450);
+  };
+
+  const handleActionClick = (action?: KokoroActionPayload) => {
+    if (!action) return;
+    if (action.url) {
+      navigate(action.url);
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <>
+      {/* ======================================================== */}
+      {/* 1. BOTÓN FLOTANTE KOKORO EN LA ESQUINA INFERIOR DERECHA   */}
+      {/* ======================================================== */}
+      <div className="fixed bottom-5 right-5 z-40 flex items-center gap-2">
+        {!isOpen && (
+          <div
+            onClick={() => setIsOpen(true)}
+            className="hidden sm:flex items-center gap-2 bg-slate-900/90 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-full border border-amber-500/40 shadow-xl cursor-pointer hover:scale-105 transition animate-in fade-in slide-in-from-bottom-2"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>Hablar con <strong className="text-amber-400 font-black">KOKORO</strong></span>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label="Abrir asistente inteligente KOKORO"
+          className="relative w-14 h-14 rounded-full bg-gradient-to-tr from-[#1A1D2E] via-[#0D0F18] to-[#2D303E] text-white border-2 border-amber-400/80 shadow-[0_10px_25px_rgba(217,119,6,0.35)] flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-110 active:scale-95 group"
+        >
+          {/* Kanji Kokoro (心) / Sello Marcial de Honor */}
+          <div className="flex flex-col items-center justify-center leading-none">
+            <span className="font-serif text-xl font-black text-amber-400 select-none group-hover:rotate-6 transition-transform">
+              心
+            </span>
+            <span className="text-[7px] font-black uppercase tracking-widest text-white/80 -mt-0.5">
+              KOKORO
+            </span>
+          </div>
+
+          {/* Indicador de Estado: En Línea */}
+          <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-900 ring-2 ring-emerald-400/40 animate-pulse" />
+        </button>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 2. VENTANA DE CHAT DE KOKORO (MODAL / POPOVER FLOTANTE)  */}
+      {/* ======================================================== */}
+      {isOpen && (
+        <div className="fixed bottom-22 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-[400px] h-[560px] max-h-[85vh] rounded-3xl bg-white border border-slate-200/90 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+          {/* Cabecera del Asistente */}
+          <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-[#1A1D2E] text-white p-4 flex items-center justify-between border-b border-amber-500/20">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 font-serif text-2xl font-black shadow-inner">
+                心
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-headline text-lg uppercase tracking-wider font-black text-white leading-none">
+                    KOKORO
+                  </h3>
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    {kokoroRole === 'admin' ? 'Copiloto Admin' : 'Sensei Tatami'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                  <span className="text-[10px] text-slate-300 font-medium">Tatami 247 · En Línea</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition"
+              aria-label="Cerrar chat con Kokoro"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Historial de Mensajes */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/60">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+              >
+                {/* Insignia / Badge de contexto */}
+                {msg.badge && (
+                  <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md mb-1 inline-flex items-center gap-1 border border-amber-300/60">
+                    <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                    {msg.badge}
+                  </span>
+                )}
+
+                {/* Burbuja de Texto */}
+                <div
+                  className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed shadow-xs ${
+                    msg.sender === 'user'
+                      ? 'bg-slate-900 text-white rounded-tr-xs'
+                      : 'bg-white text-slate-800 border border-slate-200/80 rounded-tl-xs'
+                  }`}
+                >
+                  <p className="whitespace-pre-line">{msg.text}</p>
+
+                  {/* Acción Interactiva (Generative UI) */}
+                  {msg.action && msg.action.type !== 'NONE' && (
+                    <div className="mt-3 pt-2.5 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => handleActionClick(msg.action)}
+                        className="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-black text-xs uppercase tracking-wider border border-amber-300 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <span>{msg.action.label || 'Ver detalle'}</span>
+                        <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <span className="text-[9px] text-slate-400 mt-1 px-1">{msg.timestamp}</span>
+              </div>
+            ))}
+
+            {/* Indicador de escritura animado */}
+            {isTyping && (
+              <div className="flex items-center gap-1.5 p-3 rounded-2xl bg-white border border-slate-200/80 w-24">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" />
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce [animation-delay:0.2s]" />
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce [animation-delay:0.4s]" />
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Chips de Preguntas Sugeridas */}
+          <div className="px-3 pt-2 pb-1 bg-white border-t border-slate-100 overflow-x-auto flex gap-1.5 scrollbar-none">
+            {quickSuggestions.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSendMessage(item.query)}
+                className="shrink-0 text-[10px] font-bold text-slate-700 bg-slate-100 hover:bg-amber-50 hover:text-amber-900 hover:border-amber-300 border border-slate-200/60 rounded-full px-2.5 py-1 transition cursor-pointer"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Formulario de Entrada */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="p-3 bg-white border-t border-slate-100 flex items-center gap-2"
+          >
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder={
+                kokoroRole === 'admin'
+                  ? 'Consulta a Kokoro sobre caja, alumnos, faltas...'
+                  : 'Pregunta sobre tu carta FIFA, cinturón, clases...'
+              }
+              className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800"
+            />
+
+            <button
+              type="submit"
+              disabled={!inputText.trim() || isTyping}
+              className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-amber-400 transition cursor-pointer shrink-0"
+              aria-label="Enviar mensaje a Kokoro"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
+      )}
+    </>
+  );
+};

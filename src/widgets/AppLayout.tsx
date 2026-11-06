@@ -19,6 +19,7 @@ import {
   HelpCircle as QuestionIcon,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { KokoroAssistant } from '@/widgets/KokoroAssistant';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 
 export const AppLayout: React.FC = () => {
@@ -329,6 +330,8 @@ export const AppLayout: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Asistente Inteligente KOKORO */}
+      <KokoroAssistant />
     </div>
   );
 };

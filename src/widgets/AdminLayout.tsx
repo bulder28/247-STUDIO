@@ -12,6 +12,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { KokoroAssistant } from '@/widgets/KokoroAssistant';
 
 export const AdminLayout: React.FC = () => {
   const { logout } = useAuth();
@@ -105,6 +106,9 @@ export const AdminLayout: React.FC = () => {
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">
         <Outlet />
       </main>
+
+      {/* Asistente Inteligente KOKORO */}
+      <KokoroAssistant />
     </div>
   );
 };
