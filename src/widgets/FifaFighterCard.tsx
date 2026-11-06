@@ -129,6 +129,14 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
     { label: 'FÍS', val: Math.round(((stats.fuerza || 60) + (stats.elasticidad || 60)) / 2) },
   ];
 
+  // Tamaño dinámico del nombre para que jamás se corte ni use puntos suspensivos
+  const nameFontSize = useMemo(() => {
+    const len = athlete.alias.length;
+    if (len > 22) return 'text-sm sm:text-base';
+    if (len > 16) return 'text-base sm:text-lg';
+    return 'text-lg sm:text-xl';
+  }, [athlete.alias]);
+
   // Escala según tamaño
   const scaleClass = size === 'sm' ? 'w-[220px]' : size === 'lg' ? 'w-[320px]' : 'w-[270px]';
 
@@ -141,10 +149,10 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
       {/* SILUETA ESCUDO FIFA ULTIMATE TEAM (SVG MASK & BORDER)    */}
       {/* ======================================================== */}
       <div
-        className={`relative w-full aspect-[1/1.52] p-3 rounded-[32px] bg-gradient-to-b ${tierStyles.cardBg} border-2 ${tierStyles.border} ${tierStyles.glow} overflow-hidden flex flex-col justify-between`}
+        className={`relative w-full aspect-[1/1.58] p-3 pb-6 rounded-[32px] bg-gradient-to-b ${tierStyles.cardBg} border-2 ${tierStyles.border} ${tierStyles.glow} overflow-hidden flex flex-col justify-between`}
         style={{
           clipPath:
-            'polygon(14% 0%, 86% 0%, 100% 8%, 100% 89%, 50% 100%, 0% 89%, 0% 8%)',
+            'polygon(14% 0%, 86% 0%, 100% 8%, 100% 90%, 50% 100%, 0% 90%, 0% 8%)',
         }}
       >
         {/* Textura Láser / Diagonal Sheen estilo FIFA */}
@@ -161,7 +169,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
           className={`absolute inset-1.5 rounded-[28px] border ${tierStyles.innerBorder} pointer-events-none`}
           style={{
             clipPath:
-              'polygon(14% 0%, 86% 0%, 100% 8%, 100% 89%, 50% 100%, 0% 89%, 0% 8%)',
+              'polygon(14% 0%, 86% 0%, 100% 8%, 100% 90%, 50% 100%, 0% 90%, 0% 8%)',
           }}
         />
 
@@ -169,7 +177,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
         {/* PARTE SUPERIOR: OVR, POSICIÓN Y FOTO CENTRAL             */}
         {/* ======================================================== */}
         <div className="relative z-10 pt-2 px-2 flex justify-between items-start">
-          {/* Bloque Izquierdo: OVR, Posición, Bandera y Logo 247 */}
+          {/* Bloque Izquierdo: OVR, Posición e Insignia Química/Estilo */}
           <div className="flex flex-col items-center">
             {/* Número OVR */}
             <span
@@ -188,28 +196,18 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
             {/* Divisor sutil */}
             <div className={`w-6 h-0.5 my-1.5 border-b ${tierStyles.divider}`} />
 
-            {/* Bandera Nacional (España por defecto en Pinto) */}
+            {/* Insignia Química / Estilo de Combate (Icono Cohete/Tatami FUT) */}
             <div
-              className="w-5 h-3.5 rounded-sm overflow-hidden shadow-2xs border border-black/20 my-0.5"
-              title="Madrid / España"
+              className={`px-1.5 py-0.5 rounded-md border ${tierStyles.innerBorder} bg-black/20 text-[9px] font-black uppercase tracking-widest ${tierStyles.textColor} shadow-2xs mt-1`}
+              title="Estilo de Combate Tatami"
             >
-              <div className="h-1 bg-[#AA151B]" />
-              <div className="h-1.5 bg-[#F1BF00]" />
-              <div className="h-1 bg-[#AA151B]" />
-            </div>
-
-            {/* Insignia Club 247 Studio */}
-            <div
-              className="w-6 h-6 rounded-full bg-slate-900 border border-[#D4AF37] flex items-center justify-center p-0.5 shadow-sm mt-1"
-              title="247Studio Pinto"
-            >
-              <img src="/logo.webp" alt="247" className="w-4 h-4 object-contain" />
+              {athlete.belt === 'BLACK' ? '★ PRO' : '⚡ BJJ'}
             </div>
           </div>
 
-          {/* Foto del Atleta (Recorte Estilo FIFA FUT) */}
+          {/* Foto del Atleta (Recorte Estilo FIFA FUT con fundido) */}
           <div className="relative flex-1 flex justify-center -mt-2 -mr-1">
-            <div className="relative w-36 sm:w-40 h-40 sm:h-44 overflow-hidden flex items-end justify-center">
+            <div className="relative w-36 sm:w-40 h-36 sm:h-38 overflow-hidden flex items-end justify-center rounded-2xl">
               {athlete.photoUrl ? (
                 <img
                   src={athlete.photoUrl}
@@ -223,7 +221,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
               )}
 
               {/* Degradado inferior para fundir la foto con la tarjeta */}
-              <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/40 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
             </div>
           </div>
         </div>
@@ -231,11 +229,11 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
         {/* ======================================================== */}
         {/* PARTE INFERIOR: NOMBRE, CINTURÓN Y 6 STATS FIFA          */}
         {/* ======================================================== */}
-        <div className="relative z-10 px-2 pb-2">
-          {/* Nombre / Alias del Atleta */}
+        <div className="relative z-10 px-2">
+          {/* Nombre / Alias del Atleta (Sin cortes ni puntos suspensivos) */}
           <div className="text-center mb-1">
             <h3
-              className={`font-headline text-2xl uppercase tracking-tight font-black leading-none truncate ${tierStyles.textColor} drop-shadow-sm`}
+              className={`font-headline ${nameFontSize} uppercase tracking-tight font-black leading-tight ${tierStyles.textColor} drop-shadow-sm px-1`}
             >
               {athlete.alias}
             </h3>
@@ -257,7 +255,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
           </div>
 
           {/* Línea divisoria dorada */}
-          <div className={`w-full h-px border-b ${tierStyles.divider} my-2`} />
+          <div className={`w-full h-px border-b ${tierStyles.divider} my-1.5`} />
 
           {/* Rejilla de 6 Estadísticas (FUT Style) */}
           <div className="grid grid-cols-6 gap-1 text-center py-1">
@@ -277,14 +275,35 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
             ))}
           </div>
 
-          {/* Footer de la tarjeta con insignia de socio */}
-          <div className="mt-2 pt-1 flex items-center justify-between border-t border-black/10 text-[8px] font-black uppercase tracking-wider">
-            <span className={tierStyles.statLabelColor}>247STUDIO PINTO</span>
+          {/* ======================================================== */}
+          {/* INSIGNIAS OFICIALES FIFA FUT EN LA PUNTA INFERIOR        */}
+          {/* Centradas en el eje medio para que JAMÁS se corten       */}
+          {/* ======================================================== */}
+          <div className="mt-2 flex items-center justify-center gap-2">
+            {/* Bandera Nacional (España) */}
+            <div
+              className="w-4.5 h-3 rounded-xs overflow-hidden shadow-2xs border border-black/25 shrink-0"
+              title="Madrid / España"
+            >
+              <div className="h-1 bg-[#AA151B]" />
+              <div className="h-1 bg-[#F1BF00]" />
+              <div className="h-1 bg-[#AA151B]" />
+            </div>
+
+            {/* Insignia Edición / Tarifa */}
             <span
-              className={`px-1.5 py-0.2 rounded ${tierStyles.badgeBg} text-[8px] font-mono tracking-widest`}
+              className={`px-2 py-0.5 rounded-full ${tierStyles.badgeBg} text-[8px] font-mono font-black tracking-wider shadow-2xs truncate max-w-[140px]`}
             >
               {athlete.pricingTier === 'SF' ? '★ SOCIO FUNDADOR' : tierStyles.badgeText}
             </span>
+
+            {/* Escudo Club 247Studio */}
+            <div
+              className="w-4.5 h-4.5 rounded-full bg-slate-900 border border-[#D4AF37] flex items-center justify-center p-0.5 shadow-2xs shrink-0"
+              title="247Studio Pinto"
+            >
+              <img src="/logo.webp" alt="247" className="w-3.5 h-3.5 object-contain" />
+            </div>
           </div>
         </div>
       </div>
