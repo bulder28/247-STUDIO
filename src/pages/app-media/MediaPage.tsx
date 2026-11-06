@@ -134,3 +134,4 @@ export const MediaPage: React.FC = () => {
     </div>
   );
 };
+

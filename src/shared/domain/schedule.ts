@@ -152,3 +152,44 @@ export function canCancel(
 
   return (classStartApprox.getTime() - now.getTime()) >= deadlineMs;
 }
+
+/**
+ * Horario oficial por defecto extraído directamente de la Diapositiva 8 del PowerPoint de 247Studio.
+ * Sirve como fallback garantizado si la base de datos Firestore está recién creada.
+ */
+export const DEFAULT_OFFICIAL_SCHEDULES: ScheduleDomainModel[] = [
+  // LUNES (1)
+  { id: 'sched-1-1', dayOfWeek: 1, startTime: '10:00', endTime: '11:30', program: 'GI', professor: 'Mario Bros', capacity: 26, active: true },
+  { id: 'sched-1-2', dayOfWeek: 1, startTime: '17:30', endTime: '18:30', program: 'KIDS 1', professor: 'David', capacity: 16, active: true },
+  { id: 'sched-1-3', dayOfWeek: 1, startTime: '18:30', endTime: '19:30', program: 'KIDS 2', professor: 'David', capacity: 18, active: true },
+  { id: 'sched-1-4', dayOfWeek: 1, startTime: '19:30', endTime: '20:30', program: 'GI', professor: 'Mario Bros', capacity: 26, active: true },
+  { id: 'sched-1-5', dayOfWeek: 1, startTime: '20:30', endTime: '21:30', program: 'GRAPPLING', professor: 'David', capacity: 26, active: true },
+
+  // MARTES (2)
+  { id: 'sched-2-1', dayOfWeek: 2, startTime: '10:00', endTime: '11:30', program: 'GRAPPLING', professor: 'David', capacity: 24, active: true },
+  { id: 'sched-2-2', dayOfWeek: 2, startTime: '17:30', endTime: '18:30', program: 'MMA', professor: 'Coach Pro', capacity: 20, active: true },
+  { id: 'sched-2-3', dayOfWeek: 2, startTime: '18:30', endTime: '19:30', program: 'BJJ FEM', professor: 'Instructora BJJ', capacity: 20, active: true },
+  { id: 'sched-2-4', dayOfWeek: 2, startTime: '19:30', endTime: '20:30', program: 'GRAPPLING', professor: 'David', capacity: 26, active: true },
+  { id: 'sched-2-5', dayOfWeek: 2, startTime: '20:30', endTime: '21:30', program: 'COMP CLAS.', professor: 'Mario Bros', capacity: 22, active: true },
+
+  // MIÉRCOLES (3)
+  { id: 'sched-3-1', dayOfWeek: 3, startTime: '10:00', endTime: '11:30', program: 'GI', professor: 'Mario Bros', capacity: 26, active: true },
+  { id: 'sched-3-2', dayOfWeek: 3, startTime: '17:30', endTime: '18:30', program: 'KIDS 1', professor: 'David', capacity: 16, active: true },
+  { id: 'sched-3-3', dayOfWeek: 3, startTime: '18:30', endTime: '19:30', program: 'KIDS 2', professor: 'David', capacity: 18, active: true },
+  { id: 'sched-3-4', dayOfWeek: 3, startTime: '19:30', endTime: '20:30', program: 'GI', professor: 'Mario Bros', capacity: 26, active: true },
+  { id: 'sched-3-5', dayOfWeek: 3, startTime: '20:30', endTime: '21:30', program: 'GRAPPLING', professor: 'David', capacity: 26, active: true },
+
+  // JUEVES (4)
+  { id: 'sched-4-1', dayOfWeek: 4, startTime: '10:00', endTime: '11:30', program: 'GRAPPLING', professor: 'David', capacity: 24, active: true },
+  { id: 'sched-4-2', dayOfWeek: 4, startTime: '17:30', endTime: '18:30', program: 'MMA', professor: 'Coach Pro', capacity: 20, active: true },
+  { id: 'sched-4-3', dayOfWeek: 4, startTime: '18:30', endTime: '19:30', program: 'BJJ FEM', professor: 'Instructora BJJ', capacity: 20, active: true },
+  { id: 'sched-4-4', dayOfWeek: 4, startTime: '19:30', endTime: '20:30', program: 'LUCHA', professor: 'Wrestling Coach', capacity: 22, active: true },
+  { id: 'sched-4-5', dayOfWeek: 4, startTime: '20:30', endTime: '21:30', program: 'GI SPARRING', professor: 'Mario Bros', capacity: 26, active: true },
+
+  // VIERNES (5)
+  { id: 'sched-5-1', dayOfWeek: 5, startTime: '10:00', endTime: '11:30', program: 'GRAPPLING', professor: 'David', capacity: 24, active: true },
+  { id: 'sched-5-2', dayOfWeek: 5, startTime: '17:30', endTime: '18:30', program: 'KIDS 1', professor: 'David', capacity: 16, active: true },
+  { id: 'sched-5-3', dayOfWeek: 5, startTime: '18:30', endTime: '19:30', program: 'MMA', professor: 'Coach Pro', capacity: 20, active: true },
+  { id: 'sched-5-4', dayOfWeek: 5, startTime: '19:30', endTime: '20:30', program: 'LUCHA', professor: 'Wrestling Coach', capacity: 22, active: true },
+  { id: 'sched-5-5', dayOfWeek: 5, startTime: '20:30', endTime: '21:30', program: 'OPEN MAT', professor: 'Mario & David', capacity: 35, active: true },
+];

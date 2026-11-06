@@ -4,7 +4,7 @@ import { Calendar, ChevronRight, QrCode } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { derivePaymentStatus } from '@/shared/domain/payment-status';
-import { getNextClass, isClassInProgress } from '@/shared/domain/schedule';
+import { DEFAULT_OFFICIAL_SCHEDULES, getNextClass, isClassInProgress } from '@/shared/domain/schedule';
 import {
   BookingDomainModel,
   DerivedPaymentStatus,
@@ -64,7 +64,7 @@ export const HomePage: React.FC = () => {
         const schedSnap = await getDocs(query(collection(db, 'schedules'), where('active', '==', true)));
         const schedList: ScheduleDomainModel[] = [];
         schedSnap.forEach((d) => schedList.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) }));
-        setSchedules(schedList);
+        setSchedules(schedList.length > 0 ? schedList : DEFAULT_OFFICIAL_SCHEDULES);
 
         const excSnap = await getDocs(collection(db, 'scheduleExceptions'));
         const excList: ScheduleExceptionDomainModel[] = [];

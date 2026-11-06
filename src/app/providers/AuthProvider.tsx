@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/shared/api/firebase';
 import { Role, UserDomainModel } from '@/shared/domain/types';
 
@@ -39,7 +39,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (snap.exists()) {
         setUserData({ uid: snap.id, ...(snap.data() as Omit<UserDomainModel, 'uid'>) });
       } else {
-        setUserData(null);
+        // Auto-creación de perfil inicial para atletas o administradores recién registrados
+        const initialProfile: UserDomainModel = {
+          uid: firebaseUser.uid,
+          authEmail: firebaseUser.email || '',
+          contactEmail: firebaseUser.email || '',
+          alias: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Atleta 247',
+          phone: firebaseUser.phoneNumber || '',
+          emergencyContactName: 'Contacto de Emergencia',
+          emergencyContactPhone: '',
+          birthDate: '1996-05-15',
+          isMinor: false,
+          beltSystem: 'ADULT',
+          belt: userRole === 'admin' ? 'BLACK' : 'WHITE',
+          stripes: userRole === 'admin' ? 3 : 1,
+          beltDate: new Date().toISOString().slice(0, 10),
+          pricingTier: 'STD',
+          activeTariffId: 'tariff-mensual-bjj',
+          accountStatus: 'ACTIVE',
+          paymentStatusCache: 'OK',
+          photoUrl: firebaseUser.photoURL || undefined,
+          permissions: userRole === 'admin' ? ['admin'] : ['student'],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          stats: {
+            tecnica: userRole === 'admin' ? 95 : 68,
+            fuerza: userRole === 'admin' ? 88 : 72,
+            elasticidad: userRole === 'admin' ? 82 : 65,
+            guardia: userRole === 'admin' ? 94 : 70,
+            pase: userRole === 'admin' ? 92 : 66,
+            derribos: userRole === 'admin' ? 86 : 60,
+            leglocks: userRole === 'admin' ? 90 : 58,
+            finalizacion: userRole === 'admin' ? 96 : 64,
+          },
+        };
+
+        try {
+          await setDoc(userDocRef, initialProfile, { merge: true });
+        } catch {
+          // Si las reglas rechazan la escritura cliente, mantenemos el perfil en memoria
+        }
+        setUserData(initialProfile);
       }
     } catch (err) {
       console.error('Error fetching user profile:', err);

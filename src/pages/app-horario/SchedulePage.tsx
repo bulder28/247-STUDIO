@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
-import { canCancel, getMadridTimeComponents, isClassInProgress } from '@/shared/domain/schedule';
+import { DEFAULT_OFFICIAL_SCHEDULES, canCancel, getMadridTimeComponents, isClassInProgress } from '@/shared/domain/schedule';
 import {
   BookingDomainModel,
   ScheduleDomainModel,
@@ -83,7 +83,12 @@ export const SchedulePage: React.FC = () => {
       const schedSnap = await getDocs(schedQuery);
       const sList: ScheduleDomainModel[] = [];
       schedSnap.forEach((d) => sList.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) }));
-      setSchedules(sList);
+      
+      if (sList.length === 0) {
+        setSchedules(DEFAULT_OFFICIAL_SCHEDULES);
+      } else {
+        setSchedules(sList);
+      }
 
       // 2. Obtener excepciones
       const excSnap = await getDocs(collection(db, 'scheduleExceptions'));
