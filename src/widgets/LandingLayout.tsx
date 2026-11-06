@@ -48,13 +48,13 @@ export const LandingLayout: React.FC = () => {
               <>
                 <Link
                   to="/login"
-                  className="px-3 py-2.5 text-sm font-semibold text-studio-cream hover:text-white"
+                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10 hover:border-white/40"
                 >
                   Acceder
                 </Link>
                 <Link
                   to="/reserva-prueba"
-                  className="hidden sm:inline-flex rounded-xl bg-studio-red px-4 py-2.5 text-sm font-bold text-white hover:bg-studio-red-dark"
+                  className="hidden sm:inline-flex rounded-xl bg-studio-red px-4 py-2 text-sm font-bold text-white hover:bg-studio-red-dark transition"
                 >
                   Clase de prueba
                 </Link>

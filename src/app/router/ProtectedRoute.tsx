@@ -27,8 +27,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!user) {
-    const originalTarget = location.pathname + location.search;
-    return <Navigate to={`/login?redirect=${encodeURIComponent(originalTarget)}`} replace />;
+    let target = location.pathname + location.search;
+    if (target === '/app' || target === '/app/') {
+      target = '/app/home';
+    }
+    return <Navigate to={`/login?redirect=${encodeURI(target)}`} replace />;
   }
 
   if (allowedRoles && role && !allowedRoles.includes(role)) {
