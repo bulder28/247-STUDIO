@@ -1,0 +1,21 @@
+# .gitleaks.toml - Configuración oficial de Gitleaks para 247 STUDIO
+title = "247 Studio Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Permitir artefactos compilados, dependencias y claves públicas de cliente Web"
+paths = [
+  '''(?i)package-lock\.json''',
+  '''(?i)node_modules/''',
+  '''(?i)dist/''',
+  '''(?i)\.system_generated/''',
+  '''(?i)coverage/''',
+]
+regexes = [
+  # Permitir claves públicas de Firebase Client SDK Web (no son secretos de servidor, son identificadores de cliente)
+  '''AIzaSy[A-Za-z0-9_-]{33}''',
+  # Permitir claves mock/dummy en tests y variables de entorno por defecto
+  '''AIzaSyDummyKeyForDevelopment12345''',
+]
