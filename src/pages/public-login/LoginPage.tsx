@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { GoogleAuthProvider, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import {
+  getRedirectResult,
+  GoogleAuthProvider,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+} from 'firebase/auth';
 import { CheckCircle2, KeyRound, Mail, X } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { Belt } from '@/widgets/Belt';
@@ -45,6 +52,20 @@ export function getDefaultHomeByRole(role: Role | null): string {
   return '/app/home';
 }
 
+export function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = (navigator.userAgent || navigator.vendor || '').toLowerCase();
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(ua);
+  return isMobileUA || (isTouch && window.innerWidth <= 768);
+}
+
+export function isInAppBrowser(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = (navigator.userAgent || navigator.vendor || '').toLowerCase();
+  return /fban|fbav|instagram|whatsapp|line|micromessenger/i.test(ua);
+}
+
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -64,6 +85,36 @@ export const LoginPage: React.FC = () => {
 
   const searchParams = new URLSearchParams(location.search);
   const redirectParam = searchParams.get('redirect');
+
+  // Procesar resultado de redirección de Google al volver en móvil
+  useEffect(() => {
+    let isMounted = true;
+    const processRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user && isMounted) {
+          const tokenResult = await result.user.getIdTokenResult(true);
+          const userRole = (tokenResult.claims.role as Role) || 'student';
+          const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole);
+          navigate(destination, { replace: true });
+        }
+      } catch (err: unknown) {
+        if (!isMounted) return;
+        console.error('Error procesando signInWithRedirect de Google:', err);
+        const firebaseError = err as { code?: string; message?: string };
+        if (firebaseError?.code === 'auth/unauthorized-domain') {
+          const currentDomain = typeof window !== 'undefined' ? window.location.hostname : '247studio.netlify.app';
+          setError(`El dominio "${currentDomain}" debe agregarse a "Dominios autorizados" en Firebase.`);
+        } else if (firebaseError?.code) {
+          setError(`Error en autenticación Google (${firebaseError.code}).`);
+        }
+      }
+    };
+    processRedirect();
+    return () => {
+      isMounted = false;
+    };
+  }, [redirectParam, navigate]);
 
   // Guarda: Si el usuario ya está autenticado, redirigir automáticamente
   useEffect(() => {
@@ -129,26 +180,48 @@ export const LoginPage: React.FC = () => {
 
     try {
       const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      const tokenResult = await userCredential.user.getIdTokenResult(true);
-      const userRole = (tokenResult.claims.role as Role) || 'student';
+      provider.setCustomParameters({ prompt: 'select_account' });
 
-      const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole);
-      navigate(destination, { replace: true });
+      // En dispositivos móviles (iOS Safari, Android Chrome), signInWithRedirect es el método nativo que evita bloqueos de popups
+      if (isMobileDevice()) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
+      // En escritorio, intentamos primero popup y si el navegador bloquea la ventana emergente, fallback a redirect
+      try {
+        const userCredential = await signInWithPopup(auth, provider);
+        const tokenResult = await userCredential.user.getIdTokenResult(true);
+        const userRole = (tokenResult.claims.role as Role) || 'student';
+
+        const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole);
+        navigate(destination, { replace: true });
+      } catch (popupErr: unknown) {
+        const fbErr = popupErr as { code?: string; message?: string };
+        if (
+          fbErr?.code === 'auth/popup-blocked' ||
+          fbErr?.code === 'auth/cancelled-popup-request' ||
+          fbErr?.code === 'auth/popup-closed-by-user'
+        ) {
+          console.warn('Popup bloqueado o cerrado, recurriendo a signInWithRedirect...');
+          await signInWithRedirect(auth, provider);
+          return;
+        }
+        throw popupErr;
+      }
     } catch (err: unknown) {
-      console.error(err);
+      console.error('Error en autenticación Google:', err);
       const firebaseError = err as { code?: string; message?: string };
       if (firebaseError?.code === 'auth/unauthorized-domain') {
-        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : '247studio.com';
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : '247studio.netlify.app';
         setError(`El dominio "${currentDomain}" debe agregarse a "Dominios autorizados" en la consola de Firebase Authentication.`);
       } else if (firebaseError?.code === 'auth/operation-not-allowed') {
-        setError('El proveedor Google no está habilitado en Authentication > Sign-in method de Firebase.');
+        setError('El proveedor Google no está habilitado en Authentication de Firebase.');
       } else if (firebaseError?.code === 'auth/popup-closed-by-user') {
         setError('Acceso cancelado: se cerró la ventana de Google antes de finalizar.');
       } else {
-        setError(`No se pudo completar el acceso con Google (${firebaseError?.code || 'error desconocido'}).`);
+        setError(`No se pudo completar el acceso con Google (${firebaseError?.code || 'error de conexión'}).`);
       }
-    } finally {
       setSubmitting(false);
     }
   };
@@ -219,8 +292,20 @@ export const LoginPage: React.FC = () => {
           </p>
 
           {error && (
-            <div role="alert" className="mt-5 rounded-xl bg-brand-accent/15 border border-brand-accent/40 p-3 text-xs font-bold text-brand-accent">
+            <div role="alert" className="mt-5 rounded-xl bg-rose-50 border border-rose-300 p-3 text-xs font-bold text-rose-800">
               {error}
+            </div>
+          )}
+
+          {isInAppBrowser() && (
+            <div className="mt-4 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex items-start gap-2.5">
+              <span className="text-base shrink-0">💡</span>
+              <div className="space-y-0.5">
+                <p className="font-bold">Navegador integrado detectado (WhatsApp / Instagram)</p>
+                <p className="text-[11px] text-amber-800">
+                  Para acceder con Google, pulsa los <strong>3 puntos (⋮)</strong> arriba a la derecha y selecciona <strong>"Abrir en Chrome"</strong> o <strong>"Abrir en Safari"</strong>.
+                </p>
+              </div>
             </div>
           )}
 
@@ -228,7 +313,7 @@ export const LoginPage: React.FC = () => {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={submitting}
-            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl border border-brand-text/20 bg-white py-3 text-sm font-bold text-brand-text hover:bg-brand-text/5 transition disabled:opacity-50 shadow-sm"
+            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl border border-brand-text/20 bg-white py-3 text-sm font-bold text-brand-text hover:bg-brand-text/5 transition disabled:opacity-50 shadow-sm cursor-pointer"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -236,7 +321,7 @@ export const LoginPage: React.FC = () => {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
             </svg>
-            Continuar con Google
+            {submitting ? 'Conectando con Google…' : 'Continuar con Google'}
           </button>
 
           <div className="my-6 flex items-center gap-3">
