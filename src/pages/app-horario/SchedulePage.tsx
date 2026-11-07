@@ -951,30 +951,44 @@ export const SchedulePage: React.FC = () => {
       {/* ======================================================== */}
       {/* 1. CABECERA NATIVA ESTILO MADRID MÓVIL + PASE QR RÁPIDO   */}
       {/* ======================================================== */}
-      <div className="bg-slate-950 text-white rounded-3xl p-4 sm:p-5 shadow-lg border border-slate-800 relative overflow-hidden">
-        {/* Fondo sutil deportivo */}
-        <div className="absolute -right-10 -bottom-10 w-44 h-44 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="bg-slate-950 text-white rounded-3xl p-4 sm:p-5 shadow-xl border border-slate-800/90 relative overflow-hidden">
+        {/* Halos ambientales animados de fondo */}
+        <div className="absolute -right-8 -top-8 w-44 h-44 bg-amber-400/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute -left-10 -bottom-10 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex items-center justify-between gap-3 relative z-10">
           <div className="min-w-0">
+            {/* Indicador de Estado del Tatami */}
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-400 text-slate-950">
-                Madrid es Deporte · 247
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Instalación Abierta
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 font-headline">
+                Tatami Oficial · En Directo
               </span>
             </div>
-            <h1 className="text-lg sm:text-2xl font-black tracking-tight uppercase font-headline text-white mt-1 truncate">
-              Centro Deportivo Pinto · Tatami 247
-            </h1>
-            <p className="text-xs text-slate-400 font-medium truncate">
-              Reserva de sesiones y clases dirigidas en tiempo real
+
+            {/* Título Principal Exclusivo: STUDIO 247 CON ANIMACIÓN */}
+            <div className="flex items-center gap-2.5 sm:gap-3 mt-1.5">
+              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center shadow-md shadow-amber-400/10 shrink-0">
+                <img
+                  src="/logo.webp"
+                  alt="247"
+                  className="w-6 h-6 sm:w-7 sm:h-7 object-contain brightness-110 filter drop-shadow animate-pulse"
+                />
+              </div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight uppercase font-headline animate-studio-title leading-none">
+                STUDIO 247
+              </h1>
+            </div>
+
+            <p className="text-[11px] sm:text-xs text-slate-400 font-medium tracking-wide mt-1 truncate">
+              Artes Marciales · BJJ · Grappling · MMA · Lucha Olímpica
             </p>
           </div>
 
-          {/* Botón Pase QR Madrid Móvil para el torno de acceso */}
+          {/* Botón Pase QR para el torno de acceso */}
           {userData && (
             <button
               type="button"
@@ -1141,7 +1155,7 @@ export const SchedulePage: React.FC = () => {
             <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">
-                  Madrid es Deporte · Tus Pases Activos
+                  STUDIO 247 · Tus Pases Activos
                 </span>
                 <h2 className="text-lg font-black text-slate-900 uppercase">
                   Mis Reservas y Anulaciones ({upcomingMyBookingsDetailed.length})
@@ -1266,10 +1280,10 @@ export const SchedulePage: React.FC = () => {
                 <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
                   <div className="flex items-center gap-1.5 font-bold">
                     <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-                    <span>Normativa de Reservas y Anulaciones (Madrid es Deporte):</span>
+                    <span>Normativa de Reservas y Anulaciones (STUDIO 247):</span>
                   </div>
                   <p className="text-amber-800 pl-5">
-                    Puedes anular tu reserva sin penalización hasta <strong>2 horas antes</strong> del inicio de la sesión. Presenta tu código QR en el lector del torno de entrada al tatami para validar tu asistencia.
+                    Puedes anular tu reserva sin penalización hasta <strong>2 horas antes</strong> del inicio de la sesión. Presenta tu código QR en el torno de entrada al tatami para validar tu asistencia.
                   </p>
                 </div>
               </div>
@@ -2137,7 +2151,7 @@ export const SchedulePage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-2 pt-1">
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 block">
-                Sesiones Disponibles · Madrid Móvil
+                Sesiones Disponibles · STUDIO 247
               </span>
               <h2 className="text-base sm:text-lg font-black text-slate-900 capitalize font-headline">
                 {formatReadableDateEs(selectedDateStr)}
