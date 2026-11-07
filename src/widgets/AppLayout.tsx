@@ -25,6 +25,17 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useGlobalShortcuts } from '@/shared/hooks/useGlobalShortcuts';
+import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
+import { Badge } from '@/shared/ui/badge';
+import { Dialog, DialogContent } from '@/shared/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/shared/ui/dropdown-menu';
 import { BeltRoadmapModal } from '@/widgets/BeltRoadmapModal';
 import { CurriculumModal } from '@/widgets/CurriculumModal';
 import { KokoroAssistant } from '@/widgets/KokoroAssistant';
@@ -296,36 +307,93 @@ export const AppLayout: React.FC = () => {
             {/* Notificaciones con pastilla numérica */}
             <Link
               to="/app/avisos"
-              className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
+              className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
               title="Avisos"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-4 h-4 bg-slate-900 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+              <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[9px] flex items-center justify-center font-bold">
                 3
-              </span>
+              </Badge>
             </Link>
 
-            {/* Avatar de usuario con indicador online */}
-            <Link to="/app/perfil" className="flex items-center gap-2 pl-2 border-l border-slate-200">
-              <div className="relative">
-                {userData?.photoUrl ? (
-                  <img src={userData.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-800 text-amber-400 font-bold text-xs flex items-center justify-center">
-                    {userData?.alias?.slice(0, 2).toUpperCase() || '247'}
+            {/* Radix Dropdown Menu con Avatar de usuario e indicador online */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-2.5 pl-2 py-1 pr-1.5 rounded-2xl hover:bg-slate-100/80 transition cursor-pointer border border-transparent hover:border-slate-200 outline-none"
+                >
+                  <div className="relative">
+                    <Avatar className="w-8 h-8 border border-slate-200 ring-2 ring-white shadow-xs">
+                      {userData?.photoUrl && <AvatarImage src={userData.photoUrl} alt={userData?.alias || ''} />}
+                      <AvatarFallback className="bg-slate-900 text-amber-400 font-black text-[11px]">
+                        {userData?.alias?.slice(0, 2).toUpperCase() || '24'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
                   </div>
+                  <div className="hidden lg:block text-left">
+                    <span className="text-xs font-bold text-slate-900 block leading-tight">
+                      {userData?.alias || 'Atleta'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block leading-none capitalize">
+                      {role === 'admin' ? 'Profesor / Admin' : 'Atleta'}
+                    </span>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-xs font-black text-slate-900">{userData?.alias || 'Atleta'}</p>
+                    <p className="text-[11px] font-normal text-slate-500 truncate">{userData?.contactEmail || ''}</p>
+                    <div className="pt-1 flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[9px] font-mono uppercase tracking-wider py-0">
+                        {userData?.belt || 'WHITE'} · {userData?.stripes || 0}G
+                      </Badge>
+                      <Badge variant={role === 'admin' ? 'destructive' : 'secondary'} className="text-[9px] py-0">
+                        {role === 'admin' ? 'Coach' : 'Atleta'}
+                      </Badge>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/app/perfil" className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-slate-500" />
+                    <span>Mi Perfil & Stats</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setQrModalOpen(true)} className="flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-brand-accent" />
+                  <span>Ver Pase QR Tatami</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTimerOpen(true)} className="flex items-center gap-2">
+                  <Swords className="w-4 h-4 text-rose-500" />
+                  <span>Cronómetro Sparring</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setWeightCalcOpen(true)} className="flex items-center gap-2">
+                  <Scale className="w-4 h-4 text-amber-500" />
+                  <span>Calculadora de Peso IBJJF</span>
+                </DropdownMenuItem>
+                {role === 'admin' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/personal" className="flex items-center gap-2 font-bold text-slate-900">
+                        <Shield className="w-4 h-4 text-brand-accent" />
+                        <span>Panel Admin / Alumnos</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
                 )}
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
-              </div>
-              <div className="hidden lg:block text-left">
-                <span className="text-xs font-bold text-slate-900 block leading-tight">
-                  {userData?.alias || 'Atleta'}
-                </span>
-                <span className="text-[10px] text-slate-400 block leading-none">
-                  {role === 'admin' ? 'Administrador' : 'Atleta Activo'}
-                </span>
-              </div>
-            </Link>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="flex items-center gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50">
+                  <LogOut className="w-4 h-4" />
+                  <span>Cerrar sesión</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
@@ -427,15 +495,15 @@ export const AppLayout: React.FC = () => {
       )}
 
       {/* ======================================================== */}
-      {/* 5. MODAL PASE QR                                          */}
+      {/* 5. MODAL PASE QR CON RADIX DIALOG                        */}
       {/* ======================================================== */}
-      {qrModalOpen && userData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm relative">
+      <Dialog open={qrModalOpen && !!userData} onOpenChange={(open) => setQrModalOpen(open)}>
+        <DialogContent className="max-w-sm p-0 bg-transparent border-0 shadow-none">
+          {userData && (
             <QrCodePassCard user={userData} onClose={() => setQrModalOpen(false)} />
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ======================================================== */}
       {/* 6. MODALES GLOBALES DE TATAMI & TOOLS                     */}

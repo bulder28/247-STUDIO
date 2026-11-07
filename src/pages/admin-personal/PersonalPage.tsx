@@ -25,6 +25,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { db } from '@/shared/api/firebase';
 import { deriveRetentionRisk } from '@/shared/domain/attendance';
 import { calculateExactAge } from '@/shared/domain/minor';
@@ -40,6 +41,12 @@ import {
   RetentionRisk,
   UserDomainModel,
 } from '@/shared/domain/types';
+import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import { Input } from '@/shared/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { exportStudentsToCsv } from '@/shared/utils/csvExporter';
 import { BeltStatisticsCard, BeltStatsData } from '@/widgets/BeltStatisticsCard';
 import { FifaFighterCard } from '@/widgets/FifaFighterCard';
@@ -333,21 +340,23 @@ export const PersonalPage: React.FC = () => {
       {/* ======================================================== */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Riesgo Alto */}
-        <div
+        <motion.div
+          whileHover={{ y: -2, scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setRiskFilter(riskFilter === 'HIGH' ? 'ALL' : 'HIGH')}
-          className={`p-4 rounded-2xl border transition cursor-pointer select-none ${
+          className={`p-4 rounded-2xl border transition cursor-pointer select-none shadow-xs ${
             riskFilter === 'HIGH'
-              ? 'bg-rose-50 border-rose-300 ring-2 ring-rose-400'
-              : 'bg-white border-slate-200/80 hover:border-rose-200 hover:bg-rose-50/30'
+              ? 'bg-rose-50/90 border-rose-400 ring-2 ring-rose-400/50 shadow-md'
+              : 'bg-white border-slate-200/80 hover:border-rose-200 hover:bg-rose-50/20'
           }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
               <ShieldAlert className="w-4 h-4 text-rose-600" /> Riesgo de Abandono (Alto)
             </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
+            <Badge variant={riskFilter === 'HIGH' ? 'destructive' : 'secondary'} className="text-[9px]">
               {riskFilter === 'HIGH' ? 'Filtro activo' : 'Filtrar'}
-            </span>
+            </Badge>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-3xl font-black text-rose-900 font-mono tracking-tight">
@@ -358,24 +367,26 @@ export const PersonalPage: React.FC = () => {
           <p className="text-[11px] text-slate-500 mt-1">
             Requieren mensaje de reactivación directa por WhatsApp.
           </p>
-        </div>
+        </motion.div>
 
         {/* Riesgo Medio */}
-        <div
+        <motion.div
+          whileHover={{ y: -2, scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setRiskFilter(riskFilter === 'MEDIUM' ? 'ALL' : 'MEDIUM')}
-          className={`p-4 rounded-2xl border transition cursor-pointer select-none ${
+          className={`p-4 rounded-2xl border transition cursor-pointer select-none shadow-xs ${
             riskFilter === 'MEDIUM'
-              ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-400'
-              : 'bg-white border-slate-200/80 hover:border-amber-200 hover:bg-amber-50/30'
+              ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/50 shadow-md'
+              : 'bg-white border-slate-200/80 hover:border-amber-200 hover:bg-amber-50/20'
           }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
               <TrendingDown className="w-4 h-4 text-amber-600" /> Asistencia Irregular (Medio)
             </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+            <Badge variant={riskFilter === 'MEDIUM' ? 'warning' : 'secondary'} className="text-[9px]">
               {riskFilter === 'MEDIUM' ? 'Filtro activo' : 'Filtrar'}
-            </span>
+            </Badge>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-3xl font-black text-amber-900 font-mono tracking-tight">
@@ -386,24 +397,26 @@ export const PersonalPage: React.FC = () => {
           <p className="text-[11px] text-slate-500 mt-1">
             Alumnos que redujeron su ritmo habitual de clases.
           </p>
-        </div>
+        </motion.div>
 
         {/* Activos Saludables */}
-        <div
+        <motion.div
+          whileHover={{ y: -2, scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setRiskFilter(riskFilter === 'LOW' ? 'ALL' : 'LOW')}
-          className={`p-4 rounded-2xl border transition cursor-pointer select-none ${
+          className={`p-4 rounded-2xl border transition cursor-pointer select-none shadow-xs ${
             riskFilter === 'LOW'
-              ? 'bg-emerald-50 border-emerald-300 ring-2 ring-emerald-400'
-              : 'bg-white border-slate-200/80 hover:border-emerald-200 hover:bg-emerald-50/30'
+              ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-400/50 shadow-md'
+              : 'bg-white border-slate-200/80 hover:border-emerald-200 hover:bg-emerald-50/20'
           }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
               <UserCheck className="w-4 h-4 text-emerald-600" /> Frecuencia Óptima (Bajo)
             </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+            <Badge variant={riskFilter === 'LOW' ? 'success' : 'secondary'} className="text-[9px]">
               {riskFilter === 'LOW' ? 'Filtro activo' : 'Filtrar'}
-            </span>
+            </Badge>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-3xl font-black text-emerald-900 font-mono tracking-tight">
@@ -414,7 +427,7 @@ export const PersonalPage: React.FC = () => {
           <p className="text-[11px] text-slate-500 mt-1">
             Alumnos fieles con asistencia periódica semanal.
           </p>
-        </div>
+        </motion.div>
       </div>
 
       {/* Estadísticas de Cinturones con Cinturones Anudados */}
@@ -584,9 +597,19 @@ export const PersonalPage: React.FC = () => {
                   return (
                     <tr key={u.uid} className="hover:bg-slate-50/60 transition">
                       <td className="py-4 px-5">
-                        <div className="font-extrabold text-sm text-slate-900">{u.alias}</div>
-                        <div className="text-[11px] text-slate-500">{u.contactEmail}</div>
-                        <div className="text-[10px] text-slate-400">{u.phone || 'Sin teléfono'}</div>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-9 h-9 border border-slate-200 shrink-0">
+                            {u.photoUrl && <AvatarImage src={u.photoUrl} alt={u.alias} />}
+                            <AvatarFallback className="bg-slate-900 text-amber-400 font-bold text-xs">
+                              {u.alias.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-extrabold text-sm text-slate-900">{u.alias}</div>
+                            <div className="text-[11px] text-slate-500">{u.contactEmail}</div>
+                            <div className="text-[10px] text-slate-400">{u.phone || 'Sin teléfono'}</div>
+                          </div>
+                        </div>
                       </td>
 
                       <td className="py-4 px-4">
@@ -752,168 +775,160 @@ export const PersonalPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Editor de Cinturón, Grados y 8 Atributos con Radar FIFA en Vivo */}
-      {selectedUser && editingStats && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 mb-4">
-              <div>
-                <h3 className="text-lg font-black text-slate-900">{selectedUser.alias}</h3>
-                <span className="text-xs text-slate-400">Editor Técnico y Radar de Habilidades FIFA</span>
-              </div>
-              <button
-                onClick={() => setSelectedUser(null)}
-                className="p-1 rounded-full text-slate-400 hover:text-slate-900"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Modal Editor de Cinturón, Grados y 8 Atributos con Radar FIFA en Vivo (Radix Dialog & Tabs) */}
+      <Dialog
+        open={!!selectedUser && !!editingStats}
+        onOpenChange={(open) => !open && setSelectedUser(null)}
+      >
+        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
+          {selectedUser && editingStats && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl font-black text-slate-900">
+                  {selectedUser.alias}
+                </DialogTitle>
+                <p className="text-xs text-slate-400">
+                  Editor Técnico y Radar de Habilidades FIFA Ultimate Team
+                </p>
+              </DialogHeader>
 
-            <div className="space-y-6">
-              {/* Preview Interactivo: Polígono Radar vs Carta FIFA Shield */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col items-center">
-                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 mb-3 shadow-xs">
-                  <button
-                    type="button"
-                    onClick={() => setModalPreviewMode('CARD')}
-                    className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider transition ${
-                      modalPreviewMode === 'CARD'
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+              <div className="space-y-6 pt-2">
+                {/* Preview Interactivo con Radix Tabs: Polígono Radar vs Carta FIFA Shield */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col items-center">
+                  <Tabs
+                    defaultValue={modalPreviewMode}
+                    value={modalPreviewMode}
+                    onValueChange={(val) => setModalPreviewMode(val as any)}
+                    className="w-full flex flex-col items-center"
                   >
-                    Carta FIFA FUT
-                  </button>
-                  <button
+                    <TabsList className="w-56 mb-3">
+                      <TabsTrigger value="CARD" className="text-xs font-bold">Carta FIFA FUT</TabsTrigger>
+                      <TabsTrigger value="RADAR" className="text-xs font-bold">Polígono Radar</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="CARD" className="py-2 flex justify-center w-full">
+                      <FifaFighterCard
+                        athlete={{
+                          ...selectedUser,
+                          belt: editingBelt,
+                          stripes: editingStripes,
+                          stats: editingStats,
+                        }}
+                        size="sm"
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="RADAR" className="py-2 flex justify-center w-full">
+                      <FighterRadarChart stats={editingStats} alias={selectedUser.alias} size={250} />
+                    </TabsContent>
+                  </Tabs>
+
+                  <Button
                     type="button"
-                    onClick={() => setModalPreviewMode('RADAR')}
-                    className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider transition ${
-                      modalPreviewMode === 'RADAR'
-                        ? 'bg-slate-900 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setUploaderOpen(true)}
+                    className="mt-3"
                   >
-                    Polígono Radar
-                  </button>
+                    <Camera className="w-3.5 h-3.5 text-amber-500 mr-1.5" />
+                    <span>Subir / Cambiar Foto de Carta</span>
+                  </Button>
                 </div>
 
-                {modalPreviewMode === 'CARD' ? (
-                  <div className="py-2">
-                    <FifaFighterCard
-                      athlete={{
-                        ...selectedUser,
-                        belt: editingBelt,
-                        stripes: editingStripes,
-                        stats: editingStats,
-                      }}
-                      size="sm"
+                {/* Selector de Cinturón y Grados */}
+                <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Cinturón
+                    </label>
+                    <select
+                      value={editingBelt}
+                      onChange={(e) => setEditingBelt(e.target.value as Belt)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
+                    >
+                      {(selectedUser.beltSystem === 'KIDS' ? kidsBelts : adultBelts).map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Grados (Stripes: 0 a 4)
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={4}
+                      value={editingStripes}
+                      onChange={(e) => setEditingStripes(parseInt(e.target.value, 10) || 0)}
+                      className="h-9 text-xs"
                     />
                   </div>
-                ) : (
-                  <FighterRadarChart stats={editingStats} alias={selectedUser.alias} size={250} />
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setUploaderOpen(true)}
-                  className="mt-3 px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                >
-                  <Camera className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Subir / Cambiar Foto de Carta</span>
-                </button>
-              </div>
-
-              {/* Selector de Cinturón y Grados */}
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Cinturón
-                  </label>
-                  <select
-                    value={editingBelt}
-                    onChange={(e) => setEditingBelt(e.target.value as Belt)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
-                  >
-                    {(selectedUser.beltSystem === 'KIDS' ? kidsBelts : adultBelts).map((b) => (
-                      <option key={b} value={b}>
-                        {b}
-                      </option>
-                    ))}
-                  </select>
                 </div>
 
+                {/* Sliders de los 8 Atributos */}
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Grados (Stripes: 0 a 4)
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-brand-accent" /> Ajuste de los 8 Atributos (0 a 100)
                   </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={4}
-                    value={editingStripes}
-                    onChange={(e) => setEditingStripes(parseInt(e.target.value, 10) || 0)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
-                  />
-                </div>
-              </div>
 
-              {/* Sliders de los 8 Atributos */}
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-1.5">
-                  <Award className="w-4 h-4 text-brand-accent" /> Ajuste de los 8 Atributos (0 a 100)
-                </label>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {(Object.keys(editingStats) as (keyof FighterStats)[]).map((key) => (
-                    <div key={key} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="font-bold uppercase tracking-wider text-slate-700 text-[11px]">
-                          {key}
-                        </span>
-                        <span className="font-mono font-black text-brand-accent">{editingStats[key]}%</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(Object.keys(editingStats) as (keyof FighterStats)[]).map((key) => (
+                      <div key={key} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="font-bold uppercase tracking-wider text-slate-700 text-[11px]">
+                            {key}
+                          </span>
+                          <span className="font-mono font-black text-brand-accent">{editingStats[key]}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={editingStats[key]}
+                          onChange={(e) =>
+                            setEditingStats((prev) =>
+                              prev ? { ...prev, [key]: parseInt(e.target.value, 10) } : prev
+                            )
+                          }
+                          className="w-full accent-brand-accent cursor-pointer"
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={editingStats[key]}
-                        onChange={(e) =>
-                          setEditingStats((prev) =>
-                            prev ? { ...prev, [key]: parseInt(e.target.value, 10) } : prev
-                          )
-                        }
-                        className="w-full accent-brand-accent cursor-pointer"
-                      />
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-6 flex gap-3 pt-3 border-t border-slate-200/80">
-              <button
-                type="button"
-                onClick={() => setSelectedUser(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={handleSaveEditor}
-                className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 transition"
-              >
-                {saving ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  'Guardar Cambios'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="mt-6 flex gap-3 pt-3 border-t border-slate-200/80">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSelectedUser(null)}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={saving}
+                  onClick={handleSaveEditor}
+                  variant="default"
+                  className="flex-1"
+                >
+                  {saving ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    'Guardar Cambios'
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Subida de Foto Autónoma para Carta FIFA */}
       {uploaderOpen && selectedUser && (

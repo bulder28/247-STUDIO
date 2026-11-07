@@ -28,6 +28,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'qrcode';
 import { db } from '@/shared/api/firebase';
 import { getAttendanceWeight } from '@/shared/domain/attendance';
@@ -38,6 +39,11 @@ import {
   ScheduleExceptionDomainModel,
   SessionType,
 } from '@/shared/domain/types';
+import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import { Input } from '@/shared/ui/input';
 import { Belt, beltLabelEs } from '@/widgets/Belt';
 import { triggerKioskCheckinConfetti } from '@/shared/utils/confetti';
 import { QrCameraScanner } from '@/widgets/QrCameraScanner';
@@ -725,47 +731,63 @@ export const KioskCheckinPage: React.FC = () => {
               </h2>
 
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
-                <input
+                <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3.5 z-10" />
+                <Input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Escribe tu nombre (mínimo 2 letras)..."
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-accent focus:bg-white transition"
+                  className="pl-11 pr-4 h-12 rounded-2xl bg-slate-50 border-slate-200 focus:bg-white text-base"
                 />
               </div>
 
-              {/* Resultados de Búsqueda Seguros */}
+              {/* Resultados de Búsqueda Seguros con Framer Motion */}
               {searchResults.length > 0 && (
                 <div className="space-y-2 pt-2">
-                  {searchResults.map((member) => (
-                    <button
-                      key={member.uid}
-                      onClick={() => handleSelectStudent(member)}
-                      className="w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 transition flex items-center justify-between text-left cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-14 shrink-0">
-                          <Belt belt={member.belt} stripes={member.stripes} decorative className="h-3.5" />
-                        </div>
-                        <div>
-                          <span className="text-sm font-bold text-slate-900 block">{member.alias}</span>
-                          <span className="text-[11px] text-slate-500 font-medium">
-                            {beltLabelEs(member.belt)} · {member.stripes} {member.stripes === 1 ? 'grado' : 'grados'}
-                            {member.accountStatus !== 'ACTIVE' && (
-                              <span className="ml-2 text-rose-600 font-mono text-[10px]">
-                                ({member.accountStatus})
+                  <AnimatePresence>
+                    {searchResults.map((member) => (
+                      <motion.button
+                        key={member.uid}
+                        type="button"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleSelectStudent(member)}
+                        className="w-full p-3.5 rounded-2xl bg-slate-50/80 hover:bg-slate-100 border border-slate-200/70 transition flex items-center justify-between text-left cursor-pointer shadow-xs"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10 border border-slate-200">
+                            {member.photoUrl && <AvatarImage src={member.photoUrl} alt={member.alias} />}
+                            <AvatarFallback className="bg-slate-900 text-amber-400 font-black text-xs">
+                              {member.alias.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="w-14 shrink-0">
+                            <Belt belt={member.belt} stripes={member.stripes} decorative className="h-3.5" />
+                          </div>
+                          <div>
+                            <span className="text-sm font-extrabold text-slate-900 block">{member.alias}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[11px] text-slate-500 font-medium">
+                                {beltLabelEs(member.belt)} · {member.stripes} {member.stripes === 1 ? 'grado' : 'grados'}
                               </span>
-                            )}
-                          </span>
+                              {member.accountStatus !== 'ACTIVE' && (
+                                <Badge variant="destructive" className="font-mono text-[9px] py-0 px-1.5">
+                                  {member.accountStatus}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
 
-                      <span className="text-xs font-bold text-brand-accent uppercase">
-                        Seleccionar →
-                      </span>
-                    </button>
-                  ))}
+                        <span className="text-xs font-bold text-brand-accent uppercase tracking-wide">
+                          Seleccionar →
+                        </span>
+                      </motion.button>
+                    ))}
+                  </AnimatePresence>
                 </div>
               )}
             </div>
@@ -832,173 +854,166 @@ export const KioskCheckinPage: React.FC = () => {
       </main>
 
       {/* ======================================================== */}
-      {/* 3. MODAL PIN DE ADMINISTRADOR                            */}
+      {/* 3. MODAL PIN DE ADMINISTRADOR (RADIX DIALOG)             */}
       {/* ======================================================== */}
-      {pinModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-xs bg-white border border-slate-200 rounded-3xl p-6 relative shadow-2xl text-center space-y-4">
-            <button
-              onClick={() => {
-                setPinModalOpen(false);
-                setPinError(false);
-                setPinInput('');
-              }}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-brand-accent mx-auto flex items-center justify-center border border-rose-100">
+      <Dialog
+        open={pinModalOpen}
+        onOpenChange={(open) => {
+          setPinModalOpen(open);
+          if (!open) {
+            setPinError(false);
+            setPinInput('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-xs text-center">
+          <DialogHeader className="items-center text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-brand-accent mx-auto flex items-center justify-center border border-rose-100 mb-2">
               <KeyRound className="w-6 h-6" />
             </div>
+            <DialogTitle className="text-base font-extrabold text-slate-900">
+              Desbloqueo de Gestión
+            </DialogTitle>
+            <p className="text-xs text-slate-500 mt-1">
+              Introduce el PIN de 4 dígitos para acceder al panel de administración.
+            </p>
+          </DialogHeader>
 
-            <div>
-              <h3 className="text-base font-extrabold text-slate-900">Desbloqueo de Gestión</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Introduce el PIN de 4 dígitos para acceder al panel de administración.
-              </p>
-            </div>
+          <form onSubmit={handleVerifyPin} className="space-y-3 pt-2">
+            <Input
+              type="password"
+              maxLength={4}
+              autoFocus
+              value={pinInput}
+              onChange={(e) => {
+                setPinInput(e.target.value);
+                setPinError(false);
+              }}
+              placeholder="••••"
+              className="text-center text-2xl font-mono tracking-widest h-12"
+            />
 
-            <form onSubmit={handleVerifyPin} className="space-y-3">
-              <input
-                type="password"
-                maxLength={4}
-                autoFocus
-                value={pinInput}
-                onChange={(e) => {
-                  setPinInput(e.target.value);
-                  setPinError(false);
-                }}
-                placeholder="••••"
-                className="w-full py-3 bg-slate-50 border border-slate-200 rounded-2xl text-center text-2xl font-mono tracking-widest text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
-              />
+            {pinError && (
+              <span className="text-xs text-rose-600 font-bold block">PIN incorrecto</span>
+            )}
 
-              {pinError && (
-                <span className="text-xs text-rose-600 font-bold block">PIN incorrecto</span>
-              )}
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-slate-900 hover:bg-black text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow cursor-pointer"
-              >
-                Acceder a Administración
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+            <Button type="submit" variant="default" className="w-full">
+              Acceder a Administración
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ======================================================== */}
-      {/* 4. MODAL ALERTA DE CUENTA PAUSADA                        */}
+      {/* 4. MODAL ALERTA DE CUENTA PAUSADA (RADIX DIALOG)         */}
       {/* ======================================================== */}
-      {accountAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-white border border-rose-200 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 mx-auto flex items-center justify-center border border-rose-100">
+      <Dialog open={!!accountAlert} onOpenChange={(open) => !open && setAccountAlert(null)}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader className="items-center text-center">
+            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 mx-auto flex items-center justify-center border border-rose-100 mb-2">
               <AlertTriangle className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-extrabold text-slate-900">Membresía Pausada</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Hola, <strong className="text-slate-900">{accountAlert.alias}</strong>. Tu cuenta se encuentra actualmente en estado{' '}
-              <strong className="text-rose-600 font-mono">“{accountAlert.status}”</strong>.
-            </p>
-            <p className="text-xs text-slate-500">
+            <DialogTitle className="text-lg font-extrabold text-slate-900">
+              Membresía Pausada
+            </DialogTitle>
+            {accountAlert && (
+              <p className="text-xs text-slate-600 leading-relaxed mt-2">
+                Hola, <strong className="text-slate-900">{accountAlert.alias}</strong>. Tu cuenta se encuentra actualmente en estado{' '}
+                <Badge variant="destructive" className="font-mono text-[10px] mx-1">
+                  {accountAlert.status}
+                </Badge>
+                .
+              </p>
+            )}
+            <p className="text-xs text-slate-500 mt-1">
               Por favor acude al mostrador de recepción con el profesor para revisar tu ficha antes de pasar al tatami.
             </p>
-            <button
-              onClick={() => setAccountAlert(null)}
-              className="w-full py-2.5 bg-slate-900 hover:bg-black text-white font-bold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
-            >
-              Entendido
-            </button>
-          </div>
-        </div>
-      )}
+          </DialogHeader>
+
+          <Button
+            onClick={() => setAccountAlert(null)}
+            variant="default"
+            className="w-full mt-3"
+          >
+            Entendido
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       {/* ======================================================== */}
-      {/* 5. MODAL ALTA EXPRÉS DE PRUEBA                           */}
+      {/* 5. MODAL ALTA EXPRÉS DE PRUEBA (RADIX DIALOG)            */}
       {/* ======================================================== */}
-      {trialModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 relative shadow-2xl space-y-4">
-            <button
-              onClick={() => setTrialModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+      <Dialog open={trialModalOpen} onOpenChange={(open) => setTrialModalOpen(open)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="text-center items-center">
+            <Badge variant="studio" className="mb-2">
+              Clase de Prueba Gratuita
+            </Badge>
+            <DialogTitle className="text-xl font-extrabold text-slate-900 tracking-tight">
+              Alta Exprés en Recepción
+            </DialogTitle>
+          </DialogHeader>
 
-            <div className="text-center">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-accent bg-rose-50 px-2.5 py-0.5 rounded-full inline-block border border-rose-100 mb-2">
-                Clase de Prueba Gratuita
-              </span>
-              <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">
-                Alta Exprés en Recepción
-              </h3>
+          {trialSuccess ? (
+            <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2 my-2">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+              <h4 className="text-lg font-bold text-slate-900">¡Bienvenido al Tatami!</h4>
+              <p className="text-xs text-slate-600">
+                Tus datos han quedado registrados. Pasa al tatami y habla con el profesor.
+              </p>
             </div>
-
-            {trialSuccess ? (
-              <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
-                <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
-                <h4 className="text-lg font-bold text-slate-900">¡Bienvenido al Tatami!</h4>
-                <p className="text-xs text-slate-600">
-                  Tus datos han quedado registrados. Pasa al tatami y habla con el profesor.
-                </p>
+          ) : (
+            <div className="space-y-4 pt-2">
+              {/* QR para hacerlo en el móvil */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-3">
+                <span className="text-xs font-bold text-slate-700 block">
+                  Escanea con tu cámara móvil para firmar en tu teléfono:
+                </span>
+                {trialQrDataUrl && (
+                  <img
+                    src={trialQrDataUrl}
+                    alt="QR Alta Exprés"
+                    className="w-36 h-36 mx-auto rounded-xl shadow-sm border border-slate-200 p-1 bg-white"
+                  />
+                )}
+                <span className="text-[10px] text-slate-400 block font-mono">
+                  247studio.netlify.app/reserva-prueba
+                </span>
               </div>
-            ) : (
-              <>
-                {/* QR para hacerlo en el móvil */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-3">
-                  <span className="text-xs font-bold text-slate-700 block">
-                    Escanea con tu cámara móvil para firmar en tu teléfono:
-                  </span>
-                  {trialQrDataUrl && (
-                    <img
-                      src={trialQrDataUrl}
-                      alt="QR Alta Exprés"
-                      className="w-36 h-36 mx-auto rounded-xl shadow-sm border border-slate-200 p-1 bg-white"
-                    />
-                  )}
-                  <span className="text-[10px] text-slate-400 block font-mono">
-                    247studio.netlify.app/reserva-prueba
-                  </span>
-                </div>
 
-                {/* Formulario rápido en tablet si no tiene móvil a mano */}
-                <form onSubmit={handleExpressTrialSubmit} className="space-y-3 pt-2 border-t border-slate-100">
-                  <span className="text-xs font-semibold text-slate-700 block">
-                    O introduce tus datos directamente en esta tablet:
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    value={trialName}
-                    onChange={(e) => setTrialName(e.target.value)}
-                    placeholder="Nombre y apellidos"
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-accent focus:bg-white transition"
-                  />
-                  <input
-                    type="tel"
-                    required
-                    value={trialPhone}
-                    onChange={(e) => setTrialPhone(e.target.value)}
-                    placeholder="Número de teléfono móvil"
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-accent focus:bg-white transition"
-                  />
-                  <button
-                    type="submit"
-                    disabled={trialLoading}
-                    className="w-full py-3 bg-brand-accent hover:bg-brand-accent/90 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    <span>{trialLoading ? 'Registrando...' : 'Entrar a la clase de prueba'}</span>
-                  </button>
-                </form>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+              {/* Formulario rápido en tablet si no tiene móvil a mano */}
+              <form onSubmit={handleExpressTrialSubmit} className="space-y-3 pt-2 border-t border-slate-100">
+                <span className="text-xs font-semibold text-slate-700 block">
+                  O introduce tus datos directamente en esta tablet:
+                </span>
+                <Input
+                  type="text"
+                  required
+                  value={trialName}
+                  onChange={(e) => setTrialName(e.target.value)}
+                  placeholder="Nombre y apellidos"
+                />
+                <Input
+                  type="tel"
+                  required
+                  value={trialPhone}
+                  onChange={(e) => setTrialPhone(e.target.value)}
+                  placeholder="Número de teléfono móvil"
+                />
+                <Button
+                  type="submit"
+                  disabled={trialLoading}
+                  variant="studio"
+                  className="w-full"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  <span>{trialLoading ? 'Registrando...' : 'Entrar a la clase de prueba'}</span>
+                </Button>
+              </form>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Footer Kiosco */}
       <footer className="text-center text-[11px] text-slate-400 border-t border-slate-200/80 pt-3">
