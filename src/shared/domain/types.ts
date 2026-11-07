@@ -135,6 +135,8 @@ export interface FreezeDomainModel {
   createdBy: string;
 }
 
+export type LevelRequired = 'TODOS' | 'FUNDAMENTOS' | 'AVANZADO' | 'COMPETICION' | 'KIDS';
+
 export interface ScheduleDomainModel {
   id: string;
   dayOfWeek: number; // 1 = Lunes, 7 = Domingo
@@ -144,6 +146,12 @@ export interface ScheduleDomainModel {
   program: string;
   capacity?: number;
   active: boolean;
+  // REA (Resource-Event-Agent) & Gymdesk architecture:
+  room?: string; // Tatami 1 (Principal), Tatami 2 (Anexo), etc.
+  levelRequired?: LevelRequired;
+  curriculumTopic?: string;
+  colorTag?: string;
+  assistantProfessor?: string;
 }
 
 export interface ScheduleExceptionDomainModel {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   collection,
   deleteDoc,
@@ -7,10 +7,23 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import {
+  AlertCircle,
   AlertTriangle,
+  Calendar,
+  Check,
+  Clock,
+  Copy,
+  Edit2,
+  Filter,
+  LayoutGrid,
+  List,
+  MapPin,
   Plus,
+  RefreshCw,
+  Sparkles,
   Trash2,
   User,
   Users,
@@ -18,45 +31,143 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
-import { ScheduleDomainModel, ScheduleExceptionDomainModel } from '@/shared/domain/types';
+import {
+  calculateScheduleDurationMinutes,
+  calculateWeeklyStats,
+  DEFAULT_OFFICIAL_SCHEDULES,
+  detectScheduleConflicts,
+  getProgramTheme,
+  ScheduleConflict,
+} from '@/shared/domain/schedule';
+import { LevelRequired, ScheduleDomainModel, ScheduleExceptionDomainModel } from '@/shared/domain/types';
+
+const PROGRAM_SUGGESTIONS = [
+  'GI',
+  'GRAPPLING',
+  'KIDS 1',
+  'KIDS 2',
+  'MMA',
+  'LUCHA',
+  'BJJ FEM',
+  'OPEN MAT',
+  'COMP CLAS.',
+  'GI SPARRING',
+];
+
+const PROFESSOR_SUGGESTIONS = [
+  'Mario Bros',
+  'David',
+  'Coach Pro',
+  'Instructora BJJ',
+  'Wrestling Coach',
+  'Mario & David',
+];
+
+const ROOM_SUGGESTIONS = [
+  'Tatami Principal',
+  'Tatami 2 (Kids)',
+  'Tatami 2 (Anexo)',
+  'Área de Golpeo / Jaula',
+];
+
+const LEVEL_OPTIONS: { value: LevelRequired; label: string }[] = [
+  { value: 'TODOS', label: 'Todos los Niveles' },
+  { value: 'FUNDAMENTOS', label: 'Iniciación / Fundamentos' },
+  { value: 'AVANZADO', label: 'Avanzado (Azul+)' },
+  { value: 'COMPETICION', label: 'Equipo Competición' },
+  { value: 'KIDS', label: 'Infantil / Juvenil' },
+];
+
+const DAYS_OF_WEEK = [
+  { num: 1, name: 'Lunes', short: 'LUN' },
+  { num: 2, name: 'Martes', short: 'MAR' },
+  { num: 3, name: 'Miércoles', short: 'MIÉ' },
+  { num: 4, name: 'Jueves', short: 'JUE' },
+  { num: 5, name: 'Viernes', short: 'VIE' },
+  { num: 6, name: 'Sábado', short: 'SÁB' },
+  { num: 7, name: 'Domingo', short: 'DOM' },
+];
 
 export const SchedulesAdminPage: React.FC = () => {
   const { user } = useAuth();
   const [schedules, setSchedules] = useState<ScheduleDomainModel[]>([]);
   const [exceptions, setExceptions] = useState<ScheduleExceptionDomainModel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Modal nueva clase
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [schedForm, setSchedForm] = useState({
+  // Vistas: Matriz Semanal (Grid) vs Agenda (List)
+  const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
+
+  // Filtros de Operación
+  const [filterProfessor, setFilterProfessor] = useState<string>('ALL');
+  const [filterProgram, setFilterProgram] = useState<string>('ALL');
+  const [filterRoom, setFilterRoom] = useState<string>('ALL');
+  const [onlyActive, setOnlyActive] = useState<boolean>(false);
+
+  // Modales
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
+  const [formState, setFormState] = useState<{
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    program: string;
+    professor: string;
+    room: string;
+    levelRequired: LevelRequired;
+    capacity: number;
+    curriculumTopic: string;
+    active: boolean;
+  }>({
     dayOfWeek: 1,
     startTime: '10:00',
     endTime: '11:30',
-    professor: 'Carlos Rodriguez',
     program: 'GI',
-    capacity: 24,
+    professor: 'Mario Bros',
+    room: 'Tatami Principal',
+    levelRequired: 'TODOS',
+    capacity: 26,
+    curriculumTopic: '',
+    active: true,
   });
 
-  // Modal nueva excepción
-  const [showExceptionModal, setShowExceptionModal] = useState(false);
+  // Modal Clonar / Replicar a Otros Días
+  const [cloneModalOpen, setCloneModalOpen] = useState(false);
+  const [cloneTargetSchedule, setCloneTargetSchedule] = useState<ScheduleDomainModel | null>(null);
+  const [selectedCloneDays, setSelectedCloneDays] = useState<number[]>([]);
+
+  // Modal Excepción / Festivo
+  const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
   const [excForm, setExcForm] = useState({
-    scheduleId: '',
+    scheduleId: 'ALL',
     date: new Date().toISOString().split('T')[0],
-    reason: 'Festivo o Mantenimiento',
+    reason: 'Festivo Oficial / Mantenimiento Tatami',
   });
 
+  // Modal Confirmar Carga Horario Oficial
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+
+  // Carga inicial de datos
   const fetchData = async () => {
     try {
+      setLoading(true);
       const sSnap = await getDocs(collection(db, 'schedules'));
       const sList: ScheduleDomainModel[] = [];
       sSnap.forEach((d) => sList.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) }));
-      setSchedules(sList);
+
+      // Si la colección está vacía, usar el horario oficial como base visible
+      setSchedules(sList.length > 0 ? sList : DEFAULT_OFFICIAL_SCHEDULES);
 
       const eSnap = await getDocs(collection(db, 'scheduleExceptions'));
       const eList: ScheduleExceptionDomainModel[] = [];
       eSnap.forEach((d) => eList.push({ id: d.id, ...(d.data() as Omit<ScheduleExceptionDomainModel, 'id'>) }));
       setExceptions(eList);
     } catch (err) {
-      console.error(err);
+      console.error('Error cargando horarios:', err);
+      setSchedules(DEFAULT_OFFICIAL_SCHEDULES);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,50 +175,255 @@ export const SchedulesAdminPage: React.FC = () => {
     fetchData();
   }, []);
 
-  const handleCreateSchedule = async (e: React.FormEvent) => {
+  // Conflictos detectados en tiempo real (REA - Resource/Agent Solapamientos)
+  const conflicts: ScheduleConflict[] = useMemo(() => {
+    return detectScheduleConflicts(schedules);
+  }, [schedules]);
+
+  // KPIs Semanales
+  const weeklyStats = useMemo(() => {
+    return calculateWeeklyStats(schedules);
+  }, [schedules]);
+
+  // Lista filtrada
+  const filteredSchedules = useMemo(() => {
+    return schedules.filter((s) => {
+      if (onlyActive && !s.active) return false;
+      if (filterProfessor !== 'ALL' && s.professor !== filterProfessor) return false;
+      if (filterProgram !== 'ALL' && s.program !== filterProgram) return false;
+      if (filterRoom !== 'ALL' && (s.room || 'Tatami Principal') !== filterRoom) return false;
+      return true;
+    });
+  }, [schedules, onlyActive, filterProfessor, filterProgram, filterRoom]);
+
+  // Profesores únicos para el filtro
+  const distinctProfessors = useMemo(() => {
+    const set = new Set<string>();
+    schedules.forEach((s) => {
+      if (s.professor) set.add(s.professor);
+    });
+    return Array.from(set).sort();
+  }, [schedules]);
+
+  // Programas únicos para el filtro
+  const distinctPrograms = useMemo(() => {
+    const set = new Set<string>();
+    schedules.forEach((s) => {
+      if (s.program) set.add(s.program);
+    });
+    return Array.from(set).sort();
+  }, [schedules]);
+
+  // ACCIÓN 1: Abrir modal para crear nueva clase
+  const handleOpenCreateModal = (defaultDay: number = 1) => {
+    setEditingScheduleId(null);
+    setFormState({
+      dayOfWeek: defaultDay,
+      startTime: '19:30',
+      endTime: '20:30',
+      program: 'GI',
+      professor: 'Mario Bros',
+      room: 'Tatami Principal',
+      levelRequired: 'TODOS',
+      capacity: 26,
+      curriculumTopic: '',
+      active: true,
+    });
+    setEditModalOpen(true);
+  };
+
+  // ACCIÓN 2: Abrir modal para editar clase existente
+  const handleOpenEditModal = (schedule: ScheduleDomainModel) => {
+    setEditingScheduleId(schedule.id);
+    setFormState({
+      dayOfWeek: schedule.dayOfWeek,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      program: schedule.program,
+      professor: schedule.professor,
+      room: schedule.room || 'Tatami Principal',
+      levelRequired: schedule.levelRequired || 'TODOS',
+      capacity: schedule.capacity || 26,
+      curriculumTopic: schedule.curriculumTopic || '',
+      active: schedule.active,
+    });
+    setEditModalOpen(true);
+  };
+
+  // ACCIÓN 3: Guardar clase (Crear o Modificar)
+  const handleSaveSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
+    setActionLoading('save');
+    setMessage(null);
+
     try {
-      const id = `sched_${schedForm.dayOfWeek}_${schedForm.startTime.replace(':', '')}_${Date.now()}`;
-      await setDoc(doc(db, 'schedules', id), {
-        ...schedForm,
-        capacity: Number(schedForm.capacity),
-        active: true,
+      const duration = calculateScheduleDurationMinutes(formState.startTime, formState.endTime);
+      if (duration <= 0) {
+        throw new Error('La hora de fin debe ser posterior a la hora de inicio.');
+      }
+
+      const id = editingScheduleId || `sched_${formState.dayOfWeek}_${formState.startTime.replace(':', '')}_${Date.now()}`;
+      const payload: ScheduleDomainModel = {
+        id,
+        dayOfWeek: Number(formState.dayOfWeek),
+        startTime: formState.startTime,
+        endTime: formState.endTime,
+        program: formState.program.trim().toUpperCase(),
+        professor: formState.professor.trim(),
+        room: formState.room.trim(),
+        levelRequired: formState.levelRequired,
+        capacity: Number(formState.capacity) || 26,
+        curriculumTopic: formState.curriculumTopic.trim(),
+        active: formState.active,
+      };
+
+      await setDoc(doc(db, 'schedules', id), payload, { merge: true });
+
+      setMessage({
+        text: editingScheduleId ? 'Clase actualizada con éxito.' : 'Nueva clase creada en la parrilla.',
+        type: 'success',
       });
-      setShowScheduleModal(false);
+      setEditModalOpen(false);
       await fetchData();
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      setMessage({
+        text: err instanceof Error ? err.message : 'Error al guardar la franja horaria.',
+        type: 'error',
+      });
+    } finally {
+      setActionLoading(null);
     }
   };
 
+  // ACCIÓN 4: Toggle Activar / Desactivar
   const handleToggleActive = async (s: ScheduleDomainModel) => {
+    setActionLoading(s.id);
     try {
       await updateDoc(doc(db, 'schedules', s.id), {
         active: !s.active,
+        updatedAt: serverTimestamp(),
       });
       await fetchData();
     } catch (err) {
-      console.error(err);
+      console.error('Error toggling active:', err);
+    } finally {
+      setActionLoading(null);
     }
   };
 
+  // ACCIÓN 5: Eliminar franja horaria
+  const handleDeleteSchedule = async (s: ScheduleDomainModel) => {
+    if (!confirm(`¿Seguro que deseas eliminar la clase de ${s.program} (${s.startTime} - ${s.endTime})?`)) {
+      return;
+    }
+    setActionLoading(s.id);
+    try {
+      await deleteDoc(doc(db, 'schedules', s.id));
+      setMessage({ text: 'Clase eliminada de la parrilla.', type: 'success' });
+      await fetchData();
+    } catch (err) {
+      console.error('Error deleting schedule:', err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // ACCIÓN 6: Abrir modal de replicación a otros días
+  const handleOpenCloneModal = (schedule: ScheduleDomainModel) => {
+    setCloneTargetSchedule(schedule);
+    // Sugerir por defecto días alternos habituales en artes marciales (Lunes -> Miércoles, Viernes)
+    if (schedule.dayOfWeek === 1) setSelectedCloneDays([3, 5]);
+    else if (schedule.dayOfWeek === 2) setSelectedCloneDays([4]);
+    else setSelectedCloneDays([]);
+    setCloneModalOpen(true);
+  };
+
+  // ACCIÓN 7: Ejecutar replicación de clase a múltiples días
+  const handleExecuteClone = async () => {
+    if (!cloneTargetSchedule || selectedCloneDays.length === 0) return;
+    setActionLoading('clone');
+    setMessage(null);
+
+    try {
+      const batch = writeBatch(db);
+
+      selectedCloneDays.forEach((targetDay) => {
+        const newId = `sched_${targetDay}_${cloneTargetSchedule.startTime.replace(':', '')}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        const clonePayload: ScheduleDomainModel = {
+          ...cloneTargetSchedule,
+          id: newId,
+          dayOfWeek: targetDay,
+          active: true,
+        };
+        batch.set(doc(db, 'schedules', newId), clonePayload);
+      });
+
+      await batch.commit();
+      setMessage({
+        text: `¡Clase replicada a ${selectedCloneDays.length} día(s) con éxito!`,
+        type: 'success',
+      });
+      setCloneModalOpen(false);
+      await fetchData();
+    } catch (err: unknown) {
+      setMessage({
+        text: err instanceof Error ? err.message : 'Error al replicar la clase.',
+        type: 'error',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // ACCIÓN 8: Restaurar horario oficial 247Studio (25 clases de Diapositiva 8)
+  const handleRestoreOfficialSchedule = async () => {
+    setActionLoading('restore');
+    setMessage(null);
+    try {
+      const batch = writeBatch(db);
+      DEFAULT_OFFICIAL_SCHEDULES.forEach((sched) => {
+        batch.set(doc(db, 'schedules', sched.id), sched);
+      });
+      await batch.commit();
+
+      setMessage({
+        text: 'Parrilla oficial de 247Studio (25 clases semanales) cargada con éxito en Firestore.',
+        type: 'success',
+      });
+      setRestoreModalOpen(false);
+      await fetchData();
+    } catch (err: unknown) {
+      setMessage({
+        text: err instanceof Error ? err.message : 'Error cargando horario oficial.',
+        type: 'error',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // ACCIÓN 9: Crear Excepción / Festivo
   const handleCreateException = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    setActionLoading('exception');
     try {
       const id = `exc_${Date.now()}`;
       await setDoc(doc(db, 'scheduleExceptions', id), {
         ...excForm,
         createdAt: serverTimestamp(),
-        createdBy: user.uid,
+        createdBy: user?.uid || 'admin',
       });
-      setShowExceptionModal(false);
+      setMessage({ text: 'Excepción de calendario registrada con éxito.', type: 'success' });
+      setExceptionModalOpen(false);
       await fetchData();
     } catch (err) {
       console.error(err);
+    } finally {
+      setActionLoading(null);
     }
   };
 
+  // ACCIÓN 10: Eliminar excepción
   const handleDeleteException = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'scheduleExceptions', id));
@@ -117,54 +433,221 @@ export const SchedulesAdminPage: React.FC = () => {
     }
   };
 
-  const days = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  // Calcular duración en tiempo real en el formulario
+  const currentFormDuration = calculateScheduleDurationMinutes(formState.startTime, formState.endTime);
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 pb-16 animate-in fade-in duration-300">
+      {/* ======================================================== */}
+      {/* 1. CABECERA & CONTROLES PRINCIPALES                       */}
+      {/* ======================================================== */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-wide text-slate-900">Configuración de Horarios</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Parrilla semanal, cupos de tatami y excepciones de festivos.
+          <div className="flex items-center gap-3">
+            <h1 className="font-display text-3xl sm:text-4xl uppercase tracking-wide text-slate-900">
+              Configurador de Horarios
+            </h1>
+            <span className="text-[10px] bg-slate-900 text-amber-400 font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider">
+              REA • Wodify Architecture
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Gestión de recursos de tatami, asignación docente, aforos máximos y detección de solapamientos operativos.
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Selector de Vista: Parrilla Visual vs Agenda */}
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/80 shadow-2xs">
+            <button
+              onClick={() => setViewMode('GRID')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'GRID'
+                  ? 'bg-slate-900 text-white shadow'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Parrilla Semanal</span>
+            </button>
+            <button
+              onClick={() => setViewMode('LIST')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'LIST'
+                  ? 'bg-slate-900 text-white shadow'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Agenda</span>
+            </button>
+          </div>
+
           <button
-            onClick={() => setShowExceptionModal(true)}
-            className="py-2.5 px-4 bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase rounded-xl transition flex items-center gap-1.5"
+            onClick={() => setExceptionModalOpen(true)}
+            className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 border border-slate-200/80 cursor-pointer"
+            title="Añadir festivo o cierre temporal"
           >
-            <AlertTriangle className="w-4 h-4 text-studio-red" /> Excepción / Festivo
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+            <span>Festivo / Excepción</span>
           </button>
+
           <button
-            onClick={() => setShowScheduleModal(true)}
-            className="py-2.5 px-4 bg-studio-red hover:bg-studio-red-dark text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 flex items-center gap-1.5"
+            onClick={() => setRestoreModalOpen(true)}
+            className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 border border-slate-200/80 cursor-pointer"
+            title="Cargar las 25 clases oficiales del plan de estudios de 247Studio"
           >
-            <Plus className="w-4 h-4" /> Nueva Clase
+            <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
+            <span>Plantilla 247</span>
+          </button>
+
+          <button
+            onClick={() => handleOpenCreateModal(1)}
+            className="py-2.5 px-4 bg-brand-accent hover:bg-brand-accent/90 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nueva Clase</span>
           </button>
         </div>
       </div>
 
-      {/* Lista de Excepciones Activas */}
-      {exceptions.length > 0 && (
-        <div className="bg-white border border-amber-500/30 rounded-2xl p-4 space-y-2">
-          <span className="text-[11px] font-black uppercase tracking-wider text-amber-400 block">
-            Excepciones de Calendario Registradas ({exceptions.length})
+      {/* Mensaje de feedback */}
+      {message && (
+        <div
+          className={`p-3.5 rounded-xl border flex items-center justify-between text-xs font-semibold animate-in fade-in duration-200 ${
+            message.type === 'success'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border-rose-200'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {message.type === 'success' ? (
+              <Check className="w-4 h-4 text-emerald-600" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600" />
+            )}
+            <span>{message.text}</span>
+          </div>
+          <button onClick={() => setMessage(null)} className="text-slate-400 hover:text-slate-700">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 2. REA ANALYTICS BAR (RECURSOS, EVENTOS Y AGENTES)        */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+            Clases Semanales
           </span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
+            {weeklyStats.activeClasses}
+            <span className="text-xs font-sans text-slate-400 font-normal ml-1.5">
+              / {weeklyStats.totalClasses} total
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-500 block mt-1">
+            En parrilla activa
+          </span>
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
+          <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block mb-1">
+            Horas de Tatami / Semana
+          </span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
+            {weeklyStats.totalHours}
+          </div>
+          <span className="text-[11px] text-slate-500 block mt-1">
+            {weeklyStats.totalMinutes} min de formación
+          </span>
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
+          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 block mb-1">
+            Plazas Totales Tatami
+          </span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
+            {weeklyStats.totalCapacity}
+          </div>
+          <span className="text-[11px] text-slate-500 block mt-1">
+            Aforo acumulado semanal
+          </span>
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
+          <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 block mb-1">
+            Carga de Profesores (REA)
+          </span>
+          <div className="text-xs font-semibold text-slate-800 space-y-1 mt-1 max-h-12 overflow-y-auto">
+            {Object.entries(weeklyStats.professorBreakdown).map(([prof, stat]) => (
+              <div key={prof} className="flex justify-between items-center text-[11px]">
+                <span className="truncate max-w-[120px]">{prof}:</span>
+                <span className="font-mono text-purple-700 font-bold">{stat.count} cl. ({(stat.minutes / 60).toFixed(1)}h)</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 3. ALERTA DE CONFLICTOS Y SOLAPAMIENTOS OPERATIVOS        */}
+      {/* ======================================================== */}
+      {conflicts.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 animate-in shake duration-300 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <h3 className="font-extrabold text-sm text-amber-950 uppercase tracking-wide">
+              Conflictos Operativos Detectados ({conflicts.length})
+            </h3>
+          </div>
+          <p className="text-xs text-amber-900 mb-3">
+            La técnica REA de Gymdesk/Wodify alerta de solapamientos físicos en tatami o doble asignación del mismo profesor a la misma hora:
+          </p>
+          <div className="space-y-1.5">
+            {conflicts.map((c, idx) => (
+              <div
+                key={idx}
+                className="bg-white/80 border border-amber-200 rounded-xl p-2.5 text-xs text-amber-950 flex items-start justify-between gap-2"
+              >
+                <div className="flex items-start gap-2">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase bg-amber-200 text-amber-900 mt-0.5">
+                    {c.type === 'ROOM_OVERLAP' ? 'SALA' : 'PROFESOR'}
+                  </span>
+                  <span>{c.description}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 4. EXCEPCIONES Y FESTIVOS ACTIVOS                        */}
+      {/* ======================================================== */}
+      {exceptions.length > 0 && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-brand-accent" /> Excepciones de Calendario Registradas ({exceptions.length})
+            </span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             {exceptions.map((ex) => (
               <div
                 key={ex.id}
-                className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs"
+                className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between text-xs"
               >
                 <div>
-                  <span className="font-bold text-white block">{ex.date}</span>
-                  <span className="text-[11px] text-slate-400">{ex.reason}</span>
+                  <span className="font-extrabold text-slate-900 block">{ex.date}</span>
+                  <span className="text-[11px] text-slate-500">{ex.reason}</span>
                 </div>
                 <button
                   onClick={() => handleDeleteException(ex.id)}
-                  className="p-1 text-slate-400 hover:text-studio-red"
-                  title="Eliminar excepción"
+                  className="p-1.5 text-slate-400 hover:text-rose-600 transition"
+                  title="Eliminar excepción y reactivar día"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -174,147 +657,515 @@ export const SchedulesAdminPage: React.FC = () => {
         </div>
       )}
 
-      {/* Parrilla de Horarios */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {schedules
-          .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime))
-          .map((s) => (
-            <div
-              key={s.id}
-              className={`p-4 rounded-2xl border transition-all ${
-                s.active
-                  ? 'bg-white border-slate-200/80'
-                  : 'bg-slate-50 border-slate-100 opacity-50'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-black uppercase text-studio-red tracking-wider">
-                  {days[s.dayOfWeek]}
-                </span>
-                <span className="text-xs font-mono font-bold text-white">
-                  {s.startTime} - {s.endTime}
-                </span>
-              </div>
+      {/* ======================================================== */}
+      {/* 5. BARRA DE FILTROS RÁPIDOS                               */}
+      {/* ======================================================== */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mr-1">
+            <Filter className="w-3.5 h-3.5" /> Filtrar:
+          </span>
 
-              <h3 className="font-black text-sm text-slate-900 mb-2">{s.program}</h3>
+          {/* Filtro Profesor */}
+          <select
+            value={filterProfessor}
+            onChange={(e) => setFilterProfessor(e.target.value)}
+            className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none"
+          >
+            <option value="ALL">Todos los Profesores</option>
+            {distinctProfessors.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
 
-              <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
-                <span className="flex items-center gap-1 font-semibold">
-                  <User className="w-3.5 h-3.5 text-studio-red" /> {s.professor}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5" /> Aforo: {s.capacity || 24}
-                </span>
-              </div>
+          {/* Filtro Disciplina */}
+          <select
+            value={filterProgram}
+            onChange={(e) => setFilterProgram(e.target.value)}
+            className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none"
+          >
+            <option value="ALL">Todas las Disciplinas</option>
+            {distinctPrograms.map((prg) => (
+              <option key={prg} value={prg}>
+                {prg}
+              </option>
+            ))}
+          </select>
 
-              <div className="mt-3 pt-2 flex justify-end">
-                <button
-                  onClick={() => handleToggleActive(s)}
-                  className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition ${
-                    s.active
-                      ? 'bg-white/5 hover:bg-studio-red/20 text-slate-500 hover:text-studio-red'
-                      : 'bg-emerald-500/20 text-emerald-400'
-                  }`}
-                >
-                  {s.active ? 'Desactivar' : 'Activar'}
-                </button>
-              </div>
-            </div>
-          ))}
+          {/* Filtro Sala */}
+          <select
+            value={filterRoom}
+            onChange={(e) => setFilterRoom(e.target.value)}
+            className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none"
+          >
+            <option value="ALL">Todas las Salas / Tatamis</option>
+            <option value="Tatami Principal">Tatami Principal</option>
+            <option value="Tatami 2 (Kids)">Tatami 2 (Kids)</option>
+            <option value="Tatami 2 (Anexo)">Tatami 2 (Anexo)</option>
+          </select>
+        </div>
+
+        <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={onlyActive}
+            onChange={(e) => setOnlyActive(e.target.checked)}
+            className="rounded text-brand-accent focus:ring-0"
+          />
+          <span>Solo Clases Activas</span>
+        </label>
       </div>
 
-      {/* Modal Nueva Clase */}
-      {showScheduleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-sm uppercase text-slate-900">Nueva Franja Horaria</h3>
-              <button onClick={() => setShowScheduleModal(false)} className="text-slate-400 hover:text-white">
+      {/* ======================================================== */}
+      {/* 6. VISTA MATRIZ SEMANAL (TIMETABLE GRID • GYMDESK)        */}
+      {/* ======================================================== */}
+      {loading ? (
+        <div className="py-20 flex justify-center items-center">
+          <div className="w-8 h-8 border-3 border-brand-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : viewMode === 'GRID' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 xl:grid-cols-7 gap-3">
+          {DAYS_OF_WEEK.map((d) => {
+            const dayClasses = filteredSchedules
+              .filter((s) => s.dayOfWeek === d.num)
+              .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+            return (
+              <div
+                key={d.num}
+                className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm flex flex-col min-h-[480px]"
+              >
+                {/* Cabecera del día */}
+                <div className="p-3 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
+                  <div>
+                    <span className="font-extrabold text-sm text-slate-900 block">{d.name}</span>
+                    <span className="text-[10px] text-slate-400 font-mono font-bold">
+                      {dayClasses.length} {dayClasses.length === 1 ? 'clase' : 'clases'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleOpenCreateModal(d.num)}
+                    className="p-1 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition shadow-2xs"
+                    title={`Añadir clase el ${d.name}`}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Tarjetas de Clases del día */}
+                <div className="p-2 space-y-2.5 flex-1 overflow-y-auto">
+                  {dayClasses.length === 0 ? (
+                    <div className="py-12 text-center text-[11px] text-slate-400 italic">
+                      Sin clases programadas
+                    </div>
+                  ) : (
+                    dayClasses.map((s) => {
+                      const theme = getProgramTheme(s.program);
+                      const dur = calculateScheduleDurationMinutes(s.startTime, s.endTime);
+                      const hasConflict = conflicts.some(
+                        (c) => (c.scheduleAId === s.id || c.scheduleBId === s.id) && c.dayOfWeek === s.dayOfWeek
+                      );
+
+                      return (
+                        <div
+                          key={s.id}
+                          className={`p-3 rounded-xl border transition relative group shadow-2xs ${theme.bg} ${theme.border} ${theme.borderLeft} ${
+                            !s.active ? 'opacity-40 grayscale' : ''
+                          } ${hasConflict ? 'ring-2 ring-amber-500 animate-pulse' : ''}`}
+                        >
+                          {/* Hora y Duración */}
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-mono font-extrabold text-slate-900 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-slate-500" />
+                              {s.startTime} - {s.endTime}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-slate-500 bg-white/70 px-1.5 py-0.2 rounded border border-slate-200/50">
+                              {dur} min
+                            </span>
+                          </div>
+
+                          {/* Programa / Disciplina */}
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${theme.badge}`}>
+                              {s.program}
+                            </span>
+                            {s.levelRequired && s.levelRequired !== 'TODOS' && (
+                              <span className="text-[9px] font-bold text-slate-600 bg-white/60 px-1.5 py-0.2 rounded border border-slate-200/50 uppercase">
+                                {s.levelRequired}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Profesor & Tatami (REA Agente y Recurso) */}
+                          <div className="space-y-0.5 text-[11px] text-slate-700 pt-1 border-t border-slate-200/40">
+                            <div className="flex items-center justify-between">
+                              <span className="flex items-center gap-1 font-semibold truncate max-w-[110px]" title={s.professor}>
+                                <User className="w-3 h-3 text-brand-accent shrink-0" />
+                                <span className="truncate">{s.professor}</span>
+                              </span>
+                              <span className="flex items-center gap-0.5 text-[10px] text-slate-500 font-mono font-bold">
+                                <Users className="w-3 h-3" />
+                                {s.capacity || 26}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{s.room || 'Tatami Principal'}</span>
+                            </div>
+                          </div>
+
+                          {/* Botonera Operativa Rápida (Hover o Tap) */}
+                          <div className="mt-2.5 pt-2 border-t border-slate-200/50 flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => handleOpenCloneModal(s)}
+                              className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-white transition"
+                              title="Replicar esta clase a otros días de la semana"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenEditModal(s)}
+                              className="p-1 rounded-md text-slate-500 hover:text-blue-700 hover:bg-white transition"
+                              title="Editar horario, profesor o tatami"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+
+                            <button
+                              onClick={() => handleToggleActive(s)}
+                              className={`p-1 rounded-md transition text-[10px] font-bold uppercase ${
+                                s.active
+                                  ? 'text-slate-400 hover:text-amber-700 hover:bg-white'
+                                  : 'text-emerald-700 bg-emerald-100'
+                              }`}
+                              title={s.active ? 'Pausar clase' : 'Reactivar clase'}
+                            >
+                              {s.active ? 'Pausar' : 'Activar'}
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteSchedule(s)}
+                              className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-white transition"
+                              title="Eliminar clase"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ======================================================== */
+        /* 7. VISTA AGENDA / LISTA OPERATIVA                        */
+        /* ======================================================== */
+        <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-700">
+              <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200/80">
+                <tr>
+                  <th className="py-3.5 px-4">Día</th>
+                  <th className="py-3.5 px-4">Horario</th>
+                  <th className="py-3.5 px-4">Programa / Disciplina</th>
+                  <th className="py-3.5 px-4">Profesor</th>
+                  <th className="py-3.5 px-4">Tatami / Sala</th>
+                  <th className="py-3.5 px-4">Aforo</th>
+                  <th className="py-3.5 px-4">Estado</th>
+                  <th className="py-3.5 px-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredSchedules.map((s) => {
+                  const dayName = DAYS_OF_WEEK.find((d) => d.num === s.dayOfWeek)?.name || 'Día';
+                  const theme = getProgramTheme(s.program);
+                  const dur = calculateScheduleDurationMinutes(s.startTime, s.endTime);
+
+                  return (
+                    <tr key={s.id} className="hover:bg-slate-50/70 transition">
+                      <td className="py-3.5 px-4 font-bold text-slate-900">{dayName}</td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                        {s.startTime} - {s.endTime}{' '}
+                        <span className="text-[10px] font-sans text-slate-400 ml-1">({dur} min)</span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${theme.badge}`}>
+                          {s.program}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-900">{s.professor}</td>
+                      <td className="py-3.5 px-4 text-slate-600">{s.room || 'Tatami Principal'}</td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-800">{s.capacity || 26}</td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                            s.active
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          {s.active ? 'Activa' : 'Pausada'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right space-x-1">
+                        <button
+                          onClick={() => handleOpenCloneModal(s)}
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[11px] transition cursor-pointer"
+                          title="Replicar a otros días"
+                        >
+                          <Copy className="w-3 h-3 inline mr-1" /> Replicar
+                        </button>
+                        <button
+                          onClick={() => handleOpenEditModal(s)}
+                          className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-bold text-[11px] transition cursor-pointer"
+                        >
+                          <Edit2 className="w-3 h-3 inline mr-1" /> Editar
+                        </button>
+                        <button
+                          onClick={() => handleToggleActive(s)}
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[11px] transition cursor-pointer"
+                        >
+                          {s.active ? 'Pausar' : 'Activar'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSchedule(s)}
+                          className="p-1 text-slate-400 hover:text-rose-600 transition"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 inline" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 8. MODAL CREAR / EDITAR CLASE (FULL REA CONTROLS)         */}
+      {/* ======================================================== */}
+      {editModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 mb-4">
+              <div>
+                <h3 className="text-base font-black uppercase text-slate-900">
+                  {editingScheduleId ? 'Editar Franja Horaria' : 'Crear Nueva Clase'}
+                </h3>
+                <span className="text-xs text-slate-400">
+                  Asignación de recursos de tatami y parámetros docentes
+                </span>
+              </div>
+              <button
+                onClick={() => setEditModalOpen(false)}
+                className="text-slate-400 hover:text-slate-900 p-1"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSchedule} className="space-y-3">
+            <form onSubmit={handleSaveSchedule} className="space-y-4">
+              {/* Día de la semana */}
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Día</label>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Día de la Semana
+                </label>
                 <select
-                  value={schedForm.dayOfWeek}
-                  onChange={(e) => setSchedForm({ ...schedForm, dayOfWeek: parseInt(e.target.value, 10) })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
+                  value={formState.dayOfWeek}
+                  onChange={(e) => setFormState({ ...formState, dayOfWeek: parseInt(e.target.value, 10) })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
                 >
-                  <option value={1}>Lunes</option>
-                  <option value={2}>Martes</option>
-                  <option value={3}>Miércoles</option>
-                  <option value={4}>Jueves</option>
-                  <option value={5}>Viernes</option>
+                  {DAYS_OF_WEEK.map((d) => (
+                    <option key={d.num} value={d.num}>
+                      {d.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
+              {/* Horas Inicio y Fin + Duración dinámica */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Inicio</label>
+                  <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                    Hora Inicio
+                  </label>
                   <input
                     type="time"
-                    value={schedForm.startTime}
-                    onChange={(e) => setSchedForm({ ...schedForm, startTime: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
+                    required
+                    value={formState.startTime}
+                    onChange={(e) => setFormState({ ...formState, startTime: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Fin</label>
+                  <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                    Hora Fin ({currentFormDuration > 0 ? `${currentFormDuration} min` : 'Inválida'})
+                  </label>
                   <input
                     type="time"
-                    value={schedForm.endTime}
-                    onChange={(e) => setSchedForm({ ...schedForm, endTime: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
+                    required
+                    value={formState.endTime}
+                    onChange={(e) => setFormState({ ...formState, endTime: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none"
                   />
                 </div>
               </div>
 
+              {/* Programa / Disciplina + Chips rápidos */}
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Programa</label>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Programa / Modalidad
+                </label>
                 <input
                   type="text"
-                  value={schedForm.program}
-                  onChange={(e) => setSchedForm({ ...schedForm, program: e.target.value })}
-                  placeholder="GI / GRAPPLING / MMA / KIDS 1"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
+                  required
+                  value={formState.program}
+                  onChange={(e) => setFormState({ ...formState, program: e.target.value })}
+                  placeholder="GI / GRAPPLING / KIDS / MMA / LUCHA"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-bold text-slate-900 focus:outline-none mb-1.5"
                 />
+                <div className="flex flex-wrap gap-1">
+                  {PROGRAM_SUGGESTIONS.map((p) => (
+                    <button
+                      type="button"
+                      key={p}
+                      onClick={() => setFormState({ ...formState, program: p })}
+                      className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60 transition"
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
               </div>
 
+              {/* Profesor Titular (REA Agente) */}
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Profesor</label>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Profesor Asignado
+                </label>
                 <input
                   type="text"
-                  value={schedForm.professor}
-                  onChange={(e) => setSchedForm({ ...schedForm, professor: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
+                  required
+                  value={formState.professor}
+                  onChange={(e) => setFormState({ ...formState, professor: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none mb-1.5"
                 />
+                <div className="flex flex-wrap gap-1">
+                  {PROFESSOR_SUGGESTIONS.map((prof) => (
+                    <button
+                      type="button"
+                      key={prof}
+                      onClick={() => setFormState({ ...formState, professor: prof })}
+                      className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60 transition"
+                    >
+                      {prof}
+                    </button>
+                  ))}
+                </div>
               </div>
 
+              {/* Sala / Tatami (REA Recurso) y Aforo */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                    Tatami / Sala
+                  </label>
+                  <select
+                    value={formState.room}
+                    onChange={(e) => setFormState({ ...formState, room: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
+                  >
+                    {ROOM_SUGGESTIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                    Aforo Máximo (Plazas)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={formState.capacity}
+                    onChange={(e) => setFormState({ ...formState, capacity: parseInt(e.target.value, 10) || 26 })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Nivel Requerido */}
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Aforo Orientativo</label>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Nivel Requerido
+                </label>
+                <select
+                  value={formState.levelRequired}
+                  onChange={(e) => setFormState({ ...formState, levelRequired: e.target.value as LevelRequired })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
+                >
+                  {LEVEL_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tema Técnico de la Sesión (Opcional) */}
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Tema Técnico / Módulo Currículum (Opcional)
+                </label>
                 <input
-                  type="number"
-                  value={schedForm.capacity}
-                  onChange={(e) => setSchedForm({ ...schedForm, capacity: parseInt(e.target.value, 10) })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
+                  type="text"
+                  value={formState.curriculumTopic}
+                  onChange={(e) => setFormState({ ...formState, curriculumTopic: e.target.value })}
+                  placeholder="Ej: Raspados de Mariposa, Defensa de Armbar, Derribos Judo"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none"
                 />
               </div>
 
-              <div className="pt-2 flex gap-3">
+              {/* Switch Clase Activa */}
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer pt-2">
+                <input
+                  type="checkbox"
+                  checked={formState.active}
+                  onChange={(e) => setFormState({ ...formState, active: e.target.checked })}
+                  className="rounded text-brand-accent focus:ring-0"
+                />
+                <span>Clase activa en la app y kiosco</span>
+              </label>
+
+              {/* Botones */}
+              <div className="pt-4 border-t border-slate-200/80 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowScheduleModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-700"
+                  onClick={() => setEditModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-studio-red hover:bg-studio-red-dark text-white font-bold text-xs uppercase"
+                  disabled={actionLoading === 'save'}
+                  className="px-5 py-2 bg-brand-accent hover:bg-brand-accent/90 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-sm"
                 >
-                  Guardar
+                  {actionLoading === 'save' ? 'Guardando...' : editingScheduleId ? 'Guardar Cambios' : 'Crear Franja'}
                 </button>
               </div>
             </form>
@@ -322,74 +1173,188 @@ export const SchedulesAdminPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Nueva Excepción */}
-      {showExceptionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      {/* ======================================================== */}
+      {/* 9. MODAL CLONAR / REPLICAR A OTROS DÍAS (WODIFY REA)     */}
+      {/* ======================================================== */}
+      {cloneModalOpen && cloneTargetSchedule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-sm uppercase text-slate-900">Excepción de Calendario</h3>
-              <button onClick={() => setShowExceptionModal(false)} className="text-slate-400 hover:text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 mb-4">
+              <div>
+                <h3 className="text-base font-black uppercase text-slate-900">Replicar Clase</h3>
+                <span className="text-xs text-slate-400">Clonar a otros días de la semana en 1 clic</span>
+              </div>
+              <button onClick={() => setCloneModalOpen(false)} className="text-slate-400 hover:text-slate-900">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateException} className="space-y-3">
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 text-xs">
+              <span className="text-[10px] font-black uppercase text-slate-400 block">Clase Origen:</span>
+              <span className="font-extrabold text-slate-900 block text-sm">
+                {cloneTargetSchedule.program} ({cloneTargetSchedule.startTime} - {cloneTargetSchedule.endTime})
+              </span>
+              <span className="text-slate-600 block mt-0.5">
+                {cloneTargetSchedule.professor} • {cloneTargetSchedule.room || 'Tatami Principal'}
+              </span>
+            </div>
+
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Selecciona los días destino:
+            </label>
+            <div className="space-y-1.5 mb-5">
+              {DAYS_OF_WEEK.filter((d) => d.num !== cloneTargetSchedule.dayOfWeek).map((d) => {
+                const isSelected = selectedCloneDays.includes(d.num);
+                return (
+                  <label
+                    key={d.num}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition text-xs font-bold ${
+                      isSelected
+                        ? 'bg-blue-50 border-blue-300 text-blue-900'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{d.name}</span>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedCloneDays([...selectedCloneDays, d.num]);
+                        } else {
+                          setSelectedCloneDays(selectedCloneDays.filter((x) => x !== d.num));
+                        }
+                      }}
+                      className="rounded text-brand-accent focus:ring-0"
+                    />
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setCloneModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={selectedCloneDays.length === 0 || actionLoading === 'clone'}
+                onClick={handleExecuteClone}
+                className="px-5 py-2 bg-brand-accent hover:bg-brand-accent/90 disabled:opacity-40 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-sm flex items-center gap-1.5"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>{actionLoading === 'clone' ? 'Replicando...' : `Replicar (${selectedCloneDays.length} días)`}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 10. MODAL EXCEPCIÓN / FESTIVO DE CALENDARIO               */}
+      {/* ======================================================== */}
+      {exceptionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 mb-4">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Fecha (YYYY-MM-DD)</label>
+                <h3 className="text-base font-black uppercase text-slate-900">Registrar Excepción / Festivo</h3>
+                <span className="text-xs text-slate-400">Pausar reservas para una fecha determinada</span>
+              </div>
+              <button onClick={() => setExceptionModalOpen(false)} className="text-slate-400 hover:text-slate-900">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateException} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Fecha de Cierre
+                </label>
                 <input
                   type="date"
                   required
                   value={excForm.date}
                   onChange={(e) => setExcForm({ ...excForm, date: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Clase Afectada</label>
-                <select
-                  required
-                  value={excForm.scheduleId}
-                  onChange={(e) => setExcForm({ ...excForm, scheduleId: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
-                >
-                  <option value="">Selecciona una franja</option>
-                  {schedules.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {days[s.dayOfWeek]} {s.startTime} - {s.program} (Prof. {s.professor})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">Causa</label>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Motivo de la Excepción
+                </label>
                 <input
                   type="text"
                   required
                   value={excForm.reason}
                   onChange={(e) => setExcForm({ ...excForm, reason: e.target.value })}
-                  placeholder="Festivo / Seminario / Reparación tatami"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white"
+                  placeholder="Festivo Comunidad de Madrid, Seminario Internacional, etc."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
                 />
               </div>
 
-              <div className="pt-2 flex gap-3">
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
                 <button
                   type="button"
-                  onClick={() => setShowExceptionModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200/80 text-xs font-bold text-slate-700"
+                  onClick={() => setExceptionModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-studio-red hover:bg-studio-red-dark text-white font-bold text-xs uppercase"
+                  disabled={actionLoading === 'exception'}
+                  className="px-5 py-2 bg-slate-900 hover:bg-black text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-sm"
                 >
-                  Registrar Excepción
+                  Guardar Excepción
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 11. MODAL RESTAURAR PLANTILLA OFICIAL 247STUDIO           */}
+      {/* ======================================================== */}
+      {restoreModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 mb-3">
+              <h3 className="text-base font-black uppercase text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-brand-accent" /> Plantilla Oficial 247Studio
+              </h3>
+              <button onClick={() => setRestoreModalOpen(false)} className="text-slate-400 hover:text-slate-900">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+              ¿Deseas volcar en la base de datos de Firestore las <strong>25 clases oficiales</strong> de la academia (Lunes a Viernes, con Gi, No-Gi Grappling, Kids 1 y 2, MMA, Lucha y Open Mat) diseñadas por Mario y David?
+            </p>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setRestoreModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading === 'restore'}
+                onClick={handleRestoreOfficialSchedule}
+                className="px-5 py-2 bg-brand-accent hover:bg-brand-accent/90 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-sm"
+              >
+                {actionLoading === 'restore' ? 'Cargando 25 clases...' : 'Confirmar y Volcar Parrilla'}
+              </button>
+            </div>
           </div>
         </div>
       )}

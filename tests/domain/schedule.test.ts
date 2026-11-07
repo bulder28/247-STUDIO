@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { getMadridYearMonth } from '../../src/shared/domain/payment-status';
-import { canCancel, getNextClass, isClassInProgress } from '../../src/shared/domain/schedule';
+import {
+  calculateScheduleDurationMinutes,
+  calculateWeeklyStats,
+  canCancel,
+  detectScheduleConflicts,
+  getNextClass,
+  getProgramTheme,
+  isClassInProgress,
+} from '../../src/shared/domain/schedule';
 import { ScheduleDomainModel, ScheduleExceptionDomainModel } from '../../src/shared/domain/types';
 
 describe('Dominio Puro: Horarios, Fechas en Madrid y Cancelaciones', () => {
@@ -132,6 +140,96 @@ describe('Dominio Puro: Horarios, Fechas en Madrid y Cancelaciones', () => {
     it('el administrador siempre tiene override para cancelar fuera de plazo', () => {
       const now = new Date('2026-11-06T16:50:00Z'); // Faltan 10 min
       expect(canCancel(booking, schedule, deadlineHours, now, true)).toBe(true);
+    });
+  });
+
+  describe('Arquitectura REA: Duración, Temas, Conflictos y Métricas Semanales', () => {
+    it('calcula la duración en minutos entre dos horas de inicio y fin', () => {
+      expect(calculateScheduleDurationMinutes('10:00', '11:30')).toBe(90);
+      expect(calculateScheduleDurationMinutes('19:30', '20:30')).toBe(60);
+      expect(calculateScheduleDurationMinutes('20:00', '19:00')).toBe(0);
+    });
+
+    it('asigna temas cromáticos consistentes por programa marcial', () => {
+      expect(getProgramTheme('GI').text).toContain('text-blue');
+      expect(getProgramTheme('GRAPPLING').text).toContain('text-amber');
+      expect(getProgramTheme('KIDS 1').text).toContain('text-emerald');
+      expect(getProgramTheme('OPEN MAT').text).toContain('text-purple');
+      expect(getProgramTheme('MMA').text).toContain('text-rose');
+    });
+
+    it('detecta conflictos de sala y doble asignación de profesor en la misma hora', () => {
+      const list: ScheduleDomainModel[] = [
+        {
+          id: 'c1',
+          dayOfWeek: 1,
+          startTime: '19:00',
+          endTime: '20:00',
+          program: 'BJJ GI',
+          professor: 'Mario Bros',
+          room: 'Tatami Principal',
+          active: true,
+        },
+        {
+          id: 'c2',
+          dayOfWeek: 1,
+          startTime: '19:30',
+          endTime: '20:30',
+          program: 'GRAPPLING',
+          professor: 'Mario Bros', // Mismo profesor solapado
+          room: 'Tatami Principal', // Misma sala solapada
+          active: true,
+        },
+        {
+          id: 'c3',
+          dayOfWeek: 2, // Otro día, no hay solapamiento
+          startTime: '19:00',
+          endTime: '20:00',
+          program: 'GI',
+          professor: 'David',
+          room: 'Tatami Principal',
+          active: true,
+        },
+      ];
+
+      const conflicts = detectScheduleConflicts(list);
+      expect(conflicts.length).toBeGreaterThanOrEqual(2);
+      expect(conflicts.some((c) => c.type === 'ROOM_OVERLAP')).toBe(true);
+      expect(conflicts.some((c) => c.type === 'PROFESSOR_OVERLAP')).toBe(true);
+    });
+
+    it('calcula métricas semanales agregadas para el panel de dirección', () => {
+      const list: ScheduleDomainModel[] = [
+        {
+          id: 's1',
+          dayOfWeek: 1,
+          startTime: '10:00',
+          endTime: '11:30', // 90 min
+          program: 'GI',
+          professor: 'Mario Bros',
+          capacity: 26,
+          active: true,
+        },
+        {
+          id: 's2',
+          dayOfWeek: 2,
+          startTime: '19:30',
+          endTime: '20:30', // 60 min
+          program: 'GRAPPLING',
+          professor: 'David',
+          capacity: 24,
+          active: true,
+        },
+      ];
+
+      const stats = calculateWeeklyStats(list);
+      expect(stats.totalClasses).toBe(2);
+      expect(stats.activeClasses).toBe(2);
+      expect(stats.totalMinutes).toBe(150);
+      expect(stats.totalHours).toBe('2.5h');
+      expect(stats.totalCapacity).toBe(50);
+      expect(stats.professorBreakdown['Mario Bros'].count).toBe(1);
+      expect(stats.professorBreakdown['Mario Bros'].minutes).toBe(90);
     });
   });
 });
