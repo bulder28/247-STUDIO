@@ -65,6 +65,7 @@ export interface ActivityCategory {
   name: string;
   short: string;
   icon: string;
+  image: string;
   match: (program: string) => boolean;
   defaultCapacity: number;
   description: string;
@@ -77,6 +78,7 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     name: 'Brazilian Jiu-Jitsu (GI)',
     short: 'BJJ GI',
     icon: '🥋',
+    image: '/galeria/bjj/bjj9.webp',
     match: (program: string) =>
       /GI|BJJ FEM|MANHÃ|INICIANTES/i.test(program) && !/NO-GI|GRAPPLING/i.test(program),
     defaultCapacity: 15,
@@ -88,6 +90,7 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     name: 'Grappling & No-Gi',
     short: 'NO-GI',
     icon: '🤼',
+    image: '/galeria/grappling/grappling11.webp',
     match: (program: string) => /GRAPPLING|NO-GI/i.test(program),
     defaultCapacity: 18,
     description: 'Lucha de sumisión sin kimono, ritmo fluido, derribos y llaves',
@@ -98,6 +101,7 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     name: 'MMA & Striking',
     short: 'MMA',
     icon: '🥊',
+    image: '/galeria/grappling/grappling1.webp',
     match: (program: string) => /MMA|BOXEO|STRIKING|KICK/i.test(program),
     defaultCapacity: 14,
     description: 'Artes marciales mixtas, combinación de golpeo y suelo',
@@ -108,6 +112,7 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     name: 'Lucha Olímpica & Wrestling',
     short: 'LUCHA',
     icon: '🤼‍♂️',
+    image: '/galeria/lucha/lucha5.webp',
     match: (program: string) => /LUCHA|WRESTLING/i.test(program),
     defaultCapacity: 14,
     description: 'Control de pie, derribos olímpicos y defensa en tatami',
@@ -118,6 +123,7 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     name: 'Infantil & Juvenil (Kids)',
     short: 'KIDS',
     icon: '👶',
+    image: '/galeria/kids/kids1.webp',
     match: (program: string) => /KIDS|INFANTIL|JUVENIL/i.test(program),
     defaultCapacity: 12,
     description: 'Psicomotricidad, disciplina marcial y valores para los más jóvenes',
@@ -128,11 +134,30 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     name: 'Open Mat & Sparring Libre',
     short: 'OPEN MAT',
     icon: '⚡',
+    image: '/galeria/bjj/bjj1.webp',
     match: (program: string) => /OPEN MAT|TATAMI LIBRE|SPARRING LIBRE/i.test(program),
     defaultCapacity: 20,
     description: 'Tatami libre para rodar con compañeros a tu propio ritmo',
     badge: 'bg-purple-100 text-purple-900 border-purple-200',
   },
+];
+
+export interface DisciplineFilterItem {
+  id: string;
+  label: string;
+  image?: string;
+  icon?: string;
+}
+
+export const DISCIPLINE_FILTERS: DisciplineFilterItem[] = [
+  { id: 'TODAS', label: 'TODAS', icon: '⚡' },
+  { id: 'GI', label: 'GI', image: '/galeria/bjj/bjj9.webp' },
+  { id: 'GRAPPLING', label: 'GRAPPLING', image: '/galeria/grappling/grappling11.webp' },
+  { id: 'MMA', label: 'MMA', image: '/galeria/grappling/grappling1.webp' },
+  { id: 'LUCHA', label: 'LUCHA', image: '/galeria/lucha/lucha5.webp' },
+  { id: 'KIDS', label: 'KIDS', image: '/galeria/kids/kids1.webp' },
+  { id: 'BJJ FEM', label: 'BJJ FEM', image: '/galeria/bjj/bjj11.webp' },
+  { id: 'OPEN MAT', label: 'OPEN MAT', image: '/galeria/bjj/bjj1.webp' },
 ];
 
 export function getActivityCategory(program: string): ActivityCategory {
@@ -143,6 +168,7 @@ export function getActivityCategory(program: string): ActivityCategory {
     name: program,
     short: program.slice(0, 8),
     icon: '🥋',
+    image: '/herobackground.webp',
     match: () => true,
     defaultCapacity: 15,
     description: 'Entrenamiento dirigido en tatami',
@@ -729,8 +755,6 @@ export const SchedulePage: React.FC = () => {
     myBookings,
   ]);
 
-  const disciplines = ['TODAS', 'GI', 'GRAPPLING', 'MMA', 'LUCHA', 'KIDS', 'BJJ FEM', 'OPEN MAT'];
-
   // División / Agrupación de clases por actividad deportiva con aforo predeterminado
   const groupedByActivity = useMemo(() => {
     const groups: { category: ActivityCategory; schedules: ScheduleDomainModel[] }[] = [];
@@ -1192,27 +1216,46 @@ export const SchedulePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Barra de Filtros Rápida estilo Madrid Móvil (Disciplinas + Franja Horaria) */}
+          {/* Barra de Filtros Rápida estilo Madrid Móvil (Disciplinas con Imagen Real + Franja Horaria) */}
           <div className="bg-white border border-slate-200/80 rounded-3xl p-3 sm:p-4 shadow-sm space-y-2.5">
-            {/* Tira horizontal de disciplinas */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-              <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-0.5" />
-              {disciplines.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setSelectedDiscipline(d)}
-                  aria-pressed={selectedDiscipline === d}
-                  aria-label={`Filtrar por disciplina ${d}`}
-                  className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider shrink-0 transition cursor-pointer ${
-                    selectedDiscipline === d
-                      ? 'bg-slate-950 text-white shadow-xs'
-                      : 'bg-slate-50 border border-slate-200/80 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
+            {/* Tira horizontal de disciplinas con fotografías reales */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none py-0.5">
+              <div className="p-2 rounded-2xl bg-slate-100 text-slate-500 shrink-0" title="Filtrar por actividad">
+                <Filter className="w-3.5 h-3.5" />
+              </div>
+              {DISCIPLINE_FILTERS.map((disc) => {
+                const isSelected = selectedDiscipline === disc.id;
+                return (
+                  <button
+                    key={disc.id}
+                    type="button"
+                    onClick={() => setSelectedDiscipline(disc.id)}
+                    aria-pressed={isSelected}
+                    aria-label={`Filtrar por disciplina ${disc.label}`}
+                    className={`group flex items-center gap-2 pl-1 pr-3 py-1 rounded-2xl text-[11px] font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-slate-950 text-white shadow-md ring-2 ring-slate-900 scale-102'
+                        : 'bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    {disc.image ? (
+                      <div className="w-6 h-6 rounded-xl overflow-hidden shrink-0 border border-black/10 shadow-xs bg-slate-200">
+                        <img
+                          src={disc.image}
+                          alt={disc.label}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-6 h-6 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 text-[11px] font-black shadow-xs">
+                        ⚡
+                      </div>
+                    )}
+                    <span>{disc.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Franjas Horarias (Mañana / Tarde / Noche) + Filtros de Profesor y Sala */}
@@ -1953,24 +1996,34 @@ export const SchedulePage: React.FC = () => {
             <div className="space-y-6">
               {groupedByActivity.map(({ category, schedules: catSchedules }) => (
                 <div key={category.id} className="space-y-3">
-                  {/* Cabecera de Categoría de Actividad */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1 pb-1.5 border-b border-slate-200/80">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xl sm:text-2xl">{category.icon}</span>
-                      <div>
-                        <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight">
-                          {category.name}
-                        </h3>
-                        <p className="text-[11px] text-slate-500 hidden sm:block">
+                  {/* Cabecera de Categoría de Actividad con Fotografía Real */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-900 text-white shadow-sm border border-slate-800">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-amber-400/50 shadow-xs bg-slate-800">
+                        <img
+                          src={category.image}
+                          alt={category.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base">{category.icon}</span>
+                          <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-tight truncate font-headline">
+                            {category.name}
+                          </h3>
+                        </div>
+                        <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">
                           {category.description}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 self-start sm:self-auto">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-100 text-slate-700 border border-slate-200">
+                    <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                      <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-amber-400 text-slate-950 shadow-xs">
                         Aforo máx. {category.defaultCapacity} plazas
                       </span>
-                      <span className="text-[11px] font-mono font-bold text-slate-400">
+                      <span className="text-[11px] font-mono font-bold text-slate-300 bg-slate-800/90 px-2.5 py-1 rounded-xl border border-slate-700">
                         {catSchedules.length} {catSchedules.length === 1 ? 'clase' : 'clases'}
                       </span>
                     </div>
@@ -2009,9 +2062,9 @@ export const SchedulePage: React.FC = () => {
                           }`}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            {/* Horario y Duración */}
-                            <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
-                              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[82px]">
+                            {/* Horario, Foto de Actividad y Duración */}
+                            <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
+                              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[78px]">
                                 <span className="text-sm font-black text-slate-900 block font-mono">
                                   {schedule.startTime}
                                 </span>
@@ -2021,6 +2074,16 @@ export const SchedulePage: React.FC = () => {
                                 <span className="text-[9px] font-bold text-slate-500 mt-0.5 block">
                                   {dur} min
                                 </span>
+                              </div>
+
+                              {/* Miniatura visual de la actividad */}
+                              <div className="hidden xs:block w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-200/80 shadow-2xs self-center bg-slate-100">
+                                <img
+                                  src={category.image}
+                                  alt={schedule.program}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
                               </div>
 
                               <div className="space-y-1.5 min-w-0 flex-1">
@@ -2243,6 +2306,7 @@ export const SchedulePage: React.FC = () => {
                           schedule,
                           selectedDateStr
                         );
+                        const activityCat = getActivityCategory(schedule.program);
                         const freeSpots = Math.max(0, capacity - currentAttendees);
                         const isPastDay = selectedDateStr < todayStr;
                         const slotKey = `${schedule.id}_${selectedDateStr}`;
@@ -2259,8 +2323,8 @@ export const SchedulePage: React.FC = () => {
                             }`}
                           >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                              <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
-                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[82px]">
+                              <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
+                                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[78px]">
                                   <span className="text-sm font-black text-slate-900 block font-mono">
                                     {schedule.startTime}
                                   </span>
@@ -2270,6 +2334,16 @@ export const SchedulePage: React.FC = () => {
                                   <span className="text-[9px] font-bold text-slate-500 mt-0.5 block">
                                     {dur} min
                                   </span>
+                                </div>
+
+                                {/* Miniatura visual de la actividad */}
+                                <div className="hidden xs:block w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-200/80 shadow-2xs self-center bg-slate-100">
+                                  <img
+                                    src={activityCat.image}
+                                    alt={schedule.program}
+                                    className="w-full h-full object-cover"
+                                    loading="lazy"
+                                  />
                                 </div>
 
                                 <div className="space-y-1.5 min-w-0 flex-1">
@@ -2480,22 +2554,33 @@ export const SchedulePage: React.FC = () => {
             return (
               <>
                 <DialogHeader>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${theme.badge}`}
-                    >
-                      {schedule.program}
-                    </span>
-                    <span className="text-xs font-mono font-bold text-slate-500">
-                      {dur} minutos
-                    </span>
+                  <div className="flex items-start gap-3">
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 border border-slate-200 shadow-xs bg-slate-100">
+                      <img
+                        src={getActivityCategory(schedule.program).image}
+                        alt={schedule.program}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${theme.badge}`}
+                        >
+                          {schedule.program}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-slate-500">
+                          {dur} min
+                        </span>
+                      </div>
+                      <DialogTitle className="text-lg sm:text-xl font-black text-slate-900 truncate">
+                        {schedule.program}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs font-semibold text-slate-500 capitalize">
+                        {formatReadableDateEs(dateStr)} · {schedule.startTime} – {schedule.endTime}
+                      </DialogDescription>
+                    </div>
                   </div>
-                  <DialogTitle className="text-xl font-black text-slate-900">
-                    {schedule.program} · {schedule.startTime} – {schedule.endTime}
-                  </DialogTitle>
-                  <DialogDescription className="text-xs font-semibold text-slate-500 capitalize">
-                    {formatReadableDateEs(dateStr)}
-                  </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-3 py-2 text-xs">
