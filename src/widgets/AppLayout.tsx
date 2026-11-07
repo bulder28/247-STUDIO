@@ -12,7 +12,6 @@ import {
   HelpCircle,
   Home,
   Image,
-  LayoutGrid,
   LogOut,
   Menu,
   MessageSquare,
@@ -23,6 +22,7 @@ import {
   Scale,
   Shield,
   Swords,
+  Ticket,
   User,
   UserPlus,
   X,
@@ -44,6 +44,9 @@ import {
 } from '@/shared/ui/dropdown-menu';
 import { KokoroAssistant } from '@/widgets/KokoroAssistant';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/shared/api/firebase';
+import { getMadridTimeComponents } from '@/shared/domain/schedule';
 
 interface NavItem {
   to: string;
@@ -67,6 +70,44 @@ export const AppLayout: React.FC = () => {
   const mainRef = useRef<HTMLElement>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [todayBookingSummary, setTodayBookingSummary] = useState<string | undefined>(undefined);
+
+  // Cotejar reserva de hoy al abrir el Carnet Virtual (QR)
+  useEffect(() => {
+    if (!qrModalOpen || !userData?.uid) return;
+    const todayStr = getMadridTimeComponents(new Date()).dateStr;
+    const fetchTodayBooking = async () => {
+      try {
+        const q = query(
+          collection(db, 'bookings'),
+          where('uid', '==', userData.uid),
+          where('date', '==', todayStr)
+        );
+        const snap = await getDocs(q);
+        const active = snap.docs
+          .map((d) => d.data())
+          .find((b) => b.status === 'BOOKED' || b.status === 'WAITLISTED');
+
+        if (active && active.scheduleId) {
+          const schedSnap = await getDoc(doc(db, 'schedules', active.scheduleId));
+          const schedData = schedSnap.exists() ? schedSnap.data() : null;
+          if (schedData) {
+            setTodayBookingSummary(
+              `Reserva confirmada hoy: ${schedData.program} a las ${schedData.startTime} en ${schedData.room || 'Tatami Principal'}.`
+            );
+          } else {
+            setTodayBookingSummary('Reserva confirmada para hoy. Torno habilitado para cotejo de acceso.');
+          }
+        } else {
+          setTodayBookingSummary(undefined);
+        }
+      } catch (err) {
+        console.error('Error fetching today booking for QR card:', err);
+        setTodayBookingSummary(undefined);
+      }
+    };
+    fetchTodayBooking();
+  }, [qrModalOpen, userData?.uid]);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
     try {
       const saved = localStorage.getItem('247_sidebar_mode') as SidebarMode | null;
@@ -541,16 +582,17 @@ export const AppLayout: React.FC = () => {
 
         {/* ======================================================== */}
         {/* 3.5 BARRA INFERIOR FIJA MODO TELÉFONO (< 768px)          */}
+        {/* ESTILO NATIVO MADRID MÓVIL: INICIO | RESERVAS | CARNET VIRTUAL (QR) | MIS PASES | MENÚ */}
         {/* ======================================================== */}
         <nav
-          aria-label="Navegación principal móvil"
-          className="md:hidden shrink-0 bg-white border-t border-slate-200/90 px-2 py-1.5 grid grid-cols-5 gap-1 z-30 shadow-lg"
+          aria-label="Navegación principal móvil Madrid Móvil"
+          className="md:hidden shrink-0 bg-white border-t border-slate-200/90 px-3 py-1.5 grid grid-cols-5 items-end z-30 shadow-lg"
         >
           <NavLink
             to="/app/home"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
-                isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+                isActive ? 'text-slate-950 font-black' : 'text-slate-500 hover:text-slate-900'
               }`
             }
           >
@@ -562,44 +604,52 @@ export const AppLayout: React.FC = () => {
             to="/app/horario"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
-                isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+                isActive && !location.search.includes('tab=mis-reservas')
+                  ? 'text-slate-950 font-black'
+                  : 'text-slate-500 hover:text-slate-900'
               }`
             }
           >
             <Calendar className="w-4 h-4 mb-0.5" />
-            <span>Calendario</span>
+            <span>Reservas</span>
           </NavLink>
 
+          {/* Botón Central Destacado estilo Madrid Móvil: CARNET VIRTUAL (QR) */}
           <button
             type="button"
             onClick={() => setQrModalOpen(true)}
-            className="flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-black text-white bg-slate-900 shadow-xs cursor-pointer"
+            className="flex flex-col items-center justify-center -mt-3.5 py-1.5 px-1 rounded-2xl text-[9px] font-black text-slate-950 bg-amber-400 border-2 border-white shadow-lg active:scale-95 transition cursor-pointer"
+            title="Carnet Virtual con Código QR para el torno de acceso"
           >
-            <QrCode className="w-4 h-4 mb-0.5 text-amber-400" />
-            <span>Pase QR</span>
+            <div className="w-7 h-7 rounded-xl bg-slate-950 flex items-center justify-center mb-0.5 text-amber-400 shadow-xs">
+              <QrCode className="w-4 h-4" />
+            </div>
+            <span className="leading-tight tracking-tight uppercase font-headline">Carnet QR</span>
           </button>
 
           <NavLink
-            to="/app/historial"
+            to="/app/horario?tab=mis-reservas"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
-                isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+                isActive && location.search.includes('tab=mis-reservas')
+                  ? 'text-emerald-700 font-black'
+                  : 'text-slate-500 hover:text-slate-900'
               }`
             }
           >
-            <Activity className="w-4 h-4 mb-0.5" />
-            <span>Historial</span>
+            <Ticket className="w-4 h-4 mb-0.5" />
+            <span>Mis Pases</span>
           </NavLink>
 
           <button
             type="button"
             onClick={() => setMobileDrawerOpen(true)}
             className={`flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition cursor-pointer ${
-              mobileDrawerOpen ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+              mobileDrawerOpen ? 'text-slate-950 font-black' : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            <LayoutGrid className="w-4 h-4 mb-0.5" />
-            <span>Páginas</span>
+            <Menu className="w-4 h-4 mb-0.5" />
+            <span>Menú</span>
           </button>
         </nav>
       </div>
@@ -705,7 +755,11 @@ export const AppLayout: React.FC = () => {
       <Dialog open={qrModalOpen && !!userData} onOpenChange={(open) => setQrModalOpen(open)}>
         <DialogContent className="max-w-sm p-0 bg-transparent border-0 shadow-none">
           {userData && (
-            <QrCodePassCard user={userData} onClose={() => setQrModalOpen(false)} />
+            <QrCodePassCard
+              user={userData}
+              todayBookingText={todayBookingSummary}
+              onClose={() => setQrModalOpen(false)}
+            />
           )}
         </DialogContent>
       </Dialog>

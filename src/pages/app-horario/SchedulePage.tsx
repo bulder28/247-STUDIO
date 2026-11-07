@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   collection,
   doc,
@@ -57,6 +58,97 @@ import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 
 type CalendarViewMode = 'DAY' | 'WEEK' | 'MONTH';
 type TimeBandFilter = 'ALL' | 'MORNING' | 'AFTERNOON' | 'NIGHT';
+type GroupingMode = 'BY_ACTIVITY' | 'BY_TIME_BAND';
+
+export interface ActivityCategory {
+  id: string;
+  name: string;
+  short: string;
+  icon: string;
+  match: (program: string) => boolean;
+  defaultCapacity: number;
+  description: string;
+  badge: string;
+}
+
+export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
+  {
+    id: 'BJJ',
+    name: 'Brazilian Jiu-Jitsu (GI)',
+    short: 'BJJ GI',
+    icon: '🥋',
+    match: (program: string) =>
+      /GI|BJJ FEM|MANHÃ|INICIANTES/i.test(program) && !/NO-GI|GRAPPLING/i.test(program),
+    defaultCapacity: 15,
+    description: 'Técnica de kimono, agarres, transiciones y combate controlado',
+    badge: 'bg-indigo-100 text-indigo-900 border-indigo-200',
+  },
+  {
+    id: 'GRAPPLING',
+    name: 'Grappling & No-Gi',
+    short: 'NO-GI',
+    icon: '🤼',
+    match: (program: string) => /GRAPPLING|NO-GI/i.test(program),
+    defaultCapacity: 18,
+    description: 'Lucha de sumisión sin kimono, ritmo fluido, derribos y llaves',
+    badge: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+  },
+  {
+    id: 'MMA',
+    name: 'MMA & Striking',
+    short: 'MMA',
+    icon: '🥊',
+    match: (program: string) => /MMA|BOXEO|STRIKING|KICK/i.test(program),
+    defaultCapacity: 14,
+    description: 'Artes marciales mixtas, combinación de golpeo y suelo',
+    badge: 'bg-rose-100 text-rose-900 border-rose-200',
+  },
+  {
+    id: 'LUCHA',
+    name: 'Lucha Olímpica & Wrestling',
+    short: 'LUCHA',
+    icon: '🤼‍♂️',
+    match: (program: string) => /LUCHA|WRESTLING/i.test(program),
+    defaultCapacity: 14,
+    description: 'Control de pie, derribos olímpicos y defensa en tatami',
+    badge: 'bg-amber-100 text-amber-900 border-amber-200',
+  },
+  {
+    id: 'KIDS',
+    name: 'Infantil & Juvenil (Kids)',
+    short: 'KIDS',
+    icon: '👶',
+    match: (program: string) => /KIDS|INFANTIL|JUVENIL/i.test(program),
+    defaultCapacity: 12,
+    description: 'Psicomotricidad, disciplina marcial y valores para los más jóvenes',
+    badge: 'bg-sky-100 text-sky-900 border-sky-200',
+  },
+  {
+    id: 'OPEN_MAT',
+    name: 'Open Mat & Sparring Libre',
+    short: 'OPEN MAT',
+    icon: '⚡',
+    match: (program: string) => /OPEN MAT|TATAMI LIBRE|SPARRING LIBRE/i.test(program),
+    defaultCapacity: 20,
+    description: 'Tatami libre para rodar con compañeros a tu propio ritmo',
+    badge: 'bg-purple-100 text-purple-900 border-purple-200',
+  },
+];
+
+export function getActivityCategory(program: string): ActivityCategory {
+  const found = ACTIVITY_CATEGORIES.find((cat) => cat.match(program));
+  if (found) return found;
+  return {
+    id: 'GENERAL',
+    name: program,
+    short: program.slice(0, 8),
+    icon: '🥋',
+    match: () => true,
+    defaultCapacity: 15,
+    description: 'Entrenamiento dirigido en tatami',
+    badge: 'bg-slate-100 text-slate-900 border-slate-200',
+  };
+}
 
 function getScheduleTimeBand(startTime: string): 'MORNING' | 'AFTERNOON' | 'NIGHT' {
   const hour = parseInt(startTime.split(':')[0] || '0', 10);
@@ -124,6 +216,7 @@ function formatReadableDateEs(dateStr: string): string {
 
 export const SchedulePage: React.FC = () => {
   const { user, role, userData } = useAuth();
+  const [searchParams] = useSearchParams();
   const [schedules, setSchedules] = useState<ScheduleDomainModel[]>([]);
   const [exceptions, setExceptions] = useState<ScheduleExceptionDomainModel[]>([]);
   const [myBookings, setMyBookings] = useState<BookingDomainModel[]>([]);
@@ -161,6 +254,9 @@ export const SchedulePage: React.FC = () => {
   const [selectedTimeBand, setSelectedTimeBand] = useState<TimeBandFilter>('ALL');
   const [onlyMyBookings, setOnlyMyBookings] = useState<boolean>(false);
 
+  // Modo de agrupación de clases en vista diaria: Por Actividad (BJJ Gi, No-Gi, MMA...) o Por Franja Horaria
+  const [groupingMode, setGroupingMode] = useState<GroupingMode>('BY_ACTIVITY');
+
   // Modal de Resguardo QR de Acceso (Estilo Madrid Móvil)
   const [showQrPassModal, setShowQrPassModal] = useState<boolean>(false);
 
@@ -176,7 +272,20 @@ export const SchedulePage: React.FC = () => {
   } | null>(null);
 
   // Pestaña activa estilo Madrid Móvil: 'RESERVAR' (Clases Abiertas) o 'MIS_RESERVAS' (Pases y Anulaciones)
-  const [mobileSectionTab, setMobileSectionTab] = useState<'RESERVAR' | 'MIS_RESERVAS'>('RESERVAR');
+  const [mobileSectionTab, setMobileSectionTab] = useState<'RESERVAR' | 'MIS_RESERVAS'>(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('tab=mis-reservas')) {
+      return 'MIS_RESERVAS';
+    }
+    return 'RESERVAR';
+  });
+
+  // Sincronizar parámetro URL si el usuario pulsa en "Mis Pases" de la barra inferior
+  useEffect(() => {
+    if (searchParams.get('tab') === 'mis-reservas') {
+      setMobileSectionTab('MIS_RESERVAS');
+      setOnlyMyBookings(true);
+    }
+  }, [searchParams]);
 
   const fetchScheduleData = async () => {
     try {
@@ -296,18 +405,22 @@ export const SchedulePage: React.FC = () => {
     );
   };
 
-  // Helper para saber el aforo en una fecha
+  // Helper para saber el aforo en una fecha con aforo predeterminado y contador descendente (plazas libres / total)
   const getCapacityForSlot = (schedule: ScheduleDomainModel, dateStr: string) => {
     const key = `${schedule.id}_${dateStr}`;
     const capData = classCapacities[key] || { bookedCount: 0, waitlistCount: 0 };
-    const capacity = schedule.capacity || 24;
+    const activityCat = getActivityCategory(schedule.program);
+    // Aforo predeterminado por actividad (ej: 15, 18, 14 plazas según disciplina o modelo)
+    const capacity = schedule.capacity || activityCat.defaultCapacity || 15;
     const currentAttendees = Math.max(0, capData.bookedCount);
-    const isFull = currentAttendees >= capacity;
+    const freeSpots = Math.max(0, capacity - currentAttendees);
+    const isFull = freeSpots === 0;
     const fillPct = Math.min(100, Math.round((currentAttendees / capacity) * 100));
     return {
       currentAttendees,
       waitlistCount: Math.max(0, capData.waitlistCount),
       capacity,
+      freeSpots,
       isFull,
       fillPct,
     };
@@ -618,6 +731,39 @@ export const SchedulePage: React.FC = () => {
 
   const disciplines = ['TODAS', 'GI', 'GRAPPLING', 'MMA', 'LUCHA', 'KIDS', 'BJJ FEM', 'OPEN MAT'];
 
+  // División / Agrupación de clases por actividad deportiva con aforo predeterminado
+  const groupedByActivity = useMemo(() => {
+    const groups: { category: ActivityCategory; schedules: ScheduleDomainModel[] }[] = [];
+    ACTIVITY_CATEGORIES.forEach((cat) => {
+      const list = selectedDaySchedules.filter((s) => cat.match(s.program));
+      if (list.length > 0) {
+        groups.push({ category: cat, schedules: list });
+      }
+    });
+    const uncategorized = selectedDaySchedules.filter(
+      (s) => !ACTIVITY_CATEGORIES.some((cat) => cat.match(s.program))
+    );
+    if (uncategorized.length > 0) {
+      groups.push({
+        category: getActivityCategory('Otras Actividades'),
+        schedules: uncategorized,
+      });
+    }
+    return groups;
+  }, [selectedDaySchedules]);
+
+  // Reserva de hoy activa para el cotejo automático con el Carnet Virtual en recepción
+  const todayMyBooking = useMemo(() => {
+    return myBookings.find(
+      (b) => b.date === todayStr && (b.status === 'BOOKED' || b.status === 'WAITLISTED' || b.status === 'ATTENDED')
+    );
+  }, [myBookings, todayStr]);
+
+  const todayBookingSchedule = useMemo(() => {
+    if (!todayMyBooking) return null;
+    return schedules.find((s) => s.id === todayMyBooking.scheduleId) || null;
+  }, [todayMyBooking, schedules]);
+
   // Rango legible en la cabecera
   const periodTitle = useMemo(() => {
     if (viewMode === 'MONTH') {
@@ -779,6 +925,43 @@ export const SchedulePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ======================================================== */}
+      {/* 1.5 BANNER COTEJO DE ACCESO ACTIVO PARA HOY (MADRID MÓVIL)*/}
+      {/* ======================================================== */}
+      {todayMyBooking && todayBookingSchedule && (
+        <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 border-2 border-emerald-500/70 rounded-3xl p-4 sm:p-5 shadow-xl text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in duration-300">
+          <div className="flex items-start gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 flex items-center justify-center shrink-0">
+              <Check className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500 text-slate-950">
+                  Cotejo de Acceso Activo
+                </span>
+                <span className="text-[11px] text-emerald-400 font-mono font-bold">
+                  Hoy a las {todayBookingSchedule.startTime}
+                </span>
+              </div>
+              <h3 className="text-sm sm:text-base font-black uppercase text-white mt-1">
+                {todayBookingSchedule.program} · {todayBookingSchedule.room || 'Tatami Principal'}
+              </h3>
+              <p className="text-xs text-slate-300 mt-0.5 max-w-xl">
+                Al escanear tu Carnet Virtual en la tablet del torno, el sistema coteja y valida tu asistencia automáticamente, descontando tu plaza del aforo en tiempo real.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowQrPassModal(true)}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-md shrink-0 cursor-pointer active:scale-95"
+          >
+            <QrCode className="w-4 h-4 text-slate-950" />
+            <span>Ver Carnet QR</span>
+          </button>
+        </div>
+      )}
 
       {/* ======================================================== */}
       {/* 2. PANTALLA PRINCIPAL: 'MIS RESERVAS' O 'RESERVAR CLASES' */}
@@ -1712,24 +1895,47 @@ export const SchedulePage: React.FC = () => {
       </div>
       ) : (
         /* ======================================================== */
-        /* 3C. VISTA DÍA / MADRID MÓVIL (SESIONES POR FRANJA)       */
+        /* 3C. VISTA DÍA / MADRID MÓVIL                             */
+        /* (DIVISIÓN POR ACTIVIDAD O POR FRANJA HORARIA)            */
         /* ======================================================== */
         <div className="space-y-4">
-          <div className="flex items-center justify-between px-2 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-2 pt-1">
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 block">
-                Sesiones Disponibles
+                Sesiones Disponibles · Madrid Móvil
               </span>
               <h2 className="text-base sm:text-lg font-black text-slate-900 capitalize font-headline">
                 {formatReadableDateEs(selectedDateStr)}
               </h2>
             </div>
-            <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700">
-              {selectedDaySchedules.length} {selectedDaySchedules.length === 1 ? 'sesión' : 'sesiones'}
-            </span>
+
+            {/* Selector de Agrupación: [ 🥋 Por Actividades ] | [ ⏰ Por Horario ] */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setGroupingMode('BY_ACTIVITY')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  groupingMode === 'BY_ACTIVITY'
+                    ? 'bg-white text-slate-950 shadow-xs font-black'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>🥋 Por Actividades</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGroupingMode('BY_TIME_BAND')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  groupingMode === 'BY_TIME_BAND'
+                    ? 'bg-white text-slate-950 shadow-xs font-black'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>⏰ Por Horario</span>
+              </button>
+            </div>
           </div>
 
-          {/* Lista detallada de clases agrupadas por Franja Horaria (Mañana / Tarde / Noche) */}
           {selectedDaySchedules.length === 0 ? (
             <div className="text-center py-14 bg-white border border-slate-200/80 rounded-3xl p-8 shadow-sm">
               <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-2" />
@@ -1740,7 +1946,261 @@ export const SchedulePage: React.FC = () => {
                 Selecciona otro día en el carrusel superior o cambia a la vista Semana / Mes.
               </p>
             </div>
+          ) : groupingMode === 'BY_ACTIVITY' ? (
+            /* ======================================================== */
+            /* 1. VISTA AGRUPADA POR ACTIVIDAD DEPORTIVA (AFORO)       */
+            /* ======================================================== */
+            <div className="space-y-6">
+              {groupedByActivity.map(({ category, schedules: catSchedules }) => (
+                <div key={category.id} className="space-y-3">
+                  {/* Cabecera de Categoría de Actividad */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-1 pb-1.5 border-b border-slate-200/80">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xl sm:text-2xl">{category.icon}</span>
+                      <div>
+                        <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight">
+                          {category.name}
+                        </h3>
+                        <p className="text-[11px] text-slate-500 hidden sm:block">
+                          {category.description}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-100 text-slate-700 border border-slate-200">
+                        Aforo máx. {category.defaultCapacity} plazas
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-slate-400">
+                        {catSchedules.length} {catSchedules.length === 1 ? 'clase' : 'clases'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Listado de Clases dentro de la Actividad */}
+                  <div className="space-y-3">
+                    {catSchedules.map((schedule) => {
+                      const theme = getProgramTheme(schedule.program);
+                      const dur = calculateScheduleDurationMinutes(
+                        schedule.startTime,
+                        schedule.endTime
+                      );
+                      const inProgress =
+                        selectedDateStr === todayStr &&
+                        isClassInProgress(schedule, exceptions, now);
+                      const exc = getExceptionForSlot(schedule.id, selectedDateStr);
+                      const myBooking = getMyBookingForSlot(schedule.id, selectedDateStr);
+                      const { currentAttendees, capacity, isFull, fillPct } = getCapacityForSlot(
+                        schedule,
+                        selectedDateStr
+                      );
+                      const freeSpots = Math.max(0, capacity - currentAttendees);
+                      const isPastDay = selectedDateStr < todayStr;
+                      const slotKey = `${schedule.id}_${selectedDateStr}`;
+
+                      return (
+                        <div
+                          key={slotKey}
+                          className={`bg-white border rounded-2xl p-4 sm:p-5 shadow-sm transition-all hover:shadow-md ${
+                            inProgress
+                              ? 'border-emerald-400 ring-1 ring-emerald-200'
+                              : myBooking
+                              ? 'border-emerald-300 bg-emerald-50/20'
+                              : 'border-slate-200/80'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            {/* Horario y Duración */}
+                            <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
+                              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[82px]">
+                                <span className="text-sm font-black text-slate-900 block font-mono">
+                                  {schedule.startTime}
+                                </span>
+                                <span className="text-[11px] text-slate-400 block font-mono">
+                                  {schedule.endTime}
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-500 mt-0.5 block">
+                                  {dur} min
+                                </span>
+                              </div>
+
+                              <div className="space-y-1.5 min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-lg text-[11px] font-black uppercase ${theme.badge}`}
+                                  >
+                                    {schedule.program}
+                                  </span>
+
+                                  {/* Contador Descendente de Aforo estilo Madrid Móvil (15/15, 14/15, 13/15...) */}
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border flex items-center gap-1.5 ${
+                                      isFull
+                                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                        : freeSpots <= 4
+                                        ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
+                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full ${
+                                        isFull
+                                          ? 'bg-rose-500'
+                                          : freeSpots <= 4
+                                          ? 'bg-amber-500'
+                                          : 'bg-emerald-500'
+                                      }`}
+                                    />
+                                    {isFull
+                                      ? `0/${capacity} plazas · Completo`
+                                      : freeSpots <= 4
+                                      ? `¡Últimas ${freeSpots}/${capacity} plazas!`
+                                      : `${freeSpots}/${capacity} plazas libres`}
+                                  </span>
+
+                                  {schedule.levelRequired && (
+                                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-mono font-bold uppercase">
+                                      Nivel: {schedule.levelRequired}
+                                    </span>
+                                  )}
+
+                                  {inProgress && (
+                                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                                      Clase en Curso
+                                    </span>
+                                  )}
+
+                                  {exc && (
+                                    <span className="px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 text-[10px] font-bold">
+                                      Cancelada: {exc.reason}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                                  <span className="flex items-center gap-1 font-semibold text-slate-800">
+                                    <User className="w-3.5 h-3.5 text-slate-400" /> Prof.{' '}
+                                    {schedule.professor}
+                                  </span>
+
+                                  <span className="flex items-center gap-1 text-slate-500">
+                                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                    {schedule.room || 'Tatami Principal'}
+                                  </span>
+
+                                  <span className="flex items-center gap-1 text-[11px] font-mono text-slate-500">
+                                    <Users className="w-3.5 h-3.5" />
+                                    {currentAttendees} / {capacity} ocupadas ({fillPct}%)
+                                  </span>
+                                </div>
+
+                                {/* Barra de ocupación en tiempo real */}
+                                <div className="w-full max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-300 ${
+                                      isFull
+                                        ? 'bg-rose-500'
+                                        : fillPct >= 75
+                                        ? 'bg-amber-500'
+                                        : 'bg-emerald-500'
+                                    }`}
+                                    style={{ width: `${fillPct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Acciones de Reserva / Resguardo QR / Cancelación */}
+                            <div className="flex items-center justify-end gap-2 shrink-0">
+                              {exc ? (
+                                <span className="text-xs font-bold text-red-600">
+                                  Clase no disponible
+                                </span>
+                              ) : myBooking ? (
+                                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                                  <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
+                                    <Check className="w-4 h-4 text-emerald-600" />
+                                    {myBooking.status === 'WAITLISTED'
+                                      ? 'En Lista de Espera'
+                                      : 'Plaza Reservada'}
+                                  </span>
+
+                                  {userData && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowQrPassModal(true)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                                      title="Mostrar Carnet Virtual QR para el torno"
+                                    >
+                                      <QrCode className="w-3.5 h-3.5 text-amber-400" />
+                                      <span>QR</span>
+                                    </button>
+                                  )}
+
+                                  {!isPastDay && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleCancelBooking(
+                                          myBooking,
+                                          schedule,
+                                          selectedDateStr
+                                        )
+                                      }
+                                      disabled={actionLoading === slotKey}
+                                      aria-label={`Cancelar mi reserva para ${schedule.program} a las ${schedule.startTime}`}
+                                      className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold transition cursor-pointer"
+                                      title="Cancelar mi reserva"
+                                    >
+                                      {actionLoading === slotKey ? (
+                                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <X className="w-4 h-4" />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              ) : isPastDay ? (
+                                <span className="text-xs font-semibold text-slate-400">
+                                  Sesión pasada
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleBookClass(schedule, selectedDateStr)}
+                                  disabled={actionLoading === slotKey}
+                                  className={`w-full sm:w-auto justify-center py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer ${
+                                    isFull
+                                      ? 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+                                      : 'bg-slate-900 hover:bg-slate-800 text-white'
+                                  }`}
+                                >
+                                  {actionLoading === slotKey ? (
+                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                  ) : isFull ? (
+                                    <>
+                                      <Clock className="w-3.5 h-3.5" /> Lista de Espera
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Reservar ({freeSpots}/{capacity})
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
+            /* ======================================================== */
+            /* 2. VISTA AGRUPADA POR FRANJA HORARIA (MAÑANA / TARDE...) */
+            /* ======================================================== */
             <div className="space-y-5">
               {(
                 [
@@ -1799,7 +2259,6 @@ export const SchedulePage: React.FC = () => {
                             }`}
                           >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                              {/* Detalles de la clase (REA: Evento + Agente + Recurso) */}
                               <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
                                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[82px]">
                                   <span className="text-sm font-black text-slate-900 block font-mono">
@@ -1821,21 +2280,30 @@ export const SchedulePage: React.FC = () => {
                                       {schedule.program}
                                     </span>
 
-                                    {/* Píldora de Plazas Libres estilo Madrid Móvil */}
+                                    {/* Contador descendente de aforo */}
                                     <span
-                                      className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border flex items-center gap-1.5 ${
                                         isFull
                                           ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                          : fillPct >= 75
-                                          ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                          : freeSpots <= 4
+                                          ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
                                           : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                       }`}
                                     >
+                                      <span
+                                        className={`w-1.5 h-1.5 rounded-full ${
+                                          isFull
+                                            ? 'bg-rose-500'
+                                            : freeSpots <= 4
+                                            ? 'bg-amber-500'
+                                            : 'bg-emerald-500'
+                                        }`}
+                                      />
                                       {isFull
-                                        ? 'Completo · Lista Espera'
-                                        : fillPct >= 75
-                                        ? `¡Últimas ${freeSpots} plazas!`
-                                        : `${freeSpots} plazas libres`}
+                                        ? `0/${capacity} plazas · Completo`
+                                        : freeSpots <= 4
+                                        ? `¡Últimas ${freeSpots}/${capacity} plazas!`
+                                        : `${freeSpots}/${capacity} plazas libres`}
                                     </span>
 
                                     {schedule.levelRequired && (
@@ -1871,14 +2339,13 @@ export const SchedulePage: React.FC = () => {
 
                                     <span className="flex items-center gap-1 text-[11px] font-mono text-slate-500">
                                       <Users className="w-3.5 h-3.5" />
-                                      {currentAttendees} / {capacity} plazas ({fillPct}%)
+                                      {currentAttendees} / {capacity} ocupadas ({fillPct}%)
                                     </span>
                                   </div>
 
-                                  {/* Barra de progreso de aforo */}
                                   <div className="w-full max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                     <div
-                                      className={`h-full rounded-full ${
+                                      className={`h-full rounded-full transition-all duration-300 ${
                                         isFull
                                           ? 'bg-rose-500'
                                           : fillPct >= 75
@@ -1891,7 +2358,6 @@ export const SchedulePage: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* Acciones de Reserva / Resguardo QR / Cancelación */}
                               <div className="flex items-center justify-end gap-2 shrink-0">
                                 {exc ? (
                                   <span className="text-xs font-bold text-red-600">
@@ -1911,7 +2377,7 @@ export const SchedulePage: React.FC = () => {
                                         type="button"
                                         onClick={() => setShowQrPassModal(true)}
                                         className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
-                                        title="Mostrar Resguardo QR para el torno/kiosco"
+                                        title="Mostrar Carnet Virtual QR para el torno"
                                       >
                                         <QrCode className="w-3.5 h-3.5 text-amber-400" />
                                         <span>QR</span>
@@ -1964,8 +2430,7 @@ export const SchedulePage: React.FC = () => {
                                       </>
                                     ) : (
                                       <>
-                                        <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Reservar
-                                        Clase
+                                        <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Reservar ({freeSpots}/{capacity})
                                       </>
                                     )}
                                   </button>
@@ -2140,7 +2605,15 @@ export const SchedulePage: React.FC = () => {
           onClick={() => setShowQrPassModal(false)}
         >
           <div className="max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-            <QrCodePassCard user={userData} onClose={() => setShowQrPassModal(false)} />
+            <QrCodePassCard
+              user={userData}
+              todayBookingText={
+                todayBookingSchedule
+                  ? `Reserva de hoy: ${todayBookingSchedule.program} a las ${todayBookingSchedule.startTime} en ${todayBookingSchedule.room || 'Tatami Principal'}. Torno habilitado.`
+                  : undefined
+              }
+              onClose={() => setShowQrPassModal(false)}
+            />
           </div>
         </div>
       )}

@@ -6,10 +6,11 @@ import { Belt, beltLabelEs } from '@/widgets/Belt';
 
 interface QrCodePassCardProps {
   user: UserDomainModel;
+  todayBookingText?: string;
   onClose?: () => void;
 }
 
-export const QrCodePassCard: React.FC<QrCodePassCardProps> = ({ user, onClose }) => {
+export const QrCodePassCard: React.FC<QrCodePassCardProps> = ({ user, todayBookingText, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
@@ -86,9 +87,12 @@ export const QrCodePassCard: React.FC<QrCodePassCardProps> = ({ user, onClose })
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 uppercase tracking-wider">
+            CARNET VIRTUAL
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            ACCESO ACTIVO
+            ACTIVO
           </span>
           {onClose && (
             <button
@@ -129,11 +133,24 @@ export const QrCodePassCard: React.FC<QrCodePassCardProps> = ({ user, onClose })
         <canvas ref={canvasRef} className="rounded-lg block mx-auto" />
       </div>
 
-      {/* 4. Sugerencia de Brillo y Asistencia */}
-      <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-amber-700 font-medium bg-amber-50/80 border border-amber-200/60 py-2 px-3 rounded-xl max-w-xs mx-auto">
-        <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-        <span>Sube el brillo del móvil para lectura inmediata</span>
-      </div>
+      {/* 4. Cotejo de Reserva Hoy / Sugerencia de Brillo */}
+      {todayBookingText ? (
+        <div className="mt-3.5 py-2.5 px-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs text-left space-y-1">
+          <div className="flex items-center gap-1.5 font-black text-emerald-800 text-[11px] uppercase tracking-wider">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>Cotejo de Reserva para Hoy</span>
+          </div>
+          <p className="text-[11px] font-bold text-slate-900">{todayBookingText}</p>
+          <p className="text-[10px] text-emerald-700">
+            Pasa este QR por el lector del torno. Cotejará tu reserva y validará tu asistencia.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-amber-700 font-medium bg-amber-50/80 border border-amber-200/60 py-2 px-3 rounded-xl max-w-xs mx-auto">
+          <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span>Sube el brillo del móvil para lectura en el torno</span>
+        </div>
+      )}
 
       {/* 5. Acciones: Descargar en Galería */}
       <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-center gap-2">
