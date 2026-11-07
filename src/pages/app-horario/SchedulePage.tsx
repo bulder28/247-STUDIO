@@ -1295,8 +1295,8 @@ export const SchedulePage: React.FC = () => {
               )}
             </div>
 
-            {/* Carrusel Horizontal de Tarjetas Visuales Grandes */}
-            <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1 scrollbar-none px-0.5">
+            {/* Carrusel Horizontal de Tarjetas Visuales (Tamaño Equilibrado / Medio) */}
+            <div className="flex items-center gap-2.5 overflow-x-auto pb-2 pt-0.5 scrollbar-none px-0.5">
               {DISCIPLINE_FILTERS.map((disc) => {
                 const isSelected = selectedDiscipline === disc.id;
                 return (
@@ -1306,17 +1306,17 @@ export const SchedulePage: React.FC = () => {
                     onClick={() => setSelectedDiscipline(disc.id)}
                     aria-pressed={isSelected}
                     aria-label={`Filtrar por disciplina ${disc.label}`}
-                    className={`group relative shrink-0 w-32 sm:w-44 h-40 sm:h-52 rounded-2xl overflow-hidden text-left transition-all duration-200 cursor-pointer ${
+                    className={`group relative shrink-0 w-24 sm:w-28 h-24 sm:h-28 rounded-xl overflow-hidden text-left transition-all duration-200 cursor-pointer ${
                       isSelected
-                        ? 'ring-4 ring-amber-400 shadow-xl scale-[1.03] z-10'
-                        : 'border border-slate-200/90 shadow-sm opacity-90 hover:opacity-100 hover:scale-[1.02]'
+                        ? 'ring-3 ring-amber-400 shadow-md scale-[1.03] z-10'
+                        : 'border border-slate-200/90 shadow-2xs opacity-90 hover:opacity-100 hover:scale-[1.01]'
                     }`}
                   >
-                    {/* Fotografía Grande de Fondo */}
+                    {/* Fotografía de Fondo */}
                     <img
                       src={disc.image}
                       alt={disc.label}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 filter brightness-90"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 filter brightness-90"
                       loading="lazy"
                     />
 
@@ -1324,26 +1324,23 @@ export const SchedulePage: React.FC = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
 
                     {/* Insignia Superior */}
-                    <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-10">
-                      <span className="w-8 h-8 rounded-xl bg-slate-950/75 backdrop-blur-xs text-white flex items-center justify-center text-sm shadow-sm border border-white/10">
+                    <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
+                      <span className="w-5 h-5 rounded-md bg-slate-950/80 backdrop-blur-xs text-white flex items-center justify-center text-[10px] shadow-xs border border-white/10">
                         {disc.icon}
                       </span>
                       {isSelected && (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-md">
-                          ✓ ACTIVO
+                        <span className="px-1.5 py-0.2 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-xs">
+                          ✓
                         </span>
                       )}
                     </div>
 
                     {/* Texto Inferior */}
-                    <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block font-mono">
+                    <div className="absolute bottom-1.5 left-1.5 right-1.5 z-10">
+                      <h4 className="text-[11px] font-black text-white uppercase leading-tight font-headline truncate drop-shadow-xs">
                         {disc.short}
-                      </span>
-                      <h4 className="text-xs sm:text-sm font-black text-white uppercase leading-tight font-headline">
-                        {disc.label}
                       </h4>
-                      <p className="text-[10px] text-slate-300 font-medium truncate mt-0.5">
+                      <p className="text-[9px] text-slate-300 font-medium truncate leading-tight">
                         {disc.subtitle}
                       </p>
                     </div>
@@ -2090,44 +2087,40 @@ export const SchedulePage: React.FC = () => {
             <div className="space-y-6">
               {groupedByActivity.map(({ category, schedules: catSchedules }) => (
                 <div key={category.id} className="space-y-3">
-                  {/* Cabecera de Categoría de Actividad con Banner Fotográfico Grande */}
-                  <div className="relative overflow-hidden rounded-3xl h-40 sm:h-52 text-white shadow-lg border border-slate-800 flex flex-col justify-end p-4 sm:p-6 group">
-                    {/* Foto Grande de Fondo a Sangre */}
+                  {/* Cabecera de Categoría de Actividad (Tamaño Equilibrado / Mitad) */}
+                  <div className="relative overflow-hidden rounded-2xl h-20 sm:h-24 text-white shadow-sm border border-slate-800 flex items-center justify-between px-3.5 sm:px-5 group">
+                    {/* Foto de Fondo a Sangre */}
                     <img
                       src={category.image}
                       alt={category.name}
-                      className="absolute inset-0 w-full h-full object-cover object-center filter brightness-75 contrast-105 group-hover:scale-105 transition-transform duration-700"
+                      className="absolute inset-0 w-full h-full object-cover object-center filter brightness-65 contrast-110"
                       loading="lazy"
                     />
 
                     {/* Overlay Deportivo */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/20" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent" />
 
-                    {/* Insignias Superiores */}
-                    <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between z-10">
-                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-950/80 backdrop-blur-xs text-white border border-white/20 shadow-sm flex items-center gap-1.5">
-                        <span className="text-base">{category.icon}</span>
-                        <span>{category.short}</span>
-                      </span>
-
+                    {/* Título e Icono a la izquierda */}
+                    <div className="relative z-10 min-w-0 pr-2">
                       <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-md">
-                          Aforo {category.defaultCapacity} plazas
-                        </span>
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-slate-900/90 text-slate-200 border border-slate-700">
-                          {catSchedules.length} {catSchedules.length === 1 ? 'clase' : 'clases'} hoy
-                        </span>
+                        <span className="text-lg">{category.icon}</span>
+                        <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-tight font-headline truncate">
+                          {category.name}
+                        </h3>
                       </div>
-                    </div>
-
-                    {/* Título y Descripción Inferior */}
-                    <div className="relative z-10">
-                      <h3 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight font-headline drop-shadow-md">
-                        {category.name}
-                      </h3>
-                      <p className="text-xs text-slate-200 font-medium max-w-xl mt-1 drop-shadow-xs line-clamp-1 sm:line-clamp-none">
+                      <p className="text-[11px] text-slate-300 font-medium truncate mt-0.5 max-w-md">
                         {category.description}
                       </p>
+                    </div>
+
+                    {/* Insignias de Aforo y Clases a la derecha */}
+                    <div className="relative z-10 flex items-center gap-1.5 shrink-0">
+                      <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-amber-400 text-slate-950 shadow-xs">
+                        Aforo {category.defaultCapacity} pl.
+                      </span>
+                      <span className="px-2 py-1 rounded-xl text-[10px] font-mono font-bold bg-slate-900/90 text-slate-200 border border-slate-700">
+                        {catSchedules.length} {catSchedules.length === 1 ? 'clase' : 'clases'}
+                      </span>
                     </div>
                   </div>
 
@@ -2164,19 +2157,15 @@ export const SchedulePage: React.FC = () => {
                           }`}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            {/* Imagen Grande de la Actividad + Horario y Duración */}
-                            <div className="flex items-center gap-3.5 sm:gap-4">
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shrink-0 border-2 border-slate-200/90 shadow-sm relative group bg-slate-900">
+                            {/* Imagen de la Actividad (Tamaño Equilibrado) + Horario y Duración */}
+                            <div className="flex items-center gap-3 sm:gap-3.5">
+                              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden shrink-0 border border-slate-200/90 shadow-2xs relative bg-slate-900 self-center">
                                 <img
                                   src={category.image}
                                   alt={schedule.program}
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                   loading="lazy"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-                                <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-xs text-[9px] font-black text-amber-400 uppercase tracking-wider font-mono">
-                                  {schedule.startTime}
-                                </span>
                               </div>
 
                               <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[70px] sm:min-w-[78px]">
@@ -2428,19 +2417,15 @@ export const SchedulePage: React.FC = () => {
                             }`}
                           >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                              {/* Imagen Grande de la Actividad + Horario y Duración */}
-                              <div className="flex items-center gap-3.5 sm:gap-4">
-                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shrink-0 border-2 border-slate-200/90 shadow-sm relative group bg-slate-900">
+                              {/* Imagen de la Actividad (Tamaño Equilibrado) + Horario y Duración */}
+                              <div className="flex items-center gap-3 sm:gap-3.5">
+                                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden shrink-0 border border-slate-200/90 shadow-2xs relative bg-slate-900 self-center">
                                   <img
                                     src={activityCat.image}
                                     alt={schedule.program}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                     loading="lazy"
                                   />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-                                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-xs text-[9px] font-black text-amber-400 uppercase tracking-wider font-mono">
-                                    {schedule.startTime}
-                                  </span>
                                 </div>
 
                                 <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[70px] sm:min-w-[78px]">
