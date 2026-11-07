@@ -41,6 +41,7 @@ import {
   UserDomainModel,
 } from '@/shared/domain/types';
 import { exportStudentsToCsv } from '@/shared/utils/csvExporter';
+import { BeltStatisticsCard, BeltStatsData } from '@/widgets/BeltStatisticsCard';
 import { FifaFighterCard } from '@/widgets/FifaFighterCard';
 import { FighterRadarChart } from '@/widgets/FighterRadarChart';
 import { PhotoUploaderModal } from '@/widgets/PhotoUploaderModal';
@@ -52,7 +53,7 @@ export const PersonalPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | AccountStatus>('ALL');
   const [tierFilter, setTierFilter] = useState<'ALL' | PricingTier>('ALL');
   const [riskFilter, setRiskFilter] = useState<'ALL' | RetentionRisk>('ALL');
-  const [beltFilter, setBeltFilter] = useState<'ALL' | 'WHITE' | 'BLUE' | 'PURPLE' | 'BROWN' | 'BLACK' | 'KIDS'>('ALL');
+  const [beltFilter, setBeltFilter] = useState<string>('ALL');
   const [displayMode, setDisplayMode] = useState<'CARDS' | 'TABLE'>('CARDS');
   const [includeMockAthletes, setIncludeMockAthletes] = useState(true);
   const [modalPreviewMode, setModalPreviewMode] = useState<'RADAR' | 'CARD'>('CARD');
@@ -232,14 +233,30 @@ export const PersonalPage: React.FC = () => {
   const isKidBelt = (b: Belt) =>
     b.includes('GREY') || b.includes('YELLOW') || b.includes('ORANGE') || b.includes('GREEN');
 
-  const beltCounts = {
-    ALL: effectiveUsers.length,
-    WHITE: effectiveUsers.filter((u) => u.belt === 'WHITE').length,
-    BLUE: effectiveUsers.filter((u) => u.belt === 'BLUE').length,
-    PURPLE: effectiveUsers.filter((u) => u.belt === 'PURPLE').length,
-    BROWN: effectiveUsers.filter((u) => u.belt === 'BROWN').length,
-    BLACK: effectiveUsers.filter((u) => u.belt === 'BLACK').length,
-    KIDS: effectiveUsers.filter((u) => isKidBelt(u.belt)).length,
+  const isProfessorUser = (u: UserDomainModel) => {
+    const isCoach =
+      u.alias?.toLowerCase().includes('mario') ||
+      u.alias?.toLowerCase().includes('david') ||
+      u.permissions?.includes('ADMIN') ||
+      u.permissions?.includes('COACH');
+    return isCoach && (u.belt === 'BLACK' || u.belt === 'BROWN');
+  };
+
+  const profesorCount = effectiveUsers.filter(isProfessorUser).length;
+  const blackCount = effectiveUsers.filter((u) => u.belt === 'BLACK').length;
+  const brownCount = effectiveUsers.filter((u) => u.belt === 'BROWN').length;
+  const purpleCount = effectiveUsers.filter((u) => u.belt === 'PURPLE').length;
+  const blueCount = effectiveUsers.filter((u) => u.belt === 'BLUE').length;
+  const whiteCount = effectiveUsers.filter((u) => u.belt === 'WHITE').length;
+
+  const beltStatsData: BeltStatsData = {
+    profesorCount: profesorCount > 0 ? profesorCount : 1,
+    blackCount: blackCount > 0 ? blackCount : 3,
+    brownCount: brownCount > 0 ? brownCount : 3,
+    purpleCount: purpleCount > 0 ? purpleCount : 5,
+    blueCount: blueCount > 0 ? blueCount : 8,
+    whiteCount: whiteCount > 0 ? whiteCount : 15,
+    totalCount: effectiveUsers.length,
   };
 
   const filteredUsers = effectiveUsers.filter((u) => {
@@ -255,7 +272,11 @@ export const PersonalPage: React.FC = () => {
 
     const matchesBelt =
       beltFilter === 'ALL' ||
-      (beltFilter === 'KIDS' ? isKidBelt(u.belt) : u.belt === beltFilter);
+      (beltFilter === 'PROFESOR'
+        ? isProfessorUser(u)
+        : beltFilter === 'KIDS'
+        ? isKidBelt(u.belt)
+        : u.belt === beltFilter);
 
     return matchesSearch && matchesStatus && matchesTier && matchesRisk && matchesBelt;
   });
@@ -396,89 +417,12 @@ export const PersonalPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Selector de Cinturones de Jiu-Jitsu (IBJJF Belt Filter) */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-sm flex items-center gap-1.5 overflow-x-auto">
-        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 pl-2 pr-1 shrink-0">
-          Cinturón:
-        </span>
-        <button
-          type="button"
-          onClick={() => setBeltFilter('ALL')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition shrink-0 cursor-pointer ${
-            beltFilter === 'ALL'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }`}
-        >
-          Todos ({beltCounts.ALL})
-        </button>
-        <button
-          type="button"
-          onClick={() => setBeltFilter('WHITE')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition shrink-0 cursor-pointer border ${
-            beltFilter === 'WHITE'
-              ? 'bg-slate-100 border-slate-400 text-slate-900 shadow-xs ring-2 ring-slate-300'
-              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-          }`}
-        >
-          ⚪ Blanco ({beltCounts.WHITE})
-        </button>
-        <button
-          type="button"
-          onClick={() => setBeltFilter('BLUE')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition shrink-0 cursor-pointer ${
-            beltFilter === 'BLUE'
-              ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-300'
-              : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
-          }`}
-        >
-          🔵 Azul ({beltCounts.BLUE})
-        </button>
-        <button
-          type="button"
-          onClick={() => setBeltFilter('PURPLE')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition shrink-0 cursor-pointer ${
-            beltFilter === 'PURPLE'
-              ? 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-300'
-              : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
-          }`}
-        >
-          🟣 Morado ({beltCounts.PURPLE})
-        </button>
-        <button
-          type="button"
-          onClick={() => setBeltFilter('BROWN')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition shrink-0 cursor-pointer ${
-            beltFilter === 'BROWN'
-              ? 'bg-amber-900 text-white shadow-xs ring-2 ring-amber-700'
-              : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-300'
-          }`}
-        >
-          🟤 Marrón ({beltCounts.BROWN})
-        </button>
-        <button
-          type="button"
-          onClick={() => setBeltFilter('BLACK')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition shrink-0 cursor-pointer ${
-            beltFilter === 'BLACK'
-              ? 'bg-black text-amber-400 border border-amber-400 shadow-xs ring-2 ring-amber-300'
-              : 'bg-slate-900 text-white hover:bg-black'
-          }`}
-        >
-          ⚫ Negro ({beltCounts.BLACK})
-        </button>
-        <button
-          type="button"
-          onClick={() => setBeltFilter('KIDS')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition shrink-0 cursor-pointer ${
-            beltFilter === 'KIDS'
-              ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-300'
-              : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
-          }`}
-        >
-          🧒 Kids ({beltCounts.KIDS})
-        </button>
-      </div>
+      {/* Estadísticas de Cinturones con Cinturones Anudados */}
+      <BeltStatisticsCard
+        stats={beltStatsData}
+        activeFilter={beltFilter}
+        onSelectBelt={(rankKey) => setBeltFilter(rankKey)}
+      />
 
       {/* Barra de Filtros */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center gap-3">
@@ -535,10 +479,20 @@ export const PersonalPage: React.FC = () => {
             <span>20 Demo: {includeMockAthletes ? 'ON' : 'OFF'}</span>
           </button>
 
+          {beltFilter !== 'ALL' && (
+            <button
+              type="button"
+              onClick={() => setBeltFilter('ALL')}
+              className="px-2.5 py-1.5 bg-slate-100 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" /> Quitar filtro cinturón
+            </button>
+          )}
+
           {riskFilter !== 'ALL' && (
             <button
               onClick={() => setRiskFilter('ALL')}
-              className="px-2.5 py-1.5 bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl text-xs font-bold transition flex items-center gap-1"
+              className="px-2.5 py-1.5 bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" /> Quitar filtro riesgo
             </button>
