@@ -10,6 +10,8 @@ import {
 import {
   AlertTriangle,
   Award,
+  Camera,
+  Download,
   HeartPulse,
   LayoutGrid,
   List,
@@ -38,8 +40,10 @@ import {
   RetentionRisk,
   UserDomainModel,
 } from '@/shared/domain/types';
+import { exportStudentsToCsv } from '@/shared/utils/csvExporter';
 import { FifaFighterCard } from '@/widgets/FifaFighterCard';
 import { FighterRadarChart } from '@/widgets/FighterRadarChart';
+import { PhotoUploaderModal } from '@/widgets/PhotoUploaderModal';
 
 export const PersonalPage: React.FC = () => {
   const [users, setUsers] = useState<UserDomainModel[]>([]);
@@ -51,6 +55,7 @@ export const PersonalPage: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<'CARDS' | 'TABLE'>('CARDS');
   const [includeMockAthletes, setIncludeMockAthletes] = useState(true);
   const [modalPreviewMode, setModalPreviewMode] = useState<'RADAR' | 'CARD'>('CARD');
+  const [uploaderOpen, setUploaderOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserDomainModel | null>(null);
   const [editingStats, setEditingStats] = useState<FighterStats | null>(null);
   const [editingBelt, setEditingBelt] = useState<Belt>('WHITE');
@@ -219,12 +224,23 @@ export const PersonalPage: React.FC = () => {
           </p>
         </div>
 
-        <Link
-          to="/admin/alta-alumno"
-          className="py-3 px-5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg flex items-center justify-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> Dar de Alta Alumno
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => exportStudentsToCsv(filteredUsers)}
+            className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200/80 shadow-2xs"
+          >
+            <Download className="w-4 h-4 text-slate-600" />
+            <span>Exportar CSV</span>
+          </button>
+
+          <Link
+            to="/admin/alta-alumno"
+            className="py-3 px-5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg flex items-center justify-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> Dar de Alta Alumno
+          </Link>
+        </div>
       </div>
 
       {/* ======================================================== */}
@@ -650,6 +666,15 @@ export const PersonalPage: React.FC = () => {
                 ) : (
                   <FighterRadarChart stats={editingStats} alias={selectedUser.alias} size={250} />
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => setUploaderOpen(true)}
+                  className="mt-3 px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <Camera className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Subir / Cambiar Foto de Carta</span>
+                </button>
               </div>
 
               {/* Selector de Cinturón y Grados */}
@@ -742,6 +767,29 @@ export const PersonalPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal Subida de Foto Autónoma para Carta FIFA */}
+      {uploaderOpen && selectedUser && (
+        <PhotoUploaderModal
+          currentPhotoUrl={selectedUser.photoUrl}
+          athleteAlias={selectedUser.alias}
+          onSave={async (photoDataUrl) => {
+            setSelectedUser((prev) => (prev ? { ...prev, photoUrl: photoDataUrl } : prev));
+            setUsers((prev) =>
+              prev.map((u) => (u.uid === selectedUser.uid ? { ...u, photoUrl: photoDataUrl } : u))
+            );
+            try {
+              await updateDoc(doc(db, 'users', selectedUser.uid), {
+                photoUrl: photoDataUrl,
+                updatedAt: serverTimestamp(),
+              });
+            } catch {
+              // En modo muestra o si falla la red, el estado local ya está actualizado
+            }
+          }}
+          onClose={() => setUploaderOpen(false)}
+        />
       )}
     </div>
   );

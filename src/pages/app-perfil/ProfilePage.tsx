@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import {
   AlertTriangle,
+  Camera,
   CheckCircle2,
   FileCheck2,
   HeartPulse,
@@ -14,6 +15,7 @@ import {
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { FreezeDomainModel } from '@/shared/domain/types';
+import { PhotoUploaderModal } from '@/widgets/PhotoUploaderModal';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 import { WaiverSignatureModal } from '@/widgets/WaiverSignatureModal';
 
@@ -34,6 +36,7 @@ export const ProfilePage: React.FC = () => {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [showWaiverModal, setShowWaiverModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
 
   useEffect(() => {
     if (userData) {
@@ -121,6 +124,28 @@ export const ProfilePage: React.FC = () => {
     setMessage({ text: 'Waiver legal de riesgos firmado y registrado correctamente.', type: 'success' });
   };
 
+  const handleSavePhoto = async (photoDataUrl: string) => {
+    if (!user) return;
+    const userRef = doc(db, 'users', user.uid);
+    await updateDoc(userRef, {
+      photoUrl: photoDataUrl,
+      updatedAt: serverTimestamp(),
+    });
+
+    try {
+      const kioskRef = doc(db, 'kiosk_members', user.uid);
+      await updateDoc(kioskRef, { photoUrl: photoDataUrl });
+    } catch {
+      // Ignorar si el documento de kiosk no existe aún
+    }
+
+    await refreshProfile();
+    setMessage({
+      text: '¡Foto de atleta actualizada con éxito! Tu tarjeta FUT de luchador ya está lista.',
+      type: 'success',
+    });
+  };
+
   if (!userData) return null;
 
   const inputCls =
@@ -157,6 +182,48 @@ export const ProfilePage: React.FC = () => {
           <span>{message.text}</span>
         </div>
       )}
+
+      {/* Tarjeta de Foto de Atleta / FIFA FUT Card */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            {userData.photoUrl ? (
+              <img
+                src={userData.photoUrl}
+                alt={userData.alias}
+                className="w-16 h-16 rounded-2xl object-cover border-2 border-brand-accent shadow-md"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-slate-800 to-slate-900 border-2 border-brand-accent/50 flex items-center justify-center text-amber-400 font-extrabold text-xl shadow-md">
+                {userData.alias?.slice(0, 2).toUpperCase() || '247'}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowPhotoModal(true)}
+              className="absolute -bottom-1 -right-1 p-1 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-full shadow-md transition"
+              title="Cambiar foto de atleta"
+            >
+              <Camera className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Foto de Atleta (FUT Card)</h3>
+            <p className="text-xs text-slate-500">
+              Personaliza tu imagen para la tarjeta de luchador y el check-in del dojo.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowPhotoModal(true)}
+          className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-sm shrink-0"
+        >
+          <Camera className="w-4 h-4 text-brand-accent" />
+          <span>{userData.photoUrl ? 'Cambiar Foto' : 'Subir Mi Foto'}</span>
+        </button>
+      </div>
 
       {/* Formulario Principal de Datos Editables */}
       <form onSubmit={handleSaveProfile} className="space-y-6">
@@ -393,6 +460,15 @@ export const ProfilePage: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {showPhotoModal && (
+        <PhotoUploaderModal
+          currentPhotoUrl={userData.photoUrl}
+          athleteAlias={userData.alias}
+          onSave={handleSavePhoto}
+          onClose={() => setShowPhotoModal(false)}
+        />
       )}
     </div>
   );

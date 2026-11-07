@@ -33,6 +33,8 @@ import {
   Zap,
 } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
+import { triggerPromotionConfetti } from '@/shared/utils/confetti';
+import { generateGraduationDiplomaPdf } from '@/shared/utils/diplomaGenerator';
 import { getAttendanceWeight } from '@/shared/domain/attendance';
 import { calculateAthleteXP, getNextPromotion } from '@/shared/domain/graduation';
 import { DEFAULT_OFFICIAL_SCHEDULES, getMadridTimeComponents } from '@/shared/domain/schedule';
@@ -442,6 +444,8 @@ export const AttendanceAdminPage: React.FC = () => {
           stripes: promotion.nextStripes,
         },
       }));
+
+      triggerPromotionConfetti();
 
       setMessage({
         text: `¡Graduación completada! ${student.alias} ahora tiene ${beltLabelEs(promotion.nextBelt)} (${promotion.nextStripes} grados).`,
@@ -1211,7 +1215,20 @@ export const AttendanceAdminPage: React.FC = () => {
                           )}
                         </td>
 
-                        <td className="py-4 px-5 text-right">
+                        <td className="py-4 px-5 text-right space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              generateGraduationDiplomaPdf(st as any);
+                              triggerPromotionConfetti();
+                            }}
+                            title="Descargar Diploma Oficial en PDF"
+                            className="px-2.5 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 transition inline-flex items-center gap-1 text-xs font-bold shadow-2xs cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-amber-600" />
+                            <span className="hidden sm:inline">Diploma PDF</span>
+                          </button>
+
                           <button
                             type="button"
                             disabled={actionLoading === `promote_${st.uid}`}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   collection,
@@ -39,6 +39,8 @@ import {
   SessionType,
 } from '@/shared/domain/types';
 import { Belt, beltLabelEs } from '@/widgets/Belt';
+import { triggerKioskCheckinConfetti } from '@/shared/utils/confetti';
+import { QrCameraScanner } from '@/widgets/QrCameraScanner';
 
 export interface KioskMember {
   uid: string;
@@ -85,7 +87,6 @@ function playCheckinChime() {
 
 export const KioskCheckinPage: React.FC = () => {
   const navigate = useNavigate();
-  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const [activeSchedule, setActiveSchedule] = useState<ScheduleDomainModel | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -270,48 +271,6 @@ export const KioskCheckinPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // 4. Manejo de escáner de cámara para leer QR del móvil
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    let detectorTimer: NodeJS.Timeout | null = null;
-
-    if (scannerActive) {
-      navigator.mediaDevices
-        ?.getUserMedia({ video: { facingMode: 'environment' } })
-        .then((s) => {
-          stream = s;
-          if (videoRef.current) {
-            videoRef.current.srcObject = s;
-            videoRef.current.play();
-          }
-
-          if ('BarcodeDetector' in window) {
-            const barcodeDetector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
-            detectorTimer = setInterval(async () => {
-              if (videoRef.current && videoRef.current.readyState === 4) {
-                try {
-                  const codes = await barcodeDetector.detect(videoRef.current);
-                  if (codes.length > 0) {
-                    handleQrDetected(codes[0].rawValue);
-                  }
-                } catch {
-                  // Fallback silencioso
-                }
-              }
-            }, 300);
-          }
-        })
-        .catch((err) => {
-          console.error('No se pudo acceder a la cámara:', err);
-        });
-    }
-
-    return () => {
-      if (stream) stream.getTracks().forEach((t) => t.stop());
-      if (detectorTimer) clearInterval(detectorTimer);
-    };
-  }, [scannerActive]);
-
   const handleSelectStudent = (member: KioskMember) => {
     if (member.accountStatus === 'PAUSED' || member.accountStatus === 'SUSPENDED') {
       setAccountAlert({ alias: member.alias, status: member.accountStatus });
@@ -440,8 +399,9 @@ export const KioskCheckinPage: React.FC = () => {
       const promotion = getNextPromotion(student.belt as any, student.stripes, student.beltSystem as any);
       const progress = calculateGraduationProgress((classNumber % 25) || 25, 25);
 
-      // Reproducir sonido sutil de confirmación
+      // Reproducir sonido sutil de confirmación y lluvia de celebración
       playCheckinChime();
+      triggerKioskCheckinConfetti();
 
       // Notificación visual de bienvenida y gamificación
       setLastCheckedInStudent({
@@ -720,26 +680,19 @@ export const KioskCheckinPage: React.FC = () => {
                 Opción 1: Escanear Pase QR del Móvil
               </h2>
 
-              {scannerActive ? (
-                <div className="relative rounded-2xl overflow-hidden max-w-xs mx-auto border-2 border-brand-accent shadow-xl bg-black">
-                  <video ref={videoRef} className="w-full h-56 object-cover" />
-                  <div className="absolute inset-0 border-2 border-brand-accent/50 rounded-2xl animate-pulse pointer-events-none" />
-                  <button
-                    onClick={() => setScannerActive(false)}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-black/80"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setScannerActive(true)}
-                  className="py-3 px-6 bg-brand-accent hover:bg-brand-accent/90 text-white font-bold text-xs uppercase tracking-wider rounded-2xl transition shadow-md shadow-brand-accent/20 inline-flex items-center gap-2 cursor-pointer"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Activar Cámara de la Tablet</span>
-                </button>
+              {scannerActive && (
+                <QrCameraScanner
+                  onScanSuccess={handleQrDetected}
+                  onClose={() => setScannerActive(false)}
+                />
               )}
+              <button
+                onClick={() => setScannerActive(true)}
+                className="py-3 px-6 bg-brand-accent hover:bg-brand-accent/90 text-white font-bold text-xs uppercase tracking-wider rounded-2xl transition shadow-md shadow-brand-accent/20 inline-flex items-center gap-2 cursor-pointer"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Escanear Pase QR con Cámara</span>
+              </button>
             </div>
 
             {/* Opción 2: Búsqueda rápida por nombre (kiosk_members) */}
