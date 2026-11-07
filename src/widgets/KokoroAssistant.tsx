@@ -212,10 +212,10 @@ export const KokoroAssistant: React.FC = () => {
         {!isOpen && (
           <div
             onClick={() => setIsOpen(true)}
-            className="hidden sm:flex items-center gap-2 bg-slate-900/90 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-full border border-amber-500/40 shadow-xl cursor-pointer hover:scale-105 transition animate-in fade-in slide-in-from-bottom-2"
+            className="hidden sm:flex items-center gap-2 bg-[#09090B] text-white text-xs font-bold px-3.5 py-1.5 rounded-full border border-zinc-800 shadow-xl cursor-pointer hover:scale-105 transition animate-in fade-in slide-in-from-bottom-2"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Hablar con <strong className="text-amber-400 font-black">KOKORO</strong></span>
+            <Sparkles className="w-3.5 h-3.5 text-brand-accent" />
+            <span>Hablar con <strong className="text-white font-black">KOKORO</strong></span>
           </div>
         )}
 
@@ -223,20 +223,20 @@ export const KokoroAssistant: React.FC = () => {
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Abrir asistente inteligente KOKORO"
-          className="relative w-14 h-14 rounded-full bg-gradient-to-tr from-[#1A1D2E] via-[#0D0F18] to-[#2D303E] text-white border-2 border-amber-400/80 shadow-[0_10px_25px_rgba(217,119,6,0.35)] flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-110 active:scale-95 group"
+          className="relative w-14 h-14 rounded-full bg-[#09090B] text-white border-2 border-zinc-800 shadow-xl flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-110 active:scale-95 group"
         >
           {/* Kanji Kokoro (心) / Sello Marcial de Honor */}
           <div className="flex flex-col items-center justify-center leading-none">
-            <span className="font-serif text-xl font-black text-amber-400 select-none group-hover:rotate-6 transition-transform">
+            <span className="font-serif text-xl font-black text-brand-accent select-none group-hover:rotate-6 transition-transform">
               心
             </span>
-            <span className="text-[7px] font-black uppercase tracking-widest text-white/80 -mt-0.5">
+            <span className="text-[7px] font-black uppercase tracking-widest text-white/90 -mt-0.5">
               KOKORO
             </span>
           </div>
 
           {/* Indicador de Estado: En Línea */}
-          <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-900 ring-2 ring-emerald-400/40 animate-pulse" />
+          <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#09090B] ring-2 ring-emerald-400/40 animate-pulse" />
         </button>
       </div>
 
@@ -244,11 +244,11 @@ export const KokoroAssistant: React.FC = () => {
       {/* 2. VENTANA DE CHAT DE KOKORO (MODAL / POPOVER FLOTANTE)  */}
       {/* ======================================================== */}
       {isOpen && (
-        <div className="fixed bottom-22 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-[400px] h-[560px] max-h-[85vh] rounded-3xl bg-white border border-slate-200/90 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed bottom-22 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-[400px] h-[560px] max-h-[85vh] rounded-3xl bg-white border border-[#E4E4E7] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
           {/* Cabecera del Asistente */}
-          <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-[#1A1D2E] text-white p-4 flex items-center justify-between border-b border-amber-500/20">
+          <div className="bg-[#09090B] text-white p-4 flex items-center justify-between border-b border-zinc-800">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 font-serif text-2xl font-black shadow-inner">
+              <div className="w-10 h-10 rounded-2xl bg-brand-accent/15 border border-brand-accent/40 flex items-center justify-center text-brand-accent font-serif text-2xl font-black shadow-inner">
                 心
               </div>
               <div>
@@ -256,13 +256,13 @@ export const KokoroAssistant: React.FC = () => {
                   <h3 className="font-headline text-lg uppercase tracking-wider font-black text-white leading-none">
                     KOKORO
                   </h3>
-                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold uppercase tracking-wider bg-zinc-800 text-zinc-200 border border-zinc-700">
                     {kokoroRole === 'admin' ? 'Copiloto Admin' : 'Sensei Tatami'}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 mt-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                  <span className="text-[10px] text-slate-300 font-medium">
+                  <span className="text-[10px] text-zinc-400 font-medium">
                     {apiKey ? '⚡ Gemini LLM Activo' : 'Tatami 247 · En Línea'}
                   </span>
                 </div>
@@ -276,7 +276,7 @@ export const KokoroAssistant: React.FC = () => {
                   onClick={() => setShowSettings(!showSettings)}
                   title="Configuración de IA Gemini"
                   className={`p-1.5 rounded-full transition cursor-pointer ${
-                    apiKey ? 'text-amber-400 bg-amber-500/20' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                    apiKey ? 'text-brand-accent bg-brand-accent/20' : 'text-zinc-400 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   <Settings className="w-4 h-4" />
@@ -285,7 +285,7 @@ export const KokoroAssistant: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
                 aria-label="Cerrar chat con Kokoro"
               >
                 <X className="w-5 h-5" />
@@ -295,16 +295,16 @@ export const KokoroAssistant: React.FC = () => {
 
           {/* Panel de Configuración Gemini LLM (Exclusivo para Administrador) */}
           {kokoroRole === 'admin' && showSettings && (
-            <div className="bg-slate-900 text-white p-3.5 border-b border-amber-500/30 text-xs space-y-2 animate-in slide-in-from-top-2">
+            <div className="bg-zinc-900 text-white p-3.5 border-b border-zinc-800 text-xs space-y-2 animate-in slide-in-from-top-2">
               <div className="flex justify-between items-center">
-                <span className="font-bold text-amber-400 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" /> Motor LLM Generativo (Google Gemini)
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-brand-accent" /> Motor LLM Generativo (Google Gemini)
                 </span>
-                <span className="text-[10px] text-slate-400">
-                  {apiKey ? '🟢 Live API' : '🟡 Motor Base'}
+                <span className="text-[10px] text-zinc-400">
+                  {apiKey ? '🟢 Live API' : '⚪ Motor Base'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-300 leading-tight">
+              <p className="text-[11px] text-zinc-300 leading-tight">
                 Para que KOKORO razone con total libertad sobre cualquier tema, introduce tu clave gratuita de Google AI Studio:
               </p>
               <div className="flex gap-2">
@@ -318,7 +318,7 @@ export const KokoroAssistant: React.FC = () => {
                     else localStorage.removeItem('kokoro_gemini_key');
                   }}
                   placeholder="Pega tu clave AIzaSy..."
-                  className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                  className="flex-1 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-brand-accent"
                 />
                 {apiKey && (
                   <button
@@ -333,12 +333,12 @@ export const KokoroAssistant: React.FC = () => {
                   </button>
                 )}
               </div>
-              <div className="text-[10px] text-slate-400">
+              <div className="text-[10px] text-zinc-400">
                 <a
                   href="https://aistudio.google.com/app/apikey"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-amber-400 underline hover:text-amber-300 font-semibold"
+                  className="text-white underline hover:text-zinc-300 font-semibold"
                 >
                   Obtener clave gratis en Google AI Studio →
                 </a>
@@ -347,7 +347,7 @@ export const KokoroAssistant: React.FC = () => {
           )}
 
           {/* Historial de Mensajes */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/60">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#F4F4F5]">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -355,8 +355,8 @@ export const KokoroAssistant: React.FC = () => {
               >
                 {/* Insignia / Badge de contexto */}
                 {msg.badge && (
-                  <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md mb-1 inline-flex items-center gap-1 border border-amber-300/60">
-                    <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                  <span className="text-[9px] font-black uppercase tracking-wider text-[#9F1239] bg-[#FFE4E6] px-2 py-0.5 rounded-md mb-1 inline-flex items-center gap-1 border border-rose-200">
+                    <Sparkles className="w-2.5 h-2.5 text-brand-accent" />
                     {msg.badge}
                   </span>
                 )}
@@ -365,37 +365,37 @@ export const KokoroAssistant: React.FC = () => {
                 <div
                   className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed shadow-xs ${
                     msg.sender === 'user'
-                      ? 'bg-slate-900 text-white rounded-tr-xs'
-                      : 'bg-white text-slate-800 border border-slate-200/80 rounded-tl-xs'
+                      ? 'bg-[#09090B] text-white rounded-tr-xs'
+                      : 'bg-white text-[#09090B] border border-[#E4E4E7] rounded-tl-xs'
                   }`}
                 >
                   <p className="whitespace-pre-line">{msg.text}</p>
 
                   {/* Acción Interactiva (Generative UI) */}
                   {msg.action && msg.action.type !== 'NONE' && (
-                    <div className="mt-3 pt-2.5 border-t border-slate-100">
+                    <div className="mt-3 pt-2.5 border-t border-zinc-100">
                       <button
                         type="button"
                         onClick={() => handleActionClick(msg.action)}
-                        className="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-black text-xs uppercase tracking-wider border border-amber-300 transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                        className="w-full py-2 px-3 rounded-xl bg-[#09090B] hover:bg-zinc-800 text-white font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                       >
                         <span>{msg.action.label || 'Ver detalle'}</span>
-                        <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
+                        <ArrowRight className="w-3.5 h-3.5 text-brand-accent" />
                       </button>
                     </div>
                   )}
                 </div>
 
-                <span className="text-[9px] text-slate-400 mt-1 px-1">{msg.timestamp}</span>
+                <span className="text-[9px] text-zinc-400 mt-1 px-1">{msg.timestamp}</span>
               </div>
             ))}
 
             {/* Indicador de escritura animado */}
             {isTyping && (
-              <div className="flex items-center gap-1.5 p-3 rounded-2xl bg-white border border-slate-200/80 w-24">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" />
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce [animation-delay:0.2s]" />
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce [animation-delay:0.4s]" />
+              <div className="flex items-center gap-1.5 p-3 rounded-2xl bg-white border border-[#E4E4E7] w-24">
+                <span className="w-2 h-2 rounded-full bg-[#09090B] animate-bounce" />
+                <span className="w-2 h-2 rounded-full bg-[#09090B] animate-bounce [animation-delay:0.2s]" />
+                <span className="w-2 h-2 rounded-full bg-[#09090B] animate-bounce [animation-delay:0.4s]" />
               </div>
             )}
 
@@ -403,13 +403,13 @@ export const KokoroAssistant: React.FC = () => {
           </div>
 
           {/* Chips de Preguntas Sugeridas */}
-          <div className="px-3 pt-2 pb-1 bg-white border-t border-slate-100 overflow-x-auto flex gap-1.5 scrollbar-none">
+          <div className="px-3 pt-2 pb-1 bg-white border-t border-[#E4E4E7] overflow-x-auto flex gap-1.5 scrollbar-none">
             {quickSuggestions.map((item, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleSendMessage(item.query)}
-                className="shrink-0 text-[10px] font-bold text-slate-700 bg-slate-100 hover:bg-amber-50 hover:text-amber-900 hover:border-amber-300 border border-slate-200/60 rounded-full px-2.5 py-1 transition cursor-pointer"
+                className="shrink-0 text-[10px] font-bold text-[#09090B] bg-zinc-100 hover:bg-[#FFE4E6] hover:text-[#9F1239] hover:border-rose-200 border border-[#E4E4E7] rounded-full px-2.5 py-1 transition cursor-pointer"
               >
                 {item.label}
               </button>
@@ -422,7 +422,7 @@ export const KokoroAssistant: React.FC = () => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="p-3 bg-white border-t border-slate-100 flex items-center gap-2"
+            className="p-3 bg-white border-t border-[#E4E4E7] flex items-center gap-2"
           >
             <input
               type="text"
@@ -433,13 +433,13 @@ export const KokoroAssistant: React.FC = () => {
                   ? 'Pregunta a Kokoro sobre mejoras, caja, ausencias...'
                   : 'Pregunta sobre tu carta FIFA, cinturón, clases...'
               }
-              className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800"
+              className="flex-1 px-3.5 py-2.5 bg-[#F4F4F5] border border-[#E4E4E7] rounded-xl text-xs text-[#09090B] placeholder-zinc-400 focus:outline-none focus:border-[#09090B]"
             />
 
             <button
               type="submit"
               disabled={!inputText.trim() || isTyping}
-              className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-amber-400 transition cursor-pointer shrink-0"
+              className="p-2.5 rounded-xl bg-[#09090B] hover:bg-zinc-800 disabled:opacity-40 text-white transition cursor-pointer shrink-0"
               aria-label="Enviar mensaje a Kokoro"
             >
               <Send className="w-4 h-4" />

@@ -235,18 +235,18 @@ export const HomePage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            <h1 className="text-xl sm:text-3xl font-black text-[#09090B] tracking-tight">
               {getGreeting()}, {userData.alias}
             </h1>
             <span className="text-lg sm:text-xl">🥋</span>
           </div>
-          <p className="hidden sm:block text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+          <p className="hidden sm:block text-xs sm:text-sm text-zinc-500 font-medium mt-0.5">
             247Studio · Academia de Brazilian Jiu-Jitsu en Pinto (Madrid)
           </p>
         </div>
 
         {/* Selector de sub-pestañas móvil sin scroll vertical */}
-        <div className="md:hidden grid grid-cols-4 gap-1 bg-slate-200/70 p-1 rounded-xl">
+        <div className="md:hidden grid grid-cols-4 gap-1 bg-zinc-200/80 p-1 rounded-xl">
           <button
             type="button"
             onClick={() => {
@@ -254,7 +254,7 @@ export const HomePage: React.FC = () => {
               setActiveTab('academia');
             }}
             className={`py-2 px-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
-              mobileSection === 'hoy' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+              mobileSection === 'hoy' ? 'bg-[#09090B] text-white shadow-xs' : 'text-zinc-600'
             }`}
           >
             🥋 Hoy
@@ -266,7 +266,7 @@ export const HomePage: React.FC = () => {
               setActiveTab('academia');
             }}
             className={`py-2 px-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
-              mobileSection === 'socio' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+              mobileSection === 'socio' ? 'bg-[#09090B] text-white shadow-xs' : 'text-zinc-600'
             }`}
           >
             💳 Socio
@@ -278,7 +278,7 @@ export const HomePage: React.FC = () => {
               setActiveTab('entrenamiento');
             }}
             className={`py-2 px-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
-              mobileSection === 'cinturon' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+              mobileSection === 'cinturon' ? 'bg-[#09090B] text-white shadow-xs' : 'text-zinc-600'
             }`}
           >
             🏆 Cinturón
@@ -290,7 +290,7 @@ export const HomePage: React.FC = () => {
               setActiveTab('entrenamiento');
             }}
             className={`py-2 px-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
-              mobileSection === 'fut' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+              mobileSection === 'fut' ? 'bg-[#09090B] text-white shadow-xs' : 'text-zinc-600'
             }`}
           >
             ⚡ Carta FUT
@@ -299,7 +299,7 @@ export const HomePage: React.FC = () => {
 
         {/* Radix / Shadcn Tabs Selector (Escritorio) */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="hidden md:block w-auto">
-          <TabsList className="bg-slate-100 border border-slate-200/80">
+          <TabsList className="bg-zinc-200/70 border border-[#E4E4E7]">
             <TabsTrigger value="academia">Mi Academia</TabsTrigger>
             <TabsTrigger value="entrenamiento">Ficha & Progresión</TabsTrigger>
           </TabsList>
@@ -316,19 +316,17 @@ export const HomePage: React.FC = () => {
             <Card
               className={`${
                 mobileSection === 'hoy' ? 'flex' : 'hidden md:flex'
-              } lg:col-span-7 flex-col justify-between overflow-hidden relative group bg-gradient-to-br from-white via-white to-slate-50/60 shadow-card hover:shadow-card-hover transition-all border-slate-200/80`}
+              } lg:col-span-7 flex-col justify-between overflow-hidden relative group bg-white shadow-card hover:shadow-card-hover transition-all border-[#E4E4E7]`}
             >
-              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-red-500/10 via-amber-500/5 to-transparent pointer-events-none rounded-full blur-2xl" />
-
-              <CardHeader className="border-b border-slate-100 pb-3 sm:pb-4">
+              <CardHeader className="border-b border-[#E4E4E7] pb-3 sm:pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-brand-accent" />
-                    <CardTitle className="text-xs sm:text-sm font-bold">Próximas Sesiones de Tatami</CardTitle>
+                    <CardTitle className="text-xs sm:text-sm font-bold text-[#09090B]">Próximas Sesiones de Tatami</CardTitle>
                   </div>
                   <Link
                     to="/app/horario"
-                    className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition flex items-center gap-0.5"
+                    className="text-xs font-semibold text-zinc-500 hover:text-[#09090B] transition flex items-center gap-0.5"
                   >
                     <span>Ver Horario</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -348,24 +346,24 @@ export const HomePage: React.FC = () => {
                         <span>En curso ahora</span>
                       </Badge>
                     ) : (
-                      <Badge variant="secondary" className="font-semibold text-[10px]">
+                      <span className="inline-flex items-center rounded-full bg-[#FFE4E6] text-[#9F1239] px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider">
                         Próxima clase hoy
-                      </Badge>
+                      </span>
                     )}
-                    <span className="text-xs text-slate-500 font-medium">
+                    <span className="text-xs text-zinc-500 font-medium">
                       {displayClass?.room || 'Tatami Principal'}
                     </span>
                   </div>
 
-                  <div className="font-headline text-2xl sm:text-4xl text-slate-900 tracking-tight">
+                  <div className="font-headline text-2xl sm:text-4xl text-[#09090B] tracking-tight">
                     {displayClass ? `${displayClass.startTime} – ${displayClass.endTime}` : '19:30 – 21:00'}
                   </div>
 
-                  <div className="mt-2 sm:mt-3 flex items-center gap-2 text-xs font-bold text-slate-800">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                  <div className="mt-2 sm:mt-3 flex items-center gap-2 text-xs font-bold text-[#09090B]">
+                    <span className="w-2.5 h-2.5 rounded-full bg-brand-accent shrink-0" />
                     <span>{displayClass?.program || 'BJJ Gi & Grappling'}</span>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-slate-500 font-normal">
+                    <span className="text-zinc-300">•</span>
+                    <span className="text-zinc-500 font-normal">
                       Prof. {displayClass?.professor || 'Mario Rodríguez'}
                     </span>
                   </div>
@@ -398,8 +396,8 @@ export const HomePage: React.FC = () => {
                 </div>
 
                 {/* Sesiones adicionales estrictamente filtradas por el día de hoy */}
-                <div className="border-t border-slate-100 pt-2.5 sm:pt-3 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                <div className="border-t border-[#E4E4E7] pt-2.5 sm:pt-3 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">
                     Otras sesiones programadas hoy:
                   </span>
                   {todayOtherSchedules.length > 0 ? (
@@ -407,19 +405,19 @@ export const HomePage: React.FC = () => {
                       <Link
                         key={s.id}
                         to="/app/horario"
-                        className="flex items-center justify-between text-xs py-1 px-2 rounded-xl hover:bg-slate-50 transition border border-transparent hover:border-slate-200/60"
+                        className="flex items-center justify-between text-xs py-1 px-2 rounded-xl hover:bg-zinc-50 transition border border-transparent hover:border-[#E4E4E7]"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-slate-300" />
-                          <span className="font-bold text-slate-900">{s.program}</span>
+                          <span className="w-2 h-2 rounded-full bg-zinc-300" />
+                          <span className="font-bold text-[#09090B]">{s.program}</span>
                         </div>
-                        <span className="font-mono text-slate-500 text-[11px]">
+                        <span className="font-mono text-zinc-500 text-[11px]">
                           {s.startTime} - {s.endTime}
                         </span>
                       </Link>
                     ))
                   ) : (
-                    <p className="text-xs text-slate-400 italic py-1 px-2">
+                    <p className="text-xs text-zinc-400 italic py-1 px-2">
                       No hay más clases programadas para hoy.
                     </p>
                   )}
@@ -431,13 +429,13 @@ export const HomePage: React.FC = () => {
             <Card
               className={`${
                 mobileSection === 'socio' ? 'flex' : 'hidden md:flex'
-              } lg:col-span-5 flex-col justify-between shadow-card hover:shadow-card-hover transition-all border-slate-200/80 bg-gradient-to-br from-white via-white to-slate-50/60`}
+              } lg:col-span-5 flex-col justify-between shadow-card hover:shadow-card-hover transition-all border-[#E4E4E7] bg-white`}
             >
-              <CardHeader className="border-b border-slate-100 pb-3 sm:pb-4">
+              <CardHeader className="border-b border-[#E4E4E7] pb-3 sm:pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-slate-700" />
-                    <CardTitle className="text-xs sm:text-sm font-bold">Panel del Socio</CardTitle>
+                    <Bell className="w-4 h-4 text-[#09090B]" />
+                    <CardTitle className="text-xs sm:text-sm font-bold text-[#09090B]">Panel del Socio</CardTitle>
                   </div>
                   <Badge variant="outline" className="font-mono text-[10px]">
                     {userData.pricingTier || 'STD'}
@@ -449,13 +447,13 @@ export const HomePage: React.FC = () => {
                 {/* Estado de cuota */}
                 <Link
                   to="/app/programas"
-                  className="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-zinc-50 border border-[#E4E4E7] transition-all shadow-subtle group"
                 >
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block group-hover:text-brand-accent transition">
+                    <span className="text-xs font-bold text-[#09090B] block group-hover:text-brand-accent transition">
                       Cuota Mensual
                     </span>
-                    <span className="text-[11px] text-slate-500 font-normal">
+                    <span className="text-[11px] text-zinc-500 font-normal">
                       Membresía oficial 247Studio
                     </span>
                   </div>
@@ -463,41 +461,41 @@ export const HomePage: React.FC = () => {
                     <Badge variant={derivedStatus === 'OK' ? 'success' : 'warning'}>
                       {derivedStatus === 'OK' ? 'Al día' : 'Pendiente'}
                     </Badge>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition" />
+                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-[#09090B] transition" />
                   </div>
                 </Link>
 
                 {/* Asistencias acumuladas del mes en curso */}
                 <Link
                   to="/app/historial"
-                  className="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-zinc-50 border border-[#E4E4E7] transition-all shadow-subtle group"
                 >
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block group-hover:text-brand-accent transition">
+                    <span className="text-xs font-bold text-[#09090B] block group-hover:text-brand-accent transition">
                       Horas de Tatami Este Mes
                     </span>
-                    <span className="text-[11px] text-slate-500 font-normal">
+                    <span className="text-[11px] text-zinc-500 font-normal">
                       Entrenamientos y sparrings
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-bold text-sm text-slate-900 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
+                    <span className="font-mono font-bold text-sm text-[#09090B] bg-[#F4F4F5] px-2 py-0.5 rounded-lg border border-[#E4E4E7]">
                       {monthAttendedCount} {monthAttendedCount === 1 ? 'clase' : 'clases'}
                     </span>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition" />
+                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-[#09090B] transition" />
                   </div>
                 </Link>
 
                 {/* Avisos */}
                 <Link
                   to="/app/avisos"
-                  className="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-zinc-50 border border-[#E4E4E7] transition-all shadow-subtle group"
                 >
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block group-hover:text-brand-accent transition">
+                    <span className="text-xs font-bold text-[#09090B] block group-hover:text-brand-accent transition">
                       Tablón de Anuncios
                     </span>
-                    <span className="text-[11px] text-slate-500 font-normal">
+                    <span className="text-[11px] text-zinc-500 font-normal">
                       Comunicaciones de Mario & David
                     </span>
                   </div>
@@ -505,7 +503,7 @@ export const HomePage: React.FC = () => {
                     <Badge variant="default" className="text-[10px]">
                       3 nuevos
                     </Badge>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition" />
+                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-[#09090B] transition" />
                   </div>
                 </Link>
               </CardContent>
@@ -516,46 +514,46 @@ export const HomePage: React.FC = () => {
           {/* 3. FILA BENTO GRID: MÉTRICAS Y COMUNIDAD (Escritorio)    */}
           {/* ======================================================== */}
           <div className="hidden md:grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <Card className="hover:border-slate-300 transition-all shadow-subtle hover:shadow-card bg-gradient-to-br from-white to-slate-50/50">
+            <Card className="hover:border-zinc-300 transition-all shadow-subtle hover:shadow-card bg-white border-[#E4E4E7]">
               <CardHeader className="pb-2">
-                <CardDescription className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                <CardDescription className="text-zinc-400 font-bold uppercase tracking-wider text-[10px]">
                   Horario Semanal Activo
                 </CardDescription>
-                <CardTitle className="text-2xl font-mono">14 Clases</CardTitle>
+                <CardTitle className="text-2xl font-mono text-[#09090B]">14 Clases</CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Sesiones de Gi, No-Gi & Kids
+                <span className="text-[11px] text-zinc-600 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Sesiones de Gi, No-Gi & Kids
                 </span>
               </CardContent>
             </Card>
 
-            <Card className="hover:border-slate-300 transition-all shadow-subtle hover:shadow-card bg-gradient-to-br from-white to-slate-50/50">
+            <Card className="hover:border-zinc-300 transition-all shadow-subtle hover:shadow-card bg-white border-[#E4E4E7]">
               <CardHeader className="pb-2">
-                <CardDescription className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                <CardDescription className="text-zinc-400 font-bold uppercase tracking-wider text-[10px]">
                   Comunidad de Tatami
                 </CardDescription>
-                <CardTitle className="text-2xl font-mono">48 Atletas</CardTitle>
+                <CardTitle className="text-2xl font-mono text-[#09090B]">48 Atletas</CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="text-[11px] text-slate-600 font-medium flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5 text-blue-600" /> Compañeros activos en Pinto
+                <span className="text-[11px] text-zinc-600 font-medium flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5 text-[#09090B]" /> Compañeros activos en Pinto
                 </span>
               </CardContent>
             </Card>
 
-            <Card className="hover:border-slate-300 transition-all shadow-subtle hover:shadow-card bg-gradient-to-br from-white to-slate-50/50">
+            <Card className="hover:border-zinc-300 transition-all shadow-subtle hover:shadow-card bg-white border-[#E4E4E7]">
               <CardHeader className="pb-2">
-                <CardDescription className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                <CardDescription className="text-zinc-400 font-bold uppercase tracking-wider text-[10px]">
                   Racha y Progresión
                 </CardDescription>
-                <CardTitle className="text-2xl font-mono flex items-center gap-1.5 text-amber-600">
-                  <Flame className="w-6 h-6 fill-amber-500 text-amber-600" />
+                <CardTitle className="text-2xl font-mono flex items-center gap-1.5 text-brand-accent">
+                  <Flame className="w-6 h-6 fill-brand-accent text-brand-accent" />
                   <span>+25 XP / Clase</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <span className="text-[11px] text-amber-700 font-bold">
+                <span className="text-[11px] text-zinc-600 font-bold">
                   Suma horas para tu próximo grado
                 </span>
               </CardContent>

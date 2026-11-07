@@ -54,32 +54,32 @@ export const BeltRoadmapPage: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(100dvh-120px)] md:h-[calc(100vh-140px)] max-w-3xl mx-auto justify-between animate-in fade-in duration-200">
       {/* Cabecera */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-200 shrink-0">
+      <div className="flex items-center justify-between pb-2 border-b border-[#E4E4E7] shrink-0">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 px-3 py-1.5 rounded-xl cursor-pointer"
+          className="flex items-center gap-1.5 text-xs font-bold text-zinc-600 hover:text-[#09090B] bg-white border border-[#E4E4E7] px-3 py-1.5 rounded-xl cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Volver</span>
         </button>
         <div className="flex items-center gap-2">
-          <Award className="w-4 h-4 text-purple-500" />
-          <h1 className="text-sm sm:text-base font-black uppercase tracking-tight text-slate-900">
+          <Award className="w-4 h-4 text-brand-accent" />
+          <h1 className="text-sm sm:text-base font-black uppercase tracking-tight text-[#09090B]">
             Hoja de Ruta de Cinturón
           </h1>
         </div>
-        <div className="text-[11px] font-mono text-slate-400 font-bold uppercase">{currentBelt}</div>
+        <div className="text-[11px] font-mono text-zinc-400 font-bold uppercase">{currentBelt}</div>
       </div>
 
       {/* Tarjeta de Graduación Actual del Alumno */}
-      <div className="p-3.5 sm:p-4 bg-gradient-to-r from-slate-900 to-slate-950 text-white rounded-2xl flex items-center justify-between shadow-sm shrink-0 my-2">
+      <div className="p-3.5 sm:p-4 bg-[#09090B] text-white rounded-2xl flex items-center justify-between shadow-sm shrink-0 my-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300 font-black">
+          <div className="w-10 h-10 rounded-xl bg-brand-accent/20 border border-brand-accent/40 flex items-center justify-center text-brand-accent font-black">
             {stripes}G
           </div>
           <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-purple-300 block">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block">
               Tu Grado Actual
             </span>
             <h3 className="text-sm sm:text-base font-black tracking-tight">
@@ -89,10 +89,10 @@ export const BeltRoadmapPage: React.FC = () => {
         </div>
 
         <div className="text-right">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block">
             Asistencias
           </span>
-          <span className="text-base sm:text-lg font-black font-mono text-emerald-400">
+          <span className="text-base sm:text-lg font-black font-mono text-white">
             {totalClassesAttended} clases
           </span>
         </div>
@@ -109,33 +109,33 @@ export const BeltRoadmapPage: React.FC = () => {
               key={step.belt}
               className={`p-3.5 rounded-2xl border transition ${
                 isCurrent
-                  ? 'bg-purple-50/70 border-purple-300 ring-2 ring-purple-400/30 shadow-sm'
+                  ? 'bg-white border-[#09090B] ring-2 ring-[#09090B]/10 shadow-sm'
                   : isPassed
-                  ? 'bg-emerald-50/40 border-emerald-200 opacity-90'
-                  : 'bg-white border-slate-200/80 opacity-60'
+                  ? 'bg-zinc-100/70 border-[#E4E4E7] opacity-90'
+                  : 'bg-white border-[#E4E4E7] opacity-60'
               }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   {isPassed ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#09090B] shrink-0" />
                   ) : isCurrent ? (
-                    <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
+                    <Sparkles className="w-4 h-4 text-brand-accent shrink-0" />
                   ) : (
-                    <div className="w-4 h-4 rounded-full border-2 border-slate-300 shrink-0" />
+                    <div className="w-4 h-4 rounded-full border-2 border-zinc-300 shrink-0" />
                   )}
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">{step.label}</h4>
+                  <h4 className="text-xs sm:text-sm font-bold text-[#09090B]">{step.label}</h4>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-500">
                   <Clock className="w-3 h-3" />
                   <span>{step.timeframe}</span>
                 </div>
               </div>
 
-              <p className="text-[11px] text-slate-600 mt-1 pl-6 leading-relaxed">{step.desc}</p>
-              <div className="mt-1.5 pl-6 text-[10px] font-mono text-slate-400">
-                Volumen estimado: <strong className="text-slate-700">{step.minClasses}</strong>
+              <p className="text-[11px] text-zinc-600 mt-1 pl-6 leading-relaxed">{step.desc}</p>
+              <div className="mt-1.5 pl-6 text-[10px] font-mono text-zinc-400">
+                Volumen estimado: <strong className="text-[#09090B]">{step.minClasses}</strong>
               </div>
             </div>
           );
@@ -143,7 +143,7 @@ export const BeltRoadmapPage: React.FC = () => {
       </div>
 
       {/* Pie informativo */}
-      <div className="p-2.5 bg-slate-100 rounded-xl text-[11px] text-slate-500 text-center shrink-0">
+      <div className="p-2.5 bg-white border border-[#E4E4E7] rounded-xl text-[11px] text-zinc-500 text-center shrink-0">
         La graduación en 247Studio se otorga por asimilación técnica, respeto en el tatami y constancia.
       </div>
     </div>

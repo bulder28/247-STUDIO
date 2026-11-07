@@ -143,17 +143,17 @@ export const AppLayout: React.FC = () => {
   ];
 
   return (
-    <div className="h-[100dvh] md:min-h-screen md:h-auto overflow-hidden md:overflow-visible bg-[#F8F9FA] flex flex-col md:flex-row text-slate-900 font-sans antialiased">
+    <div className="h-[100dvh] md:min-h-screen md:h-auto overflow-hidden md:overflow-visible bg-[#F4F4F5] flex flex-col md:flex-row text-[#09090B] font-sans antialiased">
       {/* ======================================================== */}
-      {/* 1. BARRA LATERAL (SIDEBAR) ESTILO MATGOAT - ULTRA LIMPIA  */}
+      {/* 1. BARRA LATERAL (SIDEBAR) SWISS MONOCHROME + VERMILION   */}
       {/* ======================================================== */}
-      <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200/80 flex-col justify-between shrink-0 h-screen sticky top-0 shadow-subtle z-20">
+      <aside className="hidden md:flex md:w-64 bg-white border-r border-[#E4E4E7] flex-col justify-between shrink-0 h-screen sticky top-0 shadow-subtle z-20">
         <div className="flex-1 flex flex-col overflow-y-auto px-4 py-5">
-          {/* Logo MatGoat Style con identidad 247Studio */}
-          <div className="flex items-center gap-2.5 px-2 pb-4 mb-2 border-b border-slate-100">
+          {/* Logo con identidad Swiss Monochrome 247Studio */}
+          <div className="flex items-center gap-2.5 px-2 pb-4 mb-2 border-b border-[#E4E4E7]">
             <img src="/logo.webp" alt="247Studio" className="w-8 h-8 object-contain" />
             <div className="flex items-center gap-1.5">
-              <span className="font-headline text-2xl tracking-tighter text-slate-900 uppercase leading-none">
+              <span className="font-headline text-2xl tracking-tighter text-[#09090B] uppercase leading-none">
                 247STUDIO
               </span>
               <span className="w-2 h-2 rounded-full bg-brand-accent inline-block -mt-2" />
@@ -165,7 +165,7 @@ export const AppLayout: React.FC = () => {
             {navSections.map((sec, sIdx) => (
               <div key={sIdx}>
                 {sec.title && (
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-3 pb-1.5 pt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 px-3 pb-1.5 pt-1">
                     {sec.title}
                   </p>
                 )}
@@ -179,16 +179,16 @@ export const AppLayout: React.FC = () => {
                         to={item.to}
                         className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
                           isActive
-                            ? 'bg-slate-900 text-white font-bold shadow-subtle'
-                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                            ? 'bg-[#09090B] text-white font-bold shadow-subtle'
+                            : 'text-zinc-600 hover:bg-zinc-100 hover:text-[#09090B]'
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                          <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-zinc-400'}`} />
                           <span>{item.label}</span>
                         </div>
                         {item.badge && (
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isActive ? 'bg-white/20 text-white' : item.badgeColor || 'bg-slate-100 text-slate-700'}`}>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isActive ? 'bg-white/20 text-white' : item.badgeColor || 'bg-zinc-100 text-zinc-700'}`}>
                             {item.badge}
                           </span>
                         )}
@@ -201,21 +201,21 @@ export const AppLayout: React.FC = () => {
           </nav>
         </div>
 
-        {/* Footer del Sidebar MatGoat Style */}
-        <div className="p-4 border-t border-slate-100 space-y-1.5 bg-slate-50/50">
+        {/* Footer del Sidebar */}
+        <div className="p-4 border-t border-[#E4E4E7] space-y-1.5 bg-zinc-50/50">
           <a
             href="https://wa.me/34677528185?text=Hola%2C%20necesito%20ayuda%20con%20la%20app%20de%20247Studio."
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-900 transition rounded-lg hover:bg-slate-100"
+            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-500 hover:text-[#09090B] transition rounded-lg hover:bg-zinc-100"
           >
-            <QuestionIcon className="w-4 h-4 text-amber-500" />
+            <QuestionIcon className="w-4 h-4 text-zinc-400" />
             <span>¿Necesitas ayuda?</span>
           </a>
 
           <button
             onClick={logout}
-            className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 hover:text-brand-accent transition rounded-lg hover:bg-brand-accent/5 cursor-pointer"
+            className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-500 hover:text-brand-accent transition rounded-lg hover:bg-brand-accent/5 cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Cerrar sesión</span>
@@ -224,24 +224,24 @@ export const AppLayout: React.FC = () => {
       </aside>
 
       {/* ======================================================== */}
-      {/* 2. ÁREA PRINCIPAL CON HEADER SUPERIOR MATGOAT            */}
+      {/* 2. ÁREA PRINCIPAL CON HEADER SUPERIOR SWISS MONOCHROME   */}
       {/* ======================================================== */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        {/* Barra superior estilo Linear / Apple con migas limpias y acciones */}
-        <header className="shrink-0 sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200/70 px-3.5 sm:px-8 py-2.5 sm:py-3.5 flex items-center justify-between shadow-subtle">
+        {/* Barra superior estilo Suizo con migas limpias y acciones */}
+        <header className="shrink-0 sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-[#E4E4E7] px-3.5 sm:px-8 py-2.5 sm:py-3.5 flex items-center justify-between shadow-subtle">
           <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={() => setMobileDrawerOpen(true)}
               aria-label="Abrir menú de páginas"
-              className="md:hidden p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer"
+              className="md:hidden p-2 rounded-xl border border-[#E4E4E7] text-[#09090B] hover:bg-zinc-100 cursor-pointer"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-700">
-              <span className="text-slate-400 font-mono text-xs hidden sm:inline">247Studio</span>
-              <span className="text-slate-300 hidden sm:inline">/</span>
-              <span className="font-headline tracking-wide uppercase text-slate-900 font-black text-sm sm:text-base truncate max-w-[160px] sm:max-w-none">
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-700">
+              <span className="text-zinc-400 font-mono text-xs hidden sm:inline">247Studio</span>
+              <span className="text-zinc-300 hidden sm:inline">/</span>
+              <span className="font-headline tracking-wide uppercase text-[#09090B] font-black text-sm sm:text-base truncate max-w-[160px] sm:max-w-none">
                 {getPageTitle()}
               </span>
             </div>
@@ -271,7 +271,7 @@ export const AppLayout: React.FC = () => {
             {/* Notificaciones con pastilla numérica */}
             <Link
               to="/app/avisos"
-              className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
+              className="relative p-2 rounded-xl text-zinc-500 hover:bg-zinc-100 hover:text-[#09090B] transition"
               title="Avisos"
             >
               <Bell className="w-4 h-4" />
@@ -285,22 +285,22 @@ export const AppLayout: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex items-center gap-2.5 pl-2 py-1 pr-1.5 rounded-2xl hover:bg-slate-100/80 transition cursor-pointer border border-transparent hover:border-slate-200 outline-none"
+                  className="flex items-center gap-2.5 pl-2 py-1 pr-1.5 rounded-2xl hover:bg-zinc-100 transition cursor-pointer border border-transparent hover:border-[#E4E4E7] outline-none"
                 >
                   <div className="relative">
-                    <Avatar className="w-8 h-8 border border-slate-200 ring-2 ring-white shadow-xs">
+                    <Avatar className="w-8 h-8 border border-[#E4E4E7] ring-2 ring-white shadow-xs">
                       {userData?.photoUrl && <AvatarImage src={userData.photoUrl} alt={userData?.alias || ''} />}
-                      <AvatarFallback className="bg-slate-900 text-amber-400 font-black text-[11px]">
+                      <AvatarFallback className="bg-[#09090B] text-white font-black text-[11px]">
                         {userData?.alias?.slice(0, 2).toUpperCase() || '24'}
                       </AvatarFallback>
                     </Avatar>
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
                   </div>
                   <div className="hidden lg:block text-left">
-                    <span className="text-xs font-bold text-slate-900 block leading-tight">
+                    <span className="text-xs font-bold text-[#09090B] block leading-tight">
                       {userData?.alias || 'Atleta'}
                     </span>
-                    <span className="text-[10px] text-slate-400 block leading-none capitalize">
+                    <span className="text-[10px] text-zinc-400 block leading-none capitalize">
                       {role === 'admin' ? 'Profesor / Admin' : 'Atleta'}
                     </span>
                   </div>
@@ -309,8 +309,8 @@ export const AppLayout: React.FC = () => {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
-                    <p className="text-xs font-black text-slate-900">{userData?.alias || 'Atleta'}</p>
-                    <p className="text-[11px] font-normal text-slate-500 truncate">{userData?.contactEmail || ''}</p>
+                    <p className="text-xs font-black text-[#09090B]">{userData?.alias || 'Atleta'}</p>
+                    <p className="text-[11px] font-normal text-zinc-500 truncate">{userData?.contactEmail || ''}</p>
                     <div className="pt-1 flex items-center gap-1.5">
                       <Badge variant="outline" className="text-[9px] font-mono uppercase tracking-wider py-0">
                         {userData?.belt || 'WHITE'} · {userData?.stripes || 0}G
@@ -324,7 +324,7 @@ export const AppLayout: React.FC = () => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/app/perfil" className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-slate-500" />
+                    <User className="w-4 h-4 text-zinc-500" />
                     <span>Mi Perfil & Stats</span>
                   </Link>
                 </DropdownMenuItem>
@@ -334,13 +334,13 @@ export const AppLayout: React.FC = () => {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/app/cronometro" className="flex items-center gap-2">
-                    <Swords className="w-4 h-4 text-rose-500" />
+                    <Swords className="w-4 h-4 text-zinc-500" />
                     <span>Cronómetro Sparring</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/app/peso" className="flex items-center gap-2">
-                    <Scale className="w-4 h-4 text-amber-500" />
+                    <Scale className="w-4 h-4 text-zinc-500" />
                     <span>Calculadora de Peso IBJJF</span>
                   </Link>
                 </DropdownMenuItem>
@@ -348,7 +348,7 @@ export const AppLayout: React.FC = () => {
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link to="/admin/personal" className="flex items-center gap-2 font-bold text-slate-900">
+                      <Link to="/admin/personal" className="flex items-center gap-2 font-bold text-[#09090B]">
                         <Shield className="w-4 h-4 text-brand-accent" />
                         <span>Panel Admin / Alumnos</span>
                       </Link>
@@ -356,7 +356,7 @@ export const AppLayout: React.FC = () => {
                   </>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="flex items-center gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50">
+                <DropdownMenuItem onClick={logout} className="flex items-center gap-2 text-brand-accent focus:text-brand-accent-dark focus:bg-rose-50">
                   <LogOut className="w-4 h-4" />
                   <span>Cerrar sesión</span>
                 </DropdownMenuItem>
@@ -380,13 +380,13 @@ export const AppLayout: React.FC = () => {
         {/* ======================================================== */}
         <nav
           aria-label="Navegación principal móvil"
-          className="md:hidden shrink-0 bg-white border-t border-slate-200/90 px-2 py-1.5 grid grid-cols-5 gap-1 z-30 shadow-lg"
+          className="md:hidden shrink-0 bg-white border-t border-[#E4E4E7] px-2 py-1.5 grid grid-cols-5 gap-1 z-30 shadow-lg"
         >
           <NavLink
             to="/app/home"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
-                isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+                isActive ? 'text-brand-accent bg-rose-50/80' : 'text-zinc-500 hover:text-[#09090B]'
               }`
             }
           >
@@ -398,7 +398,7 @@ export const AppLayout: React.FC = () => {
             to="/app/horario"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
-                isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+                isActive ? 'text-brand-accent bg-rose-50/80' : 'text-zinc-500 hover:text-[#09090B]'
               }`
             }
           >
@@ -409,9 +409,9 @@ export const AppLayout: React.FC = () => {
           <button
             type="button"
             onClick={() => setQrModalOpen(true)}
-            className="flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-black text-white bg-slate-900 shadow-xs cursor-pointer"
+            className="flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-black text-white bg-[#09090B] shadow-xs cursor-pointer"
           >
-            <QrCode className="w-4 h-4 mb-0.5 text-amber-400" />
+            <QrCode className="w-4 h-4 mb-0.5 text-white" />
             <span>Pase QR</span>
           </button>
 
@@ -419,7 +419,7 @@ export const AppLayout: React.FC = () => {
             to="/app/historial"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
-                isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+                isActive ? 'text-brand-accent bg-rose-50/80' : 'text-zinc-500 hover:text-[#09090B]'
               }`
             }
           >
@@ -431,7 +431,7 @@ export const AppLayout: React.FC = () => {
             type="button"
             onClick={() => setMobileDrawerOpen(true)}
             className={`flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition cursor-pointer ${
-              mobileDrawerOpen ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+              mobileDrawerOpen ? 'text-brand-accent bg-rose-50/80' : 'text-zinc-500 hover:text-[#09090B]'
             }`}
           >
             <LayoutGrid className="w-4 h-4 mb-0.5" />
@@ -444,16 +444,16 @@ export const AppLayout: React.FC = () => {
       {/* 4. LAUNCHER MÓVIL A PANTALLA COMPLETA: CADA PESTAÑA ABRE SU PÁGINA */}
       {/* ======================================================== */}
       {mobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden bg-[#F8F9FA] flex flex-col justify-between p-4 h-[100dvh] overflow-hidden animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 md:hidden bg-[#F4F4F5] flex flex-col justify-between p-4 h-[100dvh] overflow-hidden animate-in fade-in duration-150">
           {/* Cabecera compacta */}
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 shrink-0">
+          <div className="flex items-center justify-between pb-2.5 border-b border-[#E4E4E7] shrink-0">
             <div className="flex items-center gap-2">
               <img src="/logo.webp" alt="247Studio" className="w-7 h-7 object-contain" />
               <div>
-                <span className="font-headline text-lg uppercase tracking-tighter text-slate-900 block leading-none">
+                <span className="font-headline text-lg uppercase tracking-tighter text-[#09090B] block leading-none">
                   247Studio
                 </span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 block">
                   Navegación Móvil Directa
                 </span>
               </div>
@@ -462,7 +462,7 @@ export const AppLayout: React.FC = () => {
               type="button"
               onClick={() => setMobileDrawerOpen(false)}
               aria-label="Cerrar menú móvil"
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 cursor-pointer"
+              className="p-2 rounded-xl bg-white border border-[#E4E4E7] text-[#09090B] hover:bg-zinc-100 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -473,7 +473,7 @@ export const AppLayout: React.FC = () => {
             {navSections.map((sec, sIdx) => (
               <div key={sIdx}>
                 {sec.title && (
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1 pb-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1 pb-1">
                     {sec.title}
                   </p>
                 )}
@@ -488,16 +488,16 @@ export const AppLayout: React.FC = () => {
                         onClick={() => setMobileDrawerOpen(false)}
                         className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold border transition ${
                           isActive
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                            : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-300'
+                            ? 'bg-[#09090B] text-white border-[#09090B] shadow-xs'
+                            : 'bg-white text-[#09090B] border-[#E4E4E7] hover:border-zinc-300'
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate">
-                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-brand-accent'}`} />
+                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
                           <span className="truncate">{item.label}</span>
                         </div>
                         {item.badge && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full font-mono bg-slate-100 text-slate-800 shrink-0">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full font-mono bg-zinc-100 text-[#09090B] shrink-0">
                             {item.badge}
                           </span>
                         )}
@@ -510,23 +510,23 @@ export const AppLayout: React.FC = () => {
           </div>
 
           {/* Pie compacto del Launcher Móvil */}
-          <div className="pt-2.5 border-t border-slate-200/80 grid grid-cols-2 gap-2 shrink-0">
+          <div className="pt-2.5 border-t border-[#E4E4E7] grid grid-cols-2 gap-2 shrink-0">
             <button
               type="button"
               onClick={() => {
                 setMobileDrawerOpen(false);
                 setQrModalOpen(true);
               }}
-              className="py-2.5 text-xs font-bold text-white bg-slate-900 flex items-center justify-center gap-1.5 rounded-xl transition cursor-pointer"
+              className="py-2.5 text-xs font-bold text-white bg-[#09090B] flex items-center justify-center gap-1.5 rounded-xl transition cursor-pointer"
             >
-              <QrCode className="w-4 h-4 text-amber-400" />
+              <QrCode className="w-4 h-4 text-white" />
               <span>Mi Pase QR</span>
             </button>
 
             <button
               type="button"
               onClick={logout}
-              className="py-2.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 flex items-center justify-center gap-1.5 rounded-xl cursor-pointer"
+              className="py-2.5 text-xs font-bold text-brand-accent bg-rose-50 border border-rose-200 flex items-center justify-center gap-1.5 rounded-xl cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span>Salir</span>

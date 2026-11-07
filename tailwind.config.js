@@ -4,29 +4,29 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Paleta oficial 247Studio extraída de www.247studiobjj.com
+        // Paleta #5: Swiss Monochrome + Vermilion (Diseño Clínico Suizo 247Studio)
         brand: {
-          background: '#DDD6B8', // Lienzo Tatami / Arena cálida oficial
-          sand: '#DDD6B8',
-          'sand-light': '#F4F0E1',
-          text: '#1A1D2E',       // Tinta azul oscuro oficial
-          accent: '#E11D2E',     // Rojo de rango BJJ oficial
-          'accent-dark': '#B91C1C',
+          background: '#F4F4F5', // Niebla Suiza (Zinc 100)
+          sand: '#F4F4F5',
+          'sand-light': '#FFFFFF', // Blanco Clínico
+          text: '#09090B',       // Negro Tinta (Zinc 950)
+          accent: '#E11D48',     // Bermellón Suizo (Rose 600)
+          'accent-dark': '#BE123C', // Bermellón Oscuro (Rose 700)
         },
         studio: {
-          navy: '#1A1D2E',
-          'navy-light': '#252B44',
-          'navy-deep': '#111320',
-          red: '#E11D2E',
-          'red-dark': '#B91C1C',
-          cream: '#DDD6B8',
-          'cream-light': '#F5F2E6',
+          navy: '#09090B',
+          'navy-light': '#18181B',
+          'navy-deep': '#09090B',
+          red: '#E11D48',
+          'red-dark': '#BE123C',
+          cream: '#F4F4F5',
+          'cream-light': '#FAFAFA',
           white: '#FFFFFF',
           status: {
             ok: '#10B981',
             pending: '#F59E0B',
             grace: '#3B82F6',
-            nok: '#E11D2E',
+            nok: '#E11D48',
           },
         },
       },

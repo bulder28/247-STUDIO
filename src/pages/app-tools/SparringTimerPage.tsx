@@ -111,35 +111,35 @@ export const SparringTimerPage: React.FC = () => {
   const getPhaseColor = () => {
     switch (phase) {
       case 'FIGHT':
-        return 'bg-emerald-600 text-white';
+        return 'bg-[#09090B] text-white';
       case 'REST':
-        return 'bg-amber-500 text-slate-950';
+        return 'bg-zinc-200 text-[#09090B]';
       case 'FINISHED':
-        return 'bg-rose-700 text-white';
+        return 'bg-brand-accent text-white';
       default:
-        return 'bg-slate-900 text-white';
+        return 'bg-[#09090B] text-white';
     }
   };
 
   return (
     <div className="flex flex-col h-[calc(100dvh-120px)] md:h-[calc(100vh-140px)] max-w-4xl mx-auto justify-between animate-in fade-in duration-200">
       {/* Barra de cabecera */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-200 shrink-0">
+      <div className="flex items-center justify-between pb-2 border-b border-[#E4E4E7] shrink-0">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200/80 px-3 py-1.5 rounded-xl cursor-pointer"
+          className="flex items-center gap-1.5 text-xs font-bold text-zinc-600 hover:text-[#09090B] bg-white border border-[#E4E4E7] px-3 py-1.5 rounded-xl cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Volver</span>
         </button>
         <div className="flex items-center gap-2">
           <Swords className="w-4 h-4 text-brand-accent" />
-          <h1 className="text-sm sm:text-base font-black uppercase tracking-tight text-slate-900">
+          <h1 className="text-sm sm:text-base font-black uppercase tracking-tight text-[#09090B]">
             Cronómetro de Sparring
           </h1>
         </div>
-        <div className="text-[11px] font-mono text-slate-400">247Studio</div>
+        <div className="text-[11px] font-mono text-zinc-400">247Studio</div>
       </div>
 
       {/* Selector de Presets de Sparring */}
@@ -164,8 +164,8 @@ export const SparringTimerPage: React.FC = () => {
             }}
             className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold border transition ${
               roundDuration === p.round && !isRunning
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                ? 'bg-[#09090B] text-white border-[#09090B]'
+                : 'bg-white text-zinc-600 border-[#E4E4E7] hover:border-zinc-300'
             } disabled:opacity-50`}
           >
             {p.label}
@@ -178,7 +178,7 @@ export const SparringTimerPage: React.FC = () => {
         className={`flex-1 min-h-0 my-2 sm:my-3 rounded-3xl ${getPhaseColor()} p-4 flex flex-col items-center justify-center shadow-lg transition-colors duration-300 relative overflow-hidden`}
       >
         <div className="text-center space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/25 text-white/90 text-xs font-bold uppercase tracking-widest backdrop-blur-xs">
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/20 text-current text-xs font-bold uppercase tracking-widest backdrop-blur-xs">
             {phase === 'FIGHT' && `🥋 Asalto ${currentRound} de ${totalRounds}`}
             {phase === 'REST' && '⏳ Tiempo de Descanso'}
             {phase === 'FINISHED' && '🏁 Entrenamiento Finalizado'}
@@ -201,7 +201,7 @@ export const SparringTimerPage: React.FC = () => {
         <button
           type="button"
           onClick={resetTimer}
-          className="flex items-center justify-center gap-2 py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-2xl text-xs sm:text-sm font-bold transition cursor-pointer"
+          className="flex items-center justify-center gap-2 py-3 sm:py-3.5 bg-white border border-[#E4E4E7] text-[#09090B] hover:bg-zinc-100 rounded-2xl text-xs sm:text-sm font-bold transition cursor-pointer"
         >
           <RotateCcw className="w-4 h-4" />
           <span>Reiniciar</span>
@@ -212,8 +212,8 @@ export const SparringTimerPage: React.FC = () => {
           onClick={toggleRunning}
           className={`flex items-center justify-center gap-2 py-3 sm:py-3.5 rounded-2xl text-xs sm:text-sm font-black transition cursor-pointer ${
             isRunning
-              ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-md'
-              : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'
+              ? 'bg-[#09090B] hover:bg-zinc-800 text-white shadow-md'
+              : 'bg-brand-accent hover:bg-brand-accent-dark text-white shadow-md'
           }`}
         >
           {isRunning ? (
@@ -223,7 +223,7 @@ export const SparringTimerPage: React.FC = () => {
             </>
           ) : (
             <>
-              <Play className="w-4 h-4 text-emerald-400" />
+              <Play className="w-4 h-4 text-white" />
               <span>{phase === 'FINISHED' ? 'Repetir' : 'Iniciar'}</span>
             </>
           )}
@@ -233,7 +233,7 @@ export const SparringTimerPage: React.FC = () => {
           type="button"
           onClick={skipPhase}
           disabled={phase === 'FINISHED'}
-          className="flex items-center justify-center gap-2 py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-2xl text-xs sm:text-sm font-bold transition disabled:opacity-40 cursor-pointer"
+          className="flex items-center justify-center gap-2 py-3 sm:py-3.5 bg-white border border-[#E4E4E7] text-[#09090B] hover:bg-zinc-100 rounded-2xl text-xs sm:text-sm font-bold transition disabled:opacity-40 cursor-pointer"
         >
           <SkipForward className="w-4 h-4" />
           <span>Pasar</span>
