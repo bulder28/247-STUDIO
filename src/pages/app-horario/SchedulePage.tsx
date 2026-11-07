@@ -1341,14 +1341,14 @@ export const SchedulePage: React.FC = () => {
               const bannerDesc = currentFilter?.subtitle || currentCat?.description || 'Clases dirigidas en tatami 247 STUDIO';
 
               return (
-                <div className="relative overflow-hidden rounded-xl h-20 text-white shadow-2xs border border-slate-800 flex items-center justify-between px-4 animate-in fade-in duration-200">
+                <div className="relative overflow-hidden rounded-2xl h-24 sm:h-28 text-white shadow-xs border border-slate-700/80 flex items-center justify-between px-4 sm:px-5 animate-in fade-in duration-200">
                   <img
                     src={bannerImg}
                     alt={bannerTitle}
-                    className="absolute inset-0 w-full h-full object-cover object-center filter brightness-65 contrast-105"
+                    className="absolute inset-0 w-full h-full object-cover object-center filter brightness-95 contrast-105"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/45 to-transparent/10" />
                   <div className="relative z-10 min-w-0 pr-3">
                     <span className="text-[9px] font-black uppercase tracking-wider text-amber-400 block">
                       Disciplina Seleccionada
@@ -2111,18 +2111,18 @@ export const SchedulePage: React.FC = () => {
             <div className="space-y-6">
               {groupedByActivity.map(({ category, schedules: catSchedules }) => (
                 <div key={category.id} className="space-y-3">
-                  {/* Cabecera de Categoría de Actividad (Tamaño Equilibrado / Mitad) */}
-                  <div className="relative overflow-hidden rounded-2xl h-20 sm:h-24 text-white shadow-sm border border-slate-800 flex items-center justify-between px-3.5 sm:px-5 group">
-                    {/* Foto de Fondo a Sangre */}
+                  {/* Cabecera de Categoría de Actividad (Tamaño Ampliado y Brillante) */}
+                  <div className="relative overflow-hidden rounded-2xl h-24 sm:h-28 text-white shadow-sm border border-slate-700/80 flex items-center justify-between px-3.5 sm:px-5 group">
+                    {/* Foto de Fondo a Sangre con mayor brillo */}
                     <img
                       src={category.image}
                       alt={category.name}
-                      className="absolute inset-0 w-full h-full object-cover object-center filter brightness-65 contrast-110"
+                      className="absolute inset-0 w-full h-full object-cover object-center filter brightness-95 contrast-105"
                       loading="lazy"
                     />
 
-                    {/* Overlay Deportivo */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent" />
+                    {/* Overlay Deportivo Suave */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/40 to-transparent/10" />
 
                     {/* Título e Icono a la izquierda */}
                     <div className="relative z-10 min-w-0 pr-2">
@@ -2181,13 +2181,13 @@ export const SchedulePage: React.FC = () => {
                           }`}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            {/* Imagen de la Actividad (Tamaño Equilibrado) + Horario y Duración */}
+                            {/* Imagen de la Actividad (Un pelín más grande y luminosa) + Horario y Duración */}
                             <div className="flex items-center gap-3 sm:gap-3.5">
-                              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden shrink-0 border border-slate-200/90 shadow-2xs relative bg-slate-900 self-center">
+                              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shrink-0 border border-slate-200/90 shadow-2xs relative bg-slate-100 self-center">
                                 <img
                                   src={category.image}
                                   alt={schedule.program}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  className="w-full h-full object-cover filter brightness-105 contrast-105 group-hover:scale-105 transition-transform duration-300"
                                   loading="lazy"
                                 />
                               </div>
@@ -2441,13 +2441,13 @@ export const SchedulePage: React.FC = () => {
                             }`}
                           >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                              {/* Imagen de la Actividad (Tamaño Equilibrado) + Horario y Duración */}
+                              {/* Imagen de la Actividad (Un pelín más grande y luminosa) + Horario y Duración */}
                               <div className="flex items-center gap-3 sm:gap-3.5">
-                                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden shrink-0 border border-slate-200/90 shadow-2xs relative bg-slate-900 self-center">
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shrink-0 border border-slate-200/90 shadow-2xs relative bg-slate-100 self-center">
                                   <img
                                     src={activityCat.image}
                                     alt={schedule.program}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    className="w-full h-full object-cover filter brightness-105 contrast-105 group-hover:scale-105 transition-transform duration-300"
                                     loading="lazy"
                                   />
                                 </div>
@@ -2673,11 +2673,11 @@ export const SchedulePage: React.FC = () => {
               <>
                 <DialogHeader>
                   <div className="flex items-start gap-3">
-                    <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 border border-slate-200 shadow-xs bg-slate-100">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shrink-0 border border-slate-200/90 shadow-xs bg-slate-100">
                       <img
                         src={getActivityCategory(schedule.program).image}
                         alt={schedule.program}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover filter brightness-105 contrast-105"
                       />
                     </div>
                     <div className="min-w-0 flex-1">
