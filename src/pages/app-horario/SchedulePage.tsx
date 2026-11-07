@@ -1358,18 +1358,28 @@ export const SchedulePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Barra de Filtros de Actividades / Disciplinas (Estilo exacto de la captura: Funnel + Pastillas) */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-2.5 sm:p-3 shadow-2xs space-y-3">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-none px-0.5">
-              {/* Icono de Embudo / Filtro a la izquierda como en la captura */}
-              <div
-                className="shrink-0 flex items-center justify-center pl-1 pr-1.5 text-slate-400"
-                title="Filtrar por disciplina"
-              >
-                <Filter className="w-4 h-4 text-slate-400 stroke-[2.2]" />
+          {/* Selector de Disciplinas: Pastillas Rápidas + Recuadros Visuales (Tamaño Equilibrado / Correcto) */}
+          <div className="bg-white border border-slate-200/80 rounded-3xl p-3 sm:p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-slate-500" />
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900 font-headline">
+                  Filtrar por Disciplina
+                </span>
               </div>
+              {selectedDiscipline !== 'TODAS' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDiscipline('TODAS')}
+                  className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition cursor-pointer"
+                >
+                  ✕ Ver todas
+                </button>
+              )}
+            </div>
 
-              {/* Pastillas de Disciplina */}
+            {/* Pastillas de Selección Rápida estilo Madrid Móvil */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none px-0.5">
               {DISCIPLINE_FILTERS.map((disc) => {
                 const isSelected = selectedDiscipline === disc.id;
                 return (
@@ -1380,8 +1390,8 @@ export const SchedulePage: React.FC = () => {
                     aria-pressed={isSelected}
                     className={`shrink-0 rounded-full font-headline uppercase tracking-wider transition-all duration-150 cursor-pointer text-xs whitespace-nowrap ${
                       isSelected
-                        ? 'bg-[#0a0f1d] text-white font-black px-4.5 py-1.5 shadow-xs border border-[#0a0f1d]'
-                        : 'bg-[#f8fafc] text-slate-700 font-extrabold px-4 py-1.5 border border-slate-200/90 hover:bg-slate-100 hover:text-slate-950'
+                        ? 'bg-[#0a0f1d] text-white font-black px-4 py-1.5 shadow-xs border border-[#0a0f1d]'
+                        : 'bg-[#f8fafc] text-slate-700 font-extrabold px-3.5 py-1.5 border border-slate-200/90 hover:bg-slate-100 hover:text-slate-950'
                     }`}
                   >
                     {disc.short}
@@ -1390,48 +1400,59 @@ export const SchedulePage: React.FC = () => {
               })}
             </div>
 
-            {/* Ficha descriptiva y visual de la disciplina seleccionada (si no es TODAS) */}
-            {selectedDiscipline !== 'TODAS' && (() => {
-              const currentCat =
-                ACTIVITY_CATEGORIES.find((cat) => cat.id === selectedDiscipline) ||
-                ACTIVITY_CATEGORIES.find((cat) => cat.short.includes(selectedDiscipline));
-              const currentFilter = DISCIPLINE_FILTERS.find((f) => f.id === selectedDiscipline);
-              const bannerImg = currentFilter?.image || currentCat?.image || '/herobackground.webp';
-              const bannerTitle = currentFilter?.label || currentCat?.name || selectedDiscipline;
-              const bannerDesc = currentFilter?.subtitle || currentCat?.description || 'Clases dirigidas en tatami 247 STUDIO';
+            {/* Carrusel de Recuadros Visuales con Imagen (Tamaño Equilibrado / Correcto) */}
+            <div className="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none px-0.5">
+              {DISCIPLINE_FILTERS.map((disc) => {
+                const isSelected = selectedDiscipline === disc.id;
+                return (
+                  <button
+                    key={disc.id}
+                    type="button"
+                    onClick={() => setSelectedDiscipline(disc.id)}
+                    aria-pressed={isSelected}
+                    aria-label={`Filtrar por ${disc.label}`}
+                    className={`group relative shrink-0 w-24 sm:w-28 h-24 sm:h-28 rounded-2xl overflow-hidden text-left transition-all duration-200 cursor-pointer ${
+                      isSelected
+                        ? 'ring-3 ring-amber-400 shadow-md scale-[1.03] z-10'
+                        : 'border border-slate-200/90 shadow-2xs opacity-90 hover:opacity-100 hover:scale-[1.01]'
+                    }`}
+                  >
+                    {/* Fotografía de Fondo con Brillo */}
+                    <img
+                      src={disc.image}
+                      alt={disc.label}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 filter brightness-100 contrast-105"
+                      loading="lazy"
+                    />
 
-              return (
-                <div className="relative overflow-hidden rounded-2xl h-24 sm:h-28 text-white shadow-xs border border-slate-700/80 flex items-center justify-between px-4 sm:px-5 animate-in fade-in duration-200">
-                  <img
-                    src={bannerImg}
-                    alt={bannerTitle}
-                    className="absolute inset-0 w-full h-full object-cover object-center filter brightness-95 contrast-105"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/45 to-transparent/10" />
-                  <div className="relative z-10 min-w-0 pr-3">
-                    <span className="text-[9px] font-black uppercase tracking-wider text-amber-400 block">
-                      Disciplina Seleccionada
-                    </span>
-                    <h4 className="text-sm font-black text-white uppercase tracking-tight font-headline truncate">
-                      {bannerTitle}
-                    </h4>
-                    <p className="text-[10px] text-slate-300 font-medium truncate mt-0.5">
-                      {bannerDesc}
-                    </p>
-                  </div>
-                  <div className="relative z-10 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDiscipline('TODAS')}
-                      className="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold backdrop-blur-xs transition cursor-pointer"
-                    >
-                      ✕ Ver Todas
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
+                    {/* Gradiente Oscuro para Legibilidad */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-transparent" />
+
+                    {/* Insignia Superior */}
+                    <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
+                      <span className="w-5 h-5 rounded-md bg-slate-950/80 backdrop-blur-xs text-white flex items-center justify-center text-[10px] shadow-xs border border-white/10">
+                        {disc.icon}
+                      </span>
+                      {isSelected && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-xs">
+                          ✓
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Texto Inferior */}
+                    <div className="absolute bottom-1.5 left-1.5 right-1.5 z-10">
+                      <h4 className="text-[11px] font-black text-white uppercase leading-tight font-headline truncate drop-shadow-xs">
+                        {disc.short}
+                      </h4>
+                      <p className="text-[9px] text-slate-300 font-medium truncate leading-tight">
+                        {disc.subtitle}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Franjas Horarias (Mañana / Tarde / Noche) + Filtros de Profesor y Sala */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
@@ -2167,38 +2188,27 @@ export const SchedulePage: React.FC = () => {
             <div className="space-y-6">
               {groupedByActivity.map(({ category, schedules: catSchedules }) => (
                 <div key={category.id} className="space-y-3">
-                  {/* Cabecera de Categoría de Actividad (Tamaño Ampliado y Brillante) */}
-                  <div className="relative overflow-hidden rounded-2xl h-24 sm:h-28 text-white shadow-sm border border-slate-700/80 flex items-center justify-between px-3.5 sm:px-5 group">
-                    {/* Foto de Fondo a Sangre con mayor brillo */}
-                    <img
-                      src={category.image}
-                      alt={category.name}
-                      className="absolute inset-0 w-full h-full object-cover object-center filter brightness-95 contrast-105"
-                      loading="lazy"
-                    />
-
-                    {/* Overlay Deportivo Suave */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/40 to-transparent/10" />
-
-                    {/* Título e Icono a la izquierda */}
-                    <div className="relative z-10 min-w-0 pr-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{category.icon}</span>
-                        <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-tight font-headline truncate">
+                  {/* Cabecera de Categoría de Actividad (Limpia y Elegante) */}
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-4 flex items-center justify-between shadow-2xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center text-lg shadow-2xs shrink-0">
+                        {category.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight font-headline truncate">
                           {category.name}
                         </h3>
+                        <p className="text-[11px] text-slate-500 font-medium line-clamp-1">
+                          {category.description}
+                        </p>
                       </div>
-                      <p className="text-[11px] text-slate-300 font-medium truncate mt-0.5 max-w-md">
-                        {category.description}
-                      </p>
                     </div>
 
-                    {/* Insignias de Aforo y Clases a la derecha */}
-                    <div className="relative z-10 flex items-center gap-1.5 shrink-0">
-                      <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-amber-400 text-slate-950 shadow-xs">
+                    <div className="flex items-center gap-1.5 shrink-0 pl-2">
+                      <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-amber-400 text-slate-950 shadow-2xs">
                         Aforo {category.defaultCapacity} pl.
                       </span>
-                      <span className="px-2 py-1 rounded-xl text-[10px] font-mono font-bold bg-slate-900/90 text-slate-200 border border-slate-700">
+                      <span className="px-2 py-1 rounded-xl text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
                         {catSchedules.length} {catSchedules.length === 1 ? 'clase' : 'clases'}
                       </span>
                     </div>
