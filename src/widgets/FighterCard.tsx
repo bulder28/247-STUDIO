@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Award, Flame, Shield, Sparkles, Target, User as UserIcon } from 'lucide-react';
+import { Award, Download, Flame, Shield, Sparkles, Target, User as UserIcon } from 'lucide-react';
 import { FighterStats, UserDomainModel } from '@/shared/domain/types';
 import { Belt, beltLabelEs } from '@/widgets/Belt';
 import { FifaFighterCard } from '@/widgets/FifaFighterCard';
 import { FighterRadarChart } from '@/widgets/FighterRadarChart';
+import { downloadFighterCardAsPng } from '@/shared/utils/cardDownloader';
 
 interface FighterCardProps {
   user: UserDomainModel;
@@ -33,6 +34,7 @@ const DEFAULT_STATS: FighterStats = {
 
 export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
   const [viewMode, setViewMode] = useState<'fut' | 'radar' | 'bars'>('fut');
+  const [downloadingCard, setDownloadingCard] = useState(false);
   const stats = user.stats || DEFAULT_STATS;
   const stripesLabel = `${user.stripes} ${user.stripes === 1 ? 'grado' : 'grados'}`;
 
@@ -179,7 +181,7 @@ export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
         {/* VISTA 1: CARTA SHIELD FIFA ULTIMATE TEAM */}
         {viewMode === 'fut' ? (
           <div className="flex flex-col lg:flex-row items-center justify-around gap-8 pt-2">
-            <div className="w-full flex justify-center py-2">
+            <div id="fifa-fighter-card-root" className="w-full flex justify-center py-2">
               <FifaFighterCard athlete={user} size="lg" />
             </div>
 
@@ -201,6 +203,23 @@ export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
                   Desbloquea la versión <strong className="font-extrabold">Oro Raro</strong> al superar los 75 de media OVR o el estatus <strong className="font-extrabold">Icon Black</strong> al graduarte a cinturón negro o tarifa Socio Fundador.
                 </p>
               </div>
+
+              {/* Botón Descargar en HD para Instagram / WhatsApp */}
+              <button
+                type="button"
+                onClick={async () => {
+                  setDownloadingCard(true);
+                  await downloadFighterCardAsPng('fifa-fighter-card-root', user.alias);
+                  setDownloadingCard(false);
+                }}
+                disabled={downloadingCard}
+                className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-2xl transition shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-slate-950" />
+                <span>
+                  {downloadingCard ? 'Generando Imagen HD...' : 'Descargar Tarjeta HD (Instagram / Redes)'}
+                </span>
+              </button>
             </div>
           </div>
         ) : viewMode === 'radar' ? (

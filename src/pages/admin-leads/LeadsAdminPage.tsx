@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { Mail, MessageCircle, Phone, UserPlus, X } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
+import { WhatsAppMessageModal } from '@/widgets/WhatsAppMessageModal';
 
 interface LeadModel {
   id: string;
@@ -22,6 +23,7 @@ interface LeadModel {
 export const LeadsAdminPage: React.FC = () => {
   const [leads, setLeads] = useState<LeadModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedLeadForWhatsapp, setSelectedLeadForWhatsapp] = useState<LeadModel | null>(null);
 
   const fetchLeads = async () => {
     try {
@@ -48,15 +50,6 @@ export const LeadsAdminPage: React.FC = () => {
     } catch (err) {
       console.error(err);
     }
-  };
-
-  const getWhatsappLink = (phone: string, name: string) => {
-    const cleanDigits = phone.replace(/[^0-9]/g, '');
-    const fullPhone = cleanDigits.startsWith('34') ? cleanDigits : `34${cleanDigits}`;
-    const msg = encodeURIComponent(
-      `¡Hola ${name}! Te escribimos de 247Studio BJJ Pinto acerca de tu clase de prueba gratuita. ¿Tienes alguna duda sobre la ubicación o el horario para tu primera sesión?`
-    );
-    return `https://wa.me/${fullPhone}?text=${msg}`;
   };
 
   // Métricas del embudo
@@ -195,16 +188,15 @@ export const LeadsAdminPage: React.FC = () => {
 
                     <td className="py-4 px-4 text-center">
                       {lead.phone ? (
-                        <a
-                          href={getWhatsappLink(lead.phone, lead.name)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs transition"
-                          title="Abrir chat en WhatsApp"
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLeadForWhatsapp(lead)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs transition cursor-pointer shadow-sm"
+                          title="Enviar WhatsApp personalizado"
                         >
                           <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Contactar</span>
-                        </a>
+                          <span>WhatsApp</span>
+                        </button>
                       ) : (
                         <span className="text-slate-400 text-[11px]">—</span>
                       )}
@@ -245,6 +237,20 @@ export const LeadsAdminPage: React.FC = () => {
             </table>
           </div>
         </div>
+      )}
+
+      {selectedLeadForWhatsapp && (
+        <WhatsAppMessageModal
+          isOpen={Boolean(selectedLeadForWhatsapp)}
+          onClose={() => setSelectedLeadForWhatsapp(null)}
+          defaultName={selectedLeadForWhatsapp.name}
+          defaultPhone={selectedLeadForWhatsapp.phone}
+          defaultType="TRIAL_CONFIRM"
+          defaultDetails={{
+            date: 'Esta semana',
+            time: '19:30',
+          }}
+        />
       )}
     </div>
   );

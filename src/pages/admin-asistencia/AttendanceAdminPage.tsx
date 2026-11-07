@@ -35,6 +35,7 @@ import {
 import { db } from '@/shared/api/firebase';
 import { triggerPromotionConfetti } from '@/shared/utils/confetti';
 import { generateGraduationDiplomaPdf } from '@/shared/utils/diplomaGenerator';
+import { downloadAttendanceSheetPdf } from '@/shared/utils/attendanceSheetGenerator';
 import { getAttendanceWeight } from '@/shared/domain/attendance';
 import { calculateAthleteXP, getNextPromotion } from '@/shared/domain/graduation';
 import { DEFAULT_OFFICIAL_SCHEDULES, getMadridTimeComponents } from '@/shared/domain/schedule';
@@ -532,6 +533,25 @@ export const AttendanceAdminPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadAttendanceSheet = () => {
+    if (!activeSchedule) return;
+    const list = bookings.map((b) => {
+      const s = students[b.uid];
+      return {
+        alias: s?.alias || 'Atleta',
+        belt: beltLabelEs((s?.belt as any) || 'WHITE'),
+        stripes: Number(s?.stripes || 0),
+      };
+    });
+    downloadAttendanceSheetPdf({
+      className: activeSchedule.program,
+      scheduleTime: `${activeSchedule.startTime} - ${activeSchedule.endTime}`,
+      dateStr: selectedDateStr,
+      instructor: activeSchedule.professor || 'Mario / David',
+      students: list,
+    });
+  };
+
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       {/* Encabezado y Selector de Modo */}
@@ -740,11 +760,12 @@ export const AttendanceAdminPage: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => window.print()}
-                    className="p-2.5 bg-white/10 hover:bg-white/15 text-slate-900 rounded-xl transition"
-                    title="Imprimir hoja de asistencia"
+                    onClick={handleDownloadAttendanceSheet}
+                    className="px-3.5 py-2.5 bg-slate-900 hover:bg-black text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+                    title="Descargar hoja de asistencia oficial en PDF para imprimir y llevar en la carpeta del tatami"
                   >
-                    <Printer className="w-4 h-4" />
+                    <Printer className="w-4 h-4 text-amber-400" />
+                    <span>Hoja Tatami (PDF)</span>
                   </button>
                 </div>
               </div>

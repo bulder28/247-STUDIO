@@ -10,6 +10,7 @@ import {
 import {
   Check,
   Clock,
+  Download,
   PauseCircle,
   X,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { calculateVatBreakdown } from '@/shared/domain/money';
 import { getMadridYearMonth } from '@/shared/domain/payment-status';
+import { downloadReceiptPdf } from '@/shared/utils/receiptGenerator';
 import {
   PaymentDomainModel,
   PaymentStatus,
@@ -411,7 +413,32 @@ export const CajaPage: React.FC = () => {
                             </button>
                           </div>
                         ) : (
-                          <span className="text-[11px] text-slate-400 font-medium">Validado</span>
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-[11px] text-emerald-600 font-bold">Validado</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const payDate = (pay as any).createdAt || (pay as any).paidAt;
+                                downloadReceiptPdf({
+                                  receiptNumber: `REC-${pay.id.substring(0, 8).toUpperCase()}`,
+                                  dateStr: payDate
+                                    ? new Date(payDate.toDate ? payDate.toDate() : payDate).toLocaleDateString('es-ES')
+                                    : 'Hoy',
+                                  timeStr: '19:30',
+                                  studentAlias: student?.alias || 'Atleta 247',
+                                  concept: `Cuota Mensual BJJ (${pay.period})`,
+                                  amountEur: (pay.amountCents || 6500) / 100,
+                                  paymentMethod: (pay.method as any) || 'CARD',
+                                  staffName: 'Mario / David',
+                                });
+                              }}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition flex items-center gap-1 border border-slate-200 cursor-pointer"
+                              title="Descargar Justificante Oficial (PDF)"
+                            >
+                              <Download className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Recibo PDF</span>
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
