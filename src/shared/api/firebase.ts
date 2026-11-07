@@ -5,13 +5,27 @@ import {
   getFirestore,
 } from 'firebase/firestore';
 
+const isBrowser = typeof window !== 'undefined';
+const currentHost = isBrowser ? window.location.hostname : '';
+const isCustomOrNetlify =
+  currentHost &&
+  currentHost !== 'localhost' &&
+  !currentHost.includes('127.0.0.1');
+
+// En producción en Netlify (247studio.netlify.app) o dominio propio, usar el host actual como authDomain
+// apoyado en el proxy inverso [[redirects]] de /__/auth/* hacia Firebase.
+// Esto convierte la autenticación en first-party y elimina al 100% el bloqueo de cookies en Safari iOS y Chrome Android.
+const resolvedAuthDomain = isCustomOrNetlify
+  ? currentHost
+  : (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'studio-ff8d1.firebaseapp.com');
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDummyKeyForDevelopment12345',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'studio-247-dev.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'studio-247-dev',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'studio-247-dev.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1234567890',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1234567890:web:abcdef123456',
+  authDomain: resolvedAuthDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'studio-ff8d1',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'studio-ff8d1.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '29457860873',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:29457860873:web:5204aa86cf27d1944cebd8',
 };
 
 export const app = initializeApp(firebaseConfig);

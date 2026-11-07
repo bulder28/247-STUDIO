@@ -3,6 +3,13 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Proxy de autenticación Firebase en el mismo dominio (elimina problemas de cookies de terceros y Safari ITP)
+[[redirects]]
+  from = "/__/auth/*"
+  to = "https://studio-ff8d1.firebaseapp.com/__/auth/:splat"
+  status = 200
+  force = true
+
 # Redirección de llamadas API a Netlify Functions
 [[redirects]]
   from = "/api/*"
@@ -20,8 +27,9 @@
   for = "/*"
   [headers.values]
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-    X-Frame-Options = "DENY"
+    X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
     Permissions-Policy = "camera=(self), microphone=(), geolocation=()"
     X-XSS-Protection = "1; mode=block"

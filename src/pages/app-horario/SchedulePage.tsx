@@ -1392,8 +1392,8 @@ export const SchedulePage: React.FC = () => {
               )}
             </div>
 
-            {/* Pastillas de Selección Rápida estilo Madrid Móvil */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none px-0.5">
+            {/* Pastillas de Selección Rápida estilo Studio 247 */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-none px-0.5">
               {DISCIPLINE_FILTERS.map((disc) => {
                 const isSelected = selectedDiscipline === disc.id;
                 return (
@@ -1402,13 +1402,14 @@ export const SchedulePage: React.FC = () => {
                     type="button"
                     onClick={() => setSelectedDiscipline(disc.id)}
                     aria-pressed={isSelected}
-                    className={`shrink-0 rounded-full font-headline uppercase tracking-wider transition-all duration-150 cursor-pointer text-xs whitespace-nowrap ${
+                    className={`shrink-0 rounded-full font-headline uppercase tracking-wider transition-all duration-150 cursor-pointer text-xs sm:text-[13px] whitespace-nowrap flex items-center gap-1.5 px-4 py-2 ${
                       isSelected
-                        ? 'bg-[#0a0f1d] text-white font-black px-4 py-1.5 shadow-xs border border-[#0a0f1d]'
-                        : 'bg-[#f8fafc] text-slate-700 font-extrabold px-3.5 py-1.5 border border-slate-200/90 hover:bg-slate-100 hover:text-slate-950'
+                        ? 'bg-slate-950 text-white font-black shadow-sm ring-2 ring-slate-900 border border-slate-950 scale-[1.02]'
+                        : 'bg-white text-slate-700 font-extrabold border border-slate-200/90 shadow-2xs hover:bg-slate-100 hover:text-slate-950'
                     }`}
                   >
-                    {disc.short}
+                    <span className="text-xs">{disc.icon}</span>
+                    <span>{disc.short}</span>
                   </button>
                 );
               })}
