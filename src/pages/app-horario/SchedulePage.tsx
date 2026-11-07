@@ -266,6 +266,9 @@ const WEEKDAY_HEADERS = [
   { num: 7, label: 'Domingo', short: 'DOM', letter: 'D' },
 ];
 
+// Días lectivos de 247 STUDIO (Lunes a Viernes exclusivamente; sábados y domingos no hay actividades)
+const WORKING_WEEKDAY_HEADERS = WEEKDAY_HEADERS.slice(0, 5);
+
 function formatDateYMD(year: number, monthIndex0: number, day: number): string {
   const y = String(year);
   const m = String(monthIndex0 + 1).padStart(2, '0');
@@ -290,6 +293,14 @@ function addDaysYMD(dateStr: string, deltaDays: number): string {
 function getMondayOfWeek(dateStr: string): string {
   const { dayOfWeek } = parseYMD(dateStr);
   return addDaysYMD(dateStr, -(dayOfWeek - 1));
+}
+
+// Redirige sábados y domingos al próximo día con clase (Lunes)
+function getClosestWorkingDay(dateStr: string): string {
+  const { dayOfWeek } = parseYMD(dateStr);
+  if (dayOfWeek === 6) return addDaysYMD(dateStr, 2); // Sábado -> Próximo Lunes
+  if (dayOfWeek === 7) return addDaysYMD(dateStr, 1); // Domingo -> Próximo Lunes
+  return dateStr;
 }
 
 function formatReadableDateEs(dateStr: string): string {
@@ -320,14 +331,14 @@ export const SchedulePage: React.FC = () => {
     return 'DAY';
   });
 
-  // Fecha activa seleccionada (YYYY-MM-DD)
+  // Fecha activa seleccionada (YYYY-MM-DD): si hoy es fin de semana, apunta directamente al próximo día lectivo (Lunes)
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
-    return todayStr;
+    return getClosestWorkingDay(todayStr);
   });
 
   // Mes visible para la vista mensual (año y mes 0-11)
   const [visibleMonth, setVisibleMonth] = useState<{ year: number; month0: number }>(() => {
-    const parsed = parseYMD(todayStr);
+    const parsed = parseYMD(getClosestWorkingDay(todayStr));
     return { year: parsed.year, month0: parsed.month0 };
   });
 
@@ -433,10 +444,11 @@ export const SchedulePage: React.FC = () => {
     fetchScheduleData();
   }, [user]);
 
-  // Sincronizar mes visible cuando cambia selectedDateStr
+  // Sincronizar mes visible cuando cambia selectedDateStr (redirecciona fines de semana a lunes)
   const handleSelectDate = (dateStr: string) => {
-    setSelectedDateStr(dateStr);
-    const { year, month0 } = parseYMD(dateStr);
+    const validDate = getClosestWorkingDay(dateStr);
+    setSelectedDateStr(validDate);
+    const { year, month0 } = parseYMD(validDate);
     setVisibleMonth({ year, month0 });
   };
 
@@ -690,12 +702,10 @@ export const SchedulePage: React.FC = () => {
   const mondayOfSelectedWeek = useMemo(() => getMondayOfWeek(selectedDateStr), [selectedDateStr]);
 
   const weekDays = useMemo(() => {
-    const hasWeekendClasses = schedules.some((s) => s.dayOfWeek === 6 || s.dayOfWeek === 7);
-    const count = hasWeekendClasses ? 7 : 5;
-    return Array.from({ length: count }, (_, idx) => {
+    return Array.from({ length: 5 }, (_, idx) => {
       const dateStr = addDaysYMD(mondayOfSelectedWeek, idx);
       const parsed = parseYMD(dateStr);
-      const meta = WEEKDAY_HEADERS[idx];
+      const meta = WORKING_WEEKDAY_HEADERS[idx];
       return {
         ...meta,
         dateStr,
@@ -704,66 +714,102 @@ export const SchedulePage: React.FC = () => {
         isToday: dateStr === todayStr,
       };
     });
-  }, [mondayOfSelectedWeek, schedules, todayStr]);
+  }, [mondayOfSelectedWeek, todayStr]);
 
-  // Carrusel horizontal de 14 días estilo Madrid Móvil para navegación táctil rápida en móvil
+  // Carrusel horizontal de días lectivos (Lunes a Viernes exclusivamente, sin fines de semana)
   const mobileCarouselDays = useMemo(() => {
-    const endOf14FromToday = addDaysYMD(todayStr, 13);
-    const baseStart =
-      selectedDateStr >= todayStr && selectedDateStr <= endOf14FromToday
-        ? todayStr
-        : mondayOfSelectedWeek;
-    return Array.from({ length: 14 }, (_, idx) => {
-      const dateStr = addDaysYMD(baseStart, idx);
-      const parsed = parseYMD(dateStr);
-      const meta = WEEKDAY_HEADERS.find((w) => w.num === parsed.dayOfWeek) || WEEKDAY_HEADERS[0];
-      return {
-        ...meta,
-        dateStr,
-        dayNum: parsed.day,
-        monthShort: MONTH_NAMES_ES[parsed.month0].slice(0, 3).toUpperCase(),
-        isToday: dateStr === todayStr,
-      };
-    });
-  }, [todayStr, selectedDateStr, mondayOfSelectedWeek]);
+    const days: Array<{
+      num: number;
+      label: string;
+      short: string;
+      letter: string;
+      dateStr: string;
+      dayNum: number;
+      monthShort: string;
+      isToday: boolean;
+    }> = [];
 
-  // Celdas de la matriz mensual (Lunes a Domingo, 35 o 42 celdas)
+    const baseMonday = getMondayOfWeek(
+      selectedDateStr < todayStr ? selectedDateStr : todayStr
+    );
+
+    let cursor = baseMonday;
+    while (days.length < 15) {
+      const parsed = parseYMD(cursor);
+      if (parsed.dayOfWeek >= 1 && parsed.dayOfWeek <= 5) {
+        const meta =
+          WORKING_WEEKDAY_HEADERS.find((w) => w.num === parsed.dayOfWeek) ||
+          WORKING_WEEKDAY_HEADERS[0];
+        days.push({
+          ...meta,
+          dateStr: cursor,
+          dayNum: parsed.day,
+          monthShort: MONTH_NAMES_ES[parsed.month0].slice(0, 3).toUpperCase(),
+          isToday: cursor === todayStr,
+        });
+      }
+      cursor = addDaysYMD(cursor, 1);
+    }
+    return days;
+  }, [todayStr, selectedDateStr]);
+
+  // Celdas de la matriz mensual (Lunes a Viernes exclusivamente, omitiendo sábados y domingos)
   const monthGridCells = useMemo(() => {
     const { year, month0 } = visibleMonth;
     const firstDayStr = formatDateYMD(year, month0, 1);
-    const firstDayParsed = parseYMD(firstDayStr);
-    const leadingDays = firstDayParsed.dayOfWeek - 1; // 0 si empieza en Lunes
-    const gridStartStr = addDaysYMD(firstDayStr, -leadingDays);
+    const mondayOfFirstWeek = getMondayOfWeek(firstDayStr);
 
-    const daysInMonth = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
-    const totalCells = leadingDays + daysInMonth > 35 ? 42 : 35;
+    const cells: Array<{
+      dateStr: string;
+      day: number;
+      dayOfWeek: number;
+      isCurrentMonth: boolean;
+      isToday: boolean;
+      isSelected: boolean;
+      daySchedules: ScheduleDomainModel[];
+      dayBookingsCount: number;
+      dayException: ScheduleExceptionDomainModel | undefined;
+    }> = [];
 
-    return Array.from({ length: totalCells }, (_, idx) => {
-      const dateStr = addDaysYMD(gridStartStr, idx);
-      const parsed = parseYMD(dateStr);
-      const isCurrentMonth = parsed.month0 === month0 && parsed.year === year;
-      const daySchedules = schedules
-        .filter((s) => s.dayOfWeek === parsed.dayOfWeek && matchesFilters(s, dateStr))
-        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    let weekMonday = mondayOfFirstWeek;
 
-      const dayBookingsCount = daySchedules.filter(
-        (s) => !!getMyBookingForSlot(s.id, dateStr)
-      ).length;
+    while (
+      cells.length < 25 ||
+      (cells.length < 35 &&
+        parseYMD(weekMonday).month0 <= month0 &&
+        parseYMD(weekMonday).year <= year)
+    ) {
+      for (let dayOffset = 0; dayOffset < 5; dayOffset++) {
+        const dateStr = addDaysYMD(weekMonday, dayOffset);
+        const parsed = parseYMD(dateStr);
+        const isCurrentMonth = parsed.month0 === month0 && parsed.year === year;
+        const daySchedules = schedules
+          .filter((s) => s.dayOfWeek === parsed.dayOfWeek && matchesFilters(s, dateStr))
+          .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-      const dayException = exceptions.find((e) => e.date === dateStr);
+        const dayBookingsCount = daySchedules.filter(
+          (s) => !!getMyBookingForSlot(s.id, dateStr)
+        ).length;
 
-      return {
-        dateStr,
-        day: parsed.day,
-        dayOfWeek: parsed.dayOfWeek,
-        isCurrentMonth,
-        isToday: dateStr === todayStr,
-        isSelected: dateStr === selectedDateStr,
-        daySchedules,
-        dayBookingsCount,
-        dayException,
-      };
-    });
+        const dayException = exceptions.find((e) => e.date === dateStr);
+
+        cells.push({
+          dateStr,
+          day: parsed.day,
+          dayOfWeek: parsed.dayOfWeek,
+          isCurrentMonth,
+          isToday: dateStr === todayStr,
+          isSelected: dateStr === selectedDateStr,
+          daySchedules,
+          dayBookingsCount,
+          dayException,
+        });
+      }
+      weekMonday = addDaysYMD(weekMonday, 7);
+      if (cells.length >= 35) break;
+    }
+
+    return cells;
   }, [
     visibleMonth,
     schedules,
@@ -778,20 +824,27 @@ export const SchedulePage: React.FC = () => {
     selectedDateStr,
   ]);
 
-  // Navegación Anterior / Hoy / Siguiente según la vista activa
+  // Navegación Anterior / Hoy / Siguiente según la vista activa (saltando fines de semana)
   const handleNavigatePrev = () => {
     if (viewMode === 'MONTH') {
       setVisibleMonth((prev) => {
         const nextMonth0 = prev.month0 === 0 ? 11 : prev.month0 - 1;
         const nextYear = prev.month0 === 0 ? prev.year - 1 : prev.year;
-        const nextDate = formatDateYMD(nextYear, nextMonth0, 1);
+        const nextDate = getClosestWorkingDay(formatDateYMD(nextYear, nextMonth0, 1));
         setSelectedDateStr(nextDate);
         return { year: nextYear, month0: nextMonth0 };
       });
     } else if (viewMode === 'WEEK') {
       handleSelectDate(addDaysYMD(selectedDateStr, -7));
     } else {
-      handleSelectDate(addDaysYMD(selectedDateStr, -1));
+      let prevDate = addDaysYMD(selectedDateStr, -1);
+      const prevParsed = parseYMD(prevDate);
+      if (prevParsed.dayOfWeek === 7) {
+        prevDate = addDaysYMD(selectedDateStr, -3); // Domingo -> Viernes
+      } else if (prevParsed.dayOfWeek === 6) {
+        prevDate = addDaysYMD(selectedDateStr, -2); // Sábado -> Viernes
+      }
+      handleSelectDate(prevDate);
     }
   };
 
@@ -800,19 +853,26 @@ export const SchedulePage: React.FC = () => {
       setVisibleMonth((prev) => {
         const nextMonth0 = prev.month0 === 11 ? 0 : prev.month0 + 1;
         const nextYear = prev.month0 === 11 ? prev.year + 1 : prev.year;
-        const nextDate = formatDateYMD(nextYear, nextMonth0, 1);
+        const nextDate = getClosestWorkingDay(formatDateYMD(nextYear, nextMonth0, 1));
         setSelectedDateStr(nextDate);
         return { year: nextYear, month0: nextMonth0 };
       });
     } else if (viewMode === 'WEEK') {
       handleSelectDate(addDaysYMD(selectedDateStr, 7));
     } else {
-      handleSelectDate(addDaysYMD(selectedDateStr, 1));
+      let nextDate = addDaysYMD(selectedDateStr, 1);
+      const nextParsed = parseYMD(nextDate);
+      if (nextParsed.dayOfWeek === 6) {
+        nextDate = addDaysYMD(selectedDateStr, 3); // Sábado -> Lunes
+      } else if (nextParsed.dayOfWeek === 7) {
+        nextDate = addDaysYMD(selectedDateStr, 2); // Domingo -> Lunes
+      }
+      handleSelectDate(nextDate);
     }
   };
 
   const handleJumpToToday = () => {
-    handleSelectDate(todayStr);
+    handleSelectDate(getClosestWorkingDay(todayStr));
   };
 
   // Clases para el día seleccionado (usado en vista DÍA y en el detalle inferior de la vista MES)
@@ -1226,7 +1286,7 @@ export const SchedulePage: React.FC = () => {
             <div className="flex items-center justify-between px-1">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                Elige Fecha (Próximos 14 días)
+                Días de Actividad (Lunes a Viernes)
               </span>
               <button
                 type="button"
@@ -1533,11 +1593,7 @@ export const SchedulePage: React.FC = () => {
             </button>
           </div>
 
-          <div
-            className={`grid grid-cols-1 sm:grid-cols-2 ${
-              weekDays.length > 5 ? 'lg:grid-cols-7' : 'lg:grid-cols-5'
-            } gap-3`}
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {weekDays.map((dayCol) => {
               const colSchedules = schedules
                 .filter(
@@ -1828,9 +1884,9 @@ export const SchedulePage: React.FC = () => {
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
             {/* Matriz Mensual (8 columnas en XL) */}
             <div className="xl:col-span-8 bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
-            {/* Cabecera L-D */}
-            <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200/80 text-center">
-              {WEEKDAY_HEADERS.map((w) => (
+            {/* Cabecera L-V (5 días lectivos sin fines de semana) */}
+            <div className="grid grid-cols-5 bg-slate-50 border-b border-slate-200/80 text-center">
+              {WORKING_WEEKDAY_HEADERS.map((w) => (
                 <div
                   key={w.num}
                   className="py-2.5 text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500"
@@ -1841,8 +1897,8 @@ export const SchedulePage: React.FC = () => {
               ))}
             </div>
 
-            {/* Celdas del Mes */}
-            <div className="grid grid-cols-7 divide-x divide-y divide-slate-200/70">
+            {/* Celdas del Mes (5 columnas de Lunes a Viernes) */}
+            <div className="grid grid-cols-5 divide-x divide-y divide-slate-200/70">
               {monthGridCells.map((cell) => {
                 const maxPills = 3;
                 const visiblePills = cell.daySchedules.slice(0, maxPills);
