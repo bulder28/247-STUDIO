@@ -11,7 +11,6 @@ import {
   Plus,
   Sparkles,
   Users,
-  X,
 } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
 import { calculateVatBreakdown } from '@/shared/domain/money';
@@ -21,6 +20,9 @@ import {
   TariffDomainModel,
   UserDomainModel,
 } from '@/shared/domain/types';
+import { Button } from '@/shared/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import { Input } from '@/shared/ui/input';
 
 export const DEFAULT_OFFICIAL_TARIFFS: Omit<TariffDomainModel, 'id'>[] = [
   {
@@ -463,131 +465,123 @@ export const TariffsAdminPage: React.FC = () => {
       )}
 
       {/* Modal Crear / Editar Tarifa */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
-              <h3 className="font-black text-sm uppercase text-slate-900">
-                {editingTariff ? 'Editar Tarifa' : 'Nueva Tarifa'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="text-slate-400 hover:text-slate-700 p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* Modal Crear / Editar Tarifa (Radix UI Dialog) */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTariff ? 'Editar Tarifa' : 'Nueva Tarifa Oficial'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveTariff} className="space-y-4 pt-1">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Nombre de la Membresía
+              </label>
+              <Input
+                type="text"
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Ej. BJJ Adultos Ilimitado"
+              />
             </div>
 
-            <form onSubmit={handleSaveTariff} className="space-y-3.5">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Nombre de la Membresía
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Segmento / Colectivo
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Ej. BJJ Adultos Ilimitado"
-                  className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Segmento / Colectivo
-                  </label>
-                  <select
-                    value={form.tier}
-                    onChange={(e) => setForm({ ...form, tier: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none"
-                  >
-                    <option value="STD">Estándar (STD)</option>
-                    <option value="SF">Socio Fundador (SF)</option>
-                    <option value="FAM">Familiar (FAM)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Modalidad Cobro
-                  </label>
-                  <select
-                    value={form.billingType}
-                    onChange={(e) => setForm({ ...form, billingType: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none"
-                  >
-                    <option value="MONTHLY">Mensual (MONTHLY)</option>
-                    <option value="PASS">Bono 10 Sesiones (PASS)</option>
-                    <option value="DROP_IN">Clase Suelta (DROP_IN)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Precio Total (€ IVA Inc.)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={form.priceEuros}
-                  onChange={(e) => setForm({ ...form, priceEuros: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Disciplinas (Separadas por comas)
-                </label>
-                <input
-                  type="text"
-                  value={form.programs}
-                  onChange={(e) => setForm({ ...form, programs: e.target.value })}
-                  placeholder="Ej. BJJ Gi, No-Gi Grappling, Open Mat"
-                  className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none"
-                />
-              </div>
-
-              {editingTariff && (
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="editActive"
-                    checked={form.active}
-                    onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                    className="rounded text-studio-red cursor-pointer"
-                  />
-                  <label htmlFor="editActive" className="text-xs font-bold text-slate-700 cursor-pointer">
-                    Tarifa activa en catálogo de contratación
-                  </label>
-                </div>
-              )}
-
-              <div className="pt-3 border-t border-slate-100 flex gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                <select
+                  value={form.tier}
+                  onChange={(e) => setForm({ ...form, tier: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="flex-1 py-2.5 rounded-xl bg-studio-red hover:bg-studio-red-dark text-white font-bold text-xs uppercase tracking-wider transition shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  {actionLoading ? 'Guardando...' : editingTariff ? 'Guardar Cambios' : 'Crear Tarifa'}
-                </button>
+                  <option value="STD">Estándar (STD)</option>
+                  <option value="SF">Socio Fundador (SF)</option>
+                  <option value="FAM">Familiar (FAM)</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Modalidad Cobro
+                </label>
+                <select
+                  value={form.billingType}
+                  onChange={(e) => setForm({ ...form, billingType: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
+                >
+                  <option value="MONTHLY">Mensual (MONTHLY)</option>
+                  <option value="PASS">Bono 10 Sesiones (PASS)</option>
+                  <option value="DROP_IN">Clase Suelta (DROP_IN)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Precio Total (€ IVA Inc.)
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                required
+                value={form.priceEuros}
+                onChange={(e) => setForm({ ...form, priceEuros: parseFloat(e.target.value) || 0 })}
+                className="font-mono text-sm font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Disciplinas (Separadas por comas)
+              </label>
+              <Input
+                type="text"
+                value={form.programs}
+                onChange={(e) => setForm({ ...form, programs: e.target.value })}
+                placeholder="Ej. BJJ Gi, No-Gi Grappling, Open Mat"
+              />
+            </div>
+
+            {editingTariff && (
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="editActive"
+                  checked={form.active}
+                  onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                  className="rounded text-brand-accent focus:ring-brand-accent cursor-pointer"
+                />
+                <label htmlFor="editActive" className="text-xs font-bold text-slate-700 cursor-pointer">
+                  Tarifa activa en catálogo de contratación
+                </label>
+              </div>
+            )}
+
+            <div className="pt-3 border-t border-slate-100 flex gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowModal(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="studio"
+                disabled={actionLoading}
+                className="flex-1"
+              >
+                {actionLoading ? 'Guardando...' : editingTariff ? 'Guardar Cambios' : 'Crear Tarifa'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

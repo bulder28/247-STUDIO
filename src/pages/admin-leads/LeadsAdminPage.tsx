@@ -18,6 +18,9 @@ import {
   X,
 } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
+import { Button } from '@/shared/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import { Input } from '@/shared/ui/input';
 import { WhatsAppMessageModal } from '@/widgets/WhatsAppMessageModal';
 
 export type LeadSource = 'INSTAGRAM' | 'GOOGLE' | 'WALK_IN' | 'REFERRAL' | 'KIOSK' | 'OTHER';
@@ -427,135 +430,123 @@ export const LeadsAdminPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Registrar Prospecto Walk-In */}
-      {showWalkinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
-              <h3 className="font-black text-sm uppercase text-slate-900">
-                Registrar Prospecto Walk-In / Mostrador
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowWalkinModal(false)}
-                className="text-slate-400 hover:text-slate-700 p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* Modal Registrar Prospecto Walk-In (Radix UI Dialog) */}
+      <Dialog open={showWalkinModal} onOpenChange={setShowWalkinModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Registrar Prospecto Walk-In</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateWalkinLead} className="space-y-4 pt-1">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Nombre Completo *
+              </label>
+              <Input
+                type="text"
+                required
+                placeholder="Ej. Lucas Fernández"
+                value={walkinForm.name}
+                onChange={(e) => setWalkinForm({ ...walkinForm, name: e.target.value })}
+              />
             </div>
 
-            <form onSubmit={handleCreateWalkinLead} className="space-y-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Nombre Completo *
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Teléfono (WhatsApp) *
                 </label>
-                <input
-                  type="text"
+                <Input
+                  type="tel"
                   required
-                  placeholder="Ej. Lucas Fernández"
-                  value={walkinForm.name}
-                  onChange={(e) => setWalkinForm({ ...walkinForm, name: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
+                  placeholder="Ej. 612 345 678"
+                  value={walkinForm.phone}
+                  onChange={(e) => setWalkinForm({ ...walkinForm, phone: e.target.value })}
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Teléfono (WhatsApp) *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="Ej. 612 345 678"
-                    value={walkinForm.phone}
-                    onChange={(e) => setWalkinForm({ ...walkinForm, phone: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="lucas@email.com"
-                    value={walkinForm.email}
-                    onChange={(e) => setWalkinForm({ ...walkinForm, email: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Canal de Captación
-                  </label>
-                  <select
-                    value={walkinForm.source}
-                    onChange={(e) => setWalkinForm({ ...walkinForm, source: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none"
-                  >
-                    <option value="WALK_IN">Mostrador Walk-In</option>
-                    <option value="INSTAGRAM">Instagram DM</option>
-                    <option value="GOOGLE">Google Maps / Web</option>
-                    <option value="REFERRAL">Amigo / Alumno</option>
-                    <option value="KIOSK">Kiosco Recepción</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Interés Principal
-                  </label>
-                  <select
-                    value={walkinForm.programInterest}
-                    onChange={(e) => setWalkinForm({ ...walkinForm, programInterest: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none"
-                  >
-                    <option value="BJJ Adultos Gi">BJJ Adultos Gi</option>
-                    <option value="No-Gi Submission Grappling">No-Gi Grappling</option>
-                    <option value="BJJ Kids & Teens">BJJ Kids & Teens</option>
-                    <option value="Defensa Personal">Defensa Personal</option>
-                  </select>
-                </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Notas / Horario sugerido
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Email
                 </label>
-                <textarea
-                  rows={2}
-                  placeholder="Ej. Quiere venir a probar clase de martes 19:30, tiene kimono prestado..."
-                  value={walkinForm.notes}
-                  onChange={(e) => setWalkinForm({ ...walkinForm, notes: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-studio-red resize-none"
+                <Input
+                  type="email"
+                  placeholder="lucas@email.com"
+                  value={walkinForm.email}
+                  onChange={(e) => setWalkinForm({ ...walkinForm, email: e.target.value })}
                 />
               </div>
+            </div>
 
-              <div className="pt-3 border-t border-slate-100 flex gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setShowWalkinModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Canal de Captación
+                </label>
+                <select
+                  value={walkinForm.source}
+                  onChange={(e) => setWalkinForm({ ...walkinForm, source: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="flex-1 py-2.5 rounded-xl bg-studio-red hover:bg-studio-red-dark text-white font-bold text-xs uppercase tracking-wider transition shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  {actionLoading ? 'Registrando...' : 'Registrar Lead'}
-                </button>
+                  <option value="WALK_IN">Mostrador Walk-In</option>
+                  <option value="INSTAGRAM">Instagram DM</option>
+                  <option value="GOOGLE">Google Maps / Web</option>
+                  <option value="REFERRAL">Amigo / Alumno</option>
+                  <option value="KIOSK">Kiosco Recepción</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Interés Principal
+                </label>
+                <select
+                  value={walkinForm.programInterest}
+                  onChange={(e) => setWalkinForm({ ...walkinForm, programInterest: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
+                >
+                  <option value="BJJ Adultos Gi">BJJ Adultos Gi</option>
+                  <option value="No-Gi Submission Grappling">No-Gi Grappling</option>
+                  <option value="BJJ Kids & Teens">BJJ Kids & Teens</option>
+                  <option value="Defensa Personal">Defensa Personal</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Notas / Horario sugerido
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Ej. Quiere venir a probar clase de martes 19:30, tiene kimono prestado..."
+                value={walkinForm.notes}
+                onChange={(e) => setWalkinForm({ ...walkinForm, notes: e.target.value })}
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800 resize-none"
+              />
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowWalkinModal(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="studio"
+                disabled={actionLoading}
+                className="flex-1"
+              >
+                {actionLoading ? 'Registrando...' : 'Registrar Lead'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {selectedLeadForWhatsapp && (
         <WhatsAppMessageModal

@@ -24,38 +24,38 @@ export const TiedBeltIcon: React.FC<TiedBeltIconProps> = ({
     case 'PROFESOR':
       bodyColor = '#18181B';
       strokeColor = '#09090B';
-      barColor = '#DC2626';
+      barColor = '#EF4444';
       isProfessor = true;
       break;
     case 'BLACK':
       bodyColor = '#18181B';
       strokeColor = '#09090B';
-      barColor = '#DC2626';
+      barColor = '#EF4444';
       break;
     case 'BROWN':
-      bodyColor = '#78350F';
-      strokeColor = '#451A03';
+      bodyColor = '#9A532C';
+      strokeColor = '#5C2E13';
       barColor = '#18181B';
       break;
     case 'PURPLE':
-      bodyColor = '#8B5CF6';
-      strokeColor = '#4C1D95';
+      bodyColor = '#A855F7';
+      strokeColor = '#6B21A8';
       barColor = '#18181B';
       break;
     case 'BLUE':
-      bodyColor = '#0284C7';
-      strokeColor = '#0369A1';
+      bodyColor = '#38BDF8';
+      strokeColor = '#0284C7';
       barColor = '#18181B';
       break;
     case 'KIDS':
       bodyColor = '#10B981';
-      strokeColor = '#065F46';
+      strokeColor = '#047857';
       barColor = '#18181B';
       break;
     case 'WHITE':
     default:
       bodyColor = '#FFFFFF';
-      strokeColor = '#475569';
+      strokeColor = '#64748B';
       barColor = '#18181B';
       break;
   }

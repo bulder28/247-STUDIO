@@ -15,6 +15,8 @@ import {
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { FreezeDomainModel } from '@/shared/domain/types';
+import { Button } from '@/shared/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { PhotoUploaderModal } from '@/widgets/PhotoUploaderModal';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 import { WaiverSignatureModal } from '@/widgets/WaiverSignatureModal';
@@ -448,19 +450,24 @@ export const ProfilePage: React.FC = () => {
         onConfirmSignature={handleWaiverConfirmed}
       />
 
-      {showQrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="max-w-sm w-full bg-white rounded-3xl p-6 relative shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200">
+      {/* Modal Pase QR (Radix UI Dialog) */}
+      <Dialog open={showQrModal} onOpenChange={setShowQrModal}>
+        <DialogContent className="max-w-sm p-6">
+          <DialogHeader>
+            <DialogTitle>Pase QR de Acceso</DialogTitle>
+          </DialogHeader>
+          <div className="pt-2">
             <QrCodePassCard user={userData} />
-            <button
+            <Button
+              variant="outline"
               onClick={() => setShowQrModal(false)}
-              className="mt-4 w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl transition"
+              className="mt-4 w-full"
             >
               Cerrar Pase
-            </button>
+            </Button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {showPhotoModal && (
         <PhotoUploaderModal

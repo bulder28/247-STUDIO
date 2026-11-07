@@ -29,6 +29,7 @@ import {
   PaymentStatus,
   UserDomainModel,
 } from '@/shared/domain/types';
+import { Button } from '@/shared/ui/button';
 
 interface FreezeRequest {
   id: string;
@@ -299,7 +300,7 @@ export const CajaPage: React.FC = () => {
       {/* Cabecera */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
             Seguimiento Mensual y Caja
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
@@ -309,7 +310,7 @@ export const CajaPage: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           {/* Selector de periodo */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200/80 rounded-2xl px-3 py-1.5 shadow-sm">
+          <div className="flex items-center gap-2 bg-white border border-slate-200/80 rounded-2xl px-3 py-1.5 shadow-subtle">
             <Clock className="w-4 h-4 text-slate-400" />
             <input
               type="month"
@@ -320,31 +321,35 @@ export const CajaPage: React.FC = () => {
           </div>
 
           {/* Exportar CSV Gestoría */}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => exportPaymentsToGestoriaCsv(periodPayments, users, filterPeriod)}
-            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+            className="shadow-2xs"
             title="Exportar archivo CSV con Base e IVA 21% listo para la Gestoría contable"
           >
-            <Download className="w-3.5 h-3.5 text-slate-600" />
+            <Download className="w-3.5 h-3.5 text-slate-600 mr-1.5" />
             <span>CSV Gestoría</span>
-          </button>
+          </Button>
 
           {/* Botón Cobro Directo TPV / PushPress POS */}
-          <button
+          <Button
             type="button"
+            variant="studio"
+            size="sm"
             onClick={() => setShowPosModal(true)}
-            className="px-4 py-2 bg-studio-red hover:bg-studio-red-dark text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+            className="shadow-card"
           >
-            <PlusCircle className="w-4 h-4" />
+            <PlusCircle className="w-4 h-4 mr-1.5" />
             <span>+ Cobro Directo TPV</span>
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* KPI Cards de Caja */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
+        <div className="bg-gradient-to-br from-white via-white to-slate-50/50 border border-slate-200/80 rounded-3xl p-5 shadow-card hover:shadow-card-hover transition-all">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
             Total Recaudado (IVA Inc.)
           </span>
@@ -356,7 +361,7 @@ export const CajaPage: React.FC = () => {
           </span>
         </div>
 
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
+        <div className="bg-gradient-to-br from-white via-white to-slate-50/50 border border-slate-200/80 rounded-3xl p-5 shadow-card hover:shadow-card-hover transition-all">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
             Base Imponible Neta
           </span>
@@ -368,7 +373,7 @@ export const CajaPage: React.FC = () => {
           </span>
         </div>
 
-        <div className="bg-white border border-amber-200 rounded-2xl p-5 shadow-sm">
+        <div className="bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 border border-amber-200 rounded-3xl p-5 shadow-card hover:shadow-card-hover transition-all">
           <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 block mb-1">
             Abonos Pendientes de Validar
           </span>
@@ -383,7 +388,7 @@ export const CajaPage: React.FC = () => {
 
       {/* Arqueo de Canales: Efectivo en Cajón vs Bizum / Banco */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+        <div className="bg-gradient-to-br from-emerald-50/60 via-white to-emerald-50/30 border border-emerald-200/80 rounded-2xl p-4 flex items-center justify-between shadow-subtle">
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">
               💵 Efectivo en Cajón de Recepción
@@ -397,7 +402,7 @@ export const CajaPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+        <div className="bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30 border border-blue-200/80 rounded-2xl p-4 flex items-center justify-between shadow-subtle">
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider text-blue-800 block">
               📱 Ingresos Directos Bizum / Cuenta

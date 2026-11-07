@@ -169,18 +169,18 @@ export const HomePage: React.FC = () => {
           {/* ======================================================== */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             {/* Bento Card 1: Próximas Clases & Check-In */}
-            <Card className="lg:col-span-7 flex flex-col justify-between overflow-hidden relative group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-radial from-red-500/5 to-transparent pointer-events-none rounded-full blur-2xl" />
+            <Card className="lg:col-span-7 flex flex-col justify-between overflow-hidden relative group bg-gradient-to-br from-white via-white to-slate-50/60 shadow-card hover:shadow-card-hover transition-all border-slate-200/80">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-red-500/10 via-amber-500/5 to-transparent pointer-events-none rounded-full blur-2xl" />
 
               <CardHeader className="border-b border-slate-100 pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-studio-red" />
-                    <CardTitle className="text-sm">Próximas Sesiones de Tatami</CardTitle>
+                    <Calendar className="w-4 h-4 text-brand-accent" />
+                    <CardTitle className="text-sm font-bold">Próximas Sesiones de Tatami</CardTitle>
                   </div>
                   <Link
                     to="/app/horario"
-                    className="text-xs font-bold text-slate-500 hover:text-slate-900 transition flex items-center gap-0.5"
+                    className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition flex items-center gap-0.5"
                   >
                     <span>Ver Horario</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -190,16 +190,26 @@ export const HomePage: React.FC = () => {
 
               <CardContent className="pt-5 space-y-5">
                 <div>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Badge variant={isClassActive ? 'destructive' : 'secondary'}>
-                      {isClassActive ? '● En curso ahora' : 'Próxima clase de hoy'}
-                    </Badge>
+                  <div className="flex items-center gap-2 mb-2">
+                    {isClassActive ? (
+                      <Badge variant="destructive" className="gap-1.5 py-0.5 px-2.5">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                        </span>
+                        <span>En curso ahora</span>
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="font-semibold text-[10px]">
+                        Próxima clase hoy
+                      </Badge>
+                    )}
                     <span className="text-xs text-slate-500 font-medium">
                       {displayClass?.room || 'Tatami Principal'}
                     </span>
                   </div>
 
-                  <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                  <div className="font-headline text-3xl sm:text-4xl text-slate-900 tracking-tight">
                     {displayClass ? `${displayClass.startTime} – ${displayClass.endTime}` : '19:30 – 21:00'}
                   </div>
 
@@ -224,7 +234,7 @@ export const HomePage: React.FC = () => {
                     <Button
                       variant="studio"
                       onClick={() => setShowQrModal(true)}
-                      className="gap-1.5"
+                      className="gap-2 shadow-card"
                     >
                       <QrCode className="w-4 h-4" />
                       <span>Ver Pase Check-In (QR)</span>
@@ -263,12 +273,12 @@ export const HomePage: React.FC = () => {
             </Card>
 
             {/* Bento Card 2: Estado del Atleta & Accesos Rápidos */}
-            <Card className="lg:col-span-5 flex flex-col justify-between">
+            <Card className="lg:col-span-5 flex flex-col justify-between shadow-card hover:shadow-card-hover transition-all border-slate-200/80 bg-gradient-to-br from-white via-white to-slate-50/60">
               <CardHeader className="border-b border-slate-100 pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-slate-700" />
-                    <CardTitle className="text-sm">Panel del Socio</CardTitle>
+                    <CardTitle className="text-sm font-bold">Panel del Socio</CardTitle>
                   </div>
                   <Badge variant="outline" className="font-mono text-[10px]">
                     {userData.pricingTier || 'STD'}
@@ -276,17 +286,17 @@ export const HomePage: React.FC = () => {
                 </div>
               </CardHeader>
 
-              <CardContent className="pt-5 space-y-4">
+              <CardContent className="pt-5 space-y-3.5">
                 {/* Estado de cuota */}
                 <Link
                   to="/app/programas"
-                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 hover:bg-slate-100/70 border border-slate-200/60 transition group"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
                 >
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block group-hover:text-studio-red transition">
+                    <span className="text-xs font-bold text-slate-900 block group-hover:text-brand-accent transition">
                       Cuota Mensual
                     </span>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-[11px] text-slate-500 font-normal">
                       Membresía oficial 247Studio
                     </span>
                   </div>
@@ -301,18 +311,18 @@ export const HomePage: React.FC = () => {
                 {/* Asistencias acumuladas */}
                 <Link
                   to="/app/historial"
-                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 hover:bg-slate-100/70 border border-slate-200/60 transition group"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
                 >
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block group-hover:text-studio-red transition">
+                    <span className="text-xs font-bold text-slate-900 block group-hover:text-brand-accent transition">
                       Horas de Tatami Este Mes
                     </span>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-[11px] text-slate-500 font-normal">
                       Entrenamientos y sparrings
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-black text-sm text-slate-900 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                    <span className="font-mono font-bold text-sm text-slate-900 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
                       {bookings.length} clases
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition" />
@@ -322,13 +332,13 @@ export const HomePage: React.FC = () => {
                 {/* Avisos */}
                 <Link
                   to="/app/avisos"
-                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 hover:bg-slate-100/70 border border-slate-200/60 transition group"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
                 >
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block group-hover:text-studio-red transition">
+                    <span className="text-xs font-bold text-slate-900 block group-hover:text-brand-accent transition">
                       Tablón de Anuncios
                     </span>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-[11px] text-slate-500 font-normal">
                       Comunicaciones de Mario & David
                     </span>
                   </div>
@@ -347,7 +357,7 @@ export const HomePage: React.FC = () => {
           {/* 3. FILA BENTO GRID: MÉTRICAS Y COMUNIDAD                 */}
           {/* ======================================================== */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <Card className="hover:border-slate-300 transition-all">
+            <Card className="hover:border-slate-300 transition-all shadow-subtle hover:shadow-card bg-gradient-to-br from-white to-slate-50/50">
               <CardHeader className="pb-2">
                 <CardDescription className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                   Horario Semanal Activo
@@ -361,7 +371,7 @@ export const HomePage: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card className="hover:border-slate-300 transition-all">
+            <Card className="hover:border-slate-300 transition-all shadow-subtle hover:shadow-card bg-gradient-to-br from-white to-slate-50/50">
               <CardHeader className="pb-2">
                 <CardDescription className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                   Comunidad de Tatami
@@ -375,7 +385,7 @@ export const HomePage: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card className="hover:border-slate-300 transition-all">
+            <Card className="hover:border-slate-300 transition-all shadow-subtle hover:shadow-card bg-gradient-to-br from-white to-slate-50/50">
               <CardHeader className="pb-2">
                 <CardDescription className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                   Racha y Progresión

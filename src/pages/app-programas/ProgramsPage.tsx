@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
-import { CheckCircle2, CreditCard, PauseCircle, Send, X } from 'lucide-react';
+import { CheckCircle2, CreditCard, PauseCircle, Send } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { calculateVatBreakdown } from '@/shared/domain/money';
 import { getMadridYearMonth } from '@/shared/domain/payment-status';
 import { PaymentDomainModel, PaymentMethod, TariffDomainModel } from '@/shared/domain/types';
+import { Button } from '@/shared/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 
 export const ProgramsPage: React.FC = () => {
   const { user, userData } = useAuth();
@@ -302,73 +304,71 @@ export const ProgramsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modal de Solicitud de Freeze */}
-      {showFreezeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <h3 className="font-bold text-base text-slate-900">Solicitar Suspensión Temporal</h3>
-              <button onClick={() => setShowFreezeModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-800">
-                <X className="w-5 h-5" />
-              </button>
+      {/* Modal de Solicitud de Freeze (Radix UI Dialog) */}
+      <Dialog open={showFreezeModal} onOpenChange={setShowFreezeModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Solicitar Suspensión Temporal</DialogTitle>
+          </DialogHeader>
+
+          <p className="text-xs text-slate-500 pt-1">
+            La solicitud será enviada al profesor del centro (Mario / David) para su validación presencial.
+          </p>
+
+          {freezeSubmitted ? (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold text-center">
+              ¡Solicitud enviada al profesor con éxito!
             </div>
-            <p className="text-xs text-slate-500 mb-4">
-              La solicitud será enviada al profesor del centro para su validación presencial.
-            </p>
-
-            {freezeSubmitted ? (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold text-center">
-                ¡Solicitud enviada al profesor con éxito!
+          ) : (
+            <form onSubmit={handleFreezeRequest} className="space-y-4 pt-2">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Motivo
+                </label>
+                <select
+                  value={freezeReason}
+                  onChange={(e) => setFreezeReason(e.target.value as 'INJURY' | 'OTHER')}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
+                >
+                  <option value="INJURY">Lesión deportiva o médica</option>
+                  <option value="OTHER">Motivos laborales / viaje</option>
+                </select>
               </div>
-            ) : (
-              <form onSubmit={handleFreezeRequest} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Motivo
-                  </label>
-                  <select
-                    value={freezeReason}
-                    onChange={(e) => setFreezeReason(e.target.value as 'INJURY' | 'OTHER')}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
-                  >
-                    <option value="INJURY">Lesión deportiva o médica</option>
-                    <option value="OTHER">Motivos laborales / viaje</option>
-                  </select>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Notas adicionales para el profesor
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={freezeNotes}
-                    onChange={(e) => setFreezeNotes(e.target.value)}
-                    placeholder="Indica el tiempo estimado de recuperación..."
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Notas adicionales para el profesor
+                </label>
+                <textarea
+                  rows={3}
+                  value={freezeNotes}
+                  onChange={(e) => setFreezeNotes(e.target.value)}
+                  placeholder="Indica el tiempo estimado de recuperación..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800 resize-none"
+                />
+              </div>
 
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowFreezeModal(false)}
-                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 shadow-sm"
-                  >
-                    Enviar Solicitud
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+              <div className="flex gap-2.5 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowFreezeModal(false)}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  variant="default"
+                  className="flex-1"
+                >
+                  Enviar Solicitud
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

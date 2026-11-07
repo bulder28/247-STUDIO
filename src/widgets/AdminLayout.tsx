@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   BookOpen,
   CalendarDays,
@@ -25,6 +25,7 @@ import { WeightDivisionModal } from '@/widgets/WeightDivisionModal';
 
 export const AdminLayout: React.FC = () => {
   const { logout } = useAuth();
+  const location = useLocation();
 
   const [timerOpen, setTimerOpen] = useState(false);
   const [weightCalcOpen, setWeightCalcOpen] = useState(false);
@@ -45,57 +46,69 @@ export const AdminLayout: React.FC = () => {
   });
 
   const links = [
-    { to: '/admin/personal', label: 'Alumnos', icon: Users },
+    { to: '/admin/personal', label: 'Alumnos & Cinturones', icon: Users },
     { to: '/admin/asistencia', label: 'Hoja de Asistencia', icon: UserCheck },
     { to: '/admin/caja', label: 'Caja y Pagos', icon: CreditCard },
-    { to: '/admin/horarios', label: 'Horarios', icon: CalendarDays },
-    { to: '/admin/tarifas', label: 'Tarifas', icon: Tags },
-    { to: '/admin/leads', label: 'Leads de Prueba', icon: Shield },
+    { to: '/admin/horarios', label: 'Horarios de Tatami', icon: CalendarDays },
+    { to: '/admin/tarifas', label: 'Tarifas & MRR', icon: Tags },
+    { to: '/admin/leads', label: 'Embudo de Leads', icon: Shield },
     { to: '/admin/alta-alumno', label: 'Alta de Alumno', icon: UserPlus },
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex flex-col md:flex-row font-sans text-slate-900 antialiased">
-      {/* Sidebar Desktop MatGoat Clean */}
-      <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200/80 p-5 flex flex-col justify-between shrink-0">
+    <div className="min-h-screen bg-[#F8F9FA] flex flex-col md:flex-row font-sans text-slate-900 antialiased selection:bg-brand-accent selection:text-white">
+      {/* Sidebar Desktop Linear/Apple Clean */}
+      <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200/80 p-5 flex flex-col justify-between shrink-0 shadow-subtle z-20">
         <div>
-          <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
-            <img src="/logo.webp" alt="247Studio" className="w-8 h-8 object-contain" />
+          {/* Logo y Marca */}
+          <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+            <div className="relative">
+              <img src="/logo.webp" alt="247Studio" className="w-9 h-9 object-contain drop-shadow-xs" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+            </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-headline text-xl tracking-tighter uppercase text-slate-900 block leading-none">
                   247Studio
                 </span>
-                <span className="w-2 h-2 rounded-full bg-brand-accent inline-block" />
+                <span className="w-1.5 h-1.5 rounded-full bg-brand-accent inline-block" />
               </div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mt-0.5">
-                Panel Gestión
+                Panel de Gestión
               </span>
             </div>
           </div>
 
-          {/* Menú de Gestión */}
-          <div className="mt-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 pb-1">
-              GESTIÓN
+          {/* Menú de Gestión con estilo Linear */}
+          <div className="mt-5">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 pb-2">
+              Gestión Operativa
             </p>
             <nav className="space-y-1">
               {links.map((link) => {
                 const Icon = link.icon;
+                const isActive = location.pathname.startsWith(link.to);
                 return (
                   <NavLink
                     key={link.to}
                     to={link.to}
-                    className={({ isActive }) =>
-                      `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-                        isActive
-                          ? 'bg-slate-100 text-slate-900 font-bold'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                      }`
-                    }
+                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
+                      isActive
+                        ? 'bg-slate-900 text-white font-bold shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                    }`}
                   >
-                    <Icon className="w-4 h-4 text-slate-500" />
-                    <span>{link.label}</span>
+                    <div className="flex items-center gap-2.5">
+                      <Icon
+                        className={`w-4 h-4 transition-colors ${
+                          isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'
+                        }`}
+                      />
+                      <span>{link.label}</span>
+                    </div>
+                    {isActive && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-accent" />
+                    )}
                   </NavLink>
                 );
               })}
@@ -103,70 +116,91 @@ export const AdminLayout: React.FC = () => {
           </div>
 
           {/* Herramientas de Tatami */}
-          <div className="mt-5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 pb-1">
-              TATAMI TOOLS
+          <div className="mt-6 pt-5 border-t border-slate-100">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 pb-2">
+              Herramientas de Tatami
             </p>
             <div className="space-y-1">
               <button
                 type="button"
                 onClick={() => setTimerOpen(true)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-red-50 hover:text-red-700 transition text-left"
+                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-red-50/80 hover:text-red-700 transition text-left cursor-pointer group"
               >
-                <Swords className="w-4 h-4 text-red-600" />
-                <span>Cronómetro Sparring</span>
+                <div className="flex items-center gap-2.5">
+                  <Swords className="w-4 h-4 text-red-500 group-hover:scale-110 transition-transform" />
+                  <span>Cronómetro Sparring</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 group-hover:bg-red-100">
+                  Alt+T
+                </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setWeightCalcOpen(true)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition text-left"
+                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-amber-50/80 hover:text-amber-800 transition text-left cursor-pointer group"
               >
-                <Scale className="w-4 h-4 text-amber-500" />
-                <span>Calculadora Peso IBJJF</span>
+                <div className="flex items-center gap-2.5">
+                  <Scale className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+                  <span>Calculadora IBJJF</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 group-hover:bg-amber-100">
+                  Alt+W
+                </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setCurriculumOpen(true)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition text-left"
+                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-blue-50/80 hover:text-blue-700 transition text-left cursor-pointer group"
               >
-                <BookOpen className="w-4 h-4 text-blue-500" />
-                <span>Currículum BJJ & Drills</span>
+                <div className="flex items-center gap-2.5">
+                  <BookOpen className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
+                  <span>Currículum & Drills</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 group-hover:bg-blue-100">
+                  Alt+C
+                </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setMedicalOpen(true)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-700 transition text-left"
+                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-rose-50/80 hover:text-rose-700 transition text-left cursor-pointer group"
               >
-                <HeartPulse className="w-4 h-4 text-rose-500" />
-                <span>Botiquín y Emergencias</span>
+                <div className="flex items-center gap-2.5">
+                  <HeartPulse className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
+                  <span>Botiquín Tatami</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 group-hover:bg-rose-100">
+                  SOS
+                </span>
               </button>
             </div>
           </div>
         </div>
 
+        {/* Footer Sidebar */}
         <div className="mt-8 pt-4 border-t border-slate-100 flex flex-col gap-1.5">
           <NavLink
             to="/app/home"
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
           >
-            <Shield className="w-4 h-4 text-slate-500" />
-            <span>Ver como Alumno</span>
+            <Shield className="w-4 h-4 text-slate-400" />
+            <span>Vista de Alumno</span>
           </NavLink>
 
           <NavLink
             to="/kiosk/check-in"
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
           >
-            <Tablet className="w-4 h-4 text-slate-500" />
+            <Tablet className="w-4 h-4 text-slate-400" />
             <span>Modo Kiosco (Tablet)</span>
           </NavLink>
 
           <button
             onClick={logout}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-brand-accent hover:bg-brand-accent/5 transition"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-brand-accent hover:bg-brand-accent/5 transition cursor-pointer text-left"
           >
             <LogOut className="w-4 h-4" />
             <span>Cerrar Sesión</span>
@@ -176,7 +210,9 @@ export const AdminLayout: React.FC = () => {
 
       {/* Main Admin Viewport */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-        <Outlet />
+        <div className="max-w-7xl mx-auto">
+          <Outlet />
+        </div>
       </main>
 
       {/* Modales Globales de Tatami */}

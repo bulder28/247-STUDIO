@@ -50,15 +50,15 @@ export const FaqsPage: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 text-studio-red text-xs font-black uppercase tracking-wider mb-1">
+        <div className="flex items-center gap-2 text-brand-accent text-xs font-black uppercase tracking-wider mb-1">
           <HelpCircle className="w-4 h-4" />
           <span>Ayuda & Soporte</span>
         </div>
-        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-wider">Preguntas Frecuentes (FAQs)</h1>
-        <p className="text-xs text-slate-500 mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Preguntas Frecuentes (FAQs)</h1>
+        <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
           Todo lo que necesitas saber sobre el funcionamiento de 247Studio, normas de tatami y cuotas.
         </p>
       </div>
@@ -70,20 +70,20 @@ export const FaqsPage: React.FC = () => {
           return (
             <div
               key={faq.id}
-              className="rounded-2xl bg-white border border-slate-200/80 overflow-hidden transition"
+              className="rounded-2xl bg-white border border-slate-200/80 shadow-subtle overflow-hidden transition"
             >
               <button
                 onClick={() => setOpenId(isOpen ? null : faq.id)}
-                className="w-full p-5 text-left flex items-center justify-between gap-4 hover:bg-white/5 transition"
+                className="w-full p-5 text-left flex items-center justify-between gap-4 hover:bg-slate-50/70 transition cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-studio-red/20 text-studio-red border border-studio-red/30">
+                  <span className="text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                     {faq.category}
                   </span>
-                  <span className="text-sm font-extrabold text-white">{faq.question}</span>
+                  <span className="text-sm font-bold text-slate-900">{faq.question}</span>
                 </div>
                 {isOpen ? (
-                  <ChevronUp className="w-4 h-4 text-studio-red shrink-0" />
+                  <ChevronUp className="w-4 h-4 text-brand-accent shrink-0" />
                 ) : (
                   <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                 )}

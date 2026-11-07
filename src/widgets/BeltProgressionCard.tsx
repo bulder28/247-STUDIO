@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Award, CheckCircle2, Lock, Sparkles, Trophy, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
 import {
   calculateAthleteXP,
   calculateGraduationProgress,
@@ -7,7 +8,9 @@ import {
   getNextPromotion,
 } from '@/shared/domain/graduation';
 import { BookingDomainModel, UserDomainModel } from '@/shared/domain/types';
+import { Badge } from '@/shared/ui/badge';
 import { beltLabelEs } from '@/widgets/Belt';
+import { TiedBeltIcon, TiedBeltRank } from '@/widgets/TiedBeltIcon';
 
 interface BeltProgressionCardProps {
   user: UserDomainModel;
@@ -51,31 +54,33 @@ export const BeltProgressionCard: React.FC<BeltProgressionCardProps> = ({
     ? `Cinturón ${beltLabelEs(promotion.nextBelt)}`
     : `${promotion.nextStripes}º Grado (Raya)`;
 
+  const nextRank: TiedBeltRank = (promotion.nextBelt as TiedBeltRank) || 'WHITE';
+
   return (
-    <section className={`bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-7 shadow-sm text-slate-900 ${className}`}>
+    <section className={`bg-white border border-slate-200/70 rounded-3xl p-6 sm:p-7 shadow-subtle text-slate-900 ${className}`}>
       {/* Cabecera Gamificación: Nivel de Tatami & XP */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center gap-1">
-              <Zap className="w-3 h-3 text-amber-500" /> Nivel {xpData.level}
-            </span>
-            <span className="text-xs font-bold text-slate-400">•</span>
-            <span className="text-xs font-extrabold text-slate-800 uppercase tracking-tight">
+            <Badge variant="gold" className="gap-1 text-[10px]">
+              <Zap className="w-3 h-3 text-amber-950" /> Nivel {xpData.level}
+            </Badge>
+            <span className="text-xs font-bold text-slate-300">•</span>
+            <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
               {xpData.title}
             </span>
           </div>
 
-          <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1">
+          <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1.5">
             Camino a la Graduación
           </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
             Progreso oficial de tatami basado en horas y asistencias con Mario y David.
           </p>
         </div>
 
         {/* Contador de XP */}
-        <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl flex items-center gap-3 self-start sm:self-auto">
+        <div className="bg-slate-50/80 border border-slate-200/60 p-3 rounded-2xl flex items-center gap-3 self-start sm:self-auto shadow-subtle">
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-600">
             <Trophy className="w-5 h-5" />
           </div>
@@ -92,11 +97,11 @@ export const BeltProgressionCard: React.FC<BeltProgressionCardProps> = ({
       </div>
 
       {/* Tarjeta de Progreso hacia la Siguiente Raya / Cinturón */}
-      <div className="my-6 p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/60 border border-slate-200/80">
+      <div className="my-6 p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-50 border border-slate-200/80 shadow-subtle">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-2xl shrink-0">
-              🥋
+          <div className="flex items-center gap-3.5">
+            <div className="w-20 h-12 flex items-center justify-center shrink-0">
+              <TiedBeltIcon rank={nextRank} className="w-full h-auto drop-shadow-xs" />
             </div>
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-brand-accent block">
@@ -119,7 +124,7 @@ export const BeltProgressionCard: React.FC<BeltProgressionCardProps> = ({
         </div>
 
         {/* Barra de progreso interactiva */}
-        <div className="w-full bg-white h-3.5 rounded-full p-0.5 border border-slate-200 shadow-inner overflow-hidden">
+        <div className="w-full bg-slate-100 h-3 rounded-full p-0.5 border border-slate-200 overflow-hidden">
           <div
             className="h-full rounded-full bg-gradient-to-r from-slate-900 via-brand-accent to-red-500 transition-all duration-500 shadow-sm"
             style={{ width: `${progress.percentage}%` }}
@@ -155,18 +160,20 @@ export const BeltProgressionCard: React.FC<BeltProgressionCardProps> = ({
               Vitrina de Logros Deportivos
             </h4>
           </div>
-          <span className="text-xs font-bold text-slate-500 font-mono">
+          <Badge variant="outline" className="text-xs font-mono">
             {unlockedCount} de {badges.length} desbloqueados
-          </span>
+          </Badge>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {badges.map((b) => (
-            <div
+            <motion.div
               key={b.id}
+              whileHover={{ y: -3, scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               className={`p-3 rounded-2xl border transition-all text-center flex flex-col items-center justify-between min-h-[130px] ${
                 b.unlocked
-                  ? 'bg-amber-50/40 border-amber-200/80 hover:shadow-md hover:scale-[1.02]'
+                  ? 'bg-amber-50/50 border-amber-200/80 shadow-subtle'
                   : 'bg-slate-50/70 border-slate-200/60 opacity-60'
               }`}
             >
@@ -197,7 +204,7 @@ export const BeltProgressionCard: React.FC<BeltProgressionCardProps> = ({
               >
                 {b.unlocked ? 'Obtenido' : 'Bloqueado'}
               </span>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

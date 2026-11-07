@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { MessageSquare, Send, ThumbsUp } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
 
 const DISCIPLINES = ['TODAS', 'BJJ GI', 'GRAPPLING', 'MMA', 'LUCHA', 'KIDS'] as const;
 type DisciplineFilter = (typeof DISCIPLINES)[number];
@@ -85,35 +87,35 @@ export const ForoPage: React.FC = () => {
       : posts.filter((p) => p.discipline === selectedDiscipline);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12 animate-in fade-in duration-200">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 text-studio-red text-xs font-black uppercase tracking-wider mb-1">
+        <div className="flex items-center gap-2 text-brand-accent text-xs font-black uppercase tracking-wider mb-1">
           <MessageSquare className="w-4 h-4" />
           <span>Comunidad & Foro</span>
         </div>
-        <h1 className="text-2xl font-black text-slate-900 uppercase tracking-wider">Foro de la Academia</h1>
-        <p className="text-xs text-slate-500 mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Foro de la Academia</h1>
+        <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
           Publica preguntas, avisos de tatami o drills filtrados por disciplina.
         </p>
       </div>
 
-      {/* Formulario de Nueva Publicación (Diseño Slide 9) */}
-      <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-4">
+      {/* Formulario de Nueva Publicación */}
+      <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-subtle space-y-4">
         <h2 className="text-xs font-black uppercase tracking-wider text-slate-700">
           Crear Nuevo Mensaje
         </h2>
 
-        <form onSubmit={handleCreatePost} className="space-y-3">
+        <form onSubmit={handleCreatePost} className="space-y-3.5">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-1">
-              <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                 Seleccione Disciplina
               </label>
               <select
                 value={newPostDiscipline}
                 onChange={(e) => setNewPostDiscipline(e.target.value as DisciplineFilter)}
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-studio-red"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-slate-800"
               >
                 {DISCIPLINES.filter((d) => d !== 'TODAS').map((disc) => (
                   <option key={disc} value={disc}>
@@ -124,7 +126,7 @@ export const ForoPage: React.FC = () => {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">
+              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                 Escriba el Texto
               </label>
               <textarea
@@ -132,20 +134,21 @@ export const ForoPage: React.FC = () => {
                 onChange={(e) => setNewPostText(e.target.value)}
                 placeholder="Escribe tu mensaje para los compañeros o instructores..."
                 rows={2}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-studio-red resize-none"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800 resize-none"
               />
             </div>
           </div>
 
           <div className="flex justify-end">
-            <button
+            <Button
               type="submit"
+              variant="studio"
               disabled={!newPostText.trim()}
-              className="py-2.5 px-5 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 shadow-lg shadow-studio-red/20 disabled:opacity-50"
+              className="text-xs"
             >
-              <Send className="w-3.5 h-3.5" />
+              <Send className="w-3.5 h-3.5 mr-1.5" />
               <span>Publicar Mensaje</span>
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -156,7 +159,7 @@ export const ForoPage: React.FC = () => {
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
             Filtrar por disciplina:
           </span>
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-400 font-medium">
             {filteredPosts.length} publicaciones
           </span>
         </div>
@@ -166,10 +169,10 @@ export const ForoPage: React.FC = () => {
             <button
               key={d}
               onClick={() => setSelectedDiscipline(d)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all cursor-pointer ${
                 selectedDiscipline === d
-                  ? 'bg-studio-red text-white shadow-md'
-                  : 'bg-white border border-slate-200/80 text-slate-500 hover:text-white hover:bg-white/5'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-white border border-slate-200/80 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
               {d}
@@ -183,44 +186,44 @@ export const ForoPage: React.FC = () => {
         {filteredPosts.map((post) => (
           <div
             key={post.id}
-            className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-slate-200 transition space-y-3"
+            className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-slate-300 shadow-subtle transition space-y-3"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-studio-red/20 border border-studio-red/40 flex items-center justify-center font-black text-sm text-studio-red">
+                <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-sm shadow-xs">
                   {post.avatarText}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-extrabold text-white">{post.author}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-slate-600 font-bold">
+                    <span className="text-sm font-bold text-slate-900">{post.author}</span>
+                    <Badge variant="secondary" className="text-[10px]">
                       {post.discipline}
-                    </span>
+                    </Badge>
                   </div>
-                  <span className="text-[11px] text-slate-400 block">{post.belt}</span>
+                  <span className="text-[11px] text-slate-400 block font-medium">{post.belt}</span>
                 </div>
               </div>
 
-              <span className="text-[11px] text-slate-700/40">{post.date}</span>
+              <span className="text-[11px] text-slate-400 font-medium">{post.date}</span>
             </div>
 
-            <p className="text-xs text-slate-700/90 leading-relaxed">{post.content}</p>
+            <p className="text-xs text-slate-700 leading-relaxed font-normal">{post.content}</p>
 
-            <div className="pt-2 flex items-center gap-4 text-xs text-slate-400 border-t border-slate-100">
+            <div className="pt-2 flex items-center gap-4 text-xs text-slate-500 border-t border-slate-100">
               <button
                 onClick={() =>
                   setPosts(
                     posts.map((p) => (p.id === post.id ? { ...p, likes: p.likes + 1 } : p))
                   )
                 }
-                className="flex items-center gap-1.5 hover:text-studio-red transition"
+                className="flex items-center gap-1.5 hover:text-brand-accent transition cursor-pointer"
               >
                 <ThumbsUp className="w-3.5 h-3.5" />
-                <span>{post.likes}</span>
+                <span className="font-semibold">{post.likes}</span>
               </button>
               <div className="flex items-center gap-1.5">
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>{post.commentsCount} respuestas</span>
+                <span className="font-semibold">{post.commentsCount} respuestas</span>
               </div>
             </div>
           </div>

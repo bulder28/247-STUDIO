@@ -27,6 +27,7 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { useGlobalShortcuts } from '@/shared/hooks/useGlobalShortcuts';
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
 import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent } from '@/shared/ui/dialog';
 import {
   DropdownMenu,
@@ -140,12 +141,12 @@ export const AppLayout: React.FC = () => {
             </div>
           </div>
 
-          {/* Menú agrupado por categorías como MatGoat */}
+          {/* Menú agrupado por categorías estilo Linear / Vercel */}
           <nav className="space-y-4">
             {navSections.map((sec, sIdx) => (
               <div key={sIdx}>
                 {sec.title && (
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 pb-1 pt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-3 pb-1.5 pt-1">
                     {sec.title}
                   </p>
                 )}
@@ -157,18 +158,18 @@ export const AppLayout: React.FC = () => {
                       <NavLink
                         key={item.to}
                         to={item.to}
-                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
                           isActive
-                            ? 'bg-slate-100 text-slate-900 font-bold'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-slate-900 text-white font-bold shadow-subtle'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <Icon className={`w-4 h-4 ${isActive ? 'text-slate-900' : 'text-slate-400'}`} />
+                          <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
                           <span>{item.label}</span>
                         </div>
                         {item.badge && (
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${item.badgeColor || 'bg-slate-100 text-slate-700'}`}>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isActive ? 'bg-white/20 text-white' : item.badgeColor || 'bg-slate-100 text-slate-700'}`}>
                             {item.badge}
                           </span>
                         )}
@@ -269,39 +270,43 @@ export const AppLayout: React.FC = () => {
       {/* 2. ÁREA PRINCIPAL CON HEADER SUPERIOR MATGOAT            */}
       {/* ======================================================== */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Barra superior estilo MatGoat con migas, acciones y avatar */}
-        <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200/80 px-4 sm:px-8 py-3 flex items-center justify-between">
+        {/* Barra superior estilo Linear / Apple con migas limpias y acciones */}
+        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/70 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-subtle">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileDrawerOpen(true)}
-              className="md:hidden p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100"
+              className="md:hidden p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100"
             >
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-700">
-              <Home className="w-4 h-4 text-slate-400" />
-              <span>{getPageTitle()}</span>
+              <span className="text-slate-400 font-mono text-xs hidden sm:inline">247Studio</span>
+              <span className="text-slate-300 hidden sm:inline">/</span>
+              <span className="font-headline tracking-wide uppercase text-slate-900 font-black text-sm sm:text-base">
+                {getPageTitle()}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Botón Acción Rápida estilo MatGoat */}
+            {/* Botón Acción Rápida */}
             {role === 'admin' ? (
-              <Link
-                to="/admin/alta-alumno"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 hover:bg-slate-50 transition"
-              >
-                <UserPlus className="w-3.5 h-3.5 text-slate-600" />
-                <span>+ Añadir Alumno</span>
-              </Link>
+              <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex gap-1.5 shadow-2xs">
+                <Link to="/admin/alta-alumno">
+                  <UserPlus className="w-3.5 h-3.5 text-brand-accent" />
+                  <span>+ Alta Alumno</span>
+                </Link>
+              </Button>
             ) : (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setQrModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 hover:bg-slate-50 transition cursor-pointer"
+                className="inline-flex gap-1.5 shadow-2xs cursor-pointer"
               >
                 <QrCode className="w-3.5 h-3.5 text-brand-accent" />
-                <span>Ver Pase QR</span>
-              </button>
+                <span>Pase QR</span>
+              </Button>
             )}
 
             {/* Notificaciones con pastilla numérica */}

@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Award, Download, Flame, Shield, Sparkles, Target, User as UserIcon } from 'lucide-react';
+import { Award, Download, Flame, Shield, Sparkles, Target } from 'lucide-react';
 import { FighterStats, UserDomainModel } from '@/shared/domain/types';
+import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { Belt, beltLabelEs } from '@/widgets/Belt';
 import { FifaFighterCard } from '@/widgets/FifaFighterCard';
 import { FighterRadarChart } from '@/widgets/FighterRadarChart';
@@ -60,7 +64,7 @@ export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
   }, [stats]);
 
   return (
-    <section className="rounded-3xl bg-white border border-slate-200/80 shadow-sm overflow-hidden text-slate-900 transition-all">
+    <section className="rounded-3xl bg-white border border-slate-200/70 shadow-subtle overflow-hidden text-slate-900 transition-all">
       {/* Cinturón físico SVG */}
       <Belt belt={user.belt} stripes={user.stripes} showEmpty strip className="h-14" />
 
@@ -69,24 +73,19 @@ export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
-              {user.photoUrl ? (
-                <img
-                  src={user.photoUrl}
-                  alt={user.alias}
-                  className="h-16 w-16 rounded-2xl object-cover border border-slate-200 shadow-sm"
-                />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 border border-slate-200">
-                  <UserIcon className="h-7 w-7" aria-hidden="true" />
-                </div>
-              )}
+              <Avatar className="h-16 w-16 rounded-2xl border border-slate-200 shadow-xs">
+                {user.photoUrl && <AvatarImage src={user.photoUrl} alt={user.alias} className="object-cover" />}
+                <AvatarFallback className="rounded-2xl bg-slate-900 text-amber-400 font-black text-lg">
+                  {user.alias.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               {user.pricingTier === 'SF' && (
-                <span
-                  title="Socio Fundador"
-                  className="absolute -right-2 -top-2 rounded-full bg-brand-accent px-1.5 py-0.5 text-[10px] font-black text-white shadow-sm"
+                <Badge
+                  variant="studio"
+                  className="absolute -right-2 -top-2 px-1.5 py-0 text-[9px] font-black shadow-xs"
                 >
                   SF
-                </span>
+                </Badge>
               )}
             </div>
 
@@ -95,9 +94,9 @@ export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
                 <h2 className="font-headline truncate text-3xl uppercase tracking-tight text-slate-900">
                   {user.alias}
                 </h2>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white font-mono">
+                <Badge variant="iconBlack" className="text-[11px] py-0.5 px-2">
                   {ovr} OVR
-                </span>
+                </Badge>
               </div>
               <p className="mt-0.5 text-xs sm:text-sm font-semibold text-slate-600">
                 Cinturón {beltLabelEs(user.belt).toLowerCase()}, {stripesLabel}
@@ -109,45 +108,23 @@ export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
             </div>
           </div>
 
-          {/* Selector de Vista: Carta FUT vs Radar FIFA vs Lista */}
-          <div className="inline-flex p-1 bg-slate-100 rounded-xl self-start sm:self-auto border border-slate-200/60">
-            <button
-              type="button"
-              onClick={() => setViewMode('fut')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                viewMode === 'fut'
-                  ? 'bg-amber-500 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Carta FUT</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('radar')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                viewMode === 'radar'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <Target className="w-3.5 h-3.5 text-brand-accent" />
-              <span>Radar FIFA</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('bars')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                viewMode === 'bars'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5 text-slate-400" />
-              <span>Detalle</span>
-            </button>
-          </div>
+          {/* Radix Tabs Selector */}
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} className="w-auto">
+            <TabsList className="bg-slate-100 border border-slate-200/80">
+              <TabsTrigger value="fut" className="text-xs font-bold gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Carta FUT</span>
+              </TabsTrigger>
+              <TabsTrigger value="radar" className="text-xs font-bold gap-1.5">
+                <Target className="w-3.5 h-3.5 text-brand-accent" />
+                <span>Radar FIFA</span>
+              </TabsTrigger>
+              <TabsTrigger value="bars" className="text-xs font-bold gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-slate-400" />
+                <span>Detalle</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         {/* Tarjetas resumen estilo MatGoat / Pro Athlete */}
@@ -205,21 +182,22 @@ export const FighterCard: React.FC<FighterCardProps> = ({ user }) => {
               </div>
 
               {/* Botón Descargar en HD para Instagram / WhatsApp */}
-              <button
+              <Button
                 type="button"
+                variant="gold"
                 onClick={async () => {
                   setDownloadingCard(true);
                   await downloadFighterCardAsPng('fifa-fighter-card-root', user.alias);
                   setDownloadingCard(false);
                 }}
                 disabled={downloadingCard}
-                className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-2xl transition shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full h-12 text-xs uppercase tracking-wider font-black gap-2 shadow-card"
               >
-                <Download className="w-4 h-4 text-slate-950" />
+                <Download className="w-4 h-4 text-amber-950" />
                 <span>
                   {downloadingCard ? 'Generando Imagen HD...' : 'Descargar Tarjeta HD (Instagram / Redes)'}
                 </span>
-              </button>
+              </Button>
             </div>
           </div>
         ) : viewMode === 'radar' ? (

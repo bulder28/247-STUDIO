@@ -29,6 +29,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import {
@@ -40,6 +41,10 @@ import {
   ScheduleConflict,
 } from '@/shared/domain/schedule';
 import { LevelRequired, ScheduleDomainModel, ScheduleExceptionDomainModel } from '@/shared/domain/types';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import { Input } from '@/shared/ui/input';
 
 const PROGRAM_SUGGESTIONS = [
   'GI',
@@ -769,8 +774,10 @@ export const SchedulesAdminPage: React.FC = () => {
                       );
 
                       return (
-                        <div
+                        <motion.div
                           key={s.id}
+                          whileHover={{ y: -2, scale: 1.01 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                           className={`p-3 rounded-xl border transition relative group shadow-2xs ${theme.bg} ${theme.border} ${theme.borderLeft} ${
                             !s.active ? 'opacity-40 grayscale' : ''
                           } ${hasConflict ? 'ring-2 ring-amber-500 animate-pulse' : ''}`}
@@ -792,9 +799,9 @@ export const SchedulesAdminPage: React.FC = () => {
                               {s.program}
                             </span>
                             {s.levelRequired && s.levelRequired !== 'TODOS' && (
-                              <span className="text-[9px] font-bold text-slate-600 bg-white/60 px-1.5 py-0.2 rounded border border-slate-200/50 uppercase">
+                              <Badge variant="outline" className="text-[9px] py-0 px-1 font-mono uppercase bg-white/80">
                                 {s.levelRequired}
-                              </span>
+                              </Badge>
                             )}
                           </div>
 
@@ -821,7 +828,7 @@ export const SchedulesAdminPage: React.FC = () => {
                           <div className="mt-2.5 pt-2 border-t border-slate-200/50 flex items-center justify-end gap-1">
                             <button
                               onClick={() => handleOpenCloneModal(s)}
-                              className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-white transition"
+                              className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-white transition cursor-pointer"
                               title="Replicar esta clase a otros días de la semana"
                             >
                               <Copy className="w-3 h-3" />
@@ -829,7 +836,7 @@ export const SchedulesAdminPage: React.FC = () => {
 
                             <button
                               onClick={() => handleOpenEditModal(s)}
-                              className="p-1 rounded-md text-slate-500 hover:text-blue-700 hover:bg-white transition"
+                              className="p-1 rounded-md text-slate-500 hover:text-blue-700 hover:bg-white transition cursor-pointer"
                               title="Editar horario, profesor o tatami"
                             >
                               <Edit2 className="w-3 h-3" />
@@ -837,7 +844,7 @@ export const SchedulesAdminPage: React.FC = () => {
 
                             <button
                               onClick={() => handleToggleActive(s)}
-                              className={`p-1 rounded-md transition text-[10px] font-bold uppercase ${
+                              className={`p-1 rounded-md transition text-[10px] font-bold uppercase cursor-pointer ${
                                 s.active
                                   ? 'text-slate-400 hover:text-amber-700 hover:bg-white'
                                   : 'text-emerald-700 bg-emerald-100'
@@ -855,7 +862,7 @@ export const SchedulesAdminPage: React.FC = () => {
                               <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
-                        </div>
+                        </motion.div>
                       );
                     })
                   )}
@@ -953,411 +960,395 @@ export const SchedulesAdminPage: React.FC = () => {
       )}
 
       {/* ======================================================== */}
-      {/* 8. MODAL CREAR / EDITAR CLASE (FULL REA CONTROLS)         */}
+      {/* 8. MODAL CREAR / EDITAR CLASE (RADIX DIALOG)              */}
       {/* ======================================================== */}
-      {editModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 mb-4">
-              <div>
-                <h3 className="text-base font-black uppercase text-slate-900">
-                  {editingScheduleId ? 'Editar Franja Horaria' : 'Crear Nueva Clase'}
-                </h3>
-                <span className="text-xs text-slate-400">
-                  Asignación de recursos de tatami y parámetros docentes
-                </span>
-              </div>
-              <button
-                onClick={() => setEditModalOpen(false)}
-                className="text-slate-400 hover:text-slate-900 p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <Dialog open={editModalOpen} onOpenChange={(open) => setEditModalOpen(open)}>
+        <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black uppercase text-slate-900">
+              {editingScheduleId ? 'Editar Franja Horaria' : 'Crear Nueva Clase'}
+            </DialogTitle>
+            <p className="text-xs text-slate-400">
+              Asignación de recursos de tatami y parámetros docentes
+            </p>
+          </DialogHeader>
 
-            <form onSubmit={handleSaveSchedule} className="space-y-4">
-              {/* Día de la semana */}
-              <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                  Día de la Semana
-                </label>
-                <select
-                  value={formState.dayOfWeek}
-                  onChange={(e) => setFormState({ ...formState, dayOfWeek: parseInt(e.target.value, 10) })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
-                >
-                  {DAYS_OF_WEEK.map((d) => (
-                    <option key={d.num} value={d.num}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Horas Inicio y Fin + Duración dinámica */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                    Hora Inicio
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={formState.startTime}
-                    onChange={(e) => setFormState({ ...formState, startTime: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                    Hora Fin ({currentFormDuration > 0 ? `${currentFormDuration} min` : 'Inválida'})
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={formState.endTime}
-                    onChange={(e) => setFormState({ ...formState, endTime: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Programa / Disciplina + Chips rápidos */}
-              <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                  Programa / Modalidad
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formState.program}
-                  onChange={(e) => setFormState({ ...formState, program: e.target.value })}
-                  placeholder="GI / GRAPPLING / KIDS / MMA / LUCHA"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-bold text-slate-900 focus:outline-none mb-1.5"
-                />
-                <div className="flex flex-wrap gap-1">
-                  {PROGRAM_SUGGESTIONS.map((p) => (
-                    <button
-                      type="button"
-                      key={p}
-                      onClick={() => setFormState({ ...formState, program: p })}
-                      className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60 transition"
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Profesor Titular (REA Agente) */}
-              <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                  Profesor Asignado
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formState.professor}
-                  onChange={(e) => setFormState({ ...formState, professor: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none mb-1.5"
-                />
-                <div className="flex flex-wrap gap-1">
-                  {PROFESSOR_SUGGESTIONS.map((prof) => (
-                    <button
-                      type="button"
-                      key={prof}
-                      onClick={() => setFormState({ ...formState, professor: prof })}
-                      className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60 transition"
-                    >
-                      {prof}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sala / Tatami (REA Recurso) y Aforo */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                    Tatami / Sala
-                  </label>
-                  <select
-                    value={formState.room}
-                    onChange={(e) => setFormState({ ...formState, room: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
-                  >
-                    {ROOM_SUGGESTIONS.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                    Aforo Máximo (Plazas)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={60}
-                    value={formState.capacity}
-                    onChange={(e) => setFormState({ ...formState, capacity: parseInt(e.target.value, 10) || 26 })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Nivel Requerido */}
-              <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                  Nivel Requerido
-                </label>
-                <select
-                  value={formState.levelRequired}
-                  onChange={(e) => setFormState({ ...formState, levelRequired: e.target.value as LevelRequired })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
-                >
-                  {LEVEL_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Tema Técnico de la Sesión (Opcional) */}
-              <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                  Tema Técnico / Módulo Currículum (Opcional)
-                </label>
-                <input
-                  type="text"
-                  value={formState.curriculumTopic}
-                  onChange={(e) => setFormState({ ...formState, curriculumTopic: e.target.value })}
-                  placeholder="Ej: Raspados de Mariposa, Defensa de Armbar, Derribos Judo"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none"
-                />
-              </div>
-
-              {/* Switch Clase Activa */}
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer pt-2">
-                <input
-                  type="checkbox"
-                  checked={formState.active}
-                  onChange={(e) => setFormState({ ...formState, active: e.target.checked })}
-                  className="rounded text-brand-accent focus:ring-0"
-                />
-                <span>Clase activa en la app y kiosco</span>
+          <form onSubmit={handleSaveSchedule} className="space-y-4 pt-2">
+            {/* Día de la semana */}
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                Día de la Semana
               </label>
+              <select
+                value={formState.dayOfWeek}
+                onChange={(e) => setFormState({ ...formState, dayOfWeek: parseInt(e.target.value, 10) })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
+              >
+                {DAYS_OF_WEEK.map((d) => (
+                  <option key={d.num} value={d.num}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              {/* Botones */}
-              <div className="pt-4 border-t border-slate-200/80 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading === 'save'}
-                  className="px-5 py-2 bg-brand-accent hover:bg-brand-accent/90 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-sm"
-                >
-                  {actionLoading === 'save' ? 'Guardando...' : editingScheduleId ? 'Guardar Cambios' : 'Crear Franja'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* 9. MODAL CLONAR / REPLICAR A OTROS DÍAS (WODIFY REA)     */}
-      {/* ======================================================== */}
-      {cloneModalOpen && cloneTargetSchedule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 mb-4">
+            {/* Horas Inicio y Fin + Duración dinámica */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <h3 className="text-base font-black uppercase text-slate-900">Replicar Clase</h3>
-                <span className="text-xs text-slate-400">Clonar a otros días de la semana en 1 clic</span>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Hora Inicio
+                </label>
+                <Input
+                  type="time"
+                  required
+                  value={formState.startTime}
+                  onChange={(e) => setFormState({ ...formState, startTime: e.target.value })}
+                  className="font-mono font-bold"
+                />
               </div>
-              <button onClick={() => setCloneModalOpen(false)} className="text-slate-400 hover:text-slate-900">
-                <X className="w-5 h-5" />
-              </button>
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Hora Fin ({currentFormDuration > 0 ? `${currentFormDuration} min` : 'Inválida'})
+                </label>
+                <Input
+                  type="time"
+                  required
+                  value={formState.endTime}
+                  onChange={(e) => setFormState({ ...formState, endTime: e.target.value })}
+                  className="font-mono font-bold"
+                />
+              </div>
             </div>
 
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 text-xs">
-              <span className="text-[10px] font-black uppercase text-slate-400 block">Clase Origen:</span>
-              <span className="font-extrabold text-slate-900 block text-sm">
-                {cloneTargetSchedule.program} ({cloneTargetSchedule.startTime} - {cloneTargetSchedule.endTime})
-              </span>
-              <span className="text-slate-600 block mt-0.5">
-                {cloneTargetSchedule.professor} • {cloneTargetSchedule.room || 'Tatami Principal'}
-              </span>
-            </div>
-
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Selecciona los días destino:
-            </label>
-            <div className="space-y-1.5 mb-5">
-              {DAYS_OF_WEEK.filter((d) => d.num !== cloneTargetSchedule.dayOfWeek).map((d) => {
-                const isSelected = selectedCloneDays.includes(d.num);
-                return (
-                  <label
-                    key={d.num}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition text-xs font-bold ${
-                      isSelected
-                        ? 'bg-blue-50 border-blue-300 text-blue-900'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
+            {/* Programa / Disciplina + Chips rápidos */}
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                Programa / Modalidad
+              </label>
+              <Input
+                type="text"
+                required
+                value={formState.program}
+                onChange={(e) => setFormState({ ...formState, program: e.target.value })}
+                placeholder="GI / GRAPPLING / KIDS / MMA / LUCHA"
+                className="font-bold mb-1.5"
+              />
+              <div className="flex flex-wrap gap-1">
+                {PROGRAM_SUGGESTIONS.map((p) => (
+                  <button
+                    type="button"
+                    key={p}
+                    onClick={() => setFormState({ ...formState, program: p })}
+                    className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60 transition"
                   >
-                    <span>{d.name}</span>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedCloneDays([...selectedCloneDays, d.num]);
-                        } else {
-                          setSelectedCloneDays(selectedCloneDays.filter((x) => x !== d.num));
-                        }
-                      }}
-                      className="rounded text-brand-accent focus:ring-0"
-                    />
-                  </label>
-                );
-              })}
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
-              <button
+            {/* Profesor Titular (REA Agente) */}
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                Profesor Asignado
+              </label>
+              <Input
+                type="text"
+                required
+                value={formState.professor}
+                onChange={(e) => setFormState({ ...formState, professor: e.target.value })}
+                className="font-semibold mb-1.5"
+              />
+              <div className="flex flex-wrap gap-1">
+                {PROFESSOR_SUGGESTIONS.map((prof) => (
+                  <button
+                    type="button"
+                    key={prof}
+                    onClick={() => setFormState({ ...formState, professor: prof })}
+                    className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60 transition"
+                  >
+                    {prof}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sala / Tatami (REA Recurso) y Aforo */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Tatami / Sala
+                </label>
+                <select
+                  value={formState.room}
+                  onChange={(e) => setFormState({ ...formState, room: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
+                >
+                  {ROOM_SUGGESTIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                  Aforo Máximo (Plazas)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={formState.capacity}
+                  onChange={(e) => setFormState({ ...formState, capacity: parseInt(e.target.value, 10) || 26 })}
+                  className="font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            {/* Nivel Requerido */}
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                Nivel Requerido
+              </label>
+              <select
+                value={formState.levelRequired}
+                onChange={(e) => setFormState({ ...formState, levelRequired: e.target.value as LevelRequired })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
+              >
+                {LEVEL_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Tema Técnico de la Sesión (Opcional) */}
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                Tema Técnico / Módulo Currículum (Opcional)
+              </label>
+              <Input
+                type="text"
+                value={formState.curriculumTopic}
+                onChange={(e) => setFormState({ ...formState, curriculumTopic: e.target.value })}
+                placeholder="Ej: Raspados de Mariposa, Defensa de Armbar, Derribos Judo"
+              />
+            </div>
+
+            {/* Switch Clase Activa */}
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer pt-2">
+              <input
+                type="checkbox"
+                checked={formState.active}
+                onChange={(e) => setFormState({ ...formState, active: e.target.checked })}
+                className="rounded text-brand-accent focus:ring-0"
+              />
+              <span>Clase activa en la app y kiosco</span>
+            </label>
+
+            {/* Botones */}
+            <div className="pt-4 border-t border-slate-200/80 flex justify-end gap-2">
+              <Button
                 type="button"
-                onClick={() => setCloneModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+                variant="outline"
+                onClick={() => setEditModalOpen(false)}
               >
                 Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={selectedCloneDays.length === 0 || actionLoading === 'clone'}
-                onClick={handleExecuteClone}
-                className="px-5 py-2 bg-brand-accent hover:bg-brand-accent/90 disabled:opacity-40 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-sm flex items-center gap-1.5"
+              </Button>
+              <Button
+                type="submit"
+                disabled={actionLoading === 'save'}
+                variant="studio"
               >
-                <Copy className="w-3.5 h-3.5" />
-                <span>{actionLoading === 'clone' ? 'Replicando...' : `Replicar (${selectedCloneDays.length} días)`}</span>
-              </button>
+                {actionLoading === 'save' ? 'Guardando...' : editingScheduleId ? 'Guardar Cambios' : 'Crear Franja'}
+              </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ======================================================== */}
-      {/* 10. MODAL EXCEPCIÓN / FESTIVO DE CALENDARIO               */}
+      {/* 9. MODAL CLONAR / REPLICAR A OTROS DÍAS (RADIX DIALOG)    */}
       {/* ======================================================== */}
-      {exceptionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 mb-4">
-              <div>
-                <h3 className="text-base font-black uppercase text-slate-900">Registrar Excepción / Festivo</h3>
-                <span className="text-xs text-slate-400">Pausar reservas para una fecha determinada</span>
-              </div>
-              <button onClick={() => setExceptionModalOpen(false)} className="text-slate-400 hover:text-slate-900">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <Dialog
+        open={cloneModalOpen && !!cloneTargetSchedule}
+        onOpenChange={(open) => setCloneModalOpen(open)}
+      >
+        <DialogContent className="max-w-md">
+          {cloneTargetSchedule && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-base font-black uppercase text-slate-900">
+                  Replicar Clase
+                </DialogTitle>
+                <p className="text-xs text-slate-400">
+                  Clonar a otros días de la semana en 1 clic
+                </p>
+              </DialogHeader>
 
-            <form onSubmit={handleCreateException} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                  Fecha de Cierre
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={excForm.date}
-                  onChange={(e) => setExcForm({ ...excForm, date: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none"
-                />
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl my-2 text-xs">
+                <span className="text-[10px] font-black uppercase text-slate-400 block">Clase Origen:</span>
+                <span className="font-extrabold text-slate-900 block text-sm">
+                  {cloneTargetSchedule.program} ({cloneTargetSchedule.startTime} - {cloneTargetSchedule.endTime})
+                </span>
+                <span className="text-slate-600 block mt-0.5">
+                  {cloneTargetSchedule.professor} • {cloneTargetSchedule.room || 'Tatami Principal'}
+                </span>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                  Motivo de la Excepción
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={excForm.reason}
-                  onChange={(e) => setExcForm({ ...excForm, reason: e.target.value })}
-                  placeholder="Festivo Comunidad de Madrid, Seminario Internacional, etc."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
-                />
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Selecciona los días destino:
+              </label>
+              <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto">
+                {DAYS_OF_WEEK.filter((d) => d.num !== cloneTargetSchedule.dayOfWeek).map((d) => {
+                  const isSelected = selectedCloneDays.includes(d.num);
+                  return (
+                    <label
+                      key={d.num}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition text-xs font-bold ${
+                        isSelected
+                          ? 'bg-blue-50 border-blue-300 text-blue-900'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>{d.name}</span>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedCloneDays([...selectedCloneDays, d.num]);
+                          } else {
+                            setSelectedCloneDays(selectedCloneDays.filter((x) => x !== d.num));
+                          }
+                        }}
+                        className="rounded text-brand-accent focus:ring-0"
+                      />
+                    </label>
+                  );
+                })}
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
-                <button
+                <Button
                   type="button"
-                  onClick={() => setExceptionModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+                  variant="outline"
+                  onClick={() => setCloneModalOpen(false)}
                 >
                   Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading === 'exception'}
-                  className="px-5 py-2 bg-slate-900 hover:bg-black text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-sm"
+                </Button>
+                <Button
+                  type="button"
+                  disabled={selectedCloneDays.length === 0 || actionLoading === 'clone'}
+                  onClick={handleExecuteClone}
+                  variant="studio"
                 >
-                  Guardar Excepción
-                </button>
+                  <Copy className="w-3.5 h-3.5 mr-1.5" />
+                  <span>{actionLoading === 'clone' ? 'Replicando...' : `Replicar (${selectedCloneDays.length} días)`}</span>
+                </Button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ======================================================== */}
-      {/* 11. MODAL RESTAURAR PLANTILLA OFICIAL 247STUDIO           */}
+      {/* 10. MODAL EXCEPCIÓN / FESTIVO DE CALENDARIO (RADIX DIALOG)*/}
       {/* ======================================================== */}
-      {restoreModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 mb-3">
-              <h3 className="text-base font-black uppercase text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-brand-accent" /> Plantilla Oficial 247Studio
-              </h3>
-              <button onClick={() => setRestoreModalOpen(false)} className="text-slate-400 hover:text-slate-900">
-                <X className="w-5 h-5" />
-              </button>
+      <Dialog open={exceptionModalOpen} onOpenChange={(open) => setExceptionModalOpen(open)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black uppercase text-slate-900">
+              Registrar Excepción / Festivo
+            </DialogTitle>
+            <p className="text-xs text-slate-400">
+              Pausar reservas para una fecha determinada
+            </p>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateException} className="space-y-4 pt-2">
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                Fecha de Cierre
+              </label>
+              <Input
+                type="date"
+                required
+                value={excForm.date}
+                onChange={(e) => setExcForm({ ...excForm, date: e.target.value })}
+                className="font-mono font-bold"
+              />
             </div>
 
-            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-              ¿Deseas volcar en la base de datos de Firestore las <strong>25 clases oficiales</strong> de la academia (Lunes a Viernes, con Gi, No-Gi Grappling, Kids 1 y 2, MMA, Lucha y Open Mat) diseñadas por Mario y David?
-            </p>
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                Motivo de la Excepción
+              </label>
+              <Input
+                type="text"
+                required
+                value={excForm.reason}
+                onChange={(e) => setExcForm({ ...excForm, reason: e.target.value })}
+                placeholder="Festivo Comunidad de Madrid, Seminario Internacional, etc."
+              />
+            </div>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
-              <button
+              <Button
                 type="button"
-                onClick={() => setRestoreModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+                variant="outline"
+                onClick={() => setExceptionModalOpen(false)}
               >
                 Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={actionLoading === 'restore'}
-                onClick={handleRestoreOfficialSchedule}
-                className="px-5 py-2 bg-brand-accent hover:bg-brand-accent/90 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-sm"
+              </Button>
+              <Button
+                type="submit"
+                disabled={actionLoading === 'exception'}
+                variant="default"
               >
-                {actionLoading === 'restore' ? 'Cargando 25 clases...' : 'Confirmar y Volcar Parrilla'}
-              </button>
+                Guardar Excepción
+              </Button>
             </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ======================================================== */}
+      {/* 11. MODAL RESTAURAR PLANTILLA OFICIAL 247 (RADIX DIALOG)   */}
+      {/* ======================================================== */}
+      <Dialog open={restoreModalOpen} onOpenChange={(open) => setRestoreModalOpen(open)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black uppercase text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-brand-accent" /> Plantilla Oficial 247Studio
+            </DialogTitle>
+          </DialogHeader>
+
+          <p className="text-xs text-slate-600 mb-2 leading-relaxed">
+            ¿Deseas volcar en la base de datos de Firestore las <strong>25 clases oficiales</strong> de la academia (Lunes a Viernes, con Gi, No-Gi Grappling, Kids 1 y 2, MMA, Lucha y Open Mat) diseñadas por Mario y David?
+          </p>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRestoreModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={actionLoading === 'restore'}
+              onClick={handleRestoreOfficialSchedule}
+              variant="studio"
+            >
+              {actionLoading === 'restore' ? 'Cargando 25 clases...' : 'Confirmar y Volcar Parrilla'}
+            </Button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
