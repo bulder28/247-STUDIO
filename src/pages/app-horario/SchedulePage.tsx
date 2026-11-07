@@ -175,6 +175,9 @@ export const SchedulePage: React.FC = () => {
     dateStr: string;
   } | null>(null);
 
+  // Pestaña activa estilo Madrid Móvil: 'RESERVAR' (Clases Abiertas) o 'MIS_RESERVAS' (Pases y Anulaciones)
+  const [mobileSectionTab, setMobileSectionTab] = useState<'RESERVAR' | 'MIS_RESERVAS'>('RESERVAR');
+
   const fetchScheduleData = async () => {
     try {
       const schedQuery = query(collection(db, 'schedules'), where('active', '==', true));
@@ -634,83 +637,124 @@ export const SchedulePage: React.FC = () => {
   return (
     <div className="space-y-4 sm:space-y-5 pb-12 animate-in fade-in duration-200">
       {/* ======================================================== */}
-      {/* 1. CABECERA PRINCIPAL + SELECTOR DE VISTA (DÍA/SEMANA/MES) */}
+      {/* 1. CABECERA NATIVA ESTILO MADRID MÓVIL + PASE QR RÁPIDO   */}
       {/* ======================================================== */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase font-headline">
-              Calendario & Reservas de Tatami
+      <div className="bg-slate-950 text-white rounded-3xl p-4 sm:p-5 shadow-lg border border-slate-800 relative overflow-hidden">
+        {/* Fondo sutil deportivo */}
+        <div className="absolute -right-10 -bottom-10 w-44 h-44 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex items-center justify-between gap-3 relative z-10">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-400 text-slate-950">
+                Madrid es Deporte · 247
+              </span>
+              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Instalación Abierta
+              </span>
+            </div>
+            <h1 className="text-lg sm:text-2xl font-black tracking-tight uppercase font-headline text-white mt-1 truncate">
+              Centro Deportivo Pinto · Tatami 247
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-900 text-amber-400">
-              Sistema REA
-            </span>
+            <p className="text-xs text-slate-400 font-medium truncate">
+              Reserva de sesiones y clases dirigidas en tiempo real
+            </p>
           </div>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Gestiona tus reservas en vista diaria, parrilla semanal o planificación mensual.
-          </p>
+
+          {/* Botón Pase QR Madrid Móvil para el torno de acceso */}
+          {userData && (
+            <button
+              type="button"
+              onClick={() => setShowQrPassModal(true)}
+              className="px-3.5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition flex items-center gap-2 shadow-md shrink-0 cursor-pointer active:scale-95"
+              title="Abrir Pase QR digital para el torno"
+            >
+              <QrCode className="w-4 h-4 text-slate-950" />
+              <div className="text-left hidden sm:block">
+                <span className="block text-[10px] uppercase tracking-wider leading-none text-slate-800">Torno</span>
+                <span className="block text-xs font-black leading-none mt-0.5">Pase QR</span>
+              </div>
+              <span className="sm:hidden font-black text-xs">Pase QR</span>
+            </button>
+          )}
         </div>
 
-        {/* Controles de Navegación Temporal + Conmutador de Vista (Día | Semana | Mes) */}
-        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
-          {/* Navegador de Fechas (< Periodo | HOY | >) */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/70">
+        {/* Segmented Control Principal estilo Madrid Móvil: [ 🥋 Reservar Clases ] | [ 🎟️ Mis Reservas (X) ] */}
+        <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+          <div className="grid grid-cols-2 gap-1.5 bg-slate-900 p-1 rounded-2xl border border-slate-800">
             <button
               type="button"
-              onClick={handleNavigatePrev}
-              aria-label="Periodo anterior"
-              className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition cursor-pointer"
-              title="Anterior"
+              onClick={() => {
+                setMobileSectionTab('RESERVAR');
+                setOnlyMyBookings(false);
+              }}
+              className={`py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer ${
+                mobileSectionTab === 'RESERVAR'
+                  ? 'bg-white text-slate-950 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
             >
-              <ChevronLeft className="w-4 h-4" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Reservar Clases</span>
             </button>
 
             <button
               type="button"
-              onClick={handleJumpToToday}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-extrabold text-slate-800 hover:bg-white transition cursor-pointer"
-              title="Volver al día de hoy"
+              onClick={() => {
+                setMobileSectionTab('MIS_RESERVAS');
+                setOnlyMyBookings(true);
+              }}
+              className={`py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer relative ${
+                mobileSectionTab === 'MIS_RESERVAS'
+                  ? 'bg-emerald-500 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
             >
-              Hoy
-            </button>
-
-            <span className="px-2 text-xs font-bold text-slate-900 font-mono whitespace-nowrap">
-              {periodTitle}
-            </span>
-
-            <button
-              type="button"
-              onClick={handleNavigateNext}
-              aria-label="Periodo siguiente"
-              className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition cursor-pointer"
-              title="Siguiente"
-            >
-              <ChevronRight className="w-4 h-4" />
+              <Check className="w-3.5 h-3.5" />
+              <span>Mis Reservas</span>
+              {activeMyBookings.length > 0 && (
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                    mobileSectionTab === 'MIS_RESERVAS'
+                      ? 'bg-white text-emerald-900'
+                      : 'bg-emerald-500 text-white'
+                  }`}
+                >
+                  {activeMyBookings.length}
+                </span>
+              )}
             </button>
           </div>
 
-          {/* Conmutador de Vistas: Día | Semana | Mes */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/70">
+          {/* Conmutador de Vistas en Escritorio (Día · Semana · Mes) */}
+          <div className="hidden lg:flex items-center gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
             <button
               type="button"
-              onClick={() => setViewMode('DAY')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              onClick={() => {
+                setViewMode('DAY');
+                setMobileSectionTab('RESERVAR');
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'DAY'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs font-black'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <List className="w-3.5 h-3.5" />
-              <span>Día</span>
+              <span>Vista App</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setViewMode('WEEK')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              onClick={() => {
+                setViewMode('WEEK');
+                setMobileSectionTab('RESERVAR');
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'WEEK'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-slate-950 shadow-xs font-black'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
@@ -719,11 +763,14 @@ export const SchedulePage: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setViewMode('MONTH')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              onClick={() => {
+                setViewMode('MONTH');
+                setMobileSectionTab('RESERVAR');
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'MONTH'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-slate-950 shadow-xs font-black'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <CalendarDays className="w-3.5 h-3.5" />
@@ -734,224 +781,337 @@ export const SchedulePage: React.FC = () => {
       </div>
 
       {/* ======================================================== */}
-      {/* 2. BARRA DE FILTROS REA + FRANJA HORARIA (MADRID MÓVIL)   */}
+      {/* 2. PANTALLA PRINCIPAL: 'MIS RESERVAS' O 'RESERVAR CLASES' */}
       {/* ======================================================== */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-3.5 shadow-sm space-y-2.5">
-        {/* Tira de disciplinas */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-          <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-0.5" />
-          {disciplines.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => setSelectedDiscipline(d)}
-              aria-pressed={selectedDiscipline === d}
-              aria-label={`Filtrar por disciplina ${d}`}
-              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold shrink-0 transition cursor-pointer ${
-                selectedDiscipline === d
-                  ? 'bg-slate-900 text-white shadow-2xs'
-                  : 'bg-slate-50 border border-slate-200/80 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              {d}
-            </button>
-          ))}
+      {mobileSectionTab === 'MIS_RESERVAS' ? (
+        /* ======================================================== */
+        /* 2A. WALLET DE RESERVAS Y ANULACIONES ESTILO MADRID MÓVIL */
+        /* ======================================================== */
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">
+                  Madrid es Deporte · Tus Pases Activos
+                </span>
+                <h2 className="text-lg font-black text-slate-900 uppercase">
+                  Mis Reservas y Anulaciones ({upcomingMyBookingsDetailed.length})
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileSectionTab('RESERVAR');
+                  setOnlyMyBookings(false);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition cursor-pointer"
+              >
+                + Nueva Reserva
+              </button>
+            </div>
+
+            {upcomingMyBookingsDetailed.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3 border border-emerald-200">
+                  <Calendar className="w-7 h-7" />
+                </div>
+                <h3 className="text-sm font-black text-slate-900 uppercase">
+                  No tienes reservas activas
+                </h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
+                  Selecciona una fecha en el calendario para reservar tu plaza en las clases de BJJ, Grappling o MMA.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileSectionTab('RESERVAR');
+                    setOnlyMyBookings(false);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition shadow-sm cursor-pointer"
+                >
+                  Explorar Clases Disponibles →
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3 pt-4">
+                {upcomingMyBookingsDetailed.map(({ booking, schedule }) => {
+                  const slotKey = `${schedule.id}_${booking.date}`;
+                  const theme = getProgramTheme(schedule.program);
+                  const dur = calculateScheduleDurationMinutes(schedule.startTime, schedule.endTime);
+                  const isPast = booking.date < todayStr;
+
+                  return (
+                    <div
+                      key={booking.id}
+                      className="bg-slate-50/70 border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs transition hover:shadow-md relative overflow-hidden"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${theme.badge}`}
+                            >
+                              {schedule.program}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                              {booking.status === 'WAITLISTED' ? 'En Lista de Espera' : 'Plaza Confirmada'}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-400">
+                              Reserva #{booking.id.slice(-6).toUpperCase()}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3 className="text-base sm:text-lg font-black text-slate-900 capitalize font-headline">
+                              {formatReadableDateEs(booking.date)}
+                            </h3>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 mt-1">
+                              <span className="font-mono font-black text-slate-900 flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                                {schedule.startTime} – {schedule.endTime} ({dur}m)
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <User className="w-3.5 h-3.5 text-slate-400" />
+                                Prof. {schedule.professor}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                {schedule.room || 'Tatami Principal'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Botones de acción del Pase Madrid Móvil */}
+                        <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
+                          {userData && (
+                            <button
+                              type="button"
+                              onClick={() => setShowQrPassModal(true)}
+                              className="flex-1 sm:flex-initial py-2.5 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer active:scale-95"
+                              title="Mostrar Pase QR para el torno"
+                            >
+                              <QrCode className="w-4 h-4 text-amber-400" />
+                              <span>Pase QR Torno</span>
+                            </button>
+                          )}
+
+                          {!isPast && (
+                            <button
+                              type="button"
+                              onClick={() => handleCancelBooking(booking, schedule, booking.date)}
+                              disabled={actionLoading === slotKey}
+                              className="py-2.5 px-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
+                            >
+                              {actionLoading === slotKey ? 'Anulando...' : 'Anular Reserva'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Nota informativa de normativa municipal de anulación */}
+                <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>Normativa de Reservas y Anulaciones (Madrid es Deporte):</span>
+                  </div>
+                  <p className="text-amber-800 pl-5">
+                    Puedes anular tu reserva sin penalización hasta <strong>2 horas antes</strong> del inicio de la sesión. Presenta tu código QR en el lector del torno de entrada al tatami para validar tu asistencia.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-
-        {/* Filtros de Agente (Profesor), Recurso (Sala), Franja Horaria y Evento (Mis Reservas + QR) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Profesor (REA Agent) */}
-            <div className="flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-slate-400" />
-              <select
-                value={selectedProfessor}
-                onChange={(e) => setSelectedProfessor(e.target.value)}
-                aria-label="Filtrar por profesor"
-                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
+      ) : (
+        /* ======================================================== */
+        /* 2B. FLUJO DE RESERVA DE CLASES (CARRUSEL + FILTROS + REA)*/
+        /* ======================================================== */
+        <div className="space-y-4">
+          {/* Tira Horizontal de 14 Días estilo Madrid Móvil (SIEMPRE VISIBLE EN RESERVAR) */}
+          <div className="bg-white p-3 rounded-3xl border border-slate-200/80 shadow-sm space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                Elige Fecha (Próximos 14 días)
+              </span>
+              <button
+                type="button"
+                onClick={handleJumpToToday}
+                className="text-[11px] font-black text-amber-600 hover:text-amber-700 underline cursor-pointer"
               >
-                <option value="ALL">Todos los Profesores</option>
-                {distinctProfessors.map((prof) => (
-                  <option key={prof} value={prof}>
-                    Prof. {prof}
-                  </option>
-                ))}
-              </select>
+                Volver a Hoy
+              </button>
             </div>
 
-            {/* Sala / Tatami (REA Resource) */}
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-              <select
-                value={selectedRoom}
-                onChange={(e) => setSelectedRoom(e.target.value)}
-                aria-label="Filtrar por tatami o sala"
-                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
-              >
-                <option value="ALL">Todos los Tatamis</option>
-                {distinctRooms.map((room) => (
-                  <option key={room} value={room}>
-                    {room}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none">
+              {mobileCarouselDays.map((d) => {
+                const isSelected = d.dateStr === selectedDateStr;
+                const hasBookingOnDay = schedules.some(
+                  (s) =>
+                    s.dayOfWeek === d.num && !!getMyBookingForSlot(s.id, d.dateStr)
+                );
 
-            {/* Selector rápido de Franja Horaria (Mañana / Tarde / Noche estilo Madrid Móvil) */}
-            <div className="flex items-center gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-200/80">
-              {(
-                [
-                  { id: 'ALL', label: 'Todo el día', icon: null },
-                  { id: 'MORNING', label: 'Mañana', icon: Sunrise },
-                  { id: 'AFTERNOON', label: 'Tarde', icon: Sun },
-                  { id: 'NIGHT', label: 'Noche', icon: Moon },
-                ] as const
-              ).map((band) => {
-                const IconComp = band.icon;
-                const active = selectedTimeBand === band.id;
                 return (
                   <button
-                    key={band.id}
+                    key={d.dateStr}
                     type="button"
-                    onClick={() => setSelectedTimeBand(band.id)}
-                    className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
-                      active
-                        ? 'bg-slate-900 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                    onClick={() => handleSelectDate(d.dateStr)}
+                    aria-pressed={isSelected}
+                    aria-label={`Ver horario del ${d.label} ${d.dayNum}${d.isToday ? ' (Hoy)' : ''}`}
+                    className={`py-2 px-3 min-w-[64px] shrink-0 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer border relative active:scale-95 ${
+                      isSelected
+                        ? 'bg-slate-950 text-white border-slate-950 shadow-md ring-2 ring-slate-900/10'
+                        : d.isToday
+                        ? 'bg-amber-50/80 text-slate-950 border-amber-300 font-bold'
+                        : 'bg-slate-50 text-slate-700 border-slate-200/80 hover:bg-slate-100 hover:text-slate-950'
                     }`}
                   >
-                    {IconComp && <IconComp className="w-3 h-3" />}
-                    <span>{band.label}</span>
+                    <span className="text-[9px] font-black uppercase tracking-wider">
+                      {d.short}
+                    </span>
+                    <span className="text-base font-black font-mono mt-0.5 leading-none">
+                      {d.dayNum}
+                    </span>
+                    <span
+                      className={`text-[8px] font-bold uppercase mt-0.5 ${
+                        isSelected ? 'text-slate-300' : 'text-slate-400'
+                      }`}
+                    >
+                      {d.monthShort}
+                    </span>
+                    <div className="flex items-center gap-1 mt-1 h-2.5">
+                      {d.isToday && (
+                        <span
+                          className={`text-[7px] font-black uppercase px-1 rounded-full leading-tight ${
+                            isSelected
+                              ? 'bg-amber-400 text-slate-950'
+                              : 'bg-amber-200 text-amber-950'
+                          }`}
+                        >
+                          Hoy
+                        </span>
+                      )}
+                      {hasBookingOnDay && (
+                        <span
+                          title="Tienes clase reservada este día"
+                          className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white"
+                        />
+                      )}
+                    </div>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Chip de Mis Reservas Activas + Pase QR */}
-          <div className="flex items-center gap-2">
-            {userData && (
-              <button
-                type="button"
-                onClick={() => setShowQrPassModal(true)}
-                className="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                title="Mostrar Resguardo QR de Acceso al Tatami"
-              >
-                <QrCode className="w-3.5 h-3.5 text-amber-400" />
-                <span>Pase QR</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setOnlyMyBookings((prev) => !prev)}
-              className={`px-3 py-1 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
-                onlyMyBookings
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                  : 'bg-emerald-50/70 text-emerald-800 border-emerald-200 hover:bg-emerald-100/70'
-              }`}
-            >
-              <Check className="w-3.5 h-3.5" />
-              <span>Mis Reservas ({activeMyBookings.length})</span>
-            </button>
-
-            {(selectedDiscipline !== 'TODAS' ||
-              selectedProfessor !== 'ALL' ||
-              selectedRoom !== 'ALL' ||
-              selectedTimeBand !== 'ALL' ||
-              onlyMyBookings) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedDiscipline('TODAS');
-                  setSelectedProfessor('ALL');
-                  setSelectedRoom('ALL');
-                  setSelectedTimeBand('ALL');
-                  setOnlyMyBookings(false);
-                }}
-                className="text-[11px] font-bold text-slate-500 hover:text-slate-900 underline cursor-pointer"
-              >
-                Limpiar filtros
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Panel desplegable "Mis Reservas y Anulaciones" estilo Madrid Móvil cuando se activa Mis Reservas */}
-        {onlyMyBookings && (
-          <div className="pt-3 border-t border-emerald-100 space-y-2 animate-in fade-in duration-150">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                Mis Próximas Reservas & Anulaciones ({upcomingMyBookingsDetailed.length})
-              </span>
-              <span className="text-[10px] text-slate-500 font-medium">
-                Anulación sin penalización hasta 2h antes
-              </span>
+          {/* Barra de Filtros Rápida estilo Madrid Móvil (Disciplinas + Franja Horaria) */}
+          <div className="bg-white border border-slate-200/80 rounded-3xl p-3 sm:p-4 shadow-sm space-y-2.5">
+            {/* Tira horizontal de disciplinas */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+              <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-0.5" />
+              {disciplines.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setSelectedDiscipline(d)}
+                  aria-pressed={selectedDiscipline === d}
+                  aria-label={`Filtrar por disciplina ${d}`}
+                  className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider shrink-0 transition cursor-pointer ${
+                    selectedDiscipline === d
+                      ? 'bg-slate-950 text-white shadow-xs'
+                      : 'bg-slate-50 border border-slate-200/80 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
             </div>
 
-            {upcomingMyBookingsDetailed.length === 0 ? (
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-xs text-slate-500 text-center">
-                No tienes próximas reservas activas. Desactiva el filtro «Mis Reservas» para explorar todas las clases.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {upcomingMyBookingsDetailed.map(({ booking, schedule }) => {
-                  const slotKey = `${schedule.id}_${booking.date}`;
-                  const theme = getProgramTheme(schedule.program);
+            {/* Franjas Horarias (Mañana / Tarde / Noche) + Filtros de Profesor y Sala */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200/80">
+                {(
+                  [
+                    { id: 'ALL', label: 'Todo el día', icon: null },
+                    { id: 'MORNING', label: 'Mañana', icon: Sunrise },
+                    { id: 'AFTERNOON', label: 'Tarde', icon: Sun },
+                    { id: 'NIGHT', label: 'Noche', icon: Moon },
+                  ] as const
+                ).map((band) => {
+                  const IconComp = band.icon;
+                  const active = selectedTimeBand === band.id;
                   return (
-                    <div
-                      key={booking.id}
-                      className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200 flex items-center justify-between gap-2"
+                    <button
+                      key={band.id}
+                      type="button"
+                      onClick={() => setSelectedTimeBand(band.id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                        active
+                          ? 'bg-white text-slate-950 shadow-2xs font-black'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
                     >
-                      <div
-                        className="min-w-0 cursor-pointer"
-                        onClick={() => handleSelectDate(booking.date)}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span className={`px-2 py-0.2 rounded text-[9px] font-black uppercase ${theme.badge}`}>
-                            {schedule.program}
-                          </span>
-                          <span className="text-[11px] font-mono font-black text-slate-900">
-                            {schedule.startTime}–{schedule.endTime}
-                          </span>
-                        </div>
-                        <p className="text-[11px] font-bold text-slate-700 capitalize truncate mt-0.5">
-                          {formatReadableDateEs(booking.date)}
-                        </p>
-                        <p className="text-[10px] text-slate-500 truncate">
-                          {schedule.room || 'Tatami Principal'} · Prof. {schedule.professor}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        {userData && (
-                          <button
-                            type="button"
-                            onClick={() => setShowQrPassModal(true)}
-                            className="p-1.5 rounded-lg bg-slate-900 text-amber-400 hover:bg-slate-800 transition cursor-pointer"
-                            title="Ver QR de acceso"
-                          >
-                            <QrCode className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleCancelBooking(booking, schedule, booking.date)}
-                          disabled={actionLoading === slotKey}
-                          className="px-2 py-1 rounded-lg bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-bold transition cursor-pointer"
-                        >
-                          Anular
-                        </button>
-                      </div>
-                    </div>
+                      {IconComp && <IconComp className="w-3 h-3" />}
+                      <span>{band.label}</span>
+                    </button>
                   );
                 })}
               </div>
-            )}
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedProfessor}
+                  onChange={(e) => setSelectedProfessor(e.target.value)}
+                  aria-label="Filtrar por profesor"
+                  className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
+                >
+                  <option value="ALL">Todos los Profesores</option>
+                  {distinctProfessors.map((prof) => (
+                    <option key={prof} value={prof}>
+                      Prof. {prof}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedRoom}
+                  onChange={(e) => setSelectedRoom(e.target.value)}
+                  aria-label="Filtrar por tatami"
+                  className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none hidden sm:block"
+                >
+                  <option value="ALL">Todos los Tatamis</option>
+                  {distinctRooms.map((room) => (
+                    <option key={room} value={room}>
+                      {room}
+                    </option>
+                  ))}
+                </select>
+
+                {(selectedDiscipline !== 'TODAS' ||
+                  selectedProfessor !== 'ALL' ||
+                  selectedRoom !== 'ALL' ||
+                  selectedTimeBand !== 'ALL') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDiscipline('TODAS');
+                      setSelectedProfessor('ALL');
+                      setSelectedRoom('ALL');
+                      setSelectedTimeBand('ALL');
+                    }}
+                    className="text-[11px] font-bold text-slate-500 hover:text-slate-900 underline cursor-pointer"
+                  >
+                    Restablecer
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-      </div>
 
       {/* Feedback de Reserva / Cancelación */}
       {message && (
@@ -1001,6 +1161,37 @@ export const SchedulePage: React.FC = () => {
         /* 3A. VISTA SEMANAL (PARRILLA HORARIA ESTILO GYMDESK/WODIFY)*/
         /* ======================================================== */
         <div className="space-y-3">
+          <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleNavigatePrev}
+                aria-label="Semana anterior"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                title="Semana anterior"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-bold font-mono text-slate-900 px-1">{periodTitle}</span>
+              <button
+                type="button"
+                onClick={handleNavigateNext}
+                aria-label="Semana siguiente"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                title="Semana siguiente"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleJumpToToday}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              Semana Actual
+            </button>
+          </div>
+
           <div
             className={`grid grid-cols-1 sm:grid-cols-2 ${
               weekDays.length > 5 ? 'lg:grid-cols-7' : 'lg:grid-cols-5'
@@ -1261,9 +1452,41 @@ export const SchedulePage: React.FC = () => {
         /* ======================================================== */
         /* 3B. VISTA MENSUAL (MATRIZ 7 COLUMNAS + PUENTE DIARIO)     */
         /* ======================================================== */
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-          {/* Matriz Mensual (8 columnas en XL) */}
-          <div className="xl:col-span-8 bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleNavigatePrev}
+                aria-label="Mes anterior"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                title="Mes anterior"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-bold font-mono text-slate-900 px-1">{periodTitle}</span>
+              <button
+                type="button"
+                onClick={handleNavigateNext}
+                aria-label="Mes siguiente"
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                title="Mes siguiente"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleJumpToToday}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              Mes Actual
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+            {/* Matriz Mensual (8 columnas en XL) */}
+            <div className="xl:col-span-8 bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
             {/* Cabecera L-D */}
             <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200/80 text-center">
               {WEEKDAY_HEADERS.map((w) => (
@@ -1486,81 +1709,24 @@ export const SchedulePage: React.FC = () => {
             )}
           </div>
         </div>
+      </div>
       ) : (
         /* ======================================================== */
-        /* 3C. VISTA DÍA / MADRID MÓVIL (CARRUSEL 14 DÍAS + FRANJAS) */
+        /* 3C. VISTA DÍA / MADRID MÓVIL (SESIONES POR FRANJA)       */
         /* ======================================================== */
         <div className="space-y-4">
-          {/* Carrusel horizontal deslizable de 14 días (Estilo Madrid Móvil "Madrid es Deporte") */}
-          <div className="bg-white p-2.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                Selecciona Fecha (14 Días · Estilo Madrid Móvil)
+          <div className="flex items-center justify-between px-2 pt-1">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 block">
+                Sesiones Disponibles
               </span>
-              <span className="text-[11px] font-bold text-slate-800 capitalize">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 capitalize font-headline">
                 {formatReadableDateEs(selectedDateStr)}
-              </span>
+              </h2>
             </div>
-
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-              {mobileCarouselDays.map((d) => {
-                const isSelected = d.dateStr === selectedDateStr;
-                const hasBookingOnDay = schedules.some(
-                  (s) =>
-                    s.dayOfWeek === d.num && !!getMyBookingForSlot(s.id, d.dateStr)
-                );
-
-                return (
-                  <button
-                    key={d.dateStr}
-                    type="button"
-                    onClick={() => handleSelectDate(d.dateStr)}
-                    aria-pressed={isSelected}
-                    aria-label={`Ver horario del ${d.label} ${d.dayNum}${d.isToday ? ' (Hoy)' : ''}`}
-                    className={`py-2 px-2.5 min-w-[60px] shrink-0 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer border relative ${
-                      isSelected
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                        : d.isToday
-                        ? 'bg-amber-50/70 text-slate-900 border-amber-300'
-                        : 'bg-slate-50/60 text-slate-600 border-slate-200/70 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    <span className="text-[9px] font-bold uppercase tracking-wider">
-                      {d.short}
-                    </span>
-                    <span className="text-sm font-black font-mono mt-0.5 leading-none">
-                      {d.dayNum}
-                    </span>
-                    <span
-                      className={`text-[8px] font-bold uppercase mt-0.5 ${
-                        isSelected ? 'text-slate-300' : 'text-slate-400'
-                      }`}
-                    >
-                      {d.monthShort}
-                    </span>
-                    <div className="flex items-center gap-1 mt-1 h-3">
-                      {d.isToday && (
-                        <span
-                          className={`text-[8px] font-black uppercase px-1 rounded-full ${
-                            isSelected
-                              ? 'bg-amber-400 text-slate-950'
-                              : 'bg-amber-200 text-amber-950'
-                          }`}
-                        >
-                          Hoy
-                        </span>
-                      )}
-                      {hasBookingOnDay && (
-                        <span
-                          title="Tienes reserva este día"
-                          className="w-2 h-2 rounded-full bg-emerald-500"
-                        />
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700">
+              {selectedDaySchedules.length} {selectedDaySchedules.length === 1 ? 'sesión' : 'sesiones'}
+            </span>
           </div>
 
           {/* Lista detallada de clases agrupadas por Franja Horaria (Mañana / Tarde / Noche) */}
@@ -1815,6 +1981,8 @@ export const SchedulePage: React.FC = () => {
               })}
             </div>
           )}
+        </div>
+      )}
         </div>
       )}
 
