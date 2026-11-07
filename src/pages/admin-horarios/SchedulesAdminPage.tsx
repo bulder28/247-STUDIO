@@ -13,7 +13,10 @@ import {
   AlertCircle,
   AlertTriangle,
   Calendar,
+  CalendarDays,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Copy,
   Edit2,
@@ -100,6 +103,21 @@ const DAYS_OF_WEEK = [
   { num: 7, name: 'Domingo', short: 'DOM' },
 ];
 
+const MONTH_NAMES_ADMIN_ES = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+];
+
 export const SchedulesAdminPage: React.FC = () => {
   const { user } = useAuth();
   const [schedules, setSchedules] = useState<ScheduleDomainModel[]>([]);
@@ -108,8 +126,12 @@ export const SchedulesAdminPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Vistas: Matriz Semanal (Grid) vs Agenda (List)
-  const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
+  // Vistas: Matriz Semanal (GRID) | Calendario Mensual (MONTH) | Agenda (LIST)
+  const [viewMode, setViewMode] = useState<'GRID' | 'MONTH' | 'LIST'>('GRID');
+  const [adminMonth, setAdminMonth] = useState<{ year: number; month0: number }>(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month0: d.getMonth() };
+  });
 
   // Filtros de Operación
   const [filterProfessor, setFilterProfessor] = useState<string>('ALL');
@@ -473,7 +495,7 @@ export const SchedulesAdminPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Selector de Vista: Parrilla Visual vs Agenda */}
+          {/* Selector de Vista: Parrilla Semanal | Vista Mensual | Agenda */}
           <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/80 shadow-2xs">
             <button
               onClick={() => setViewMode('GRID')}
@@ -484,7 +506,18 @@ export const SchedulesAdminPage: React.FC = () => {
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Parrilla Semanal</span>
+              <span>Semana</span>
+            </button>
+            <button
+              onClick={() => setViewMode('MONTH')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'MONTH'
+                  ? 'bg-slate-900 text-white shadow'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>Mes</span>
             </button>
             <button
               onClick={() => setViewMode('LIST')}
@@ -881,6 +914,189 @@ export const SchedulesAdminPage: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      ) : viewMode === 'MONTH' ? (
+        /* ======================================================== */
+        /* 6.5 VISTA MENSUAL ADMINISTRATIVA (PLANIFICACIÓN & FESTIVOS)*/
+        /* ======================================================== */
+        <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+          {/* Barra de navegación del mes */}
+          <div className="p-4 bg-slate-50 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-black uppercase font-headline tracking-wide text-slate-900">
+                Planificación Mensual · {MONTH_NAMES_ADMIN_ES[adminMonth.month0]} {adminMonth.year}
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Haz clic en una clase para editarla o pulsa el botón de festivo en cualquier día del mes para registrar un cierre temporal.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/80">
+              <button
+                type="button"
+                onClick={() =>
+                  setAdminMonth((prev) => ({
+                    year: prev.month0 === 0 ? prev.year - 1 : prev.year,
+                    month0: prev.month0 === 0 ? 11 : prev.month0 - 1,
+                  }))
+                }
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                title="Mes anterior"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  setAdminMonth({ year: now.getFullYear(), month0: now.getMonth() });
+                }}
+                className="px-2.5 py-1 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Mes Actual
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setAdminMonth((prev) => ({
+                    year: prev.month0 === 11 ? prev.year + 1 : prev.year,
+                    month0: prev.month0 === 11 ? 0 : prev.month0 + 1,
+                  }))
+                }
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                title="Mes siguiente"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Cabecera L-D */}
+          <div className="grid grid-cols-7 bg-slate-100/70 border-b border-slate-200/80 text-center">
+            {DAYS_OF_WEEK.map((d) => (
+              <div
+                key={d.num}
+                className="py-2.5 text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500"
+              >
+                {d.short}
+              </div>
+            ))}
+          </div>
+
+          {/* Celdas del Mes */}
+          <div className="grid grid-cols-7 divide-x divide-y divide-slate-200/70">
+            {(() => {
+              const { year, month0 } = adminMonth;
+              const firstDate = new Date(Date.UTC(year, month0, 1, 12, 0, 0));
+              const firstJsDay = firstDate.getUTCDay();
+              const firstDayOfWeek = firstJsDay === 0 ? 7 : firstJsDay;
+              const leading = firstDayOfWeek - 1;
+              const daysInMonth = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
+              const totalCells = leading + daysInMonth > 35 ? 42 : 35;
+              const todayIso = new Date().toISOString().split('T')[0];
+
+              return Array.from({ length: totalCells }, (_, idx) => {
+                const cellDate = new Date(Date.UTC(year, month0, 1 - leading + idx, 12, 0, 0));
+                const cYear = cellDate.getUTCFullYear();
+                const cMonth0 = cellDate.getUTCMonth();
+                const cDay = cellDate.getUTCDate();
+                const jsD = cellDate.getUTCDay();
+                const dayOfWeek = jsD === 0 ? 7 : jsD;
+                const dateStr = `${cYear}-${String(cMonth0 + 1).padStart(2, '0')}-${String(cDay).padStart(2, '0')}`;
+                const isCurrentMonth = cMonth0 === month0 && cYear === year;
+                const isToday = dateStr === todayIso;
+
+                const dayClasses = filteredSchedules
+                  .filter((s) => s.dayOfWeek === dayOfWeek)
+                  .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                const dayExc = exceptions.find((e) => e.date === dateStr);
+
+                return (
+                  <div
+                    key={dateStr}
+                    className={`min-h-[110px] sm:min-h-[130px] p-2 flex flex-col justify-between transition ${
+                      !isCurrentMonth
+                        ? 'bg-slate-50/50 text-slate-400'
+                        : dayExc
+                        ? 'bg-rose-50/30'
+                        : 'bg-white hover:bg-slate-50/60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span
+                        className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${
+                          isToday
+                            ? 'bg-brand-accent text-white font-black'
+                            : isCurrentMonth
+                            ? 'text-slate-900'
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        {cDay}
+                      </span>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExcForm({
+                              scheduleId: 'ALL',
+                              date: dateStr,
+                              reason: 'Festivo Oficial / Cierre Tatami',
+                            });
+                            setExceptionModalOpen(true);
+                          }}
+                          title={`Marcar festivo o excepción el ${dateStr}`}
+                          className="p-1 rounded hover:bg-amber-100 text-slate-400 hover:text-amber-700 transition cursor-pointer"
+                        >
+                          <AlertTriangle className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCreateModal(dayOfWeek)}
+                          title={`Añadir clase los ${DAYS_OF_WEEK[dayOfWeek - 1].name}`}
+                          className="p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-900 transition cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-1.5 space-y-1">
+                      {dayExc ? (
+                        <div className="p-1.5 rounded-lg bg-rose-100 border border-rose-200 text-rose-800 text-[10px] font-bold">
+                          Festivo: {dayExc.reason}
+                        </div>
+                      ) : (
+                        <>
+                          {dayClasses.slice(0, 3).map((s) => {
+                            const theme = getProgramTheme(s.program);
+                            return (
+                              <button
+                                key={`${s.id}_${dateStr}`}
+                                type="button"
+                                onClick={() => handleOpenEditModal(s)}
+                                className={`w-full text-left px-1.5 py-0.5 rounded text-[10px] font-bold truncate border ${theme.bg} ${theme.text} ${theme.border} cursor-pointer`}
+                                title={`${s.startTime}-${s.endTime} · ${s.program} (${s.professor})`}
+                              >
+                                <strong className="font-mono">{s.startTime}</strong> {s.program}
+                              </button>
+                            );
+                          })}
+                          {dayClasses.length > 3 && (
+                            <span className="text-[9px] font-mono font-bold text-slate-500 block pl-1">
+                              +{dayClasses.length - 3} clases más
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
         </div>
       ) : (
         /* ======================================================== */

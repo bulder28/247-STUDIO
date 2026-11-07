@@ -3,10 +3,15 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
   LayoutGrid,
   LogOut,
   Menu,
+  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   Scale,
   Shield,
   Swords,
@@ -28,6 +33,31 @@ export const AdminLayout: React.FC = () => {
   const mainRef = useRef<HTMLElement>(null);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState<'EXPANDED' | 'MINI' | 'CLOSED'>(() => {
+    try {
+      const saved = localStorage.getItem('247_admin_sidebar_mode') as 'EXPANDED' | 'MINI' | 'CLOSED' | null;
+      if (saved === 'EXPANDED' || saved === 'MINI' || saved === 'CLOSED') return saved;
+    } catch {}
+    return 'EXPANDED';
+  });
+
+  const updateSidebarMode = (mode: 'EXPANDED' | 'MINI' | 'CLOSED') => {
+    setSidebarMode(mode);
+    try {
+      localStorage.setItem('247_admin_sidebar_mode', mode);
+    } catch {}
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        updateSidebarMode(sidebarMode === 'EXPANDED' ? 'MINI' : 'EXPANDED');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarMode]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -225,133 +255,271 @@ export const AdminLayout: React.FC = () => {
       )}
 
       {/* ======================================================== */}
-      {/* 3. SIDEBAR DESKTOP (>= 768px) LINEAR / APPLE CLEAN      */}
+      {/* 3. SIDEBAR DESKTOP (>= 768px) MINIMIZABLE Y CERRABLE     */}
       {/* ======================================================== */}
-      <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200/80 p-5 flex-col justify-between shrink-0 shadow-subtle z-20">
-        <div>
-          {/* Logo y Marca */}
-          <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-            <div className="relative">
-              <img src="/logo.webp" alt="247Studio" className="w-9 h-9 object-contain drop-shadow-xs" />
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+      {sidebarMode !== 'CLOSED' && (
+        <aside
+          className={`hidden md:flex ${
+            sidebarMode === 'MINI' ? 'md:w-[72px] p-3' : 'md:w-64 p-5'
+          } bg-white border-r border-slate-200/80 flex-col justify-between shrink-0 shadow-subtle z-20 transition-all duration-200`}
+        >
+          <div>
+            {/* Logo y Marca con controles de Minimizar / Cerrar */}
+            <div
+              className={`flex items-center ${
+                sidebarMode === 'MINI' ? 'justify-center pb-3' : 'justify-between pb-4'
+              } border-b border-slate-100`}
+            >
+              {sidebarMode === 'MINI' ? (
+                <button
+                  type="button"
+                  onClick={() => updateSidebarMode('EXPANDED')}
+                  title="Expandir panel de gestión (Ctrl+B)"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+                >
+                  <img src="/logo.webp" alt="247Studio" className="w-8 h-8 object-contain" />
+                </button>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative">
+                      <img src="/logo.webp" alt="247Studio" className="w-8 h-8 object-contain drop-shadow-xs" />
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-headline text-xl tracking-tighter uppercase text-slate-900 block leading-none">
+                          247Studio
+                        </span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-accent inline-block" />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mt-0.5">
+                        Panel de Gestión
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => updateSidebarMode('MINI')}
+                      title="Minimizar a iconos (Ctrl+B)"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateSidebarMode('CLOSED')}
+                      title="Cerrar panel lateral para pantalla completa"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                    >
+                      <PanelLeftClose className="w-4 h-4" />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-headline text-xl tracking-tighter uppercase text-slate-900 block leading-none">
-                  247Studio
-                </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-accent inline-block" />
+
+            {sidebarMode === 'MINI' && (
+              <div className="flex flex-col items-center gap-1 mt-2 pb-2 border-b border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => updateSidebarMode('EXPANDED')}
+                  title="Expandir menú"
+                  className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateSidebarMode('CLOSED')}
+                  title="Ocultar barra lateral"
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mt-0.5">
-                Panel de Gestión
-              </span>
+            )}
+
+            {/* Menú de Gestión */}
+            <div className="mt-4">
+              {sidebarMode !== 'MINI' && (
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 pb-2">
+                  Gestión Operativa
+                </p>
+              )}
+              <nav className="space-y-1">
+                {links.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = location.pathname.startsWith(link.to);
+                  return (
+                    <NavLink
+                      key={link.to}
+                      to={link.to}
+                      title={sidebarMode === 'MINI' ? link.label : undefined}
+                      className={`flex items-center ${
+                        sidebarMode === 'MINI' ? 'justify-center p-2.5' : 'justify-between px-3.5 py-2.5'
+                      } rounded-xl text-xs font-semibold transition-all group ${
+                        isActive
+                          ? 'bg-slate-900 text-white font-bold shadow-xs'
+                          : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                      }`}
+                    >
+                      <div className={`flex items-center ${sidebarMode === 'MINI' ? 'justify-center' : 'gap-2.5'}`}>
+                        <Icon
+                          className={`w-4 h-4 shrink-0 transition-colors ${
+                            isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'
+                          }`}
+                        />
+                        {sidebarMode !== 'MINI' && <span>{link.label}</span>}
+                      </div>
+                      {sidebarMode !== 'MINI' && isActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-accent" />
+                      )}
+                    </NavLink>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Herramientas de Tatami */}
+            <div className="mt-5 pt-4 border-t border-slate-100">
+              {sidebarMode !== 'MINI' && (
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 pb-2">
+                  Herramientas de Tatami
+                </p>
+              )}
+              <div className="space-y-1">
+                {tatamiTools.map((tool) => {
+                  const Icon = tool.icon;
+                  const isActive = location.pathname.startsWith(tool.to);
+                  return (
+                    <NavLink
+                      key={tool.to}
+                      to={tool.to}
+                      title={sidebarMode === 'MINI' ? tool.label : undefined}
+                      className={`flex items-center ${
+                        sidebarMode === 'MINI' ? 'justify-center p-2.5' : 'justify-between px-3.5 py-2'
+                      } rounded-xl text-xs font-semibold transition-all group ${
+                        isActive
+                          ? 'bg-slate-900 text-white font-bold shadow-xs'
+                          : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                      }`}
+                    >
+                      <div className={`flex items-center ${sidebarMode === 'MINI' ? 'justify-center' : 'gap-2.5'}`}>
+                        <Icon
+                          className={`w-4 h-4 shrink-0 transition-colors ${
+                            isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'
+                          }`}
+                        />
+                        {sidebarMode !== 'MINI' && <span>{tool.label}</span>}
+                      </div>
+                    </NavLink>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {/* Menú de Gestión con estilo Linear */}
-          <div className="mt-5">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 pb-2">
-              Gestión Operativa
-            </p>
-            <nav className="space-y-1">
-              {links.map((link) => {
-                const Icon = link.icon;
-                const isActive = location.pathname.startsWith(link.to);
-                return (
-                  <NavLink
-                    key={link.to}
-                    to={link.to}
-                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
-                      isActive
-                        ? 'bg-slate-900 text-white font-bold shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Icon
-                        className={`w-4 h-4 transition-colors ${
-                          isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'
-                        }`}
-                      />
-                      <span>{link.label}</span>
-                    </div>
-                    {isActive && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-brand-accent" />
-                    )}
-                  </NavLink>
-                );
-              })}
-            </nav>
+          {/* Footer Sidebar */}
+          <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-1.5">
+            <NavLink
+              to="/app/home"
+              title="Vista de Alumno"
+              className={`flex items-center ${
+                sidebarMode === 'MINI' ? 'justify-center p-2.5' : 'gap-2 px-3.5 py-2'
+              } rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition`}
+            >
+              <Shield className="w-4 h-4 text-slate-400 shrink-0" />
+              {sidebarMode !== 'MINI' && <span>Vista de Alumno</span>}
+            </NavLink>
+
+            <NavLink
+              to="/kiosk/check-in"
+              title="Modo Kiosco (Tablet)"
+              className={`flex items-center ${
+                sidebarMode === 'MINI' ? 'justify-center p-2.5' : 'gap-2 px-3.5 py-2'
+              } rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition`}
+            >
+              <Tablet className="w-4 h-4 text-slate-400 shrink-0" />
+              {sidebarMode !== 'MINI' && <span>Modo Kiosco (Tablet)</span>}
+            </NavLink>
+
+            <button
+              onClick={logout}
+              title="Cerrar Sesión"
+              className={`flex items-center ${
+                sidebarMode === 'MINI' ? 'justify-center p-2.5' : 'gap-2 px-3.5 py-2'
+              } rounded-xl text-xs font-semibold text-slate-500 hover:text-brand-accent hover:bg-brand-accent/5 transition cursor-pointer text-left`}
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              {sidebarMode !== 'MINI' && <span>Cerrar Sesión</span>}
+            </button>
           </div>
-
-          {/* Herramientas de Tatami */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 pb-2">
-              Herramientas de Tatami
-            </p>
-            <div className="space-y-1">
-              {tatamiTools.map((tool) => {
-                const Icon = tool.icon;
-                const isActive = location.pathname.startsWith(tool.to);
-                return (
-                  <NavLink
-                    key={tool.to}
-                    to={tool.to}
-                    className={`flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold transition-all group ${
-                      isActive
-                        ? 'bg-slate-900 text-white font-bold shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Icon
-                        className={`w-4 h-4 transition-colors ${
-                          isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'
-                        }`}
-                      />
-                      <span>{tool.label}</span>
-                    </div>
-                  </NavLink>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer Sidebar */}
-        <div className="mt-8 pt-4 border-t border-slate-100 flex flex-col gap-1.5">
-          <NavLink
-            to="/app/home"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-          >
-            <Shield className="w-4 h-4 text-slate-400" />
-            <span>Vista de Alumno</span>
-          </NavLink>
-
-          <NavLink
-            to="/kiosk/check-in"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-          >
-            <Tablet className="w-4 h-4 text-slate-400" />
-            <span>Modo Kiosco (Tablet)</span>
-          </NavLink>
-
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-brand-accent hover:bg-brand-accent/5 transition cursor-pointer text-left"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Cerrar Sesión</span>
-          </button>
-        </div>
-      </aside>
+        </aside>
+      )}
 
       {/* Main Admin Viewport */}
       <main
         ref={mainRef}
-        className="flex-1 min-h-0 p-3 md:p-8 overflow-y-auto md:overflow-visible"
+        className="flex-1 min-h-0 p-3 md:p-6 lg:p-8 overflow-y-auto md:overflow-visible"
       >
-        <div className="max-w-7xl mx-auto">
+        {/* Barra rápida superior en escritorio cuando el panel lateral está minimizado o cerrado */}
+        <div className="hidden md:flex items-center justify-between mb-4 pb-2.5 border-b border-slate-200/70">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => updateSidebarMode(sidebarMode === 'EXPANDED' ? 'MINI' : 'EXPANDED')}
+              title={
+                sidebarMode === 'EXPANDED'
+                  ? 'Minimizar panel lateral (Ctrl+B)'
+                  : 'Expandir panel lateral (Ctrl+B)'
+              }
+              className="px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-2xs"
+            >
+              {sidebarMode === 'CLOSED' ? (
+                <>
+                  <PanelLeftOpen className="w-4 h-4 text-brand-accent" />
+                  <span>Mostrar Menú</span>
+                </>
+              ) : sidebarMode === 'MINI' ? (
+                <>
+                  <PanelLeftOpen className="w-4 h-4 text-slate-700" />
+                  <span>Expandir Menú</span>
+                </>
+              ) : (
+                <>
+                  <PanelLeft className="w-4 h-4 text-slate-500" />
+                  <span>Minimizar Menú</span>
+                </>
+              )}
+            </button>
+
+            {sidebarMode !== 'CLOSED' && (
+              <button
+                type="button"
+                onClick={() => updateSidebarMode('CLOSED')}
+                title="Cerrar panel lateral para usar el 100% de la pantalla"
+                className="px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer flex items-center gap-1 text-xs font-semibold shadow-2xs"
+              >
+                <PanelLeftClose className="w-3.5 h-3.5" />
+                <span>Ocultar</span>
+              </button>
+            )}
+          </div>
+
+          <span className="text-[11px] font-mono text-slate-400">
+            Atajo rápido: <strong className="text-slate-600">Ctrl + B</strong>
+          </span>
+        </div>
+
+        <div
+          className={`${
+            location.pathname.includes('/admin/horarios') || sidebarMode !== 'EXPANDED'
+              ? 'max-w-[1600px]'
+              : 'max-w-7xl'
+          } mx-auto transition-all duration-200`}
+        >
           <Outlet />
         </div>
       </main>

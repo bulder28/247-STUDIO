@@ -6,6 +6,8 @@ import {
   Bell,
   BookOpen,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
   HelpCircle,
   Home,
@@ -14,6 +16,9 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   QrCode,
   Scale,
   Shield,
@@ -53,6 +58,8 @@ interface NavSection {
   items: NavItem[];
 }
 
+export type SidebarMode = 'EXPANDED' | 'MINI' | 'CLOSED';
+
 export const AppLayout: React.FC = () => {
   const { userData, role, logout } = useAuth();
   const location = useLocation();
@@ -60,6 +67,31 @@ export const AppLayout: React.FC = () => {
   const mainRef = useRef<HTMLElement>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
+    try {
+      const saved = localStorage.getItem('247_sidebar_mode') as SidebarMode | null;
+      if (saved === 'EXPANDED' || saved === 'MINI' || saved === 'CLOSED') return saved;
+    } catch {}
+    return 'EXPANDED';
+  });
+
+  const updateSidebarMode = (mode: SidebarMode) => {
+    setSidebarMode(mode);
+    try {
+      localStorage.setItem('247_sidebar_mode', mode);
+    } catch {}
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        updateSidebarMode(sidebarMode === 'EXPANDED' ? 'MINI' : 'EXPANDED');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarMode]);
 
   useEffect(() => {
     setMobileDrawerOpen(false);
@@ -142,94 +174,183 @@ export const AppLayout: React.FC = () => {
     },
   ];
 
+  const isCalendarPage = location.pathname.includes('/app/horario');
+  const isMini = sidebarMode === 'MINI';
+  const isClosed = sidebarMode === 'CLOSED';
+
   return (
     <div className="h-[100dvh] md:min-h-screen md:h-auto overflow-hidden md:overflow-visible bg-[#F8F9FA] flex flex-col md:flex-row text-slate-900 font-sans antialiased">
       {/* ======================================================== */}
-      {/* 1. BARRA LATERAL (SIDEBAR) ESTILO MATGOAT - ULTRA LIMPIA  */}
+      {/* 1. BARRA LATERAL (SIDEBAR) MINIMIZABLE Y CERRABLE         */}
       {/* ======================================================== */}
-      <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200/80 flex-col justify-between shrink-0 h-screen sticky top-0 shadow-subtle z-20">
-        <div className="flex-1 flex flex-col overflow-y-auto px-4 py-5">
-          {/* Logo MatGoat Style con identidad 247Studio */}
-          <div className="flex items-center gap-2.5 px-2 pb-4 mb-2 border-b border-slate-100">
-            <img src="/logo.webp" alt="247Studio" className="w-8 h-8 object-contain" />
-            <div className="flex items-center gap-1.5">
-              <span className="font-headline text-2xl tracking-tighter text-slate-900 uppercase leading-none">
-                247STUDIO
-              </span>
-              <span className="w-2 h-2 rounded-full bg-brand-accent inline-block -mt-2" />
+      {!isClosed && (
+        <aside
+          className={`hidden md:flex ${
+            isMini ? 'md:w-[72px]' : 'md:w-64'
+          } bg-white border-r border-slate-200/80 flex-col justify-between shrink-0 h-screen sticky top-0 shadow-subtle z-20 transition-all duration-200`}
+        >
+          <div className={`flex-1 flex flex-col overflow-y-auto ${isMini ? 'px-2 py-4' : 'px-4 py-5'}`}>
+            {/* Cabecera del Sidebar con controles de Minimizar / Cerrar */}
+            <div
+              className={`flex items-center ${
+                isMini ? 'justify-center pb-3 mb-2' : 'justify-between px-2 pb-4 mb-2'
+              } border-b border-slate-100`}
+            >
+              {isMini ? (
+                <button
+                  type="button"
+                  onClick={() => updateSidebarMode('EXPANDED')}
+                  title="Expandir panel lateral (Ctrl+B)"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer flex items-center justify-center"
+                >
+                  <img src="/logo.webp" alt="247Studio" className="w-7 h-7 object-contain" />
+                </button>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2.5">
+                    <img src="/logo.webp" alt="247Studio" className="w-8 h-8 object-contain" />
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-headline text-2xl tracking-tighter text-slate-900 uppercase leading-none">
+                        247STUDIO
+                      </span>
+                      <span className="w-2 h-2 rounded-full bg-brand-accent inline-block -mt-2" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => updateSidebarMode('MINI')}
+                      title="Minimizar a iconos (Ctrl+B)"
+                      aria-label="Minimizar barra lateral"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateSidebarMode('CLOSED')}
+                      title="Cerrar panel lateral para pantalla completa"
+                      aria-label="Cerrar barra lateral"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                    >
+                      <PanelLeftClose className="w-4 h-4" />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* Botón rápido de expandir cuando está en modo MINI */}
+            {isMini && (
+              <div className="flex flex-col items-center gap-1 mb-3 pb-2 border-b border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => updateSidebarMode('EXPANDED')}
+                  title="Expandir menú lateral"
+                  className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateSidebarMode('CLOSED')}
+                  title="Ocultar barra lateral por completo"
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Menú agrupado por categorías con soporte EXPANDED / MINI */}
+            <nav className={isMini ? 'space-y-2' : 'space-y-4'}>
+              {navSections.map((sec, sIdx) => (
+                <div key={sIdx}>
+                  {!isMini && sec.title && (
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-3 pb-1.5 pt-1">
+                      {sec.title}
+                    </p>
+                  )}
+                  {isMini && sIdx > 0 && <div className="my-1.5 border-t border-slate-100" />}
+                  <div className="space-y-1">
+                    {sec.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = location.pathname.startsWith(item.to);
+                      return (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          title={isMini ? item.label : undefined}
+                          className={`flex items-center ${
+                            isMini ? 'justify-center p-2.5' : 'justify-between px-3 py-2.5'
+                          } rounded-xl text-xs font-semibold transition-all duration-150 relative ${
+                            isActive
+                              ? 'bg-slate-900 text-white font-bold shadow-subtle'
+                              : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                          }`}
+                        >
+                          <div className={`flex items-center ${isMini ? 'justify-center' : 'gap-2.5'}`}>
+                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                            {!isMini && <span>{item.label}</span>}
+                          </div>
+                          {!isMini && item.badge && (
+                            <span
+                              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                                isActive ? 'bg-white/20 text-white' : item.badgeColor || 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {item.badge}
+                            </span>
+                          )}
+                          {isMini && item.badge && (
+                            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand-accent" />
+                          )}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
           </div>
 
-          {/* Menú agrupado por categorías con enlaces directos a cada página */}
-          <nav className="space-y-4">
-            {navSections.map((sec, sIdx) => (
-              <div key={sIdx}>
-                {sec.title && (
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-3 pb-1.5 pt-1">
-                    {sec.title}
-                  </p>
-                )}
-                <div className="space-y-1">
-                  {sec.items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = location.pathname.startsWith(item.to);
-                    return (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
-                          isActive
-                            ? 'bg-slate-900 text-white font-bold shadow-subtle'
-                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
-                          <span>{item.label}</span>
-                        </div>
-                        {item.badge && (
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isActive ? 'bg-white/20 text-white' : item.badgeColor || 'bg-slate-100 text-slate-700'}`}>
-                            {item.badge}
-                          </span>
-                        )}
-                      </NavLink>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </nav>
-        </div>
+          {/* Footer del Sidebar */}
+          <div className={`${isMini ? 'p-2' : 'p-4'} border-t border-slate-100 space-y-1.5 bg-slate-50/50`}>
+            <a
+              href="https://wa.me/34677528185?text=Hola%2C%20necesito%20ayuda%20con%20la%20app%20de%20247Studio."
+              target="_blank"
+              rel="noreferrer"
+              title="¿Necesitas ayuda?"
+              className={`flex items-center ${
+                isMini ? 'justify-center p-2.5' : 'gap-2 px-3 py-2'
+              } text-xs font-medium text-slate-500 hover:text-slate-900 transition rounded-lg hover:bg-slate-100`}
+            >
+              <QuestionIcon className="w-4 h-4 text-amber-500 shrink-0" />
+              {!isMini && <span>¿Necesitas ayuda?</span>}
+            </a>
 
-        {/* Footer del Sidebar MatGoat Style */}
-        <div className="p-4 border-t border-slate-100 space-y-1.5 bg-slate-50/50">
-          <a
-            href="https://wa.me/34677528185?text=Hola%2C%20necesito%20ayuda%20con%20la%20app%20de%20247Studio."
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-900 transition rounded-lg hover:bg-slate-100"
-          >
-            <QuestionIcon className="w-4 h-4 text-amber-500" />
-            <span>¿Necesitas ayuda?</span>
-          </a>
-
-          <button
-            onClick={logout}
-            className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 hover:text-brand-accent transition rounded-lg hover:bg-brand-accent/5 cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Cerrar sesión</span>
-          </button>
-        </div>
-      </aside>
+            <button
+              onClick={logout}
+              title="Cerrar sesión"
+              className={`flex w-full items-center ${
+                isMini ? 'justify-center p-2.5' : 'gap-2 px-3 py-2'
+              } text-xs font-medium text-slate-500 hover:text-brand-accent transition rounded-lg hover:bg-brand-accent/5 cursor-pointer`}
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              {!isMini && <span>Cerrar sesión</span>}
+            </button>
+          </div>
+        </aside>
+      )}
 
       {/* ======================================================== */}
       {/* 2. ÁREA PRINCIPAL CON HEADER SUPERIOR MATGOAT            */}
       {/* ======================================================== */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        {/* Barra superior estilo Linear / Apple con migas limpias y acciones */}
-        <header className="shrink-0 sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200/70 px-3.5 sm:px-8 py-2.5 sm:py-3.5 flex items-center justify-between shadow-subtle">
+        {/* Barra superior estilo Linear / Apple con control de Sidebar y acciones */}
+        <header className="shrink-0 sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200/70 px-3.5 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shadow-subtle">
           <div className="flex items-center gap-2.5">
+            {/* Botón Menú Móvil (< 768px) */}
             <button
               type="button"
               onClick={() => setMobileDrawerOpen(true)}
@@ -238,6 +359,47 @@ export const AppLayout: React.FC = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
+
+            {/* Botón Control de Panel Lateral en Escritorio (>= 768px) */}
+            <div className="hidden md:flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() =>
+                  updateSidebarMode(sidebarMode === 'EXPANDED' ? 'MINI' : 'EXPANDED')
+                }
+                title={
+                  sidebarMode === 'EXPANDED'
+                    ? 'Minimizar panel lateral (Ctrl+B)'
+                    : 'Expandir panel lateral (Ctrl+B)'
+                }
+                aria-label="Alternar tamaño del panel lateral"
+                className="p-2 rounded-xl border border-slate-200/80 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+              >
+                {sidebarMode === 'CLOSED' ? (
+                  <>
+                    <PanelLeftOpen className="w-4 h-4 text-brand-accent" />
+                    <span className="hidden lg:inline">Menú</span>
+                  </>
+                ) : sidebarMode === 'MINI' ? (
+                  <PanelLeftOpen className="w-4 h-4 text-slate-700" />
+                ) : (
+                  <PanelLeft className="w-4 h-4 text-slate-600" />
+                )}
+              </button>
+
+              {sidebarMode !== 'CLOSED' && (
+                <button
+                  type="button"
+                  onClick={() => updateSidebarMode('CLOSED')}
+                  title="Cerrar panel lateral para ganar máximo espacio"
+                  aria-label="Ocultar panel lateral"
+                  className="p-2 rounded-xl border border-transparent text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
             <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-700">
               <span className="text-slate-400 font-mono text-xs hidden sm:inline">247Studio</span>
               <span className="text-slate-300 hidden sm:inline">/</span>
@@ -370,7 +532,9 @@ export const AppLayout: React.FC = () => {
         {/* ======================================================== */}
         <main
           ref={mainRef}
-          className="flex-1 min-h-0 overflow-y-auto md:overflow-visible p-3 sm:p-8 max-w-7xl w-full mx-auto"
+          className={`flex-1 min-h-0 overflow-y-auto md:overflow-visible p-3 sm:p-6 lg:p-8 ${
+            isCalendarPage || sidebarMode !== 'EXPANDED' ? 'max-w-[1600px]' : 'max-w-7xl'
+          } w-full mx-auto transition-all duration-200`}
         >
           <Outlet />
         </main>
