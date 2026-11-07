@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Filter,
   LayoutGrid,
   List,
   MapPin,
@@ -161,8 +162,8 @@ export const DISCIPLINE_FILTERS: DisciplineFilterItem[] = [
   },
   {
     id: 'GI',
-    label: 'Brazilian Jiu-Jitsu',
-    short: 'BJJ GI',
+    label: 'Brazilian Jiu-Jitsu (GI)',
+    short: 'GI',
     subtitle: 'Kimono tradicional',
     icon: '🥋',
     image: '/galeria/bjj/bjj9.webp',
@@ -170,7 +171,7 @@ export const DISCIPLINE_FILTERS: DisciplineFilterItem[] = [
   {
     id: 'GRAPPLING',
     label: 'Grappling & No-Gi',
-    short: 'NO-GI',
+    short: 'GRAPPLING',
     subtitle: 'Lucha sin kimono',
     icon: '🤼',
     image: '/galeria/grappling/grappling11.webp',
@@ -185,7 +186,7 @@ export const DISCIPLINE_FILTERS: DisciplineFilterItem[] = [
   },
   {
     id: 'LUCHA',
-    label: 'Lucha Olímpica',
+    label: 'Lucha Olímpica & Wrestling',
     short: 'LUCHA',
     subtitle: 'Wrestling & control',
     icon: '🤼‍♂️',
@@ -193,7 +194,7 @@ export const DISCIPLINE_FILTERS: DisciplineFilterItem[] = [
   },
   {
     id: 'KIDS',
-    label: 'Infantil (Kids)',
+    label: 'Infantil & Juvenil (Kids)',
     short: 'KIDS',
     subtitle: '3 a 14 años',
     icon: '👶',
@@ -209,9 +210,9 @@ export const DISCIPLINE_FILTERS: DisciplineFilterItem[] = [
   },
   {
     id: 'OPEN MAT',
-    label: 'Open Mat Libre',
+    label: 'Open Mat & Tatami Libre',
     short: 'OPEN MAT',
-    subtitle: 'Sparring entre socios',
+    subtitle: 'Sparring libre entre socios',
     icon: '⚡',
     image: '/galeria/bjj/bjj1.webp',
   },
@@ -521,9 +522,33 @@ export const SchedulePage: React.FC = () => {
 
   // Filtrar horarios según criterios REA seleccionados + Franja Horaria (Madrid Móvil)
   const matchesFilters = (schedule: ScheduleDomainModel, dateStr?: string): boolean => {
-    const matchDiscipline =
-      selectedDiscipline === 'TODAS' ||
-      schedule.program.toUpperCase().includes(selectedDiscipline.toUpperCase());
+    const prog = (schedule.program || '').toUpperCase();
+    let matchDiscipline = true;
+
+    if (selectedDiscipline === 'TODAS') {
+      matchDiscipline = true;
+    } else if (selectedDiscipline === 'GI') {
+      matchDiscipline =
+        (/\bGI\b/.test(prog) || prog.includes('KIMONO') || prog.includes('BJJ')) &&
+        !prog.includes('NO-GI') &&
+        !prog.includes('GRAPPLING') &&
+        !prog.includes('FEM');
+    } else if (selectedDiscipline === 'GRAPPLING') {
+      matchDiscipline = prog.includes('GRAPPLING') || prog.includes('NO-GI');
+    } else if (selectedDiscipline === 'MMA') {
+      matchDiscipline = prog.includes('MMA') || prog.includes('BOXEO') || prog.includes('STRIKING');
+    } else if (selectedDiscipline === 'LUCHA') {
+      matchDiscipline = prog.includes('LUCHA') || prog.includes('WRESTLING');
+    } else if (selectedDiscipline === 'KIDS') {
+      matchDiscipline = prog.includes('KIDS') || prog.includes('INFANTIL') || prog.includes('JUVENIL');
+    } else if (selectedDiscipline === 'BJJ FEM') {
+      matchDiscipline = prog.includes('FEM') || prog.includes('BJJ FEM');
+    } else if (selectedDiscipline === 'OPEN MAT') {
+      matchDiscipline = prog.includes('OPEN MAT') || prog.includes('LIBRE') || prog.includes('SPARRING LIBRE');
+    } else {
+      matchDiscipline = prog.includes(selectedDiscipline.toUpperCase());
+    }
+
     const matchProfessor =
       selectedProfessor === 'ALL' || schedule.professor === selectedProfessor;
     const matchRoom =
@@ -1273,30 +1298,18 @@ export const SchedulePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Carrusel Visual de Actividades Deportivas (Imágenes Grandes estilo Madrid Móvil) */}
-          <div className="bg-white border border-slate-200/80 rounded-3xl p-3 sm:p-5 shadow-sm space-y-3.5">
-            <div className="flex items-center justify-between px-1">
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 block">
-                  Explorar por Disciplina
-                </span>
-                <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase">
-                  Actividades Disponibles
-                </h3>
+          {/* Barra de Filtros de Actividades / Disciplinas (Estilo exacto de la captura: Funnel + Pastillas) */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-2.5 sm:p-3 shadow-2xs space-y-3">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-none px-0.5">
+              {/* Icono de Embudo / Filtro a la izquierda como en la captura */}
+              <div
+                className="shrink-0 flex items-center justify-center pl-1 pr-1.5 text-slate-400"
+                title="Filtrar por disciplina"
+              >
+                <Filter className="w-4 h-4 text-slate-400 stroke-[2.2]" />
               </div>
-              {selectedDiscipline !== 'TODAS' && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedDiscipline('TODAS')}
-                  className="px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition cursor-pointer"
-                >
-                  ✕ Ver todas
-                </button>
-              )}
-            </div>
 
-            {/* Carrusel Horizontal de Tarjetas Visuales (Tamaño Equilibrado / Medio) */}
-            <div className="flex items-center gap-2.5 overflow-x-auto pb-2 pt-0.5 scrollbar-none px-0.5">
+              {/* Pastillas de Disciplina */}
               {DISCIPLINE_FILTERS.map((disc) => {
                 const isSelected = selectedDiscipline === disc.id;
                 return (
@@ -1305,49 +1318,60 @@ export const SchedulePage: React.FC = () => {
                     type="button"
                     onClick={() => setSelectedDiscipline(disc.id)}
                     aria-pressed={isSelected}
-                    aria-label={`Filtrar por disciplina ${disc.label}`}
-                    className={`group relative shrink-0 w-24 sm:w-28 h-24 sm:h-28 rounded-xl overflow-hidden text-left transition-all duration-200 cursor-pointer ${
+                    className={`shrink-0 rounded-full font-headline uppercase tracking-wider transition-all duration-150 cursor-pointer text-xs whitespace-nowrap ${
                       isSelected
-                        ? 'ring-3 ring-amber-400 shadow-md scale-[1.03] z-10'
-                        : 'border border-slate-200/90 shadow-2xs opacity-90 hover:opacity-100 hover:scale-[1.01]'
+                        ? 'bg-[#0a0f1d] text-white font-black px-4.5 py-1.5 shadow-xs border border-[#0a0f1d]'
+                        : 'bg-[#f8fafc] text-slate-700 font-extrabold px-4 py-1.5 border border-slate-200/90 hover:bg-slate-100 hover:text-slate-950'
                     }`}
                   >
-                    {/* Fotografía de Fondo */}
-                    <img
-                      src={disc.image}
-                      alt={disc.label}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 filter brightness-90"
-                      loading="lazy"
-                    />
-
-                    {/* Gradiente Oscuro para Legibilidad */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
-
-                    {/* Insignia Superior */}
-                    <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between z-10">
-                      <span className="w-5 h-5 rounded-md bg-slate-950/80 backdrop-blur-xs text-white flex items-center justify-center text-[10px] shadow-xs border border-white/10">
-                        {disc.icon}
-                      </span>
-                      {isSelected && (
-                        <span className="px-1.5 py-0.2 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-xs">
-                          ✓
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Texto Inferior */}
-                    <div className="absolute bottom-1.5 left-1.5 right-1.5 z-10">
-                      <h4 className="text-[11px] font-black text-white uppercase leading-tight font-headline truncate drop-shadow-xs">
-                        {disc.short}
-                      </h4>
-                      <p className="text-[9px] text-slate-300 font-medium truncate leading-tight">
-                        {disc.subtitle}
-                      </p>
-                    </div>
+                    {disc.short}
                   </button>
                 );
               })}
             </div>
+
+            {/* Ficha descriptiva y visual de la disciplina seleccionada (si no es TODAS) */}
+            {selectedDiscipline !== 'TODAS' && (() => {
+              const currentCat =
+                ACTIVITY_CATEGORIES.find((cat) => cat.id === selectedDiscipline) ||
+                ACTIVITY_CATEGORIES.find((cat) => cat.short.includes(selectedDiscipline));
+              const currentFilter = DISCIPLINE_FILTERS.find((f) => f.id === selectedDiscipline);
+              const bannerImg = currentFilter?.image || currentCat?.image || '/herobackground.webp';
+              const bannerTitle = currentFilter?.label || currentCat?.name || selectedDiscipline;
+              const bannerDesc = currentFilter?.subtitle || currentCat?.description || 'Clases dirigidas en tatami 247 STUDIO';
+
+              return (
+                <div className="relative overflow-hidden rounded-xl h-20 text-white shadow-2xs border border-slate-800 flex items-center justify-between px-4 animate-in fade-in duration-200">
+                  <img
+                    src={bannerImg}
+                    alt={bannerTitle}
+                    className="absolute inset-0 w-full h-full object-cover object-center filter brightness-65 contrast-105"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent" />
+                  <div className="relative z-10 min-w-0 pr-3">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-amber-400 block">
+                      Disciplina Seleccionada
+                    </span>
+                    <h4 className="text-sm font-black text-white uppercase tracking-tight font-headline truncate">
+                      {bannerTitle}
+                    </h4>
+                    <p className="text-[10px] text-slate-300 font-medium truncate mt-0.5">
+                      {bannerDesc}
+                    </p>
+                  </div>
+                  <div className="relative z-10 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDiscipline('TODAS')}
+                      className="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold backdrop-blur-xs transition cursor-pointer"
+                    >
+                      ✕ Ver Todas
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Franjas Horarias (Mañana / Tarde / Noche) + Filtros de Profesor y Sala */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">

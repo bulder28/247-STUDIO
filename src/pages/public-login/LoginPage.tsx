@@ -46,9 +46,13 @@ export function getSafeRedirect(redirectParam: string | null, role: Role | null)
   return decoded;
 }
 
-export function getDefaultHomeByRole(role: Role | null): string {
-  if (role === 'admin') return '/admin/personal';
+export function getDefaultHomeByRole(role: Role | null, isMobile = false): string {
   if (role === 'kiosk') return '/kiosk/check-in';
+  if (isMobile) {
+    // En smartphone/móvil, tanto atletas como administradores entran al horario y carnet virtual QR
+    return '/app/horario';
+  }
+  if (role === 'admin') return '/admin/personal';
   return '/app/home';
 }
 
@@ -95,7 +99,7 @@ export const LoginPage: React.FC = () => {
         if (result && result.user && isMounted) {
           const tokenResult = await result.user.getIdTokenResult(true);
           const userRole = (tokenResult.claims.role as Role) || 'student';
-          const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole);
+          const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
           navigate(destination, { replace: true });
         }
       } catch (err: unknown) {
@@ -119,7 +123,7 @@ export const LoginPage: React.FC = () => {
   // Guarda: Si el usuario ya está autenticado, redirigir automáticamente
   useEffect(() => {
     if (!authLoading && user) {
-      const destination = getSafeRedirect(redirectParam, role) || getDefaultHomeByRole(role);
+      const destination = getSafeRedirect(redirectParam, role) || getDefaultHomeByRole(role, isMobileDevice());
       navigate(destination, { replace: true });
     }
   }, [user, role, authLoading, redirectParam, navigate]);
@@ -164,7 +168,7 @@ export const LoginPage: React.FC = () => {
       const tokenResult = await userCredential.user.getIdTokenResult(true);
       const userRole = (tokenResult.claims.role as Role) || 'student';
 
-      const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole);
+      const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
       navigate(destination, { replace: true });
     } catch (err: unknown) {
       console.error(err);
@@ -174,7 +178,7 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (useRedirectFallback = false) => {
     setError(null);
     setSubmitting(true);
 
@@ -182,28 +186,28 @@ export const LoginPage: React.FC = () => {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
 
-      // En dispositivos móviles (iOS Safari, Android Chrome), signInWithRedirect es el método nativo que evita bloqueos de popups
-      if (isMobileDevice()) {
+      if (useRedirectFallback) {
         await signInWithRedirect(auth, provider);
         return;
       }
 
-      // En escritorio, intentamos primero popup y si el navegador bloquea la ventana emergente, fallback a redirect
+      // En móviles y escritorio ejecutamos signInWithPopup directamente con el gesto táctil del usuario.
+      // Al ser lanzado en el evento click/touch, Safari y Chrome permiten la ventana y transmiten las credenciales
+      // vía memoria (postMessage), evitando la pérdida de tokens de sesión que ocurre con redirección en dominios cruzados.
       try {
         const userCredential = await signInWithPopup(auth, provider);
         const tokenResult = await userCredential.user.getIdTokenResult(true);
         const userRole = (tokenResult.claims.role as Role) || 'student';
 
-        const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole);
+        const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
         navigate(destination, { replace: true });
       } catch (popupErr: unknown) {
         const fbErr = popupErr as { code?: string; message?: string };
         if (
           fbErr?.code === 'auth/popup-blocked' ||
-          fbErr?.code === 'auth/cancelled-popup-request' ||
-          fbErr?.code === 'auth/popup-closed-by-user'
+          fbErr?.code === 'auth/cancelled-popup-request'
         ) {
-          console.warn('Popup bloqueado o cerrado, recurriendo a signInWithRedirect...');
+          console.warn('Popup bloqueado, intentando mediante redirección completa...');
           await signInWithRedirect(auth, provider);
           return;
         }
@@ -220,7 +224,7 @@ export const LoginPage: React.FC = () => {
       } else if (firebaseError?.code === 'auth/popup-closed-by-user') {
         setError('Acceso cancelado: se cerró la ventana de Google antes de finalizar.');
       } else {
-        setError(`No se pudo completar el acceso con Google (${firebaseError?.code || 'error de conexión'}).`);
+        setError(`No se pudo completar el acceso con Google (${firebaseError?.code || firebaseError?.message || 'error de conexión'}).`);
       }
       setSubmitting(false);
     }
@@ -311,7 +315,7 @@ export const LoginPage: React.FC = () => {
 
           <button
             type="button"
-            onClick={handleGoogleSignIn}
+            onClick={() => handleGoogleSignIn(false)}
             disabled={submitting}
             className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl border border-brand-text/20 bg-white py-3 text-sm font-bold text-brand-text hover:bg-brand-text/5 transition disabled:opacity-50 shadow-sm cursor-pointer"
           >
@@ -323,6 +327,18 @@ export const LoginPage: React.FC = () => {
             </svg>
             {submitting ? 'Conectando con Google…' : 'Continuar con Google'}
           </button>
+
+          {/* Opción secundaria discreta si el navegador tiene bloqueo estricto */}
+          <div className="text-center mt-2">
+            <button
+              type="button"
+              onClick={() => handleGoogleSignIn(true)}
+              disabled={submitting}
+              className="text-[11px] text-brand-text/50 hover:text-brand-text hover:underline font-medium cursor-pointer"
+            >
+              ¿Problemas con la ventana emergente? Entrar con redirección
+            </button>
+          </div>
 
           <div className="my-6 flex items-center gap-3">
             <span className="h-px flex-1 bg-brand-text/15" />
