@@ -212,7 +212,7 @@ export const StudentRegistrationPage: React.FC = () => {
         className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span>Volver a BBDD Personal</span>
+        <span>Volver a Alumnos</span>
       </Link>
 
       {/* Cabecera */}

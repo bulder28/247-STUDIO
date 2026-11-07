@@ -52,3 +52,43 @@ export function deriveCategory(birthDateStr: string, now: Date): AthleteCategory
   const age = calculateExactAge(birthDateStr, now);
   return age < 18 ? 'KID' : 'ADULT';
 }
+
+export interface MinorValidationParams {
+  birthDate: string;
+  now: Date;
+  guardianTutorName?: string;
+  guardianTutorPhone?: string;
+  minorMedicalNotes?: string;
+}
+
+export interface MinorValidationResult {
+  age: number;
+  isMinor: boolean;
+  athleteCategory: AthleteCategory;
+  isValid: boolean;
+  errors: string[];
+}
+
+export function validateMinorOnboarding(params: MinorValidationParams): MinorValidationResult {
+  const age = calculateExactAge(params.birthDate, params.now);
+  const isMinor = age < 16;
+  const athleteCategory = age < 18 ? 'KID' : 'ADULT';
+  const errors: string[] = [];
+
+  if (isMinor) {
+    if (!params.guardianTutorName || params.guardianTutorName.trim().length < 3) {
+      errors.push('El nombre completo del tutor legal o progenitor es obligatorio para menores de 16 años.');
+    }
+    if (!params.guardianTutorPhone || params.guardianTutorPhone.trim().length < 9) {
+      errors.push('El teléfono de contacto de urgencias del tutor legal es obligatorio.');
+    }
+  }
+
+  return {
+    age,
+    isMinor,
+    athleteCategory,
+    isValid: errors.length === 0,
+    errors,
+  };
+}

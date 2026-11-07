@@ -32,3 +32,4 @@ describe('Sparring Record Domain Logic', () => {
     expect(volume.favoriteSubmission).toBe('Palanca de Brazo (Armbar)');
   });
 });
+

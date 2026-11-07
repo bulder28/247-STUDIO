@@ -128,3 +128,4 @@ export const QrCameraScanner: React.FC<QrCameraScannerProps> = ({
     </div>
   );
 };
+

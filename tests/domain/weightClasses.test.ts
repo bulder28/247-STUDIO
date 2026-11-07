@@ -31,3 +31,4 @@ describe('Weight Division Domain Calculations', () => {
     expect(result.isUnlimited).toBe(true);
   });
 });
+

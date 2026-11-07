@@ -103,3 +103,4 @@ export function downloadAttendanceSheetPdf(data: AttendanceSheetData): void {
   const doc = generateAttendanceSheetPdf(data);
   doc.save(`Asistencia_247_${data.dateStr.replace(/\//g, '-')}_${data.className}.pdf`);
 }
+

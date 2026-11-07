@@ -54,3 +54,4 @@ export function exportStudentsToCsv(students: UserDomainModel[]) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+

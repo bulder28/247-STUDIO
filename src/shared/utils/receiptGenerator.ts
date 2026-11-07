@@ -113,3 +113,4 @@ export function downloadReceiptPdf(data: ReceiptData): void {
   const doc = generatePosReceiptPdf(data);
   doc.save(`Recibo_247_${data.receiptNumber}.pdf`);
 }
+

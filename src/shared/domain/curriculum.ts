@@ -175,3 +175,4 @@ export const BJJ_CURRICULUM: CurriculumTechnique[] = [
     keyDetails: ['Cabeza firme contra el esternón', 'Pegar muslo a la cadera', 'Circunvalación hacia atrás'],
   },
 ];
+

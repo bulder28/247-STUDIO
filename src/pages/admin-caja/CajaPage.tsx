@@ -193,6 +193,12 @@ export const CajaPage: React.FC = () => {
   const totalRecaudadoCents = approvedPayments.reduce((acc, p) => acc + (p.amountCents || 0), 0);
   const totalBaseCents = approvedPayments.reduce((acc, p) => acc + (p.baseCents || 0), 0);
   const totalVatCents = approvedPayments.reduce((acc, p) => acc + (p.vatCents || 0), 0);
+  const totalCashCents = approvedPayments
+    .filter((p) => p.method === 'CASH')
+    .reduce((acc, p) => acc + (p.amountCents || 0), 0);
+  const totalBizumCents = approvedPayments
+    .filter((p) => p.method === 'BIZUM')
+    .reduce((acc, p) => acc + (p.amountCents || 0), 0);
 
   const pendingFreezeRequests = freezeRequests.filter((f) => f.status === 'PENDING_ADMIN');
 
@@ -257,6 +263,37 @@ export const CajaPage: React.FC = () => {
           <span className="text-[11px] text-amber-700/80 font-medium block mt-1">
             Requiere cotejo con Bizum o Efectivo
           </span>
+        </div>
+      </div>
+
+      {/* Arqueo de Canales: Efectivo en Cajón vs Bizum / Banco */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">
+              💵 Efectivo en Cajón de Recepción
+            </span>
+            <div className="text-2xl font-black text-emerald-950 font-mono mt-0.5">
+              {(totalCashCents / 100).toFixed(2)} €
+            </div>
+            <span className="text-[11px] text-emerald-700 font-medium">
+              Dinero físico en caja para cuadre al cierre
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-blue-800 block">
+              📱 Ingresos Directos Bizum / Cuenta
+            </span>
+            <div className="text-2xl font-black text-blue-950 font-mono mt-0.5">
+              {(totalBizumCents / 100).toFixed(2)} €
+            </div>
+            <span className="text-[11px] text-blue-700 font-medium">
+              Transferencias electrónicas verificadas
+            </span>
+          </div>
         </div>
       </div>
 

@@ -67,3 +67,4 @@ export function calculateCombatVolume(entries: SparringEntry[]): {
     favoriteSubmission,
   };
 }
+

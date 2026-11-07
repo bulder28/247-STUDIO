@@ -42,6 +42,21 @@ describe('Dominio Puro: Cerebro de KOKORO AI', () => {
       expect(interpretKokoroIntent('crres que podemos incluir alguna mejora?', 'admin')).toBe('IMPROVEMENTS_FEEDBACK');
       expect(interpretKokoroIntent('¿Qué ideas propones para el futuro de la app?', 'admin')).toBe('IMPROVEMENTS_FEEDBACK');
     });
+
+    it('detecta STUDENT_ONBOARDING, STUDENT_FREEZE_PAUSE y STUDENT_OFFBOARDING ante gestión de alumnos', () => {
+      expect(interpretKokoroIntent('¿Cómo dar de alta a un nuevo alumno?', 'admin')).toBe('STUDENT_ONBOARDING');
+      expect(interpretKokoroIntent('creandi usaruis en la app', 'admin')).toBe('STUDENT_ONBOARDING');
+      expect(interpretKokoroIntent('pausar la cuota por lesion en la rodilla', 'admin')).toBe('STUDENT_FREEZE_PAUSE');
+      expect(interpretKokoroIntent('congelar cuota a alumno', 'admin')).toBe('STUDENT_FREEZE_PAUSE');
+      expect(interpretKokoroIntent('dar de baja definitiva a un socio', 'admin')).toBe('STUDENT_OFFBOARDING');
+    });
+
+    it('detecta AUTONOMOUS_OPERATIONS, PHOTO_CARDS_INTEGRATION y LEADS_TRIALS', () => {
+      expect(interpretKokoroIntent('hacer la app autonoma para manajear sin ti', 'admin')).toBe('AUTONOMOUS_OPERATIONS');
+      expect(interpretKokoroIntent('untegrando las fotos de los usuarios en cartas fifa', 'admin')).toBe('PHOTO_CARDS_INTEGRATION');
+      expect(interpretKokoroIntent('cuántos leads y clases de prueba tenemos', 'admin')).toBe('LEADS_TRIALS');
+      expect(interpretKokoroIntent('cuánto peso para la categoría medio pesado ibjjf', 'student')).toBe('COMPETITION_WEIGHT');
+    });
   });
 
   describe('Generador de Respuestas Grounded (generateKokoroResponse)', () => {
@@ -106,6 +121,29 @@ describe('Dominio Puro: Cerebro de KOKORO AI', () => {
       expect(res.text).toContain('Self-Service de Fotos');
       expect(res.text).toContain('Desafíos Semanales');
       expect(res.text).toContain('Gemini');
+    });
+
+    it('explica cómo dar de alta alumnos con pliego y control de menores', () => {
+      const ctx: KokoroContext = { role: 'admin' };
+      const res = generateKokoroResponse('STUDENT_ONBOARDING', ctx);
+      expect(res.badge).toBe('ALTA DE ALUMNOS');
+      expect(res.text).toContain('menor de 16 años');
+      expect(res.action?.url).toBe('/admin/alta-alumno');
+    });
+
+    it('explica cómo pausar por lesión y muestra conteo de congelados', () => {
+      const ctx: KokoroContext = { role: 'admin', frozenCount: 3 };
+      const res = generateKokoroResponse('STUDENT_FREEZE_PAUSE', ctx);
+      expect(res.badge).toBe('PAUSA POR LESIÓN');
+      expect(res.text).toContain('3 atleta(s) en pausa');
+      expect(res.action?.url).toBe('/admin/personal');
+    });
+
+    it('confirma autonomía operativa sin dependencia externa', () => {
+      const ctx: KokoroContext = { role: 'admin' };
+      const res = generateKokoroResponse('AUTONOMOUS_OPERATIONS', ctx);
+      expect(res.badge).toBe('APP 100% AUTÓNOMA');
+      expect(res.text).toContain('autonomía completa sin depender de ningún programador');
     });
   });
 });

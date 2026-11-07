@@ -16,7 +16,6 @@ import {
   MessageSquare,
   QrCode,
   Scale,
-  Search,
   Shield,
   Swords,
   User,
@@ -27,7 +26,6 @@ import {
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useGlobalShortcuts } from '@/shared/hooks/useGlobalShortcuts';
 import { BeltRoadmapModal } from '@/widgets/BeltRoadmapModal';
-import { CommandPaletteModal } from '@/widgets/CommandPaletteModal';
 import { CurriculumModal } from '@/widgets/CurriculumModal';
 import { KokoroAssistant } from '@/widgets/KokoroAssistant';
 import { MedicalAlertModal } from '@/widgets/MedicalAlertModal';
@@ -43,7 +41,6 @@ export const AppLayout: React.FC = () => {
   const [qrModalOpen, setQrModalOpen] = useState(false);
 
   // Tatami modals state
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
   const [weightCalcOpen, setWeightCalcOpen] = useState(false);
   const [curriculumOpen, setCurriculumOpen] = useState(false);
@@ -53,12 +50,10 @@ export const AppLayout: React.FC = () => {
 
   // Global Keyboard Shortcuts
   useGlobalShortcuts({
-    onToggleCommandPalette: () => setCommandPaletteOpen((prev) => !prev),
     onToggleTimer: () => setTimerOpen((prev) => !prev),
     onToggleWeightCalc: () => setWeightCalcOpen((prev) => !prev),
     onToggleCurriculum: () => setCurriculumOpen((prev) => !prev),
     onCloseModals: () => {
-      setCommandPaletteOpen(false);
       setTimerOpen(false);
       setWeightCalcOpen(false);
       setCurriculumOpen(false);
@@ -133,21 +128,6 @@ export const AppLayout: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-brand-accent inline-block -mt-2" />
             </div>
           </div>
-
-          {/* Buscador de Comandos */}
-          <button
-            type="button"
-            onClick={() => setCommandPaletteOpen(true)}
-            className="mb-3 w-full px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-left flex items-center justify-between text-xs text-slate-500 font-medium transition cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Search className="w-3.5 h-3.5 text-slate-400" />
-              <span>Buscar comando...</span>
-            </div>
-            <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[9px] font-mono font-bold text-slate-500">
-              ⌘K
-            </kbd>
-          </button>
 
           {/* Menú agrupado por categorías como MatGoat */}
           <nav className="space-y-4">
@@ -294,19 +274,6 @@ export const AppLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Quick Command Search Button */}
-            <button
-              type="button"
-              onClick={() => setCommandPaletteOpen(true)}
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-xs text-slate-600 font-medium transition cursor-pointer"
-            >
-              <Search className="w-3.5 h-3.5 text-slate-400" />
-              <span>Comandos</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white text-[9px] font-mono font-bold text-slate-500 border border-slate-200">
-                ⌘K
-              </kbd>
-            </button>
-
             {/* Botón Acción Rápida estilo MatGoat */}
             {role === 'admin' ? (
               <Link
@@ -473,13 +440,6 @@ export const AppLayout: React.FC = () => {
       {/* ======================================================== */}
       {/* 6. MODALES GLOBALES DE TATAMI & TOOLS                     */}
       {/* ======================================================== */}
-      <CommandPaletteModal
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        onOpenTimer={() => setTimerOpen(true)}
-        onOpenWeightCalc={() => setWeightCalcOpen(true)}
-      />
-
       <SparringTimerModal
         isOpen={timerOpen}
         onClose={() => setTimerOpen(false)}

@@ -87,8 +87,11 @@ export const PersonalPage: React.FC = () => {
     fetchUsersAndHistory();
   }, []);
 
-  const getRetentionRiskForUser = (uid: string): RetentionRisk => {
-    const userBookings = bookings.filter((b) => b.uid === uid);
+  const getRetentionRiskForUser = (user: UserDomainModel): RetentionRisk => {
+    if (user.accountStatus === 'FROZEN' || user.accountStatus === 'PAUSED') {
+      return 'LOW';
+    }
+    const userBookings = bookings.filter((b) => b.uid === user.uid);
     return deriveRetentionRisk(userBookings, now);
   };
 
@@ -98,9 +101,44 @@ export const PersonalPage: React.FC = () => {
         accountStatus: 'ACTIVE',
         updatedAt: serverTimestamp(),
       });
+      try {
+        await updateDoc(doc(db, 'kiosk_members', uid), {
+          accountStatus: 'ACTIVE',
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // kiosk_member might not exist yet
+      }
       await fetchUsersAndHistory();
     } catch (err) {
       console.error('Error activating user:', err);
+    }
+  };
+
+  const handleFreezeUser = async (uid: string) => {
+    const reason = prompt(
+      'Motivo de la pausa deportiva (ej: Esguince de rodilla, Viaje laboral):',
+      'Lesión deportiva'
+    );
+    if (reason === null) return;
+    try {
+      await updateDoc(doc(db, 'users', uid), {
+        accountStatus: 'FROZEN',
+        freezeReason: reason,
+        frozenAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      try {
+        await updateDoc(doc(db, 'kiosk_members', uid), {
+          accountStatus: 'PAUSED',
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // kiosk_member might not exist yet
+      }
+      await fetchUsersAndHistory();
+    } catch (err) {
+      console.error('Error freezing user:', err);
     }
   };
 
@@ -113,6 +151,14 @@ export const PersonalPage: React.FC = () => {
         accountStatus: 'INACTIVE',
         updatedAt: serverTimestamp(),
       });
+      try {
+        await updateDoc(doc(db, 'kiosk_members', uid), {
+          accountStatus: 'INACTIVE',
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // kiosk_member might not exist yet
+      }
       await fetchUsersAndHistory();
     } catch (err) {
       console.error('Error deactivating user:', err);
@@ -173,7 +219,7 @@ export const PersonalPage: React.FC = () => {
 
     effectiveUsers.forEach((u) => {
       if (u.accountStatus !== 'ACTIVE') return;
-      const risk = getRetentionRiskForUser(u.uid);
+      const risk = getRetentionRiskForUser(u);
       if (risk === 'HIGH') high++;
       else if (risk === 'MEDIUM') medium++;
       else low++;
@@ -190,7 +236,7 @@ export const PersonalPage: React.FC = () => {
 
     const matchesStatus = statusFilter === 'ALL' || u.accountStatus === statusFilter;
     const matchesTier = tierFilter === 'ALL' || u.pricingTier === tierFilter;
-    const userRisk = getRetentionRiskForUser(u.uid);
+    const userRisk = getRetentionRiskForUser(u);
     const matchesRisk = riskFilter === 'ALL' || userRisk === riskFilter;
 
     return matchesSearch && matchesStatus && matchesTier && matchesRisk;
@@ -403,6 +449,7 @@ export const PersonalPage: React.FC = () => {
           >
             <option value="ALL">Todos los Estados</option>
             <option value="ACTIVE">Activos</option>
+            <option value="FROZEN">Pausa / Lesión</option>
             <option value="PENDING">Pendientes</option>
             <option value="INACTIVE">Inactivos</option>
           </select>
@@ -468,7 +515,8 @@ export const PersonalPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredUsers.map((u) => {
-                  const retentionRisk = getRetentionRiskForUser(u.uid);
+                  const isFrozen = u.accountStatus === 'FROZEN' || u.accountStatus === 'PAUSED';
+                  const retentionRisk = getRetentionRiskForUser(u);
                   const isNearAdult = u.birthDate && calculateExactAge(u.birthDate, now) === 17;
                   const hasMedicalNotes = Boolean(u.medicalNotes && u.medicalNotes.trim().length > 0);
 
@@ -509,12 +557,14 @@ export const PersonalPage: React.FC = () => {
                           className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
                             u.accountStatus === 'ACTIVE'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : isFrozen
+                              ? 'bg-blue-50 text-blue-800 border-blue-200'
                               : u.accountStatus === 'PENDING'
                               ? 'bg-amber-50 text-amber-800 border-amber-200'
                               : 'bg-rose-50 text-rose-800 border-rose-200'
                           }`}
                         >
-                          {u.accountStatus}
+                          {isFrozen ? '❄️ Pausa Deportiva' : u.accountStatus}
                         </span>
                       </td>
 
@@ -522,18 +572,26 @@ export const PersonalPage: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                              retentionRisk === 'HIGH'
+                              isFrozen
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : retentionRisk === 'HIGH'
                                 ? 'bg-rose-50 text-rose-800 border-rose-200'
                                 : retentionRisk === 'MEDIUM'
                                 ? 'bg-amber-50 text-amber-800 border-amber-200'
                                 : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                             }`}
                           >
-                            {retentionRisk === 'HIGH' ? 'Riesgo Alto' : retentionRisk === 'MEDIUM' ? 'Irregular' : 'Al Día'}
+                            {isFrozen
+                              ? 'En Pausa'
+                              : retentionRisk === 'HIGH'
+                              ? 'Riesgo Alto'
+                              : retentionRisk === 'MEDIUM'
+                              ? 'Irregular'
+                              : 'Al Día'}
                           </span>
 
                           {/* Botón WhatsApp Anti-Abandono */}
-                          {retentionRisk !== 'LOW' && cleanPhone && (
+                          {!isFrozen && retentionRisk !== 'LOW' && cleanPhone && (
                             <a
                               href={`https://wa.me/${cleanPhone}?text=${waMessage}`}
                               target="_blank"
@@ -567,7 +625,7 @@ export const PersonalPage: React.FC = () => {
                         )}
                       </td>
 
-                      <td className="py-4 px-5 text-right space-x-2">
+                      <td className="py-4 px-5 text-right space-x-1.5">
                         {u.accountStatus === 'PENDING' && (
                           <button
                             type="button"
@@ -587,13 +645,45 @@ export const PersonalPage: React.FC = () => {
                           <span>Radar & Stats</span>
                         </button>
 
-                        {u.accountStatus === 'ACTIVE' && (
+                        {isFrozen && (
                           <button
                             type="button"
-                            onClick={() => handleDeactivateUser(u.uid)}
-                            className="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg font-bold text-[11px] hover:bg-rose-100 transition cursor-pointer"
+                            onClick={() => handleActivateUser(u.uid)}
+                            className="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg font-bold text-[11px] hover:bg-blue-100 transition cursor-pointer"
+                            title="Reactivar alumno de su pausa deportiva"
                           >
-                            Baja
+                            Reactivar
+                          </button>
+                        )}
+
+                        {u.accountStatus === 'ACTIVE' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleFreezeUser(u.uid)}
+                              className="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg font-bold text-[11px] hover:bg-blue-100 transition cursor-pointer"
+                              title="Pausar cuota y asistencia por lesión médica o viaje"
+                            >
+                              ❄️ Pausa
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeactivateUser(u.uid)}
+                              className="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg font-bold text-[11px] hover:bg-rose-100 transition cursor-pointer"
+                            >
+                              Baja
+                            </button>
+                          </>
+                        )}
+
+                        {u.accountStatus === 'INACTIVE' && (
+                          <button
+                            type="button"
+                            onClick={() => handleActivateUser(u.uid)}
+                            className="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg font-bold text-[11px] hover:bg-slate-200 transition cursor-pointer"
+                            title="Reactivar alumno dado de baja"
+                          >
+                            Reactivar
                           </button>
                         )}
                       </td>

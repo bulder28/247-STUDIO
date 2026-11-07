@@ -7,7 +7,6 @@ import {
   HeartPulse,
   LogOut,
   Scale,
-  Search,
   Shield,
   Swords,
   Tablet,
@@ -18,7 +17,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useGlobalShortcuts } from '@/shared/hooks/useGlobalShortcuts';
-import { CommandPaletteModal } from '@/widgets/CommandPaletteModal';
 import { CurriculumModal } from '@/widgets/CurriculumModal';
 import { KokoroAssistant } from '@/widgets/KokoroAssistant';
 import { MedicalAlertModal } from '@/widgets/MedicalAlertModal';
@@ -28,7 +26,6 @@ import { WeightDivisionModal } from '@/widgets/WeightDivisionModal';
 export const AdminLayout: React.FC = () => {
   const { logout } = useAuth();
 
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
   const [weightCalcOpen, setWeightCalcOpen] = useState(false);
   const [curriculumOpen, setCurriculumOpen] = useState(false);
@@ -36,12 +33,10 @@ export const AdminLayout: React.FC = () => {
 
   // Global Keyboard Shortcuts
   useGlobalShortcuts({
-    onToggleCommandPalette: () => setCommandPaletteOpen((prev) => !prev),
     onToggleTimer: () => setTimerOpen((prev) => !prev),
     onToggleWeightCalc: () => setWeightCalcOpen((prev) => !prev),
     onToggleCurriculum: () => setCurriculumOpen((prev) => !prev),
     onCloseModals: () => {
-      setCommandPaletteOpen(false);
       setTimerOpen(false);
       setWeightCalcOpen(false);
       setCurriculumOpen(false);
@@ -78,21 +73,6 @@ export const AdminLayout: React.FC = () => {
               </span>
             </div>
           </div>
-
-          {/* Quick Search Button (Cmd+K) */}
-          <button
-            type="button"
-            onClick={() => setCommandPaletteOpen(true)}
-            className="mt-3 w-full px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-left flex items-center justify-between text-xs text-slate-500 font-medium transition cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Search className="w-3.5 h-3.5 text-slate-400" />
-              <span>Buscar comando...</span>
-            </div>
-            <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[9px] font-mono font-bold text-slate-500">
-              ⌘K
-            </kbd>
-          </button>
 
           {/* Menú de Gestión */}
           <div className="mt-4">
@@ -200,13 +180,6 @@ export const AdminLayout: React.FC = () => {
       </main>
 
       {/* Modales Globales de Tatami */}
-      <CommandPaletteModal
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        onOpenTimer={() => setTimerOpen(true)}
-        onOpenWeightCalc={() => setWeightCalcOpen(true)}
-      />
-
       <SparringTimerModal
         isOpen={timerOpen}
         onClose={() => setTimerOpen(false)}

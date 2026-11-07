@@ -349,6 +349,29 @@ export const KioskCheckinPage: React.FC = () => {
       const bookingRef = doc(db, 'bookings', bookingId);
       const existingBooking = await getDoc(bookingRef);
 
+      // Prevenir check-in duplicado si el alumno ya fue marcado como ATTENDED en esta sesión
+      if (existingBooking.exists() && existingBooking.data()?.status === 'ATTENDED') {
+        playCheckinChime();
+        setLastCheckedInStudent({
+          alias: student.alias,
+          sessionType,
+          belt: student.belt,
+          stripes: student.stripes,
+          beltSystem: student.beltSystem,
+          classNumber: 0,
+          xpEarned: 0,
+          totalXp: 0,
+          classesRemainingForPromotion: 0,
+          nextPromotionGoal: '¡Check-in ya confirmado previamente hoy!',
+          timestamp: new Date(),
+        });
+        setSelectedStudent(null);
+        setSearchTerm('');
+        setSearchResults([]);
+        setLoadingCheckin(false);
+        return;
+      }
+
       if (existingBooking.exists()) {
         // Si el alumno ya tenía reserva: actualizamos a ATTENDED sin sobreescribir createdAt
         await updateDoc(bookingRef, {

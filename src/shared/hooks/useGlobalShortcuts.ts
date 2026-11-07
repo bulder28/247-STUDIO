@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 
 export interface ShortcutHandlers {
-  onToggleCommandPalette?: () => void;
   onToggleTimer?: () => void;
   onToggleWeightCalc?: () => void;
   onToggleCurriculum?: () => void;
@@ -11,19 +10,12 @@ export interface ShortcutHandlers {
 export function useGlobalShortcuts(handlers: ShortcutHandlers) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts if user is typing in an input or textarea (except for Escape and Cmd+K)
+      // Don't trigger shortcuts if user is typing in an input or textarea (except for Escape)
       const target = e.target as HTMLElement;
       const isInput =
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
         target.isContentEditable;
-
-      // Cmd+K or Ctrl+K (Command Palette)
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        handlers.onToggleCommandPalette?.();
-        return;
-      }
 
       // Escape
       if (e.key === 'Escape') {
@@ -56,3 +48,4 @@ export function useGlobalShortcuts(handlers: ShortcutHandlers) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlers]);
 }
+

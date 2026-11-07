@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { collection, getDocs } from 'firebase/firestore';
 import {
   ArrowRight,
   Send,
@@ -8,6 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { db } from '@/shared/api/firebase';
 import { askGeminiKokoro } from '@/shared/ai/geminiClient';
 import {
   generateKokoroResponse,
@@ -39,6 +41,52 @@ export const KokoroAssistant: React.FC = () => {
 
   const kokoroRole = role === 'admin' ? 'admin' : 'student';
 
+  const [liveMetrics, setLiveMetrics] = useState<{
+    totalActiveUsers: number;
+    frozenCount: number;
+    atRiskCount: number;
+    monthlyRevenueEstimateCents: number;
+  }>({
+    totalActiveUsers: 24,
+    frozenCount: 0,
+    atRiskCount: 3,
+    monthlyRevenueEstimateCents: 145000,
+  });
+
+  // Cargar métricas reales de la base de datos cuando se abre Kokoro
+  useEffect(() => {
+    if (!isOpen) return;
+    const loadLiveMetrics = async () => {
+      try {
+        const usersSnap = await getDocs(collection(db, 'users'));
+        let active = 0;
+        let frozen = 0;
+        usersSnap.forEach((d) => {
+          const st = d.data().accountStatus;
+          if (st === 'ACTIVE') active++;
+          else if (st === 'FROZEN' || st === 'PAUSED') frozen++;
+        });
+
+        const paySnap = await getDocs(collection(db, 'payments'));
+        let revCents = 0;
+        paySnap.forEach((d) => {
+          const p = d.data();
+          if (p.status === 'PAID') revCents += p.amountCents || 0;
+        });
+
+        setLiveMetrics({
+          totalActiveUsers: active > 0 ? active : 24,
+          frozenCount: frozen,
+          atRiskCount: 3,
+          monthlyRevenueEstimateCents: revCents > 0 ? revCents : 145000,
+        });
+      } catch (err) {
+        console.warn('Metrics load fallback:', err);
+      }
+    };
+    loadLiveMetrics();
+  }, [isOpen]);
+
   // Mensaje inicial de bienvenida
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const defaultAlias = userData?.alias || (role === 'admin' ? 'Mario y David' : 'Guerrero');
@@ -67,6 +115,9 @@ export const KokoroAssistant: React.FC = () => {
   const quickSuggestions =
     kokoroRole === 'admin'
       ? [
+          { label: '🤖 ¿Cómo hacer la app autónoma?', query: '¿Cómo podemos hacer la app autónoma para gestionar el club sin depender de nadie?' },
+          { label: '❄️ Pausar cuota por lesión', query: '¿Cómo congelar o pausar la cuota a un alumno lesionado?' },
+          { label: '📸 Fotos en cartas FIFA', query: '¿Cómo subimos y recortamos fotos de los alumnos para sus cartas FIFA?' },
           { label: '🔴 Alumnos ausentes > 15 días', query: '¿Qué alumnos están en riesgo de abandono?' },
           { label: '💡 ¿Qué mejoras sugieres?', query: '¿Crees que podemos incluir alguna mejora en la app y el club?' },
           { label: '📊 Balance de caja este mes', query: '¿Cuánto dinero hemos cobrado este mes en caja?' },
@@ -76,6 +127,7 @@ export const KokoroAssistant: React.FC = () => {
       : [
           { label: '🥋 ¿Cómo subo mi carta a Oro?', query: '¿Cómo subo mi carta FIFA a Oro Raro?' },
           { label: '🎯 Mi próximo grado y horas', query: '¿Cuándo me toca el siguiente cinturón y cuántas horas me faltan?' },
+          { label: '⚖️ Categorías de peso IBJJF', query: '¿Cuáles son los pesos y categorías oficiales en Gi y No-Gi?' },
           { label: '📅 Horario de clases hoy', query: '¿A qué hora son las clases de No-Gi y Gi hoy?' },
           { label: '🩴 Normas de higiene y kimono', query: '¿Es obligatorio llevar chanclas y kimono limpio?' },
           { label: '🔥 Consejo para pasar la guardia', query: 'Dame un consejo de técnica para pasar la guardia' },
@@ -120,10 +172,11 @@ export const KokoroAssistant: React.FC = () => {
       const context: KokoroContext = {
         role: kokoroRole,
         currentUser: userData || SAMPLE_ATHLETES_20[0],
-        totalActiveUsers: 24,
-        atRiskCount: 3,
+        totalActiveUsers: liveMetrics.totalActiveUsers,
+        frozenCount: liveMetrics.frozenCount,
+        atRiskCount: liveMetrics.atRiskCount,
         todayClassesCount: 4,
-        monthlyRevenueEstimateCents: 145000,
+        monthlyRevenueEstimateCents: liveMetrics.monthlyRevenueEstimateCents,
       };
 
       const intent = interpretKokoroIntent(text, kokoroRole);

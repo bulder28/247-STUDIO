@@ -213,11 +213,15 @@ export const AttendanceAdminPage: React.FC = () => {
 
     try {
       for (const booking of pendingBookings) {
+        const student = students[booking.uid];
+        const isFrozen = student?.accountStatus === 'FROZEN' || student?.accountStatus === 'PAUSED';
+        const effectiveType: SessionType = isFrozen ? 'OBSERVER' : (booking.sessionType || 'PARTICIPANT');
+
         await updateDoc(doc(db, 'bookings', booking.id), {
           status: 'ATTENDED',
           checkInSource: 'ADMIN',
-          sessionType: booking.sessionType || 'PARTICIPANT',
-          attendanceWeight: getAttendanceWeight(booking.sessionType || 'PARTICIPANT'),
+          sessionType: effectiveType,
+          attendanceWeight: getAttendanceWeight(effectiveType),
         });
       }
 
@@ -311,16 +315,28 @@ export const AttendanceAdminPage: React.FC = () => {
     setActionLoading(`add_${targetStudent.uid}`);
     setMessage(null);
 
+    const isFrozen = targetStudent.accountStatus === 'FROZEN' || targetStudent.accountStatus === 'PAUSED';
+    const effectiveSessionType = isFrozen ? 'OBSERVER' : addSessionType;
+    if (isFrozen) {
+      const ok = confirm(
+        `Aviso: ${targetStudent.alias} tiene su cuenta en PAUSA POR LESIÓN. ¿Deseas registrar su asistencia como OBSERVADOR (0.5x)?`
+      );
+      if (!ok) {
+        setActionLoading(null);
+        return;
+      }
+    }
+
     try {
       const bookingId = `bk_${targetStudent.uid}_${activeSchedule.id}_${selectedDateStr}`;
-      const weight = getAttendanceWeight(addSessionType);
+      const weight = getAttendanceWeight(effectiveSessionType);
 
       await setDoc(doc(db, 'bookings', bookingId), {
         uid: targetStudent.uid,
         scheduleId: activeSchedule.id,
         date: selectedDateStr,
         status: 'ATTENDED',
-        sessionType: addSessionType,
+        sessionType: effectiveSessionType,
         attendanceWeight: weight,
         checkInSource: 'ADMIN',
         createdAt: serverTimestamp(),
@@ -878,9 +894,16 @@ export const AttendanceAdminPage: React.FC = () => {
                           }`}
                         >
                           <td className="py-3.5 px-4">
-                            <span className="font-bold text-sm text-slate-900 block">
-                              {student.alias}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-sm text-slate-900 block">
+                                {student.alias}
+                              </span>
+                              {(student.accountStatus === 'FROZEN' || student.accountStatus === 'PAUSED') && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                  ❄️ Pausa
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[11px] text-slate-400">
                               {student.phone || 'Sin teléfono'}
                             </span>

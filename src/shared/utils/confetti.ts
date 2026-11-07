@@ -55,3 +55,4 @@ export function triggerKioskCheckinConfetti() {
     zIndex: 9999,
   });
 }
+

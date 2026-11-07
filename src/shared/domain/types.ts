@@ -5,7 +5,7 @@
 
 export type Role = 'student' | 'admin' | 'kiosk';
 
-export type AccountStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE';
+export type AccountStatus = 'PENDING' | 'ACTIVE' | 'PAUSED' | 'FROZEN' | 'SUSPENDED' | 'INACTIVE';
 
 export type BeltSystem = 'ADULT' | 'KIDS';
 

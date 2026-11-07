@@ -59,3 +59,4 @@ export function openWhatsAppDirect(data: WhatsAppTemplateData): void {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 }
+

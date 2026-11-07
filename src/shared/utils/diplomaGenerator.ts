@@ -151,3 +151,4 @@ export function generateGraduationDiplomaPdf(athlete: UserDomainModel, dateStr?:
   const cleanAlias = athlete.alias.replace(/[^a-zA-Z0-9]/g, '_');
   doc.save(`Diploma_247Studio_${cleanAlias}.pdf`);
 }
+
