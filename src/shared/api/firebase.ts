@@ -5,23 +5,9 @@ import {
   getFirestore,
 } from 'firebase/firestore';
 
-const isBrowser = typeof window !== 'undefined';
-const currentHost = isBrowser ? window.location.hostname : '';
-const isCustomOrNetlify =
-  currentHost &&
-  currentHost !== 'localhost' &&
-  !currentHost.includes('127.0.0.1');
-
-// En producción en Netlify (247studio.netlify.app) o dominio propio, usar el host actual como authDomain
-// apoyado en el proxy inverso [[redirects]] de /__/auth/* hacia Firebase.
-// Esto convierte la autenticación en first-party y elimina al 100% el bloqueo de cookies en Safari iOS y Chrome Android.
-const resolvedAuthDomain = isCustomOrNetlify
-  ? currentHost
-  : (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'studio-ff8d1.firebaseapp.com');
-
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDummyKeyForDevelopment12345',
-  authDomain: resolvedAuthDomain,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'studio-ff8d1.firebaseapp.com',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'studio-ff8d1',
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'studio-ff8d1.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '29457860873',
