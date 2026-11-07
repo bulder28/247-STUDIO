@@ -26,7 +26,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^10.14.1",
-    "firebase-admin": "^14.5.0",
     "framer-motion": "^14.10.1",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",

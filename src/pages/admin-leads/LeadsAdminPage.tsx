@@ -405,6 +405,7 @@ export const LeadsAdminPage: React.FC = () => {
                       {lead.status !== 'CONVERTED' && (
                         <Link
                           to={`/admin/alta-alumno?leadId=${encodeURIComponent(lead.id)}&name=${encodeURIComponent(lead.name)}&email=${encodeURIComponent(lead.email || '')}&phone=${encodeURIComponent(lead.phone || '')}`}
+                          state={{ leadId: lead.id, name: lead.name, email: lead.email || '', phone: lead.phone || '' }}
                           className="px-3 py-1 bg-brand-accent hover:bg-brand-accent/90 text-white rounded-lg font-bold text-xs transition inline-flex items-center gap-1 shadow-sm cursor-pointer"
                         >
                           <span>Crear Ficha →</span>

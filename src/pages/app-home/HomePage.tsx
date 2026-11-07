@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { motion } from 'framer-motion';
@@ -16,6 +16,7 @@ import { db } from '@/shared/api/firebase';
 import { derivePaymentStatus } from '@/shared/domain/payment-status';
 import {
   DEFAULT_OFFICIAL_SCHEDULES,
+  getMadridTimeComponents,
   getNextClass,
   isClassInProgress,
 } from '@/shared/domain/schedule';
@@ -39,7 +40,9 @@ import {
 import { Dialog, DialogContent } from '@/shared/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { BeltProgressionCard } from '@/widgets/BeltProgressionCard';
-import { FighterCard } from '@/widgets/FighterCard';
+const FighterCard = React.lazy(() =>
+  import('@/widgets/FighterCard').then((m) => ({ default: m.FighterCard }))
+);
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 
 export const HomePage: React.FC = () => {
@@ -50,6 +53,7 @@ export const HomePage: React.FC = () => {
   const [bookings, setBookings] = useState<BookingDomainModel[]>([]);
   const [showQrModal, setShowQrModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'academia' | 'entrenamiento'>('academia');
+  const [mobileSection, setMobileSection] = useState<'hoy' | 'socio' | 'cinturon' | 'fut'>('hoy');
   const [loading, setLoading] = useState(true);
 
   const getGreeting = () => {
@@ -66,26 +70,32 @@ export const HomePage: React.FC = () => {
       try {
         const now = new Date();
 
-        // 1. Cargar pagos del alumno
+        // 1. Ejecución paralela de consultas independientes con Promise.all
         const paymentsQuery = query(collection(db, 'payments'), where('uid', '==', user.uid));
-        const paymentsSnap = await getDocs(paymentsQuery);
+        const bookingsQuery = query(collection(db, 'bookings'), where('uid', '==', user.uid));
+        const freezesQuery = query(collection(db, 'freezes'), where('uid', '==', user.uid));
+        const schedQuery = query(collection(db, 'schedules'), where('active', '==', true));
+        const excQuery = collection(db, 'scheduleExceptions');
+
+        const [paymentsSnap, bookingsSnap, freezesSnap, schedSnap, excSnap] = await Promise.all([
+          getDocs(paymentsQuery),
+          getDocs(bookingsQuery),
+          getDocs(freezesQuery),
+          getDocs(schedQuery),
+          getDocs(excQuery),
+        ]);
+
         const payments: PaymentDomainModel[] = [];
         paymentsSnap.forEach((d) => payments.push({ id: d.id, ...(d.data() as Omit<PaymentDomainModel, 'id'>) }));
 
-        // 2. Cargar bookings del alumno
-        const bookingsQuery = query(collection(db, 'bookings'), where('uid', '==', user.uid));
-        const bookingsSnap = await getDocs(bookingsQuery);
         const userBookings: BookingDomainModel[] = [];
         bookingsSnap.forEach((d) => userBookings.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) }));
         setBookings(userBookings);
 
-        // 3. Cargar freezes del alumno
-        const freezesQuery = query(collection(db, 'freezes'), where('uid', '==', user.uid));
-        const freezesSnap = await getDocs(freezesQuery);
         const freezes: FreezeDomainModel[] = [];
         freezesSnap.forEach((d) => freezes.push({ id: d.id, ...(d.data() as Omit<FreezeDomainModel, 'id'>) }));
 
-        // 4. Derivar estado de pago puro
+        // 2. Derivar estado de pago puro
         const status = derivePaymentStatus({
           billingType: 'MONTHLY',
           payments,
@@ -95,13 +105,11 @@ export const HomePage: React.FC = () => {
         });
         setDerivedStatus(status);
 
-        // 5. Cargar horarios y excepciones
-        const schedSnap = await getDocs(query(collection(db, 'schedules'), where('active', '==', true)));
+        // 3. Procesar horarios y excepciones
         const schedList: ScheduleDomainModel[] = [];
         schedSnap.forEach((d) => schedList.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) }));
         setSchedules(schedList.length > 0 ? schedList : DEFAULT_OFFICIAL_SCHEDULES);
 
-        const excSnap = await getDocs(collection(db, 'scheduleExceptions'));
         const excList: ScheduleExceptionDomainModel[] = [];
         excSnap.forEach((d) => excList.push({ id: d.id, ...(d.data() as Omit<ScheduleExceptionDomainModel, 'id'>) }));
         setExceptions(excList);
@@ -117,44 +125,180 @@ export const HomePage: React.FC = () => {
 
   if (loading || !userData) {
     return (
-      <div className="py-24 flex justify-center items-center">
-        <div className="w-9 h-9 border-3 border-studio-red border-t-transparent rounded-full animate-spin" />
+      <div className="space-y-6 pb-10 animate-pulse" role="status" aria-label="Cargando panel de bienvenida...">
+        {/* Header Skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="h-8 w-56 bg-slate-200 rounded-xl" />
+            <div className="h-4 w-72 bg-slate-100 rounded-lg" />
+          </div>
+          <div className="h-10 w-64 bg-slate-100 rounded-xl" />
+        </div>
+
+        {/* Bento Grid Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Bento Card 1 Skeleton: Schedule (7 cols) */}
+          <div className="lg:col-span-7 rounded-2xl bg-white border border-slate-200/80 p-6 space-y-6 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="h-5 w-48 bg-slate-200 rounded-lg" />
+              <div className="h-4 w-20 bg-slate-100 rounded" />
+            </div>
+            <div className="space-y-3">
+              <div className="h-5 w-32 bg-slate-100 rounded-full" />
+              <div className="h-10 w-44 bg-slate-200 rounded-xl" />
+              <div className="h-4 w-60 bg-slate-100 rounded" />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <div className="h-10 w-40 bg-slate-200 rounded-xl" />
+              <div className="h-10 w-36 bg-slate-100 rounded-xl" />
+            </div>
+            <div className="border-t border-slate-100 pt-3 space-y-2">
+              <div className="h-3 w-40 bg-slate-100 rounded" />
+              <div className="h-8 w-full bg-slate-50 rounded-xl" />
+            </div>
+          </div>
+
+          {/* Bento Card 2 Skeleton: Partner Panel (5 cols) */}
+          <div className="lg:col-span-5 rounded-2xl bg-white border border-slate-200/80 p-6 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="h-5 w-32 bg-slate-200 rounded-lg" />
+              <div className="h-5 w-12 bg-slate-100 rounded-full" />
+            </div>
+            <div className="space-y-3">
+              <div className="h-16 w-full bg-slate-50 border border-slate-100 rounded-2xl" />
+              <div className="h-16 w-full bg-slate-50 border border-slate-100 rounded-2xl" />
+              <div className="h-16 w-full bg-slate-50 border border-slate-100 rounded-2xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Bento Row 3 Skeleton: Metrics (3 cols) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="h-28 rounded-2xl bg-white border border-slate-200/80 p-5 shadow-sm space-y-2">
+            <div className="h-3 w-28 bg-slate-100 rounded" />
+            <div className="h-6 w-16 bg-slate-200 rounded" />
+            <div className="h-3 w-36 bg-slate-100 rounded" />
+          </div>
+          <div className="h-28 rounded-2xl bg-white border border-slate-200/80 p-5 shadow-sm space-y-2">
+            <div className="h-3 w-28 bg-slate-100 rounded" />
+            <div className="h-6 w-16 bg-slate-200 rounded" />
+            <div className="h-3 w-36 bg-slate-100 rounded" />
+          </div>
+          <div className="h-28 rounded-2xl bg-white border border-slate-200/80 p-5 shadow-sm space-y-2">
+            <div className="h-3 w-28 bg-slate-100 rounded" />
+            <div className="h-6 w-16 bg-slate-200 rounded" />
+            <div className="h-3 w-36 bg-slate-100 rounded" />
+          </div>
+        </div>
+        <span className="sr-only">Cargando datos de bienvenida...</span>
       </div>
     );
   }
 
   const now = new Date();
+  const madridNow = getMadridTimeComponents(now);
   const nextClassInfo = getNextClass(schedules, exceptions, now);
   const activeClass = schedules.find((s) => isClassInProgress(s, exceptions, now));
 
   const displayClass = activeClass || nextClassInfo?.schedule || schedules[0];
   const isClassActive = !!activeClass;
 
+  // Filtrar otras sesiones estrictamente por el día de la semana actual (Madrid)
+  const todayOtherSchedules = schedules
+    .filter(
+      (s) =>
+        s.active !== false &&
+        s.dayOfWeek === madridNow.dayOfWeek &&
+        s.id !== displayClass?.id
+    )
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  // Horas de tatami / asistencias en el mes en curso (matching reportMonth YYYY-MM)
+  const reportMonth = madridNow.dateStr.slice(0, 7);
+  const monthAttendedCount = bookings.filter(
+    (b) =>
+      b.date &&
+      b.date.startsWith(reportMonth) &&
+      (b.status === 'ATTENDED' || b.status === 'BOOKED' || (!b.status && b.date <= madridNow.dateStr))
+  ).length;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className="space-y-6 pb-10"
+      className="space-y-3 md:space-y-6 pb-2 md:pb-10"
     >
       {/* ======================================================== */}
       {/* 1. ENCABEZADO CON SHADCN / ATHLETIC TYPOGRAPHY          */}
       {/* ======================================================== */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {getGreeting()}, {userData.alias}
             </h1>
-            <span className="text-xl">🥋</span>
+            <span className="text-lg sm:text-xl">🥋</span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+          <p className="hidden sm:block text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             247Studio · Academia de Brazilian Jiu-Jitsu en Pinto (Madrid)
           </p>
         </div>
 
-        {/* Radix / Shadcn Tabs Selector */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-auto">
+        {/* Selector de sub-pestañas móvil sin scroll vertical */}
+        <div className="md:hidden grid grid-cols-4 gap-1 bg-slate-200/70 p-1 rounded-xl">
+          <button
+            type="button"
+            onClick={() => {
+              setMobileSection('hoy');
+              setActiveTab('academia');
+            }}
+            className={`py-2 px-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+              mobileSection === 'hoy' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            🥋 Hoy
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMobileSection('socio');
+              setActiveTab('academia');
+            }}
+            className={`py-2 px-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+              mobileSection === 'socio' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            💳 Socio
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMobileSection('cinturon');
+              setActiveTab('entrenamiento');
+            }}
+            className={`py-2 px-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+              mobileSection === 'cinturon' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            🏆 Cinturón
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMobileSection('fut');
+              setActiveTab('entrenamiento');
+            }}
+            className={`py-2 px-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+              mobileSection === 'fut' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+            }`}
+          >
+            ⚡ Carta FUT
+          </button>
+        </div>
+
+        {/* Radix / Shadcn Tabs Selector (Escritorio) */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="hidden md:block w-auto">
           <TabsList className="bg-slate-100 border border-slate-200/80">
             <TabsTrigger value="academia">Mi Academia</TabsTrigger>
             <TabsTrigger value="entrenamiento">Ficha & Progresión</TabsTrigger>
@@ -167,16 +311,20 @@ export const HomePage: React.FC = () => {
           {/* ======================================================== */}
           {/* 2. BENTO GRID: PRÓXIMAS CLASES & RADAR DE SOCIO           */}
           {/* ======================================================== */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
             {/* Bento Card 1: Próximas Clases & Check-In */}
-            <Card className="lg:col-span-7 flex flex-col justify-between overflow-hidden relative group bg-gradient-to-br from-white via-white to-slate-50/60 shadow-card hover:shadow-card-hover transition-all border-slate-200/80">
+            <Card
+              className={`${
+                mobileSection === 'hoy' ? 'flex' : 'hidden md:flex'
+              } lg:col-span-7 flex-col justify-between overflow-hidden relative group bg-gradient-to-br from-white via-white to-slate-50/60 shadow-card hover:shadow-card-hover transition-all border-slate-200/80`}
+            >
               <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-red-500/10 via-amber-500/5 to-transparent pointer-events-none rounded-full blur-2xl" />
 
-              <CardHeader className="border-b border-slate-100 pb-4">
+              <CardHeader className="border-b border-slate-100 pb-3 sm:pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-brand-accent" />
-                    <CardTitle className="text-sm font-bold">Próximas Sesiones de Tatami</CardTitle>
+                    <CardTitle className="text-xs sm:text-sm font-bold">Próximas Sesiones de Tatami</CardTitle>
                   </div>
                   <Link
                     to="/app/horario"
@@ -188,9 +336,9 @@ export const HomePage: React.FC = () => {
                 </div>
               </CardHeader>
 
-              <CardContent className="pt-5 space-y-5">
+              <CardContent className="pt-4 sm:pt-5 space-y-3.5 sm:space-y-5">
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
                     {isClassActive ? (
                       <Badge variant="destructive" className="gap-1.5 py-0.5 px-2.5">
                         <span className="relative flex h-2 w-2">
@@ -209,11 +357,11 @@ export const HomePage: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="font-headline text-3xl sm:text-4xl text-slate-900 tracking-tight">
+                  <div className="font-headline text-2xl sm:text-4xl text-slate-900 tracking-tight">
                     {displayClass ? `${displayClass.startTime} – ${displayClass.endTime}` : '19:30 – 21:00'}
                   </div>
 
-                  <div className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-800">
+                  <div className="mt-2 sm:mt-3 flex items-center gap-2 text-xs font-bold text-slate-800">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
                     <span>{displayClass?.program || 'BJJ Gi & Grappling'}</span>
                     <span className="text-slate-300">•</span>
@@ -223,9 +371,9 @@ export const HomePage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-2 flex flex-wrap gap-2.5">
+                <div className="pt-1 sm:pt-2 flex flex-wrap gap-2">
                   {role === 'admin' ? (
-                    <Button asChild variant="studio">
+                    <Button asChild variant="studio" size="sm">
                       <Link to="/admin/asistencia">
                         <span>Gestionar Asistencia Tatami</span>
                       </Link>
@@ -233,52 +381,63 @@ export const HomePage: React.FC = () => {
                   ) : (
                     <Button
                       variant="studio"
+                      size="sm"
                       onClick={() => setShowQrModal(true)}
-                      className="gap-2 shadow-card"
+                      className="gap-2 shadow-card cursor-pointer"
                     >
                       <QrCode className="w-4 h-4" />
                       <span>Ver Pase Check-In (QR)</span>
                     </Button>
                   )}
 
-                  <Button asChild variant="outline">
+                  <Button asChild variant="outline" size="sm">
                     <Link to="/app/horario">
                       <span>Ver Calendario Semanal</span>
                     </Link>
                   </Button>
                 </div>
 
-                {/* Sesiones adicionales */}
-                <div className="border-t border-slate-100 pt-3 space-y-1.5">
+                {/* Sesiones adicionales estrictamente filtradas por el día de hoy */}
+                <div className="border-t border-slate-100 pt-2.5 sm:pt-3 space-y-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
                     Otras sesiones programadas hoy:
                   </span>
-                  {schedules.slice(1, 3).map((s) => (
-                    <Link
-                      key={s.id}
-                      to="/app/horario"
-                      className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl hover:bg-slate-50 transition border border-transparent hover:border-slate-200/60"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-slate-300" />
-                        <span className="font-bold text-slate-900">{s.program}</span>
-                      </div>
-                      <span className="font-mono text-slate-500 text-[11px]">
-                        {s.startTime} - {s.endTime}
-                      </span>
-                    </Link>
-                  ))}
+                  {todayOtherSchedules.length > 0 ? (
+                    todayOtherSchedules.slice(0, 3).map((s) => (
+                      <Link
+                        key={s.id}
+                        to="/app/horario"
+                        className="flex items-center justify-between text-xs py-1 px-2 rounded-xl hover:bg-slate-50 transition border border-transparent hover:border-slate-200/60"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-slate-300" />
+                          <span className="font-bold text-slate-900">{s.program}</span>
+                        </div>
+                        <span className="font-mono text-slate-500 text-[11px]">
+                          {s.startTime} - {s.endTime}
+                        </span>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400 italic py-1 px-2">
+                      No hay más clases programadas para hoy.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
             {/* Bento Card 2: Estado del Atleta & Accesos Rápidos */}
-            <Card className="lg:col-span-5 flex flex-col justify-between shadow-card hover:shadow-card-hover transition-all border-slate-200/80 bg-gradient-to-br from-white via-white to-slate-50/60">
-              <CardHeader className="border-b border-slate-100 pb-4">
+            <Card
+              className={`${
+                mobileSection === 'socio' ? 'flex' : 'hidden md:flex'
+              } lg:col-span-5 flex-col justify-between shadow-card hover:shadow-card-hover transition-all border-slate-200/80 bg-gradient-to-br from-white via-white to-slate-50/60`}
+            >
+              <CardHeader className="border-b border-slate-100 pb-3 sm:pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Bell className="w-4 h-4 text-slate-700" />
-                    <CardTitle className="text-sm font-bold">Panel del Socio</CardTitle>
+                    <CardTitle className="text-xs sm:text-sm font-bold">Panel del Socio</CardTitle>
                   </div>
                   <Badge variant="outline" className="font-mono text-[10px]">
                     {userData.pricingTier || 'STD'}
@@ -286,11 +445,11 @@ export const HomePage: React.FC = () => {
                 </div>
               </CardHeader>
 
-              <CardContent className="pt-5 space-y-3.5">
+              <CardContent className="pt-4 sm:pt-5 space-y-2.5 sm:space-y-3.5">
                 {/* Estado de cuota */}
                 <Link
                   to="/app/programas"
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
                 >
                   <div>
                     <span className="text-xs font-bold text-slate-900 block group-hover:text-brand-accent transition">
@@ -308,10 +467,10 @@ export const HomePage: React.FC = () => {
                   </div>
                 </Link>
 
-                {/* Asistencias acumuladas */}
+                {/* Asistencias acumuladas del mes en curso */}
                 <Link
                   to="/app/historial"
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
                 >
                   <div>
                     <span className="text-xs font-bold text-slate-900 block group-hover:text-brand-accent transition">
@@ -323,7 +482,7 @@ export const HomePage: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="font-mono font-bold text-sm text-slate-900 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
-                      {bookings.length} clases
+                      {monthAttendedCount} {monthAttendedCount === 1 ? 'clase' : 'clases'}
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition" />
                   </div>
@@ -332,7 +491,7 @@ export const HomePage: React.FC = () => {
                 {/* Avisos */}
                 <Link
                   to="/app/avisos"
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
+                  className="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/70 transition-all shadow-subtle group"
                 >
                   <div>
                     <span className="text-xs font-bold text-slate-900 block group-hover:text-brand-accent transition">
@@ -354,9 +513,9 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* ======================================================== */}
-          {/* 3. FILA BENTO GRID: MÉTRICAS Y COMUNIDAD                 */}
+          {/* 3. FILA BENTO GRID: MÉTRICAS Y COMUNIDAD (Escritorio)    */}
           {/* ======================================================== */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="hidden md:grid grid-cols-1 sm:grid-cols-3 gap-5">
             <Card className="hover:border-slate-300 transition-all shadow-subtle hover:shadow-card bg-gradient-to-br from-white to-slate-50/50">
               <CardHeader className="pb-2">
                 <CardDescription className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
@@ -405,9 +564,23 @@ export const HomePage: React.FC = () => {
         </>
       ) : (
         /* Pestaña de Entrenamiento: Ficha de Atleta, Gamificación y Atributos */
-        <div className="space-y-6 animate-in fade-in duration-200">
-          <BeltProgressionCard user={userData} bookings={bookings} />
-          <FighterCard user={userData} />
+        <div className="space-y-4 md:space-y-6 animate-in fade-in duration-200">
+          <div className={mobileSection === 'cinturon' ? 'block' : 'hidden md:block'}>
+            <BeltProgressionCard user={userData} bookings={bookings} />
+          </div>
+          <div className={mobileSection === 'fut' ? 'block' : 'hidden md:block'}>
+            <Suspense
+              fallback={
+                <div className="h-64 flex items-center justify-center text-slate-400 bg-white/50 rounded-3xl border border-slate-200">
+                  <span className="text-xs font-bold uppercase tracking-wider animate-pulse">
+                    Cargando ficha de atleta...
+                  </span>
+                </div>
+              }
+            >
+              <FighterCard user={userData} />
+            </Suspense>
+          </div>
         </div>
       )}
 

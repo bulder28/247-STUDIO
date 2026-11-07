@@ -79,31 +79,39 @@ export const SchedulePage: React.FC = () => {
   const fetchScheduleData = async () => {
     try {
       const schedQuery = query(collection(db, 'schedules'), where('active', '==', true));
-      const schedSnap = await getDocs(schedQuery);
+      const excQuery = collection(db, 'scheduleExceptions');
+      const bQuery = user
+        ? query(
+            collection(db, 'bookings'),
+            where('uid', '==', user.uid),
+            where('date', '==', selectedDateStr)
+          )
+        : null;
+      const capQuery = query(collection(db, 'class_capacity'), where('date', '==', selectedDateStr));
+
+      const [schedSnap, excSnap, bSnap, capSnap] = await Promise.all([
+        getDocs(schedQuery),
+        getDocs(excQuery),
+        bQuery ? getDocs(bQuery) : Promise.resolve(null),
+        getDocs(capQuery),
+      ]);
+
       const sList: ScheduleDomainModel[] = [];
       schedSnap.forEach((d) => sList.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) }));
-      
       setSchedules(sList.length > 0 ? sList : DEFAULT_OFFICIAL_SCHEDULES);
 
-      const excSnap = await getDocs(collection(db, 'scheduleExceptions'));
       const eList: ScheduleExceptionDomainModel[] = [];
       excSnap.forEach((d) => eList.push({ id: d.id, ...(d.data() as Omit<ScheduleExceptionDomainModel, 'id'>) }));
       setExceptions(eList);
 
-      if (user) {
-        const bQuery = query(
-          collection(db, 'bookings'),
-          where('uid', '==', user.uid),
-          where('date', '==', selectedDateStr)
-        );
-        const bSnap = await getDocs(bQuery);
+      if (bSnap) {
         const bList: BookingDomainModel[] = [];
         bSnap.forEach((d) => bList.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) }));
         setMyBookings(bList);
+      } else {
+        setMyBookings([]);
       }
 
-      const capQuery = query(collection(db, 'class_capacity'), where('date', '==', selectedDateStr));
-      const capSnap = await getDocs(capQuery);
       const capMap: Record<string, { bookedCount: number; waitlistCount: number }> = {};
       capSnap.forEach((d) => {
         const data = d.data();
@@ -266,8 +274,11 @@ export const SchedulePage: React.FC = () => {
           {disciplines.map((d) => (
             <button
               key={d}
+              type="button"
               onClick={() => setSelectedDiscipline(d)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition ${
+              aria-pressed={selectedDiscipline === d}
+              aria-label={`Filtrar por disciplina ${d}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
                 selectedDiscipline === d
                   ? 'bg-slate-900 text-white shadow-sm'
                   : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -287,8 +298,11 @@ export const SchedulePage: React.FC = () => {
           return (
             <button
               key={d.num}
+              type="button"
               onClick={() => setSelectedDayOfWeek(d.num)}
-              className={`py-3 px-1 rounded-xl flex flex-col items-center justify-center transition-all ${
+              aria-pressed={isSelected}
+              aria-label={`Ver horario del ${d.label}${isToday ? ' (Hoy)' : ''}`}
+              className={`py-3 px-1 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
                 isSelected
                   ? 'bg-slate-900 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -321,10 +335,33 @@ export const SchedulePage: React.FC = () => {
         </div>
       )}
 
-      {/* Lista de Clases del Día */}
+      {/* Lista de Clases del Día (con Skeletons anti-CLS) */}
       {loading ? (
-        <div className="py-16 flex justify-center items-center">
-          <div className="w-8 h-8 border-3 border-slate-900 border-t-transparent rounded-full animate-spin" />
+        <div className="space-y-4" role="status" aria-label="Cargando horarios de tatami...">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm animate-pulse"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-4">
+                  <div className="w-[75px] h-[58px] rounded-xl bg-slate-100 shrink-0" />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-20 h-5 rounded-lg bg-slate-200" />
+                      <div className="w-16 h-4 rounded-full bg-slate-100" />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="w-32 h-4 rounded bg-slate-100" />
+                      <div className="w-24 h-3.5 rounded bg-slate-100" />
+                    </div>
+                  </div>
+                </div>
+                <div className="w-28 h-9 rounded-xl bg-slate-100 shrink-0 self-end sm:self-auto" />
+              </div>
+            </div>
+          ))}
+          <span className="sr-only">Cargando parrilla de clases...</span>
         </div>
       ) : daySchedules.length === 0 ? (
         <div className="text-center py-16 bg-white border border-slate-200/80 rounded-3xl p-8 shadow-sm">
@@ -426,9 +463,11 @@ export const SchedulePage: React.FC = () => {
                           </span>
 
                           <button
+                            type="button"
                             onClick={() => handleCancelBooking(myBooking, schedule)}
                             disabled={actionLoading === schedule.id}
-                            className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold transition"
+                            aria-label={`Cancelar mi reserva para ${schedule.program} a las ${schedule.startTime}`}
+                            className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold transition cursor-pointer"
                             title="Cancelar mi reserva"
                           >
                             {actionLoading === schedule.id ? (

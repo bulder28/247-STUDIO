@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Camera, Check, Image as ImageIcon, Upload, X } from 'lucide-react';
 import { triggerPromotionConfetti } from '@/shared/utils/confetti';
+import { compressImageToCanvas } from '@/shared/utils/imageCompressor';
 
 interface PhotoUploaderModalProps {
   currentPhotoUrl?: string;
@@ -37,7 +38,15 @@ export const PhotoUploaderModal: React.FC<PhotoUploaderModalProps> = ({
     if (!selectedImage) return;
     try {
       setSaving(true);
-      await onSave(selectedImage);
+      // Procesar, recortar aplicando el factor de zoom y comprimir en canvas a JPEG ligero (< 50KB)
+      const compressedPhoto = await compressImageToCanvas(selectedImage, {
+        zoom,
+        targetWidth: 400,
+        targetHeight: 440,
+        quality: 0.72,
+        maxSizeBytes: 49152, // < 50KB estricto
+      });
+      await onSave(compressedPhoto);
       triggerPromotionConfetti();
       onClose();
     } catch (err) {

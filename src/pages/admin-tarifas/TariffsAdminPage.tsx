@@ -21,7 +21,14 @@ import {
   UserDomainModel,
 } from '@/shared/domain/types';
 import { Button } from '@/shared/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
 
 export const DEFAULT_OFFICIAL_TARIFFS: Omit<TariffDomainModel, 'id'>[] = [
@@ -87,6 +94,7 @@ export const TariffsAdminPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [editingTariff, setEditingTariff] = useState<TariffDomainModel | null>(null);
 
   const [form, setForm] = useState({
@@ -205,16 +213,18 @@ export const TariffsAdminPage: React.FC = () => {
     }
   };
 
-  const handleLoadOfficialTemplate = async () => {
-    if (!confirm('¿Deseas cargar las 6 tarifas oficiales de 247Studio (Estándar 75€, Fundador 60€, Familiar 55€, Bono 110€, Kids 50€, Drop-In 15€)?')) {
-      return;
-    }
+  const handleLoadOfficialTemplate = () => {
+    setShowRestoreModal(true);
+  };
+
+  const handleConfirmLoadOfficialTemplate = async () => {
     setActionLoading(true);
     try {
       for (const t of DEFAULT_OFFICIAL_TARIFFS) {
         const id = `tariff_${t.tier.toLowerCase()}_${t.billingType.toLowerCase()}_${t.priceCents}`;
         await setDoc(doc(db, 'tariffs', id), t);
       }
+      setShowRestoreModal(false);
       await fetchTariffsAndUsers();
     } catch (err) {
       console.error('Error loading default tariffs:', err);
@@ -580,6 +590,37 @@ export const TariffsAdminPage: React.FC = () => {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Radix Dialog: Confirmar Carga de Tarifas Oficiales */}
+      <Dialog open={showRestoreModal} onOpenChange={setShowRestoreModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cargar Tarifas Oficiales 247Studio</DialogTitle>
+            <DialogDescription>
+              ¿Deseas volcar en el catálogo las 6 tarifas oficiales de 247Studio (Estándar 75 €, Fundador 60 €, Familiar 55 €, Bono 10 sesiones 110 €, Kids 50 €, Drop-In 15 €)?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowRestoreModal(false)}
+              disabled={actionLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              onClick={handleConfirmLoadOfficialTemplate}
+              disabled={actionLoading}
+              className="bg-brand-accent hover:bg-brand-accent/90 text-white font-black"
+            >
+              {actionLoading ? 'Cargando...' : 'Confirmar y Cargar'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

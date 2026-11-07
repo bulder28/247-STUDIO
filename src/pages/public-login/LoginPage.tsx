@@ -139,7 +139,8 @@ export const LoginPage: React.FC = () => {
       console.error(err);
       const firebaseError = err as { code?: string; message?: string };
       if (firebaseError?.code === 'auth/unauthorized-domain') {
-        setError('El dominio "247studio.netlify.app" debe agregarse a "Dominios autorizados" en la consola de Firebase Authentication.');
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : '247studio.com';
+        setError(`El dominio "${currentDomain}" debe agregarse a "Dominios autorizados" en la consola de Firebase Authentication.`);
       } else if (firebaseError?.code === 'auth/operation-not-allowed') {
         setError('El proveedor Google no está habilitado en Authentication > Sign-in method de Firebase.');
       } else if (firebaseError?.code === 'auth/popup-closed-by-user') {

@@ -1,4 +1,3 @@
-import jsPDF from 'jspdf';
 import { UserDomainModel } from '@/shared/domain/types';
 import { beltLabelEs } from '@/widgets/Belt';
 
@@ -6,7 +5,8 @@ import { beltLabelEs } from '@/widgets/Belt';
  * Genera un Diploma Oficial de Graduación de BJJ en PDF de alta fidelidad
  * listo para imprimir o enviar al alumno.
  */
-export function generateGraduationDiplomaPdf(athlete: UserDomainModel, dateStr?: string) {
+export async function generateGraduationDiplomaPdf(athlete: UserDomainModel, dateStr?: string): Promise<void> {
+  const { jsPDF } = await import('jspdf');
   // Documento A4 apaisado (Landscape: 297mm x 210mm)
   const doc = new jsPDF({
     orientation: 'landscape',

@@ -10,6 +10,49 @@
     <link rel="apple-touch-icon" href="/logo.webp" />
     <link rel="manifest" href="/manifest.json" />
     <title>247Studio | BJJ, Grappling, MMA — Pinto, Madrid Sur</title>
+    <style>
+      /* Desactivar badge, drawer y preview bar de Netlify */
+      netlify-drawer,
+      [data-netlify-deploy-id],
+      #netlify-drawer,
+      .netlify-drawer,
+      div[class*="netlify-drawer"],
+      iframe[id*="netlify"],
+      iframe[name*="netlify"],
+      iframe[src*="netlify"],
+      div[data-netlify-identity-menu],
+      .netlify-badge,
+      a[href*="netlify.com"][target="_blank"],
+      div[style*="netlify"] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        opacity: 0 !important;
+        max-height: 0 !important;
+        max-width: 0 !important;
+      }
+    </style>
+    <script>
+      (function() {
+        const removeNetlifyDrawer = function() {
+          const targets = document.querySelectorAll('netlify-drawer, [data-netlify-deploy-id], #netlify-drawer, .netlify-drawer, iframe[src*="netlify"]');
+          targets.forEach(function(el) {
+            try {
+              el.remove();
+            } catch(e) {
+              el.style.display = 'none';
+            }
+          });
+        };
+        removeNetlifyDrawer();
+        if (typeof MutationObserver !== 'undefined') {
+          var observer = new MutationObserver(removeNetlifyDrawer);
+          observer.observe(document.documentElement, { childList: true, subtree: true });
+        }
+        window.addEventListener('DOMContentLoaded', removeNetlifyDrawer);
+        window.addEventListener('load', removeNetlifyDrawer);
+      })();
+    </script>
   </head>
   <body class="h-full antialiased font-sans bg-brand-background text-brand-text selection:bg-brand-accent selection:text-white">
     <div id="root" class="h-full"></div>

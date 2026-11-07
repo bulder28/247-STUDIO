@@ -2,7 +2,6 @@
  * 247 STUDIO - Fighter FUT Card HD Image Downloader
  * Converts the DOM card element into a high-res PNG for Instagram Stories and social media
  */
-import html2canvas from 'html2canvas';
 
 export async function downloadFighterCardAsPng(
   elementId: string,
@@ -15,6 +14,8 @@ export async function downloadFighterCardAsPng(
   }
 
   try {
+    const html2canvasModule = await import('html2canvas');
+    const html2canvas = html2canvasModule.default || html2canvasModule;
     const canvas = await html2canvas(element, {
       scale: 3, // High-DPI crystal clear quality
       useCORS: true,

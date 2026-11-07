@@ -30,6 +30,14 @@ import {
   UserDomainModel,
 } from '@/shared/domain/types';
 import { Button } from '@/shared/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog';
 
 interface FreezeRequest {
   id: string;
@@ -53,33 +61,35 @@ export const CajaPage: React.FC = () => {
 
   const [rejectingPayment, setRejectingPayment] = useState<PaymentDomainModel | null>(null);
   const [rejectReason, setRejectReason] = useState<string>('No recibido en cuenta bancaria / Bizum');
+  const [phoneAlertStudent, setPhoneAlertStudent] = useState<string | null>(null);
 
   // PushPress / Mindbody POS State: Cobro Directo en Mostrador / TPV
   const [showPosModal, setShowPosModal] = useState(false);
   const [posStudentUid, setPosStudentUid] = useState<string>('');
   const [posCustomAlias, setPosCustomAlias] = useState<string>('');
-  const [posConcept, setPosConcept] = useState<string>('Cuota BJJ Adultos Ilimitado');
+  const [posConcept, setPosConcept] = useState<string>('Cuota BJJ Adultos Ilimitado (75 €)');
   const [posAmountEur, setPosAmountEur] = useState<number>(75);
   const [posMethod, setPosMethod] = useState<PaymentMethod>('CASH');
   const [posBillingType, setPosBillingType] = useState<'MONTHLY' | 'PASS' | 'DROP_IN'>('MONTHLY');
   const [posAutoDownloadReceipt, setPosAutoDownloadReceipt] = useState<boolean>(true);
+  const [mobileSection, setMobileSection] = useState<'resumen' | 'cobros' | 'pausas'>('resumen');
 
   const fetchCajaData = async () => {
     try {
-      // 1. Pagos
-      const paySnap = await getDocs(collection(db, 'payments'));
+      const [paySnap, uSnap, frSnap] = await Promise.all([
+        getDocs(collection(db, 'payments')),
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'freezeRequests')),
+      ]);
+
       const pList: PaymentDomainModel[] = [];
       paySnap.forEach((d) => pList.push({ id: d.id, ...(d.data() as Omit<PaymentDomainModel, 'id'>) }));
       setPayments(pList);
 
-      // 2. Usuarios
-      const uSnap = await getDocs(collection(db, 'users'));
       const uList: UserDomainModel[] = [];
       uSnap.forEach((d) => uList.push({ uid: d.id, ...(d.data() as Omit<UserDomainModel, 'uid'>) }));
       setUsers(uList);
 
-      // 3. Solicitudes de Freeze
-      const frSnap = await getDocs(collection(db, 'freezeRequests'));
       const frList: FreezeRequest[] = [];
       frSnap.forEach((d) => frList.push({ id: d.id, ...(d.data() as Omit<FreezeRequest, 'id'>) }));
       setFreezeRequests(frList);
@@ -102,19 +112,19 @@ export const CajaPage: React.FC = () => {
       let amountCents = payment.amountCents;
       if (!amountCents) {
         if (payment.billingType === 'PASS') {
-          amountCents = 10000; // 100,00 € bono 10 sesiones
+          amountCents = 11000; // 110,00 € bono 10 sesiones
         } else if (payment.billingType === 'DROP_IN') {
           amountCents = 1500; // 15,00 € clase suelta
         } else {
-          // Tarifa mensual según pricingTier del alumno
+          // Tarifa mensual según catálogo oficial y pricingTier del alumno
           if (student?.pricingTier === 'SF') {
-            amountCents = 6000; // 60,00 € Fuerzas y Cuerpos de Seguridad / Bomberos
+            amountCents = 6000; // 60,00 € Fuerzas y Cuerpos de Seguridad / Socios Fundadores
           } else if (student?.pricingTier === 'FAM') {
             amountCents = 5500; // 55,00 € Tarifa Familiar / Pareja
-          } else if (student?.activeTariffId === 'tariff-ilimitada') {
-            amountCents = 8500; // 85,00 € Tarifa plana ilimitada
+          } else if (student?.isMinor || (student as any)?.pricingTier === 'KIDS') {
+            amountCents = 5000; // 50,00 € BJJ Kids & Teens
           } else {
-            amountCents = 6500; // 65,00 € Tarifa estándar 2 días/sem
+            amountCents = 7500; // 75,00 € Tarifa estándar BJJ Adultos Ilimitado
           }
         }
       }
@@ -132,10 +142,13 @@ export const CajaPage: React.FC = () => {
 
       if (payment.billingType === 'PASS') {
         updateData.sessionsIncluded = payment.sessionsIncluded || 10;
+        updateData.sessionsRemaining = (payment as any).sessionsRemaining ?? 10;
       }
 
       await updateDoc(doc(db, 'payments', payment.id), updateData);
-      await fetchCajaData();
+      setPayments((prev) =>
+        prev.map((p) => (p.id === payment.id ? { ...p, ...updateData } : p))
+      );
     } catch (err) {
       console.error('Error approving payment:', err);
     } finally {
@@ -158,8 +171,19 @@ export const CajaPage: React.FC = () => {
         validatedBy: user.uid,
         validatedAt: serverTimestamp(),
       });
+      setPayments((prev) =>
+        prev.map((p) =>
+          p.id === rejectingPayment.id
+            ? {
+                ...p,
+                status: 'REJECTED',
+                rejectedReason: rejectReason,
+                validatedBy: user.uid,
+              }
+            : p
+        )
+      );
       setRejectingPayment(null);
-      await fetchCajaData();
     } catch (err) {
       console.error('Error rejecting payment:', err);
     } finally {
@@ -204,8 +228,21 @@ export const CajaPage: React.FC = () => {
 
       await setDoc(doc(db, 'payments', paymentId), newPaymentData);
 
+      // Si es alumno registrado y adquiere Bono PASS, sincronizar saldo en su ficha de usuario
+      if (posStudentUid && posBillingType === 'PASS') {
+        try {
+          await updateDoc(doc(db, 'users', posStudentUid), {
+            sessionsRemaining: 10,
+            pricingTier: 'PASS',
+            updatedAt: serverTimestamp(),
+          });
+        } catch {
+          // ignore
+        }
+      }
+
       if (posAutoDownloadReceipt) {
-        downloadReceiptPdf({
+        await downloadReceiptPdf({
           receiptNumber: `REC-POS-${paymentId.slice(-6).toUpperCase()}`,
           dateStr: new Date().toLocaleDateString('es-ES'),
           timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -220,7 +257,10 @@ export const CajaPage: React.FC = () => {
       setShowPosModal(false);
       setPosStudentUid('');
       setPosCustomAlias('');
-      await fetchCajaData();
+      setPayments((prev) => [
+        { id: paymentId, ...newPaymentData } as PaymentDomainModel,
+        ...prev,
+      ]);
     } catch (err) {
       console.error('Error creating POS charge:', err);
     } finally {
@@ -231,12 +271,12 @@ export const CajaPage: React.FC = () => {
   const handleSendWhatsAppReminder = (payment: PaymentDomainModel) => {
     const student = users.find((u) => u.uid === payment.uid);
     if (!student?.phone) {
-      alert('Este alumno no tiene número de teléfono registrado.');
+      setPhoneAlertStudent(student?.alias || 'El alumno');
       return;
     }
     const cleanPhone = student.phone.replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.startsWith('34') ? cleanPhone : `34${cleanPhone}`;
-    const amountStr = payment.amountCents ? (payment.amountCents / 100).toFixed(2) : '65.00';
+    const amountStr = payment.amountCents ? (payment.amountCents / 100).toFixed(2) : '75.00';
     const msg = encodeURIComponent(
       `¡Hola ${student.alias || 'compañero'}! Te saludamos desde 247Studio. Tenemos pendiente la validación de tu cuota de ${payment.period} (${amountStr} €). Si ya hiciste el abono en Bizum o efectivo, confírmanos por aquí. ¡Muchas gracias y nos vemos en el tatami! Oss.`
     );
@@ -260,7 +300,30 @@ export const CajaPage: React.FC = () => {
         status: 'APPROVED',
       });
 
-      await fetchCajaData();
+      // Actualizar cuenta en users/{uid} a FROZEN y en kiosk_members/{uid} a PAUSED
+      await updateDoc(doc(db, 'users', req.uid), {
+        accountStatus: 'FROZEN',
+        freezeReason: req.reason === 'INJURY' ? 'Lesión deportiva' : 'Pausa deportiva aprobada',
+        frozenAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      try {
+        await updateDoc(doc(db, 'kiosk_members', req.uid), {
+          accountStatus: 'PAUSED',
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // kiosk_member might not exist yet
+      }
+
+      setFreezeRequests((prev) =>
+        prev.map((f) => (f.id === req.id ? { ...f, status: 'APPROVED' } : f))
+      );
+
+      setUsers((prev) =>
+        prev.map((u) => (u.uid === req.uid ? { ...u, accountStatus: 'FROZEN' } : u))
+      );
     } catch (err) {
       console.error('Error approving freeze:', err);
     }
@@ -271,7 +334,9 @@ export const CajaPage: React.FC = () => {
       await updateDoc(doc(db, 'freezeRequests', req.id), {
         status: 'REJECTED',
       });
-      await fetchCajaData();
+      setFreezeRequests((prev) =>
+        prev.map((f) => (f.id === req.id ? { ...f, status: 'REJECTED' } : f))
+      );
     } catch (err) {
       console.error('Error rejecting freeze:', err);
     }
@@ -296,14 +361,14 @@ export const CajaPage: React.FC = () => {
   const pendingFreezeRequests = freezeRequests.filter((f) => f.status === 'PENDING_ADMIN');
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-200">
+    <div className="space-y-3 md:space-y-6 pb-2 md:pb-12 animate-in fade-in duration-200">
       {/* Cabecera */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">
             Seguimiento Mensual y Caja
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+          <p className="hidden sm:block text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Arqueo diario, TPV mostrador, validación 1-click de Bizum/Efectivo y exportación contable con IVA 21%.
           </p>
         </div>
@@ -342,18 +407,53 @@ export const CajaPage: React.FC = () => {
             className="shadow-card"
           >
             <PlusCircle className="w-4 h-4 mr-1.5" />
-            <span>+ Cobro Directo TPV</span>
+            <span>+ Cobro TPV</span>
           </Button>
         </div>
       </div>
 
+      {/* Selector de sub-pestañas móvil sin scroll vertical */}
+      <div className="md:hidden grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
+        <button
+          type="button"
+          onClick={() => setMobileSection('resumen')}
+          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+            mobileSection === 'resumen' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+          }`}
+        >
+          📊 Resumen
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileSection('cobros')}
+          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+            mobileSection === 'cobros' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+          }`}
+        >
+          💳 Cobros ({periodPayments.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileSection('pausas')}
+          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+            mobileSection === 'pausas' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+          }`}
+        >
+          ❄️ Pausas ({pendingFreezeRequests.length})
+        </button>
+      </div>
+
       {/* KPI Cards de Caja */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-white via-white to-slate-50/50 border border-slate-200/80 rounded-3xl p-5 shadow-card hover:shadow-card-hover transition-all">
+      <div
+        className={`${
+          mobileSection === 'resumen' ? 'grid' : 'hidden md:grid'
+        } grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4`}
+      >
+        <div className="bg-gradient-to-br from-white via-white to-slate-50/50 border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-card hover:shadow-card-hover transition-all">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
             Total Recaudado (IVA Inc.)
           </span>
-          <div className="text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
             {(totalRecaudadoCents / 100).toFixed(2)} €
           </div>
           <span className="text-[11px] text-emerald-700 font-semibold block mt-1">
@@ -361,11 +461,11 @@ export const CajaPage: React.FC = () => {
           </span>
         </div>
 
-        <div className="bg-gradient-to-br from-white via-white to-slate-50/50 border border-slate-200/80 rounded-3xl p-5 shadow-card hover:shadow-card-hover transition-all">
+        <div className="bg-gradient-to-br from-white via-white to-slate-50/50 border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-card hover:shadow-card-hover transition-all">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
             Base Imponible Neta
           </span>
-          <div className="text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
             {(totalBaseCents / 100).toFixed(2)} €
           </div>
           <span className="text-[11px] text-slate-500 font-medium block mt-1">
@@ -373,11 +473,11 @@ export const CajaPage: React.FC = () => {
           </span>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 border border-amber-200 rounded-3xl p-5 shadow-card hover:shadow-card-hover transition-all">
+        <div className="bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 border border-amber-200 rounded-3xl p-4 sm:p-5 shadow-card hover:shadow-card-hover transition-all">
           <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 block mb-1">
             Abonos Pendientes de Validar
           </span>
-          <div className="text-3xl font-extrabold text-amber-800 font-mono tracking-tight">
+          <div className="text-2xl sm:text-3xl font-extrabold text-amber-800 font-mono tracking-tight">
             {pendingPayments.length}
           </div>
           <span className="text-[11px] text-amber-700/80 font-medium block mt-1">
@@ -387,13 +487,17 @@ export const CajaPage: React.FC = () => {
       </div>
 
       {/* Arqueo de Canales: Efectivo en Cajón vs Bizum / Banco */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-gradient-to-br from-emerald-50/60 via-white to-emerald-50/30 border border-emerald-200/80 rounded-2xl p-4 flex items-center justify-between shadow-subtle">
+      <div
+        className={`${
+          mobileSection === 'resumen' ? 'grid' : 'hidden md:grid'
+        } grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4`}
+      >
+        <div className="bg-gradient-to-br from-emerald-50/60 via-white to-emerald-50/30 border border-emerald-200/80 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shadow-subtle">
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">
               💵 Efectivo en Cajón de Recepción
             </span>
-            <div className="text-2xl font-black text-emerald-950 font-mono mt-0.5">
+            <div className="text-xl sm:text-2xl font-black text-emerald-950 font-mono mt-0.5">
               {(totalCashCents / 100).toFixed(2)} €
             </div>
             <span className="text-[11px] text-emerald-700 font-medium">
@@ -402,12 +506,12 @@ export const CajaPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30 border border-blue-200/80 rounded-2xl p-4 flex items-center justify-between shadow-subtle">
+        <div className="bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30 border border-blue-200/80 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shadow-subtle">
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider text-blue-800 block">
               📱 Ingresos Directos Bizum / Cuenta
             </span>
-            <div className="text-2xl font-black text-blue-950 font-mono mt-0.5">
+            <div className="text-xl sm:text-2xl font-black text-blue-950 font-mono mt-0.5">
               {(totalBizumCents / 100).toFixed(2)} €
             </div>
             <span className="text-[11px] text-blue-700 font-medium">
@@ -418,8 +522,12 @@ export const CajaPage: React.FC = () => {
       </div>
 
       {/* Solicitudes de Suspensión Temporal (Freeze) Pendientes */}
-      {pendingFreezeRequests.length > 0 && (
-        <div className="bg-white border border-amber-200 rounded-2xl p-5 shadow-sm space-y-3">
+      {(pendingFreezeRequests.length > 0 || mobileSection === 'pausas') && (
+        <div
+          className={`${
+            mobileSection === 'pausas' ? 'block' : pendingFreezeRequests.length > 0 ? 'hidden md:block' : 'hidden'
+          } bg-white border border-amber-200 rounded-2xl p-5 shadow-sm space-y-3`}
+        >
           <div className="flex items-center gap-2 text-amber-800 pb-2 border-b border-amber-100">
             <PauseCircle className="w-5 h-5 text-amber-600" />
             <h3 className="font-extrabold text-sm uppercase tracking-wide">
@@ -427,41 +535,49 @@ export const CajaPage: React.FC = () => {
             </h3>
           </div>
 
-          <div className="space-y-2">
-            {pendingFreezeRequests.map((req) => (
-              <div
-                key={req.id}
-                className="p-3.5 bg-amber-50/50 rounded-xl border border-amber-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-              >
-                <div>
-                  <span className="font-extrabold text-slate-900 block">{req.alias}</span>
-                  <span className="text-slate-600 block text-[11px] mt-0.5">
-                    Motivo: {req.reason === 'INJURY' ? 'Lesión deportiva' : 'Laboral / viaje'} • {req.notes || 'Sin notas adicionales'}
-                  </span>
-                </div>
+          {pendingFreezeRequests.length === 0 ? (
+            <p className="text-xs text-slate-500">No hay solicitudes de pausa pendientes en este momento.</p>
+          ) : (
+            <div className="space-y-2">
+              {pendingFreezeRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="p-3.5 bg-amber-50/50 rounded-xl border border-amber-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                >
+                  <div>
+                    <span className="font-extrabold text-slate-900 block">{req.alias}</span>
+                    <span className="text-slate-600 block text-[11px] mt-0.5">
+                      Motivo: {req.reason === 'INJURY' ? 'Lesión deportiva' : 'Laboral / viaje'} • {req.notes || 'Sin notas adicionales'}
+                    </span>
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleApproveFreeze(req)}
-                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer"
-                  >
-                    <Check className="w-3.5 h-3.5" /> Aprobar Freeze
-                  </button>
-                  <button
-                    onClick={() => handleRejectFreeze(req)}
-                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" /> Rechazar
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleApproveFreeze(req)}
+                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" /> Aprobar Freeze
+                    </button>
+                    <button
+                      onClick={() => handleRejectFreeze(req)}
+                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" /> Rechazar
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* Tabla de Cobros y Liquidaciones */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+      <div
+        className={`${
+          mobileSection === 'cobros' ? 'block' : 'hidden md:block'
+        } bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm`}
+      >
         <div className="p-5 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">
             Órdenes de Pago del Periodo {filterPeriod}
@@ -635,189 +751,185 @@ export const CajaPage: React.FC = () => {
         </div>
       </div>
 
-      {/* PushPress / Mindbody TPV POS: Modal Cobro Directo en Mostrador */}
-      {showPosModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-studio-red" />
-                <h3 className="text-lg font-black uppercase text-slate-900 tracking-tight">
-                  Cobro Directo Mostrador / TPV
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPosModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg"
+      {/* PushPress / Mindbody TPV POS: Modal Cobro Directo en Mostrador (Radix UI Dialog) */}
+      <Dialog open={showPosModal} onOpenChange={setShowPosModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-brand-accent" />
+              <DialogTitle>Cobro Directo Mostrador / TPV</DialogTitle>
+            </div>
+            <DialogDescription>
+              Registra un cobro presencial en mostrador o datáfono TPV para un alumno o cliente walk-in.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreatePosCharge} className="space-y-4 pt-1">
+            {/* Selección Alumno o Walk-In */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                Alumno o Cliente Walk-In
+              </label>
+              <select
+                value={posStudentUid}
+                onChange={(e) => setPosStudentUid(e.target.value)}
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
               >
-                <X className="w-5 h-5" />
-              </button>
+                <option value="">-- Cliente Walk-In / Nuevo / Esporádico --</option>
+                {users.map((u) => (
+                  <option key={u.uid} value={u.uid}>
+                    {u.alias} ({u.contactEmail || u.authEmail || u.phone || 'Sin contacto'})
+                  </option>
+                ))}
+              </select>
+              {!posStudentUid && (
+                <input
+                  type="text"
+                  placeholder="Nombre o alias del cliente walk-in..."
+                  value={posCustomAlias}
+                  onChange={(e) => setPosCustomAlias(e.target.value)}
+                  className="w-full mt-2 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-accent"
+                />
+              )}
             </div>
 
-            <form onSubmit={handleCreatePosCharge} className="space-y-4">
-              {/* Selección Alumno o Walk-In */}
+            {/* Concepto y Tipo de Cobro */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Alumno o Cliente Walk-In
+                  Concepto / Producto
                 </label>
                 <select
-                  value={posStudentUid}
-                  onChange={(e) => setPosStudentUid(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-studio-red"
+                  value={posConcept}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPosConcept(val);
+                    if (val.includes('75')) { setPosAmountEur(75); setPosBillingType('MONTHLY'); }
+                    else if (val.includes('60')) { setPosAmountEur(60); setPosBillingType('MONTHLY'); }
+                    else if (val.includes('55')) { setPosAmountEur(55); setPosBillingType('MONTHLY'); }
+                    else if (val.includes('110')) { setPosAmountEur(110); setPosBillingType('PASS'); }
+                    else if (val.includes('50')) { setPosAmountEur(50); setPosBillingType('MONTHLY'); }
+                    else if (val.includes('15')) { setPosAmountEur(15); setPosBillingType('DROP_IN'); }
+                    else if (val.includes('95')) { setPosAmountEur(95); setPosBillingType('DROP_IN'); }
+                    else if (val.includes('45')) { setPosAmountEur(45); setPosBillingType('DROP_IN'); }
+                  }}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
                 >
-                  <option value="">-- Cliente Walk-In / Nuevo / Esporádico --</option>
-                  {users.map((u) => (
-                    <option key={u.uid} value={u.uid}>
-                      {u.alias} ({u.contactEmail || u.authEmail || u.phone || 'Sin contacto'})
-                    </option>
-                  ))}
+                  <option value="Cuota BJJ Adultos Ilimitado (75 €)">Cuota Adultos Ilimitado (75 €)</option>
+                  <option value="Cuota Socio Fundador / SF (60 €)">Socio Fundador / Policía (60 €)</option>
+                  <option value="Cuota Familiar / Pareja (55 €)">Tarifa Familiar (55 €)</option>
+                  <option value="Bono 10 Sesiones Tatami Pass (110 €)">Bono 10 Sesiones (110 €)</option>
+                  <option value="Cuota BJJ Kids & Teens (50 €)">Cuota Infantil / Kids (50 €)</option>
+                  <option value="Clase Suelta / Drop-In (15 €)">Clase Suelta / Drop-In (15 €)</option>
+                  <option value="Kimono / Gi Oficial 247Studio (95 €)">Kimono Oficial 247 (95 €)</option>
+                  <option value="Rashguard No-Gi Oficial 247Studio (45 €)">Rashguard No-Gi (45 €)</option>
                 </select>
-                {!posStudentUid && (
-                  <input
-                    type="text"
-                    placeholder="Nombre o alias del cliente walk-in..."
-                    value={posCustomAlias}
-                    onChange={(e) => setPosCustomAlias(e.target.value)}
-                    className="w-full mt-2 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-studio-red"
-                  />
-                )}
               </div>
 
-              {/* Concepto y Tipo de Cobro */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Concepto / Producto
-                  </label>
-                  <select
-                    value={posConcept}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPosConcept(val);
-                      if (val.includes('75')) { setPosAmountEur(75); setPosBillingType('MONTHLY'); }
-                      else if (val.includes('60')) { setPosAmountEur(60); setPosBillingType('MONTHLY'); }
-                      else if (val.includes('55')) { setPosAmountEur(55); setPosBillingType('MONTHLY'); }
-                      else if (val.includes('110')) { setPosAmountEur(110); setPosBillingType('PASS'); }
-                      else if (val.includes('50')) { setPosAmountEur(50); setPosBillingType('MONTHLY'); }
-                      else if (val.includes('15')) { setPosAmountEur(15); setPosBillingType('DROP_IN'); }
-                      else if (val.includes('95')) { setPosAmountEur(95); setPosBillingType('DROP_IN'); }
-                      else if (val.includes('45')) { setPosAmountEur(45); setPosBillingType('DROP_IN'); }
-                    }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
-                  >
-                    <option value="Cuota BJJ Adultos Ilimitado (75 €)">Cuota Adultos Ilimitado (75 €)</option>
-                    <option value="Cuota Socio Fundador / SF (60 €)">Socio Fundador / Policía (60 €)</option>
-                    <option value="Cuota Familiar / Pareja (55 €)">Tarifa Familiar (55 €)</option>
-                    <option value="Bono 10 Sesiones Tatami Pass (110 €)">Bono 10 Sesiones (110 €)</option>
-                    <option value="Cuota BJJ Kids & Teens (50 €)">Cuota Infantil / Kids (50 €)</option>
-                    <option value="Clase Suelta / Drop-In (15 €)">Clase Suelta / Drop-In (15 €)</option>
-                    <option value="Kimono / Gi Oficial 247Studio (95 €)">Kimono Oficial 247 (95 €)</option>
-                    <option value="Rashguard No-Gi Oficial 247Studio (45 €)">Rashguard No-Gi (45 €)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                    Importe Final (€ IVA Inc.)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={posAmountEur}
-                    onChange={(e) => setPosAmountEur(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Método de Pago */}
               <div>
                 <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Método de Cobro
+                  Importe Final (€ IVA Inc.)
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPosMethod('CASH')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-black uppercase tracking-wider transition ${
-                      posMethod === 'CASH'
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    💵 Efectivo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPosMethod('BIZUM')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-black uppercase tracking-wider transition ${
-                      posMethod === 'BIZUM'
-                        ? 'bg-blue-50 border-blue-300 text-blue-800'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    📱 Bizum
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPosMethod('CARD')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-black uppercase tracking-wider transition ${
-                      posMethod === 'CARD'
-                        ? 'bg-purple-50 border-purple-300 text-purple-800'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    💳 Tarjeta TPV
-                  </button>
-                </div>
-              </div>
-
-              {/* Checkbox auto-descargar recibo */}
-              <div className="flex items-center gap-2 pt-1">
                 <input
-                  type="checkbox"
-                  id="autoReceipt"
-                  checked={posAutoDownloadReceipt}
-                  onChange={(e) => setPosAutoDownloadReceipt(e.target.checked)}
-                  className="rounded text-studio-red focus:ring-studio-red cursor-pointer"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={posAmountEur}
+                  onChange={(e) => setPosAmountEur(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:outline-none"
                 />
-                <label htmlFor="autoReceipt" className="text-xs font-medium text-slate-700 cursor-pointer">
-                  Descargar justificante oficial en PDF al confirmar el cobro
-                </label>
               </div>
+            </div>
 
-              {/* Acciones */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            {/* Método de Pago */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                Método de Cobro
+              </label>
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowPosModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+                  onClick={() => setPosMethod('CASH')}
+                  className={`py-2 px-3 rounded-xl border text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                    posMethod === 'CASH'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
                 >
-                  Cancelar
+                  💵 Efectivo
                 </button>
                 <button
-                  type="submit"
-                  disabled={actionLoading === 'pos_charge'}
-                  className="px-5 py-2 bg-studio-red hover:bg-studio-red-dark text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-sm cursor-pointer disabled:opacity-50"
+                  type="button"
+                  onClick={() => setPosMethod('BIZUM')}
+                  className={`py-2 px-3 rounded-xl border text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                    posMethod === 'BIZUM'
+                      ? 'bg-blue-50 border-blue-300 text-blue-800'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
                 >
-                  {actionLoading === 'pos_charge' ? 'Registrando...' : 'Confirmar Cobro'}
+                  📱 Bizum
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPosMethod('CARD')}
+                  className={`py-2 px-3 rounded-xl border text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                    posMethod === 'CARD'
+                      ? 'bg-purple-50 border-purple-300 text-purple-800'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  💳 Tarjeta TPV
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
 
-      {/* Modal de confirmación de rechazo */}
-      {rejectingPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-4">
-            <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Rechazar Notificación de Pago</h3>
-            <p className="text-xs text-slate-600">
-              Indica el motivo por el cual no se valida este abono (el alumno verá este motivo en su panel):
-            </p>
+            {/* Checkbox auto-descargar recibo */}
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="autoReceipt"
+                checked={posAutoDownloadReceipt}
+                onChange={(e) => setPosAutoDownloadReceipt(e.target.checked)}
+                className="rounded text-brand-accent focus:ring-brand-accent cursor-pointer"
+              />
+              <label htmlFor="autoReceipt" className="text-xs font-medium text-slate-700 cursor-pointer">
+                Descargar justificante oficial en PDF al confirmar el cobro
+              </label>
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-slate-100 gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowPosModal(false)}
+                disabled={actionLoading === 'pos_charge'}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="default"
+                disabled={actionLoading === 'pos_charge'}
+                className="bg-brand-accent hover:bg-brand-accent/90 text-white font-black uppercase tracking-wider"
+              >
+                {actionLoading === 'pos_charge' ? 'Registrando...' : 'Confirmar Cobro'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Radix Dialog: Confirmación de Rechazo de Pago */}
+      <Dialog open={!!rejectingPayment} onOpenChange={(open) => !open && setRejectingPayment(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rechazar Notificación de Pago</DialogTitle>
+            <DialogDescription>
+              Indica el motivo por el cual no se valida este abono (el alumno verá este motivo en su panel de cuotas).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-2">
             <input
               type="text"
               value={rejectReason}
@@ -825,24 +937,45 @@ export const CajaPage: React.FC = () => {
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
               placeholder="Ej. Transferencia o Bizum no reflejado en cuenta bancaria"
             />
-            <div className="mt-4 flex justify-end gap-2.5 pt-2 border-t border-slate-100">
-              <button
-                onClick={() => setRejectingPayment(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmReject}
-                disabled={actionLoading === rejectingPayment.id || !rejectReason.trim()}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-50 cursor-pointer"
-              >
-                Confirmar Rechazo
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRejectingPayment(null)}
+              disabled={actionLoading === rejectingPayment?.id}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmReject}
+              disabled={actionLoading === rejectingPayment?.id || !rejectReason.trim()}
+            >
+              {actionLoading === rejectingPayment?.id ? 'Procesando...' : 'Confirmar Rechazo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Radix Dialog: Teléfono No Registrado (sustituye alert) */}
+      <Dialog open={!!phoneAlertStudent} onOpenChange={(open) => !open && setPhoneAlertStudent(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Teléfono No Registrado</DialogTitle>
+            <DialogDescription>
+              <strong className="text-slate-900">{phoneAlertStudent}</strong> no tiene un número de teléfono registrado en su ficha de usuario. No es posible abrir la conversación de WhatsApp.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="default" onClick={() => setPhoneAlertStudent(null)}>
+              Entendido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

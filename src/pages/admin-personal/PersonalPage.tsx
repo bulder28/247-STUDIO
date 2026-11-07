@@ -4,8 +4,10 @@ import {
   collection,
   doc,
   getDocs,
+  query,
   serverTimestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import {
   AlertTriangle,
@@ -44,7 +46,14 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { exportStudentsToCsv } from '@/shared/utils/csvExporter';
@@ -62,7 +71,7 @@ export const PersonalPage: React.FC = () => {
   const [riskFilter, setRiskFilter] = useState<'ALL' | RetentionRisk>('ALL');
   const [beltFilter, setBeltFilter] = useState<string>('ALL');
   const [displayMode, setDisplayMode] = useState<'CARDS' | 'TABLE'>('CARDS');
-  const [includeMockAthletes, setIncludeMockAthletes] = useState(true);
+  const [includeMockAthletes, setIncludeMockAthletes] = useState(false);
   const [modalPreviewMode, setModalPreviewMode] = useState<'RADAR' | 'CARD'>('CARD');
   const [uploaderOpen, setUploaderOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserDomainModel | null>(null);
@@ -72,16 +81,30 @@ export const PersonalPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Estados para modales Radix Dialog (sustituyen prompt y confirm)
+  const [freezeUserTarget, setFreezeUserTarget] = useState<UserDomainModel | null>(null);
+  const [freezeReason, setFreezeReason] = useState('Lesión deportiva');
+  const [deactivateUserTarget, setDeactivateUserTarget] = useState<UserDomainModel | null>(null);
+  const [actionInProgress, setActionInProgress] = useState(false);
+
   const now = new Date();
 
   const fetchUsersAndHistory = async () => {
     try {
-      const usersSnap = await getDocs(collection(db, 'users'));
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      const minDateStr = sixtyDaysAgo.toISOString().slice(0, 10);
+
+      const bookingsQuery = query(collection(db, 'bookings'), where('date', '>=', minDateStr));
+      const [usersSnap, bookingsSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(bookingsQuery),
+      ]);
+
       const uList: UserDomainModel[] = [];
       usersSnap.forEach((d) => uList.push({ uid: d.id, ...(d.data() as Omit<UserDomainModel, 'uid'>) }));
       setUsers(uList);
 
-      const bookingsSnap = await getDocs(collection(db, 'bookings'));
       const bList: BookingDomainModel[] = [];
       bookingsSnap.forEach((d) => bList.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) }));
       setBookings(bList);
@@ -96,13 +119,31 @@ export const PersonalPage: React.FC = () => {
     fetchUsersAndHistory();
   }, []);
 
-  const getRetentionRiskForUser = (user: UserDomainModel): RetentionRisk => {
-    if (user.accountStatus === 'FROZEN' || user.accountStatus === 'PAUSED') {
-      return 'LOW';
+  // Pre-indexación O(B) en memoria mediante useMemo para búsquedas O(1)
+  const bookingsByUid = React.useMemo(() => {
+    const map = new Map<string, BookingDomainModel[]>();
+    for (const b of bookings) {
+      const list = map.get(b.uid);
+      if (list) {
+        list.push(b);
+      } else {
+        map.set(b.uid, [b]);
+      }
     }
-    const userBookings = bookings.filter((b) => b.uid === user.uid);
-    return deriveRetentionRisk(userBookings, now);
-  };
+    return map;
+  }, [bookings]);
+
+  // Consulta de riesgo O(1) por usuario
+  const getRetentionRiskForUser = React.useCallback(
+    (user: UserDomainModel): RetentionRisk => {
+      if (user.accountStatus === 'FROZEN' || user.accountStatus === 'PAUSED') {
+        return 'LOW';
+      }
+      const userBookings = bookingsByUid.get(user.uid) || [];
+      return deriveRetentionRisk(userBookings, now);
+    },
+    [bookingsByUid, now]
+  );
 
   const handleActivateUser = async (uid: string) => {
     try {
@@ -124,53 +165,55 @@ export const PersonalPage: React.FC = () => {
     }
   };
 
-  const handleFreezeUser = async (uid: string) => {
-    const reason = prompt(
-      'Motivo de la pausa deportiva (ej: Esguince de rodilla, Viaje laboral):',
-      'Lesión deportiva'
-    );
-    if (reason === null) return;
+  const handleConfirmFreeze = async () => {
+    if (!freezeUserTarget) return;
+    setActionInProgress(true);
     try {
-      await updateDoc(doc(db, 'users', uid), {
+      await updateDoc(doc(db, 'users', freezeUserTarget.uid), {
         accountStatus: 'FROZEN',
-        freezeReason: reason,
+        freezeReason: freezeReason.trim() || 'Lesión deportiva',
         frozenAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
       try {
-        await updateDoc(doc(db, 'kiosk_members', uid), {
+        await updateDoc(doc(db, 'kiosk_members', freezeUserTarget.uid), {
           accountStatus: 'PAUSED',
           updatedAt: serverTimestamp(),
         });
       } catch {
         // kiosk_member might not exist yet
       }
+      setFreezeUserTarget(null);
       await fetchUsersAndHistory();
     } catch (err) {
       console.error('Error freezing user:', err);
+    } finally {
+      setActionInProgress(false);
     }
   };
 
-  const handleDeactivateUser = async (uid: string) => {
-    if (!confirm('¿Seguro que deseas pasar este alumno a INACTIVE? Perderá acceso a la reserva de clases.')) {
-      return;
-    }
+  const handleConfirmDeactivate = async () => {
+    if (!deactivateUserTarget) return;
+    setActionInProgress(true);
     try {
-      await updateDoc(doc(db, 'users', uid), {
+      await updateDoc(doc(db, 'users', deactivateUserTarget.uid), {
         accountStatus: 'INACTIVE',
         updatedAt: serverTimestamp(),
       });
       try {
-        await updateDoc(doc(db, 'kiosk_members', uid), {
+        await updateDoc(doc(db, 'kiosk_members', deactivateUserTarget.uid), {
           accountStatus: 'INACTIVE',
           updatedAt: serverTimestamp(),
         });
       } catch {
         // kiosk_member might not exist yet
       }
+      setDeactivateUserTarget(null);
       await fetchUsersAndHistory();
     } catch (err) {
       console.error('Error deactivating user:', err);
+    } finally {
+      setActionInProgress(false);
     }
   };
 
@@ -202,6 +245,18 @@ export const PersonalPage: React.FC = () => {
         stats: editingStats,
         updatedAt: serverTimestamp(),
       });
+
+      try {
+        await updateDoc(doc(db, 'kiosk_members', selectedUser.uid), {
+          belt: editingBelt,
+          stripes: editingStripes,
+          fullName: (selectedUser as any).fullName || selectedUser.alias || '',
+          accountStatus: selectedUser.accountStatus || 'ACTIVE',
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // kiosk_member might not exist yet
+      }
 
       setSelectedUser(null);
       await fetchUsersAndHistory();
@@ -235,7 +290,7 @@ export const PersonalPage: React.FC = () => {
     });
 
     return { high, medium, low };
-  }, [effectiveUsers, bookings]);
+  }, [effectiveUsers, getRetentionRiskForUser]);
 
   const isKidBelt = (b: Belt) =>
     b.includes('GREY') || b.includes('YELLOW') || b.includes('ORANGE') || b.includes('GREEN');
@@ -257,12 +312,12 @@ export const PersonalPage: React.FC = () => {
   const whiteCount = effectiveUsers.filter((u) => u.belt === 'WHITE').length;
 
   const beltStatsData: BeltStatsData = {
-    profesorCount: profesorCount > 0 ? profesorCount : 1,
-    blackCount: blackCount > 0 ? blackCount : 3,
-    brownCount: brownCount > 0 ? brownCount : 3,
-    purpleCount: purpleCount > 0 ? purpleCount : 5,
-    blueCount: blueCount > 0 ? blueCount : 8,
-    whiteCount: whiteCount > 0 ? whiteCount : 15,
+    profesorCount,
+    blackCount,
+    brownCount,
+    purpleCount,
+    blueCount,
+    whiteCount,
     totalCount: effectiveUsers.length,
   };
 
@@ -305,13 +360,15 @@ export const PersonalPage: React.FC = () => {
     'GREEN_BLACK',
   ];
 
+  const [mobileSection, setMobileSection] = useState<'censo' | 'cinturones' | 'retencion'>('censo');
+
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
+    <div className="space-y-3 md:space-y-6 pb-2 md:pb-12 animate-in fade-in duration-300">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-wide text-slate-900">Alumnos</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wide text-slate-900">Alumnos</h1>
+          <p className="hidden sm:block text-xs text-slate-500 mt-0.5">
             Censo oficial de atletas de 247Studio, control de cinturones, grados y radar de retención.
           </p>
         </div>
@@ -320,25 +377,60 @@ export const PersonalPage: React.FC = () => {
           <button
             type="button"
             onClick={() => exportStudentsToCsv(filteredUsers)}
-            className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200/80 shadow-2xs"
+            className="py-2 sm:py-3 px-3 sm:px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200/80 shadow-2xs"
           >
-            <Download className="w-4 h-4 text-slate-600" />
+            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600" />
             <span>Exportar CSV</span>
           </button>
 
           <Link
             to="/admin/alta-alumno"
-            className="py-3 px-5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg flex items-center justify-center gap-2"
+            className="py-2 sm:py-3 px-3.5 sm:px-5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
           >
-            <Plus className="w-4 h-4" /> Dar de Alta Alumno
+            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Alta Alumno
           </Link>
         </div>
+      </div>
+
+      {/* Selector de sub-pestañas móvil sin scroll vertical */}
+      <div className="md:hidden grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
+        <button
+          type="button"
+          onClick={() => setMobileSection('censo')}
+          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+            mobileSection === 'censo' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+          }`}
+        >
+          👥 Censo ({filteredUsers.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileSection('cinturones')}
+          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+            mobileSection === 'cinturones' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+          }`}
+        >
+          🥋 Cinturones
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileSection('retencion')}
+          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+            mobileSection === 'retencion' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+          }`}
+        >
+          🚨 Retención
+        </button>
       </div>
 
       {/* ======================================================== */}
       {/* RADAR ANTI-ABANDONO (ANTI-CHURN & RETENCIÓN DE TATAMI)  */}
       {/* ======================================================== */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div
+        className={`${
+          mobileSection === 'retencion' ? 'grid' : 'hidden md:grid'
+        } grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4`}
+      >
         {/* Riesgo Alto */}
         <motion.div
           whileHover={{ y: -2, scale: 1.01 }}
@@ -431,14 +523,17 @@ export const PersonalPage: React.FC = () => {
       </div>
 
       {/* Estadísticas de Cinturones con Cinturones Anudados */}
-      <BeltStatisticsCard
-        stats={beltStatsData}
-        activeFilter={beltFilter}
-        onSelectBelt={(rankKey) => setBeltFilter(rankKey)}
-      />
+      <div className={mobileSection === 'cinturones' ? 'block' : 'hidden md:block'}>
+        <BeltStatisticsCard
+          stats={beltStatsData}
+          activeFilter={beltFilter}
+          onSelectBelt={(rankKey) => setBeltFilter(rankKey)}
+        />
+      </div>
 
-      {/* Barra de Filtros */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center gap-3">
+      {/* Barra de Filtros y Censo */}
+      <div className={`${mobileSection === 'censo' ? 'block' : 'hidden md:block'} space-y-3 md:space-y-6`}>
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col md:flex-row items-center gap-2.5 sm:gap-3">
         <div className="relative flex-1 w-full">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
           <input
@@ -739,7 +834,10 @@ export const PersonalPage: React.FC = () => {
                           <>
                             <button
                               type="button"
-                              onClick={() => handleFreezeUser(u.uid)}
+                              onClick={() => {
+                                setFreezeUserTarget(u);
+                                setFreezeReason('Lesión deportiva');
+                              }}
                               className="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg font-bold text-[11px] hover:bg-blue-100 transition cursor-pointer"
                               title="Pausar cuota y asistencia por lesión médica o viaje"
                             >
@@ -747,7 +845,7 @@ export const PersonalPage: React.FC = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeactivateUser(u.uid)}
+                              onClick={() => setDeactivateUserTarget(u)}
                               className="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg font-bold text-[11px] hover:bg-rose-100 transition cursor-pointer"
                             >
                               Baja
@@ -774,6 +872,7 @@ export const PersonalPage: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
 
       {/* Modal Editor de Cinturón, Grados y 8 Atributos con Radar FIFA en Vivo (Radix Dialog & Tabs) */}
       <Dialog
@@ -952,6 +1051,82 @@ export const PersonalPage: React.FC = () => {
           onClose={() => setUploaderOpen(false)}
         />
       )}
+
+      {/* Modal Radix Dialog: Pausa Deportiva (sustituye prompt) */}
+      <Dialog open={!!freezeUserTarget} onOpenChange={(open) => !open && setFreezeUserTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pausa Deportiva / Congelación</DialogTitle>
+            <DialogDescription>
+              Indica el motivo de la pausa deportiva para{' '}
+              <strong className="text-slate-900">{freezeUserTarget?.alias}</strong> (ej: Lesión médica, Viaje laboral).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-3">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Motivo de la Pausa
+            </label>
+            <Input
+              value={freezeReason}
+              onChange={(e) => setFreezeReason(e.target.value)}
+              placeholder="Ej: Esguince de rodilla, Viaje laboral..."
+              className="text-xs"
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFreezeUserTarget(null)}
+              disabled={actionInProgress}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              onClick={handleConfirmFreeze}
+              disabled={actionInProgress || !freezeReason.trim()}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {actionInProgress ? 'Guardando...' : 'Confirmar Pausa'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Radix Dialog: Baja Alumno (sustituye confirm) */}
+      <Dialog open={!!deactivateUserTarget} onOpenChange={(open) => !open && setDeactivateUserTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Dar de Baja al Alumno</DialogTitle>
+            <DialogDescription>
+              ¿Seguro que deseas pasar a <strong className="text-slate-900">{deactivateUserTarget?.alias}</strong> a estado <span className="font-bold text-rose-600">INACTIVE</span>? Perderá acceso a la reserva de clases en la app.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeactivateUserTarget(null)}
+              disabled={actionInProgress}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDeactivate}
+              disabled={actionInProgress}
+            >
+              {actionInProgress ? 'Procesando...' : 'Confirmar Baja'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -2,7 +2,6 @@
  * 247 STUDIO - Mat Attendance Roll-Call Sheet Generator (PDF)
  * Produces an elegant A4 printable sheet for coaches on the tatami
  */
-import { jsPDF } from 'jspdf';
 
 export interface ClassSheetStudent {
   alias: string;
@@ -19,7 +18,8 @@ export interface AttendanceSheetData {
   students: ClassSheetStudent[];
 }
 
-export function generateAttendanceSheetPdf(data: AttendanceSheetData): jsPDF {
+export async function generateAttendanceSheetPdf(data: AttendanceSheetData): Promise<any> {
+  const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -99,8 +99,8 @@ export function generateAttendanceSheetPdf(data: AttendanceSheetData): jsPDF {
   return doc;
 }
 
-export function downloadAttendanceSheetPdf(data: AttendanceSheetData): void {
-  const doc = generateAttendanceSheetPdf(data);
+export async function downloadAttendanceSheetPdf(data: AttendanceSheetData): Promise<void> {
+  const doc = await generateAttendanceSheetPdf(data);
   doc.save(`Asistencia_247_${data.dateStr.replace(/\//g, '-')}_${data.className}.pdf`);
 }
 

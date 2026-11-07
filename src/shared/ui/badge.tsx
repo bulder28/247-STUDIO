@@ -19,6 +19,7 @@ const badgeVariants = cva(
         bjjBlue: 'border-blue-300 bg-blue-600 text-white',
         bjjPurple: 'border-purple-300 bg-purple-600 text-white',
         bjjBrown: 'border-amber-800 bg-amber-900 text-white',
+        studio: 'border-brand-accent/30 bg-rose-50 text-brand-accent font-black',
       },
     },
     defaultVariants: {

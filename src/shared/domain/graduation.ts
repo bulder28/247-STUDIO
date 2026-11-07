@@ -111,6 +111,11 @@ export function calculateGraduationProgress(
   };
 }
 
+/**
+ * Alias de calculateGraduationProgress para evaluación unificada de graduaciones BJJ.
+ */
+export const evaluateGraduationProgress = calculateGraduationProgress;
+
 export interface AthleteXP {
   xp: number;
   level: number;

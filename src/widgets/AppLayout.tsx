@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   Activity,
   Award,
@@ -7,10 +7,10 @@ import {
   BookOpen,
   Calendar,
   CreditCard,
-  HeartPulse,
   HelpCircle,
   Home,
   Image,
+  LayoutGrid,
   LogOut,
   Menu,
   MessageSquare,
@@ -37,42 +37,46 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/ui/dropdown-menu';
-import { BeltRoadmapModal } from '@/widgets/BeltRoadmapModal';
-import { CurriculumModal } from '@/widgets/CurriculumModal';
 import { KokoroAssistant } from '@/widgets/KokoroAssistant';
-import { MedicalAlertModal } from '@/widgets/MedicalAlertModal';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
-import { SparringLogModal } from '@/widgets/SparringLogModal';
-import { SparringTimerModal } from '@/widgets/SparringTimerModal';
-import { WeightDivisionModal } from '@/widgets/WeightDivisionModal';
+
+interface NavItem {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: string | null;
+  badgeColor?: string;
+}
+
+interface NavSection {
+  title: string | null;
+  items: NavItem[];
+}
 
 export const AppLayout: React.FC = () => {
   const { userData, role, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const mainRef = useRef<HTMLElement>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
 
-  // Tatami modals state
-  const [timerOpen, setTimerOpen] = useState(false);
-  const [weightCalcOpen, setWeightCalcOpen] = useState(false);
-  const [curriculumOpen, setCurriculumOpen] = useState(false);
-  const [sparringLogOpen, setSparringLogOpen] = useState(false);
-  const [beltRoadmapOpen, setBeltRoadmapOpen] = useState(false);
-  const [medicalOpen, setMedicalOpen] = useState(false);
+  useEffect(() => {
+    setMobileDrawerOpen(false);
+    window.scrollTo(0, 0);
+    if (mainRef.current) {
+      mainRef.current.scrollTo(0, 0);
+    }
+  }, [location.pathname]);
 
-  // Global Keyboard Shortcuts
+  // Global Keyboard Shortcuts (Atajos rápidos de teclado con navegación directa)
   useGlobalShortcuts({
-    onToggleTimer: () => setTimerOpen((prev) => !prev),
-    onToggleWeightCalc: () => setWeightCalcOpen((prev) => !prev),
-    onToggleCurriculum: () => setCurriculumOpen((prev) => !prev),
+    onToggleTimer: () => navigate('/app/cronometro'),
+    onToggleWeightCalc: () => navigate('/app/peso'),
+    onToggleCurriculum: () => navigate('/app/curriculum'),
     onCloseModals: () => {
-      setTimerOpen(false);
-      setWeightCalcOpen(false);
-      setCurriculumOpen(false);
-      setSparringLogOpen(false);
-      setBeltRoadmapOpen(false);
-      setMedicalOpen(false);
       setQrModalOpen(false);
+      setMobileDrawerOpen(false);
     },
   });
 
@@ -87,10 +91,15 @@ export const AppLayout: React.FC = () => {
     if (path.includes('/app/foro')) return 'Foro de la Comunidad';
     if (path.includes('/app/faqs')) return 'Preguntas Frecuentes';
     if (path.includes('/app/media')) return 'Media & Galería';
+    if (path.includes('/app/cronometro')) return 'Cronómetro Sparring';
+    if (path.includes('/app/peso')) return 'Calculadora Peso IBJJF';
+    if (path.includes('/app/curriculum')) return 'Currículum BJJ & Drills';
+    if (path.includes('/app/sparring')) return 'Diario de Sparring';
+    if (path.includes('/app/cinturon')) return 'Hoja de Ruta de Cinturón';
     return 'Área Cliente';
   };
 
-  const navSections = [
+  const navSections: NavSection[] = [
     {
       title: null,
       items: [{ to: '/app/home', label: 'Bienvenido', icon: Home, badge: null }],
@@ -113,6 +122,16 @@ export const AppLayout: React.FC = () => {
       ],
     },
     {
+      title: 'TATAMI TOOLS',
+      items: [
+        { to: '/app/cronometro', label: 'Cronómetro Sparring', icon: Swords, badge: null },
+        { to: '/app/peso', label: 'Calculadora de Peso', icon: Scale, badge: null },
+        { to: '/app/curriculum', label: 'Currículum BJJ & Drills', icon: BookOpen, badge: null },
+        { to: '/app/sparring', label: 'Diario de Sparring', icon: Activity, badge: null },
+        { to: '/app/cinturon', label: 'Hoja de Ruta Cinturón', icon: Award, badge: null },
+      ],
+    },
+    {
       title: 'GESTIÓN',
       items: [
         { to: '/app/perfil', label: 'Personal Info', icon: User, badge: null },
@@ -124,11 +143,11 @@ export const AppLayout: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex flex-col md:flex-row text-slate-900 font-sans antialiased">
+    <div className="h-[100dvh] md:min-h-screen md:h-auto overflow-hidden md:overflow-visible bg-[#F8F9FA] flex flex-col md:flex-row text-slate-900 font-sans antialiased">
       {/* ======================================================== */}
       {/* 1. BARRA LATERAL (SIDEBAR) ESTILO MATGOAT - ULTRA LIMPIA  */}
       {/* ======================================================== */}
-      <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200/80 flex-col justify-between shrink-0 h-screen sticky top-0">
+      <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200/80 flex-col justify-between shrink-0 h-screen sticky top-0 shadow-subtle z-20">
         <div className="flex-1 flex flex-col overflow-y-auto px-4 py-5">
           {/* Logo MatGoat Style con identidad 247Studio */}
           <div className="flex items-center gap-2.5 px-2 pb-4 mb-2 border-b border-slate-100">
@@ -141,7 +160,7 @@ export const AppLayout: React.FC = () => {
             </div>
           </div>
 
-          {/* Menú agrupado por categorías estilo Linear / Vercel */}
+          {/* Menú agrupado por categorías con enlaces directos a cada página */}
           <nav className="space-y-4">
             {navSections.map((sec, sIdx) => (
               <div key={sIdx}>
@@ -179,68 +198,6 @@ export const AppLayout: React.FC = () => {
                 </div>
               </div>
             ))}
-
-            {/* Herramientas de Tatami en Sidebar Alumno */}
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 pb-1 pt-1">
-                TATAMI TOOLS
-              </p>
-              <div className="space-y-1">
-                <button
-                  type="button"
-                  onClick={() => setTimerOpen(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-red-50 hover:text-red-700 transition text-left"
-                >
-                  <Swords className="w-4 h-4 text-red-500" />
-                  <span>Cronómetro Sparring</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setWeightCalcOpen(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition text-left"
-                >
-                  <Scale className="w-4 h-4 text-amber-500" />
-                  <span>Calculadora de Peso</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCurriculumOpen(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition text-left"
-                >
-                  <BookOpen className="w-4 h-4 text-blue-500" />
-                  <span>Currículum BJJ & Drills</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSparringLogOpen(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition text-left"
-                >
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                  <span>Diario de Sparring</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setBeltRoadmapOpen(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition text-left"
-                >
-                  <Award className="w-4 h-4 text-purple-500" />
-                  <span>Hoja de Ruta Cinturón</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMedicalOpen(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-700 transition text-left"
-                >
-                  <HeartPulse className="w-4 h-4 text-rose-500" />
-                  <span>Primeros Auxilios</span>
-                </button>
-              </div>
-            </div>
           </nav>
         </div>
 
@@ -258,7 +215,7 @@ export const AppLayout: React.FC = () => {
 
           <button
             onClick={logout}
-            className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 hover:text-brand-accent transition rounded-lg hover:bg-brand-accent/5"
+            className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-slate-500 hover:text-brand-accent transition rounded-lg hover:bg-brand-accent/5 cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Cerrar sesión</span>
@@ -269,20 +226,22 @@ export const AppLayout: React.FC = () => {
       {/* ======================================================== */}
       {/* 2. ÁREA PRINCIPAL CON HEADER SUPERIOR MATGOAT            */}
       {/* ======================================================== */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Barra superior estilo Linear / Apple con migas limpias y acciones */}
-        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/70 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-subtle">
-          <div className="flex items-center gap-3">
+        <header className="shrink-0 sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200/70 px-3.5 sm:px-8 py-2.5 sm:py-3.5 flex items-center justify-between shadow-subtle">
+          <div className="flex items-center gap-2.5">
             <button
+              type="button"
               onClick={() => setMobileDrawerOpen(true)}
-              className="md:hidden p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100"
+              aria-label="Abrir menú de páginas"
+              className="md:hidden p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer"
             >
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-700">
               <span className="text-slate-400 font-mono text-xs hidden sm:inline">247Studio</span>
               <span className="text-slate-300 hidden sm:inline">/</span>
-              <span className="font-headline tracking-wide uppercase text-slate-900 font-black text-sm sm:text-base">
+              <span className="font-headline tracking-wide uppercase text-slate-900 font-black text-sm sm:text-base truncate max-w-[160px] sm:max-w-none">
                 {getPageTitle()}
               </span>
             </div>
@@ -373,13 +332,17 @@ export const AppLayout: React.FC = () => {
                   <QrCode className="w-4 h-4 text-brand-accent" />
                   <span>Ver Pase QR Tatami</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTimerOpen(true)} className="flex items-center gap-2">
-                  <Swords className="w-4 h-4 text-rose-500" />
-                  <span>Cronómetro Sparring</span>
+                <DropdownMenuItem asChild>
+                  <Link to="/app/cronometro" className="flex items-center gap-2">
+                    <Swords className="w-4 h-4 text-rose-500" />
+                    <span>Cronómetro Sparring</span>
+                  </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setWeightCalcOpen(true)} className="flex items-center gap-2">
-                  <Scale className="w-4 h-4 text-amber-500" />
-                  <span>Calculadora de Peso IBJJF</span>
+                <DropdownMenuItem asChild>
+                  <Link to="/app/peso" className="flex items-center gap-2">
+                    <Scale className="w-4 h-4 text-amber-500" />
+                    <span>Calculadora de Peso IBJJF</span>
+                  </Link>
                 </DropdownMenuItem>
                 {role === 'admin' && (
                   <>
@@ -405,96 +368,169 @@ export const AppLayout: React.FC = () => {
         {/* ======================================================== */}
         {/* 3. CONTENIDO DE PÁGINA (OUTLET)                          */}
         {/* ======================================================== */}
-        <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto">
+        <main
+          ref={mainRef}
+          className="flex-1 min-h-0 overflow-y-auto md:overflow-visible p-3 sm:p-8 max-w-7xl w-full mx-auto"
+        >
           <Outlet />
         </main>
+
+        {/* ======================================================== */}
+        {/* 3.5 BARRA INFERIOR FIJA MODO TELÉFONO (< 768px)          */}
+        {/* ======================================================== */}
+        <nav
+          aria-label="Navegación principal móvil"
+          className="md:hidden shrink-0 bg-white border-t border-slate-200/90 px-2 py-1.5 grid grid-cols-5 gap-1 z-30 shadow-lg"
+        >
+          <NavLink
+            to="/app/home"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
+                isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+              }`
+            }
+          >
+            <Home className="w-4 h-4 mb-0.5" />
+            <span>Inicio</span>
+          </NavLink>
+
+          <NavLink
+            to="/app/horario"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
+                isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+              }`
+            }
+          >
+            <Calendar className="w-4 h-4 mb-0.5" />
+            <span>Calendario</span>
+          </NavLink>
+
+          <button
+            type="button"
+            onClick={() => setQrModalOpen(true)}
+            className="flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-black text-white bg-slate-900 shadow-xs cursor-pointer"
+          >
+            <QrCode className="w-4 h-4 mb-0.5 text-amber-400" />
+            <span>Pase QR</span>
+          </button>
+
+          <NavLink
+            to="/app/historial"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
+                isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+              }`
+            }
+          >
+            <Activity className="w-4 h-4 mb-0.5" />
+            <span>Historial</span>
+          </NavLink>
+
+          <button
+            type="button"
+            onClick={() => setMobileDrawerOpen(true)}
+            className={`flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition cursor-pointer ${
+              mobileDrawerOpen ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4 mb-0.5" />
+            <span>Páginas</span>
+          </button>
+        </nav>
       </div>
 
       {/* ======================================================== */}
-      {/* 4. MENÚ MÓVIL DESPLEGABLE (DRAWER)                      */}
+      {/* 4. LAUNCHER MÓVIL A PANTALLA COMPLETA: CADA PESTAÑA ABRE SU PÁGINA */}
       {/* ======================================================== */}
       {mobileDrawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden animate-in fade-in duration-200">
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setMobileDrawerOpen(false)}
-          />
-          <div className="relative w-72 bg-white border-r border-slate-200 h-full flex flex-col justify-between z-10 p-5 overflow-y-auto">
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-                <div className="flex items-center gap-2">
-                  <img src="/logo.webp" alt="247Studio" className="w-8 h-8 object-contain" />
-                  <span className="font-headline text-2xl uppercase tracking-tighter text-slate-900">
-                    247Studio
-                  </span>
-                </div>
-                <button
-                  onClick={() => setMobileDrawerOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-800"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+        <div className="fixed inset-0 z-50 md:hidden bg-[#F8F9FA] flex flex-col justify-between p-4 h-[100dvh] overflow-hidden animate-in fade-in duration-150">
+          {/* Cabecera compacta */}
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 shrink-0">
+            <div className="flex items-center gap-2">
+              <img src="/logo.webp" alt="247Studio" className="w-7 h-7 object-contain" />
+              <div>
+                <span className="font-headline text-lg uppercase tracking-tighter text-slate-900 block leading-none">
+                  247Studio
+                </span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block">
+                  Navegación Móvil Directa
+                </span>
               </div>
-
-              <nav className="space-y-4">
-                {navSections.map((sec, sIdx) => (
-                  <div key={sIdx}>
-                    {sec.title && (
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 pb-1">
-                        {sec.title}
-                      </p>
-                    )}
-                    <div className="space-y-1">
-                      {sec.items.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = location.pathname.startsWith(item.to);
-                        return (
-                          <NavLink
-                            key={item.to}
-                            to={item.to}
-                            onClick={() => setMobileDrawerOpen(false)}
-                            className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold ${
-                              isActive ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <Icon className="w-4 h-4" />
-                              <span>{item.label}</span>
-                            </div>
-                            {item.badge && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-slate-100 text-slate-700">
-                                {item.badge}
-                              </span>
-                            )}
-                          </NavLink>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </nav>
             </div>
+            <button
+              type="button"
+              onClick={() => setMobileDrawerOpen(false)}
+              aria-label="Cerrar menú móvil"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-            <div className="pt-4 border-t border-slate-100 space-y-2">
-              <button
-                onClick={() => {
-                  setMobileDrawerOpen(false);
-                  setQrModalOpen(true);
-                }}
-                className="w-full py-2.5 text-xs font-bold text-slate-900 bg-slate-100 hover:bg-slate-200 flex items-center justify-center gap-2 rounded-xl transition cursor-pointer"
-              >
-                <QrCode className="w-4 h-4 text-brand-accent" />
-                <span>Ver mi Pase QR</span>
-              </button>
+          {/* Secciones de Navegación Móvil */}
+          <div className="flex-1 min-h-0 overflow-y-auto py-2 space-y-3">
+            {navSections.map((sec, sIdx) => (
+              <div key={sIdx}>
+                {sec.title && (
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1 pb-1">
+                    {sec.title}
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-1.5">
+                  {sec.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname.startsWith(item.to);
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setMobileDrawerOpen(false)}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold border transition ${
+                          isActive
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-brand-accent'}`} />
+                          <span className="truncate">{item.label}</span>
+                        </div>
+                        {item.badge && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full font-mono bg-slate-100 text-slate-800 shrink-0">
+                            {item.badge}
+                          </span>
+                        )}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
 
-              <button
-                onClick={logout}
-                className="w-full py-2.5 text-xs font-semibold text-slate-600 hover:text-brand-accent flex items-center justify-center gap-2 rounded-xl border border-slate-200"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Cerrar sesión</span>
-              </button>
-            </div>
+          {/* Pie compacto del Launcher Móvil */}
+          <div className="pt-2.5 border-t border-slate-200/80 grid grid-cols-2 gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileDrawerOpen(false);
+                setQrModalOpen(true);
+              }}
+              className="py-2.5 text-xs font-bold text-white bg-slate-900 flex items-center justify-center gap-1.5 rounded-xl transition cursor-pointer"
+            >
+              <QrCode className="w-4 h-4 text-amber-400" />
+              <span>Mi Pase QR</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={logout}
+              className="py-2.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 flex items-center justify-center gap-1.5 rounded-xl cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Salir</span>
+            </button>
           </div>
         </div>
       )}
@@ -509,42 +545,6 @@ export const AppLayout: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* ======================================================== */}
-      {/* 6. MODALES GLOBALES DE TATAMI & TOOLS                     */}
-      {/* ======================================================== */}
-      <SparringTimerModal
-        isOpen={timerOpen}
-        onClose={() => setTimerOpen(false)}
-      />
-
-      <WeightDivisionModal
-        isOpen={weightCalcOpen}
-        onClose={() => setWeightCalcOpen(false)}
-      />
-
-      <CurriculumModal
-        isOpen={curriculumOpen}
-        onClose={() => setCurriculumOpen(false)}
-      />
-
-      <SparringLogModal
-        isOpen={sparringLogOpen}
-        onClose={() => setSparringLogOpen(false)}
-      />
-
-      <BeltRoadmapModal
-        isOpen={beltRoadmapOpen}
-        onClose={() => setBeltRoadmapOpen(false)}
-        currentBelt={userData?.belt || 'WHITE'}
-        stripes={userData?.stripes || 0}
-        totalClassesAttended={(userData as any)?.totalClassesAttended || 25}
-      />
-
-      <MedicalAlertModal
-        isOpen={medicalOpen}
-        onClose={() => setMedicalOpen(false)}
-      />
 
       {/* Asistente Inteligente KOKORO */}
       <KokoroAssistant />

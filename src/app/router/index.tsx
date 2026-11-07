@@ -72,6 +72,21 @@ const TermsPage = React.lazy(() =>
 const KioskCheckinPage = React.lazy(() =>
   import('@/pages/kiosk-checkin/KioskCheckinPage').then((m) => ({ default: m.KioskCheckinPage }))
 );
+const SparringTimerPage = React.lazy(() =>
+  import('@/pages/app-tools/SparringTimerPage').then((m) => ({ default: m.SparringTimerPage }))
+);
+const WeightDivisionPage = React.lazy(() =>
+  import('@/pages/app-tools/WeightDivisionPage').then((m) => ({ default: m.WeightDivisionPage }))
+);
+const CurriculumPage = React.lazy(() =>
+  import('@/pages/app-tools/CurriculumPage').then((m) => ({ default: m.CurriculumPage }))
+);
+const SparringLogPage = React.lazy(() =>
+  import('@/pages/app-tools/SparringLogPage').then((m) => ({ default: m.SparringLogPage }))
+);
+const BeltRoadmapPage = React.lazy(() =>
+  import('@/pages/app-tools/BeltRoadmapPage').then((m) => ({ default: m.BeltRoadmapPage }))
+);
 
 const LazyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Suspense
@@ -221,6 +236,46 @@ export const router = createBrowserRouter([
           </LazyRoute>
         ),
       },
+      {
+        path: 'cronometro',
+        element: (
+          <LazyRoute>
+            <SparringTimerPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'peso',
+        element: (
+          <LazyRoute>
+            <WeightDivisionPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'curriculum',
+        element: (
+          <LazyRoute>
+            <CurriculumPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'sparring',
+        element: (
+          <LazyRoute>
+            <SparringLogPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'cinturon',
+        element: (
+          <LazyRoute>
+            <BeltRoadmapPage />
+          </LazyRoute>
+        ),
+      },
     ],
   },
 
@@ -287,6 +342,30 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <StudentRegistrationPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'cronometro',
+        element: (
+          <LazyRoute>
+            <SparringTimerPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'peso',
+        element: (
+          <LazyRoute>
+            <WeightDivisionPage />
+          </LazyRoute>
+        ),
+      },
+      {
+        path: 'curriculum',
+        element: (
+          <LazyRoute>
+            <CurriculumPage />
           </LazyRoute>
         ),
       },

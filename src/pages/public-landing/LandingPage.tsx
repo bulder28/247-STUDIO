@@ -326,7 +326,7 @@ export const LandingPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-brand-text/10 font-medium text-brand-text/90">
-                    {activeSchedules.slice(0, 10).map((s) => (
+                    {activeSchedules.map((s) => (
                       <tr key={s.id} className="hover:bg-brand-text/5 transition-colors">
                         <td className="py-3.5 px-3 font-headline text-base text-brand-text font-bold">
                           {DAYS[s.dayOfWeek]}

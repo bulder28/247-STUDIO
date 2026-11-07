@@ -23,9 +23,29 @@ export async function askGeminiKokoro(
   apiKey?: string,
   role: 'admin' | 'student' = 'admin'
 ): Promise<string | null> {
+  // 1. Intentar llamar al proxy serverless de Netlify (mantiene la API Key segura en el servidor)
+  try {
+    const serverlessRes = await fetch('/.netlify/functions/kokoro-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, role }),
+    });
+
+    if (serverlessRes.ok) {
+      const data = await serverlessRes.json();
+      if (data?.text && typeof data.text === 'string') {
+        return data.text.trim();
+      }
+    }
+  } catch {
+    // Si la función serverless no está alcanzable (ej. servidor Vite standalone en local dev),
+    // se recurre al fallback local controlado.
+  }
+
+  // 2. Fallback seguro para desarrollo local (solo admin o env local)
   const key =
     apiKey ||
-    localStorage.getItem('kokoro_gemini_key') ||
+    (role === 'admin' && typeof localStorage !== 'undefined' ? localStorage.getItem('kokoro_gemini_key') : null) ||
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
     '';
 

@@ -37,37 +37,37 @@ export const BeltStatisticsCard: React.FC<BeltStatisticsCardProps> = ({
       key: 'PROFESOR',
       rank: 'PROFESOR',
       label: 'Profesor',
-      count: stats.profesorCount ?? 1,
+      count: stats.profesorCount ?? 0,
     },
     {
       key: 'BLACK',
       rank: 'BLACK',
       label: 'Negro',
-      count: stats.blackCount ?? 3,
+      count: stats.blackCount ?? 0,
     },
     {
       key: 'BROWN',
       rank: 'BROWN',
       label: 'Marrón',
-      count: stats.brownCount ?? 3,
+      count: stats.brownCount ?? 0,
     },
     {
       key: 'PURPLE',
       rank: 'PURPLE',
       label: 'Morado',
-      count: stats.purpleCount ?? 5,
+      count: stats.purpleCount ?? 0,
     },
     {
       key: 'BLUE',
       rank: 'BLUE',
       label: 'Azul',
-      count: stats.blueCount ?? 8,
+      count: stats.blueCount ?? 0,
     },
     {
       key: 'WHITE',
       rank: 'WHITE',
       label: 'Blanco',
-      count: stats.whiteCount ?? 15,
+      count: stats.whiteCount ?? 0,
     },
   ];
 
@@ -93,20 +93,30 @@ export const BeltStatisticsCard: React.FC<BeltStatisticsCardProps> = ({
             onClick={() => onSelectBelt('ALL')}
             className="text-xs font-semibold text-brand-accent hover:underline cursor-pointer"
           >
-            Ver todos ({stats.totalCount ?? 35})
+            Ver todos ({stats.totalCount ?? items.reduce((acc, it) => acc + it.count, 0)})
           </button>
         )}
       </div>
 
-      {/* Grid 3x2 idéntico a la imagen de referencia */}
-      <div className="grid grid-cols-3 gap-y-8 gap-x-4 sm:gap-x-8">
+      {/* Grid responsive 2 cols en mobile estrecho, 3 cols en pantallas mayores */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-6 sm:gap-y-8 gap-x-4 sm:gap-x-8">
         {items.map((item) => {
           const isSelected = activeFilter === item.key;
           return (
             <div
               key={item.key}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isSelected}
+              aria-label={`Filtrar por cinturón ${item.label}: ${item.count} alumnos`}
               onClick={() => handleItemClick(item.key)}
-              className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl transition cursor-pointer select-none group ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleItemClick(item.key);
+                }
+              }}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl transition cursor-pointer select-none group focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-800 ${
                 isSelected
                   ? 'bg-slate-50 ring-2 ring-slate-800 shadow-xs'
                   : 'hover:bg-slate-50/70'

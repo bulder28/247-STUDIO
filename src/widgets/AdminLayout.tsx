@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   CalendarDays,
   CreditCard,
-  HeartPulse,
+  LayoutGrid,
   LogOut,
+  Menu,
   Scale,
   Shield,
   Swords,
@@ -14,51 +15,219 @@ import {
   UserCheck,
   UserPlus,
   Users,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useGlobalShortcuts } from '@/shared/hooks/useGlobalShortcuts';
-import { CurriculumModal } from '@/widgets/CurriculumModal';
 import { KokoroAssistant } from '@/widgets/KokoroAssistant';
-import { MedicalAlertModal } from '@/widgets/MedicalAlertModal';
-import { SparringTimerModal } from '@/widgets/SparringTimerModal';
-import { WeightDivisionModal } from '@/widgets/WeightDivisionModal';
 
 export const AdminLayout: React.FC = () => {
   const { logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const mainRef = useRef<HTMLElement>(null);
 
-  const [timerOpen, setTimerOpen] = useState(false);
-  const [weightCalcOpen, setWeightCalcOpen] = useState(false);
-  const [curriculumOpen, setCurriculumOpen] = useState(false);
-  const [medicalOpen, setMedicalOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    window.scrollTo(0, 0);
+    if (mainRef.current) {
+      mainRef.current.scrollTo(0, 0);
+    }
+  }, [location.pathname]);
 
   // Global Keyboard Shortcuts
   useGlobalShortcuts({
-    onToggleTimer: () => setTimerOpen((prev) => !prev),
-    onToggleWeightCalc: () => setWeightCalcOpen((prev) => !prev),
-    onToggleCurriculum: () => setCurriculumOpen((prev) => !prev),
+    onToggleTimer: () => navigate('/admin/cronometro'),
+    onToggleWeightCalc: () => navigate('/admin/peso'),
+    onToggleCurriculum: () => navigate('/admin/curriculum'),
     onCloseModals: () => {
-      setTimerOpen(false);
-      setWeightCalcOpen(false);
-      setCurriculumOpen(false);
-      setMedicalOpen(false);
+      setMobileMenuOpen(false);
     },
   });
 
   const links = [
-    { to: '/admin/personal', label: 'Alumnos & Cinturones', icon: Users },
-    { to: '/admin/asistencia', label: 'Hoja de Asistencia', icon: UserCheck },
-    { to: '/admin/caja', label: 'Caja y Pagos', icon: CreditCard },
-    { to: '/admin/horarios', label: 'Horarios de Tatami', icon: CalendarDays },
-    { to: '/admin/tarifas', label: 'Tarifas & MRR', icon: Tags },
-    { to: '/admin/leads', label: 'Embudo de Leads', icon: Shield },
-    { to: '/admin/alta-alumno', label: 'Alta de Alumno', icon: UserPlus },
+    { to: '/admin/personal', label: 'Alumnos & Cinturones', shortLabel: 'Alumnos', icon: Users },
+    { to: '/admin/asistencia', label: 'Hoja de Asistencia', shortLabel: 'Asistencia', icon: UserCheck },
+    { to: '/admin/caja', label: 'Caja y Pagos', shortLabel: 'Caja', icon: CreditCard },
+    { to: '/admin/horarios', label: 'Horarios de Tatami', shortLabel: 'Horarios', icon: CalendarDays },
+    { to: '/admin/tarifas', label: 'Tarifas & MRR', shortLabel: 'Tarifas', icon: Tags },
+    { to: '/admin/leads', label: 'Embudo de Leads', shortLabel: 'Leads', icon: Shield },
+    { to: '/admin/alta-alumno', label: 'Alta de Alumno', shortLabel: 'Alta Socio', icon: UserPlus },
   ];
 
+  const tatamiTools = [
+    { to: '/admin/cronometro', label: 'Cronómetro Sparring', shortLabel: 'Cronómetro', icon: Swords },
+    { to: '/admin/peso', label: 'Calculadora IBJJF', shortLabel: 'Peso IBJJF', icon: Scale },
+    { to: '/admin/curriculum', label: 'Currículum & Drills', shortLabel: 'Currículum', icon: BookOpen },
+  ];
+
+  const activeLink = links.find((l) => location.pathname.startsWith(l.to)) || tatamiTools.find((l) => location.pathname.startsWith(l.to));
+
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex flex-col md:flex-row font-sans text-slate-900 antialiased selection:bg-brand-accent selection:text-white">
-      {/* Sidebar Desktop Linear/Apple Clean */}
-      <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200/80 p-5 flex flex-col justify-between shrink-0 shadow-subtle z-20">
+    <div className="h-[100dvh] md:min-h-screen md:h-auto overflow-hidden md:overflow-visible bg-[#F8F9FA] flex flex-col md:flex-row font-sans text-slate-900 antialiased selection:bg-brand-accent selection:text-white">
+      {/* ======================================================== */}
+      {/* 1. HEADER MÓVIL (< 768px) COMPACTO                       */}
+      {/* ======================================================== */}
+      <header className="md:hidden shrink-0 bg-white border-b border-slate-200/80 px-3.5 py-2.5 flex items-center justify-between z-30 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="relative">
+            <img src="/logo.webp" alt="247Studio" className="w-7 h-7 object-contain drop-shadow-xs" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-headline text-base tracking-tight uppercase text-slate-900 leading-none">
+                {activeLink?.label || 'Panel Admin'}
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-accent inline-block" />
+            </div>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+              247Studio Gestión
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen((prev) => !prev)}
+          className="p-2 rounded-xl border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+          aria-label={mobileMenuOpen ? 'Cerrar menú de administración' : 'Abrir menú de administración'}
+          aria-expanded={mobileMenuOpen}
+        >
+          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </header>
+
+      {/* ======================================================== */}
+      {/* 2. LAUNCHER MÓVIL A PANTALLA COMPLETA (< 768px)          */}
+      {/* ======================================================== */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden bg-[#F8F9FA] flex flex-col justify-between p-4 h-[100dvh] overflow-hidden animate-in fade-in duration-150">
+          {/* Cabecera */}
+          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 shrink-0">
+            <div className="flex items-center gap-2">
+              <img src="/logo.webp" alt="247Studio" className="w-7 h-7 object-contain" />
+              <div>
+                <span className="font-headline text-lg tracking-tighter uppercase text-slate-900 block leading-none">
+                  247Studio Admin
+                </span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Navegación Móvil Directa
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 transition cursor-pointer"
+              aria-label="Cerrar panel de navegación"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Grid de Gestión Operativa (Enlaces directos a cada página) */}
+          <div className="flex-1 min-h-0 overflow-y-auto py-2 space-y-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1 pb-1.5">
+                Páginas de Gestión Operativa
+              </p>
+              <nav className="grid grid-cols-2 gap-1.5">
+                {links.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = location.pathname.startsWith(link.to);
+                  return (
+                    <NavLink
+                      key={link.to}
+                      to={link.to}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold border transition ${
+                        isActive
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-brand-accent'}`} />
+                        <span className="truncate">{link.shortLabel}</span>
+                      </div>
+                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-brand-accent shrink-0" />}
+                    </NavLink>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Herramientas de Tatami como páginas completas */}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1 pb-1.5">
+                Herramientas de Tatami
+              </p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {tatamiTools.map((tool) => {
+                  const Icon = tool.icon;
+                  const isActive = location.pathname.startsWith(tool.to);
+                  return (
+                    <NavLink
+                      key={tool.to}
+                      to={tool.to}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-[11px] font-bold border transition ${
+                        isActive
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-300'
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-brand-accent'}`} />
+                      <span>{tool.shortLabel}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Mobile Hub */}
+          <div className="pt-2.5 border-t border-slate-200/80 grid grid-cols-3 gap-1.5 shrink-0">
+            <NavLink
+              to="/app/home"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold bg-white border border-slate-200 text-slate-700"
+            >
+              <Shield className="w-3.5 h-3.5 text-slate-500" />
+              <span>Vista Socio</span>
+            </NavLink>
+
+            <NavLink
+              to="/kiosk/check-in"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold bg-slate-900 text-white"
+            >
+              <Tablet className="w-3.5 h-3.5 text-amber-400" />
+              <span>Kiosco</span>
+            </NavLink>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                logout();
+              }}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold bg-rose-50 border border-rose-200 text-rose-700 cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Salir</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 3. SIDEBAR DESKTOP (>= 768px) LINEAR / APPLE CLEAN      */}
+      {/* ======================================================== */}
+      <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200/80 p-5 flex-col justify-between shrink-0 shadow-subtle z-20">
         <div>
           {/* Logo y Marca */}
           <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
@@ -121,61 +290,30 @@ export const AdminLayout: React.FC = () => {
               Herramientas de Tatami
             </p>
             <div className="space-y-1">
-              <button
-                type="button"
-                onClick={() => setTimerOpen(true)}
-                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-red-50/80 hover:text-red-700 transition text-left cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Swords className="w-4 h-4 text-red-500 group-hover:scale-110 transition-transform" />
-                  <span>Cronómetro Sparring</span>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 group-hover:bg-red-100">
-                  Alt+T
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setWeightCalcOpen(true)}
-                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-amber-50/80 hover:text-amber-800 transition text-left cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Scale className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
-                  <span>Calculadora IBJJF</span>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 group-hover:bg-amber-100">
-                  Alt+W
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCurriculumOpen(true)}
-                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-blue-50/80 hover:text-blue-700 transition text-left cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <BookOpen className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
-                  <span>Currículum & Drills</span>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 group-hover:bg-blue-100">
-                  Alt+C
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMedicalOpen(true)}
-                className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-rose-50/80 hover:text-rose-700 transition text-left cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <HeartPulse className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
-                  <span>Botiquín Tatami</span>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 group-hover:bg-rose-100">
-                  SOS
-                </span>
-              </button>
+              {tatamiTools.map((tool) => {
+                const Icon = tool.icon;
+                const isActive = location.pathname.startsWith(tool.to);
+                return (
+                  <NavLink
+                    key={tool.to}
+                    to={tool.to}
+                    className={`flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold transition-all group ${
+                      isActive
+                        ? 'bg-slate-900 text-white font-bold shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon
+                        className={`w-4 h-4 transition-colors ${
+                          isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'
+                        }`}
+                      />
+                      <span>{tool.label}</span>
+                    </div>
+                  </NavLink>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -209,32 +347,81 @@ export const AdminLayout: React.FC = () => {
       </aside>
 
       {/* Main Admin Viewport */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+      <main
+        ref={mainRef}
+        className="flex-1 min-h-0 p-3 md:p-8 overflow-y-auto md:overflow-visible"
+      >
         <div className="max-w-7xl mx-auto">
           <Outlet />
         </div>
       </main>
 
-      {/* Modales Globales de Tatami */}
-      <SparringTimerModal
-        isOpen={timerOpen}
-        onClose={() => setTimerOpen(false)}
-      />
+      {/* ======================================================== */}
+      {/* 4. BARRA INFERIOR FIJA MODO TELÉFONO (< 768px)          */}
+      {/* ======================================================== */}
+      <nav
+        aria-label="Navegación rápida de administración móvil"
+        className="md:hidden shrink-0 bg-white border-t border-slate-200/90 px-2 py-1.5 grid grid-cols-5 gap-1 z-30 shadow-lg"
+      >
+        <NavLink
+          to="/admin/personal"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
+              isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+            }`
+          }
+        >
+          <Users className="w-4 h-4 mb-0.5" />
+          <span>Alumnos</span>
+        </NavLink>
 
-      <WeightDivisionModal
-        isOpen={weightCalcOpen}
-        onClose={() => setWeightCalcOpen(false)}
-      />
+        <NavLink
+          to="/admin/asistencia"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
+              isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+            }`
+          }
+        >
+          <UserCheck className="w-4 h-4 mb-0.5" />
+          <span>Asistencia</span>
+        </NavLink>
 
-      <CurriculumModal
-        isOpen={curriculumOpen}
-        onClose={() => setCurriculumOpen(false)}
-      />
+        <NavLink
+          to="/admin/caja"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
+              isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+            }`
+          }
+        >
+          <CreditCard className="w-4 h-4 mb-0.5" />
+          <span>Caja</span>
+        </NavLink>
 
-      <MedicalAlertModal
-        isOpen={medicalOpen}
-        onClose={() => setMedicalOpen(false)}
-      />
+        <NavLink
+          to="/admin/horarios"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
+              isActive ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+            }`
+          }
+        >
+          <CalendarDays className="w-4 h-4 mb-0.5" />
+          <span>Horarios</span>
+        </NavLink>
+
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className={`flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition cursor-pointer ${
+            mobileMenuOpen ? 'text-brand-accent bg-rose-50/70' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <LayoutGrid className="w-4 h-4 mb-0.5" />
+          <span>Pestañas</span>
+        </button>
+      </nav>
 
       {/* Asistente Inteligente KOKORO */}
       <KokoroAssistant />

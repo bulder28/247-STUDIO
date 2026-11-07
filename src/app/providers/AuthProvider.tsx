@@ -51,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRole(userRole || 'student');
       if (!snap.exists()) {
         // Auto-creación de perfil inicial para atletas o administradores recién registrados
+        const isAdminUser = userRole === 'admin';
         const initialProfile: UserDomainModel = {
           uid: firebaseUser.uid,
           authEmail: firebaseUser.email || '',
@@ -59,35 +60,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phone: firebaseUser.phoneNumber || '',
           emergencyContactName: 'Contacto de Emergencia',
           emergencyContactPhone: '',
-          birthDate: '1996-05-15',
+          birthDate: '1998-01-01',
           isMinor: false,
           beltSystem: 'ADULT',
-          belt: userRole === 'admin' ? 'BLACK' : 'WHITE',
-          stripes: userRole === 'admin' ? 3 : 1,
+          belt: isAdminUser ? 'BLACK' : 'WHITE',
+          stripes: isAdminUser ? 3 : 0,
           beltDate: new Date().toISOString().slice(0, 10),
           pricingTier: 'STD',
           activeTariffId: 'tariff-mensual-bjj',
-          accountStatus: 'ACTIVE',
-          paymentStatusCache: 'OK',
+          accountStatus: isAdminUser ? 'ACTIVE' : 'PENDING',
+          paymentStatusCache: isAdminUser ? 'OK' : undefined,
           photoUrl: firebaseUser.photoURL || undefined,
-          permissions: userRole === 'admin' ? ['admin'] : ['student'],
+          permissions: isAdminUser ? ['admin'] : ['student'],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           stats: {
-            tecnica: userRole === 'admin' ? 95 : 68,
-            fuerza: userRole === 'admin' ? 88 : 72,
-            elasticidad: userRole === 'admin' ? 82 : 65,
-            guardia: userRole === 'admin' ? 94 : 70,
-            pase: userRole === 'admin' ? 92 : 66,
-            derribos: userRole === 'admin' ? 86 : 60,
-            leglocks: userRole === 'admin' ? 90 : 58,
-            finalizacion: userRole === 'admin' ? 96 : 64,
+            tecnica: isAdminUser ? 95 : 68,
+            fuerza: isAdminUser ? 88 : 72,
+            elasticidad: isAdminUser ? 82 : 65,
+            guardia: isAdminUser ? 94 : 70,
+            pase: isAdminUser ? 92 : 66,
+            derribos: isAdminUser ? 86 : 60,
+            leglocks: isAdminUser ? 90 : 58,
+            finalizacion: isAdminUser ? 96 : 64,
           },
         };
 
         try {
-          if (userRole === 'admin') {
+          if (isAdminUser) {
             await setDoc(userDocRef, initialProfile, { merge: true });
+            setUserData(initialProfile);
           } else {
             // Auto-creación de atleta cumpliendo estrictamente con firestore.rules
             const studentDoc = {
@@ -110,11 +112,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               updatedAt: serverTimestamp(),
             };
             await setDoc(userDocRef, studentDoc);
+            setUserData(initialProfile);
           }
-        } catch {
-          // Si las reglas rechazan la escritura cliente, mantenemos el perfil en memoria
+        } catch (writeErr) {
+          console.error('Error al registrar perfil inicial en Firestore:', writeErr);
+          // Si las reglas rechazan la escritura, NO inyectar un perfil falso activo en memoria
+          setUserData(null);
         }
-        setUserData(initialProfile);
       }
     } catch (err) {
       console.error('Error fetching user profile:', err);

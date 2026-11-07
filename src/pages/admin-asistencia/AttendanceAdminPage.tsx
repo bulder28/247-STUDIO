@@ -9,6 +9,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   AlertCircle,
@@ -36,7 +37,7 @@ import { triggerPromotionConfetti } from '@/shared/utils/confetti';
 import { generateGraduationDiplomaPdf } from '@/shared/utils/diplomaGenerator';
 import { downloadAttendanceSheetPdf } from '@/shared/utils/attendanceSheetGenerator';
 import { getAttendanceWeight } from '@/shared/domain/attendance';
-import { calculateAthleteXP, getNextPromotion } from '@/shared/domain/graduation';
+import { calculateAthleteXP, evaluateGraduationProgress, getNextPromotion } from '@/shared/domain/graduation';
 import { DEFAULT_OFFICIAL_SCHEDULES, getMadridTimeComponents } from '@/shared/domain/schedule';
 import {
   BookingDomainModel,
@@ -46,18 +47,27 @@ import {
 } from '@/shared/domain/types';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
 import { Belt, beltLabelEs } from '@/widgets/Belt';
 
 interface StudentDirectoryItem {
   uid: string;
   alias: string;
+  fullName?: string;
   belt: string;
   stripes: number;
   beltSystem: string;
   phone?: string;
   accountStatus: string;
+  beltDate?: string;
 }
 
 export const AttendanceAdminPage: React.FC = () => {
@@ -78,43 +88,57 @@ export const AttendanceAdminPage: React.FC = () => {
   const [addSearchTerm, setAddSearchTerm] = useState('');
   const [addSessionType, setAddSessionType] = useState<SessionType>('PARTICIPANT');
 
+  // Estados para Radix Dialogs (reemplazo de alert y confirm)
+  const [frozenObserverTarget, setFrozenObserverTarget] = useState<StudentDirectoryItem | null>(null);
+  const [bookingToRemove, setBookingToRemove] = useState<BookingDomainModel | null>(null);
+  const [studentToPromote, setStudentToPromote] = useState<StudentDirectoryItem | null>(null);
+  const [emptyExportAlertOpen, setEmptyExportAlertOpen] = useState(false);
+
   // Vista de informe mensual y graduaciones
   const [viewMode, setViewMode] = useState<'SHEET' | 'MONTHLY_REPORT' | 'GRADUATIONS'>('SHEET');
   const [reportMonth, setReportMonth] = useState<string>(madridNow.dateStr.slice(0, 7)); // YYYY-MM
   const [monthlyBookings, setMonthlyBookings] = useState<BookingDomainModel[]>([]);
+  const [allAttendedBookings, setAllAttendedBookings] = useState<BookingDomainModel[]>([]);
   const [loadingReport, setLoadingReport] = useState(false);
 
   // 1. Cargar directorio de alumnos para referencias de nombre y cinturón
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        const uSnap = await getDocs(collection(db, 'users'));
+        const [uSnap, kSnap] = await Promise.all([
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'kiosk_members')),
+        ]);
         const map: Record<string, StudentDirectoryItem> = {};
         uSnap.forEach((d) => {
           const data = d.data();
           map[d.id] = {
             uid: d.id,
             alias: data.alias || 'Alumno',
+            fullName: data.fullName || data.alias || 'Alumno',
             belt: data.belt || 'WHITE',
             stripes: Number(data.stripes || 0),
             beltSystem: data.beltSystem || 'ADULT',
             phone: data.phone || '',
             accountStatus: data.accountStatus || 'ACTIVE',
+            beltDate: data.beltDate || (data.createdAt?.toDate ? data.createdAt.toDate().toISOString().slice(0, 10) : '') || '',
           };
         });
 
         // Complementar con kiosk_members si hay alumnos solo en kiosk
-        const kSnap = await getDocs(collection(db, 'kiosk_members'));
         kSnap.forEach((d) => {
           if (!map[d.id]) {
             const data = d.data();
             map[d.id] = {
               uid: d.id,
               alias: data.alias || 'Alumno',
+              fullName: data.fullName || data.alias || 'Alumno',
               belt: data.belt || 'WHITE',
               stripes: Number(data.stripes || 0),
               beltSystem: data.beltSystem || 'ADULT',
+              phone: '',
               accountStatus: data.accountStatus || 'ACTIVE',
+              beltDate: data.beltDate || '',
             };
           }
         });
@@ -215,12 +239,13 @@ export const AttendanceAdminPage: React.FC = () => {
     setMessage(null);
 
     try {
+      const batch = writeBatch(db);
       for (const booking of pendingBookings) {
         const student = students[booking.uid];
         const isFrozen = student?.accountStatus === 'FROZEN' || student?.accountStatus === 'PAUSED';
         const effectiveType: SessionType = isFrozen ? 'OBSERVER' : (booking.sessionType || 'PARTICIPANT');
 
-        await updateDoc(doc(db, 'bookings', booking.id), {
+        batch.update(doc(db, 'bookings', booking.id), {
           status: 'ATTENDED',
           checkInSource: 'ADMIN',
           sessionType: effectiveType,
@@ -230,7 +255,7 @@ export const AttendanceAdminPage: React.FC = () => {
 
       // Actualizar contador agregado class_capacity
       const capRef = doc(db, 'class_capacity', `cap_${selectedScheduleId}_${selectedDateStr}`);
-      await setDoc(
+      batch.set(
         capRef,
         {
           scheduleId: selectedScheduleId,
@@ -240,6 +265,8 @@ export const AttendanceAdminPage: React.FC = () => {
         },
         { merge: true }
       );
+
+      await batch.commit();
 
       setMessage({
         text: `¡Confirmados ${pendingBookings.length} alumnos presentes con éxito!`,
@@ -278,7 +305,7 @@ export const AttendanceAdminPage: React.FC = () => {
         {
           scheduleId: selectedScheduleId,
           date: selectedDateStr,
-          bookedCount: increment(newStatus === 'ATTENDED' ? 0 : 0),
+          bookedCount: increment(newStatus === 'ATTENDED' ? 1 : -1),
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -313,33 +340,21 @@ export const AttendanceAdminPage: React.FC = () => {
   };
 
   // ACCIÓN 4: Añadir alumno manualmente fuera de lista (Walk-in / Asistencia directa)
-  const handleAddStudentManual = async (targetStudent: StudentDirectoryItem) => {
+  const executeAddStudentManual = async (targetStudent: StudentDirectoryItem, sessionType: SessionType) => {
     if (!activeSchedule) return;
     setActionLoading(`add_${targetStudent.uid}`);
     setMessage(null);
 
-    const isFrozen = targetStudent.accountStatus === 'FROZEN' || targetStudent.accountStatus === 'PAUSED';
-    const effectiveSessionType = isFrozen ? 'OBSERVER' : addSessionType;
-    if (isFrozen) {
-      const ok = confirm(
-        `Aviso: ${targetStudent.alias} tiene su cuenta en PAUSA POR LESIÓN. ¿Deseas registrar su asistencia como OBSERVADOR (0.5x)?`
-      );
-      if (!ok) {
-        setActionLoading(null);
-        return;
-      }
-    }
-
     try {
       const bookingId = `bk_${targetStudent.uid}_${activeSchedule.id}_${selectedDateStr}`;
-      const weight = getAttendanceWeight(effectiveSessionType);
+      const weight = getAttendanceWeight(sessionType);
 
       await setDoc(doc(db, 'bookings', bookingId), {
         uid: targetStudent.uid,
         scheduleId: activeSchedule.id,
         date: selectedDateStr,
         status: 'ATTENDED',
-        sessionType: effectiveSessionType,
+        sessionType: sessionType,
         attendanceWeight: weight,
         checkInSource: 'ADMIN',
         createdAt: serverTimestamp(),
@@ -359,11 +374,12 @@ export const AttendanceAdminPage: React.FC = () => {
       );
 
       setMessage({
-        text: `${targetStudent.alias} añadido como asistente presente.`,
+        text: `${targetStudent.alias} añadido como asistente presente (${sessionType === 'OBSERVER' ? 'Observador' : 'Participante'}).`,
         type: 'success',
       });
       setAddModalOpen(false);
       setAddSearchTerm('');
+      setFrozenObserverTarget(null);
       await fetchClassBookings();
     } catch (err: unknown) {
       setMessage({
@@ -375,12 +391,25 @@ export const AttendanceAdminPage: React.FC = () => {
     }
   };
 
-  // ACCIÓN 5: Eliminar o cancelar reserva
-  const handleRemoveBooking = async (booking: BookingDomainModel) => {
-    if (!confirm('¿Seguro que deseas eliminar esta reserva/asistencia?')) return;
-    setActionLoading(booking.id);
+  const handleAddStudentManual = async (targetStudent: StudentDirectoryItem) => {
+    const isFrozen = targetStudent.accountStatus === 'FROZEN' || targetStudent.accountStatus === 'PAUSED';
+    if (isFrozen) {
+      setFrozenObserverTarget(targetStudent);
+      return;
+    }
+    await executeAddStudentManual(targetStudent, addSessionType);
+  };
+
+  // ACCIÓN 5: Eliminar o cancelar reserva (Radix Dialog)
+  const handleRemoveBooking = (booking: BookingDomainModel) => {
+    setBookingToRemove(booking);
+  };
+
+  const handleConfirmRemoveBooking = async () => {
+    if (!bookingToRemove) return;
+    setActionLoading(bookingToRemove.id);
     try {
-      await updateDoc(doc(db, 'bookings', booking.id), {
+      await updateDoc(doc(db, 'bookings', bookingToRemove.id), {
         status: 'CANCELLED',
         cancelledAt: serverTimestamp(),
       });
@@ -397,6 +426,7 @@ export const AttendanceAdminPage: React.FC = () => {
         { merge: true }
       );
 
+      setBookingToRemove(null);
       await fetchClassBookings();
     } catch (err: unknown) {
       console.error('Error eliminando reserva:', err);
@@ -405,7 +435,7 @@ export const AttendanceAdminPage: React.FC = () => {
     }
   };
 
-  // Cargar datos para el informe mensual
+  // Cargar datos para el informe mensual y graduaciones
   const fetchMonthlyReport = async () => {
     setLoadingReport(true);
     try {
@@ -414,14 +444,18 @@ export const AttendanceAdminPage: React.FC = () => {
         where('status', '==', 'ATTENDED')
       );
       const snap = await getDocs(q);
-      const list: BookingDomainModel[] = [];
+      const allList: BookingDomainModel[] = [];
+      const monthlyList: BookingDomainModel[] = [];
       snap.forEach((d) => {
         const data = d.data() as Omit<BookingDomainModel, 'id'>;
+        const b = { id: d.id, ...data };
+        allList.push(b);
         if (data.date && data.date.startsWith(reportMonth)) {
-          list.push({ id: d.id, ...data });
+          monthlyList.push(b);
         }
       });
-      setMonthlyBookings(list);
+      setAllAttendedBookings(allList);
+      setMonthlyBookings(monthlyList);
     } catch (err) {
       console.error('Error cargando informe mensual:', err);
     } finally {
@@ -435,16 +469,15 @@ export const AttendanceAdminPage: React.FC = () => {
     }
   }, [viewMode, reportMonth]);
 
-  // ACCIÓN DE GRADUACIÓN: Conceder raya o ascender cinturón
-  const handlePromoteStudent = async (student: StudentDirectoryItem) => {
-    const promotion = getNextPromotion(student.belt as any, student.stripes, student.beltSystem as any);
-    const label = promotion.isBeltPromotion
-      ? `ascender al Cinturón ${beltLabelEs(promotion.nextBelt)}`
-      : `otorgar la raya ${promotion.nextStripes}º grado`;
+  // ACCIÓN DE GRADUACIÓN: Conceder raya o ascender cinturón (Radix Dialog)
+  const handlePromoteStudent = (student: StudentDirectoryItem) => {
+    setStudentToPromote(student);
+  };
 
-    if (!confirm(`¿Confirmas ${label} a ${student.alias}?`)) {
-      return;
-    }
+  const handleConfirmPromoteStudent = async () => {
+    if (!studentToPromote) return;
+    const student = studentToPromote;
+    const promotion = getNextPromotion(student.belt as any, student.stripes, student.beltSystem as any);
 
     setActionLoading(`promote_${student.uid}`);
     try {
@@ -455,6 +488,19 @@ export const AttendanceAdminPage: React.FC = () => {
         updatedAt: serverTimestamp(),
       });
 
+      // Sincronizar kiosk_members para actualización instantánea en tablet
+      try {
+        await updateDoc(doc(db, 'kiosk_members', student.uid), {
+          belt: promotion.nextBelt,
+          stripes: promotion.nextStripes,
+          fullName: student.fullName || student.alias || '',
+          accountStatus: student.accountStatus || 'ACTIVE',
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // kiosk_member doc might not exist yet
+      }
+
       // Actualizar estado local en memoria
       setStudents((prev) => ({
         ...prev,
@@ -462,6 +508,7 @@ export const AttendanceAdminPage: React.FC = () => {
           ...prev[student.uid],
           belt: promotion.nextBelt,
           stripes: promotion.nextStripes,
+          beltDate: madridNow.dateStr,
         },
       }));
 
@@ -471,6 +518,7 @@ export const AttendanceAdminPage: React.FC = () => {
         text: `¡Graduación completada! ${student.alias} ahora tiene ${beltLabelEs(promotion.nextBelt)} (${promotion.nextStripes} grados).`,
         type: 'success',
       });
+      setStudentToPromote(null);
     } catch (err: unknown) {
       console.error('Error graduando alumno:', err);
       setMessage({
@@ -507,9 +555,34 @@ export const AttendanceAdminPage: React.FC = () => {
     };
   }).filter((item) => item.totalAttendances > 0).sort((a, b) => b.totalPoints - a.totalPoints);
 
+  // Agregación de estadísticas acumuladas desde beltDate para la ceremonia de Graduaciones BJJ
+  const studentGraduationAggregates = Object.values(students).map((st) => {
+    const studentBookings = allAttendedBookings.filter((b) => {
+      if (b.uid !== st.uid) return false;
+      if (st.beltDate) {
+        return b.date >= st.beltDate;
+      }
+      return true;
+    });
+    const totalAttendances = studentBookings.length;
+    const totalPoints = studentBookings.reduce((sum, b) => sum + (b.attendanceWeight || 1.0), 0);
+    const gradProgress = evaluateGraduationProgress(totalPoints, 25);
+    const promotion = getNextPromotion(st.belt as any, st.stripes, st.beltSystem as any);
+    const xpData = calculateAthleteXP(totalAttendances);
+
+    return {
+      student: st,
+      totalAttendances,
+      totalPoints,
+      gradProgress,
+      promotion,
+      xpData,
+    };
+  }).sort((a, b) => b.totalPoints - a.totalPoints);
+
   const handleExportCsv = () => {
     if (studentMonthlyAggregates.length === 0) {
-      alert('No hay datos de asistencia para exportar en el mes seleccionado.');
+      setEmptyExportAlertOpen(true);
       return;
     }
 
@@ -552,7 +625,7 @@ export const AttendanceAdminPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadAttendanceSheet = () => {
+  const handleDownloadAttendanceSheet = async () => {
     if (!activeSchedule) return;
     const list = bookings.map((b) => {
       const s = students[b.uid];
@@ -562,7 +635,7 @@ export const AttendanceAdminPage: React.FC = () => {
         stripes: Number(s?.stripes || 0),
       };
     });
-    downloadAttendanceSheetPdf({
+    await downloadAttendanceSheetPdf({
       className: activeSchedule.program,
       scheduleTime: `${activeSchedule.startTime} - ${activeSchedule.endTime}`,
       dateStr: selectedDateStr,
@@ -1126,10 +1199,10 @@ export const AttendanceAdminPage: React.FC = () => {
                 <Sparkles className="w-3.5 h-3.5" /> Candidatos a Graduación
               </span>
               <div className="text-3xl font-black text-slate-900 mt-2 font-mono">
-                {studentMonthlyAggregates.filter((s) => s.totalPoints >= 25).length}
+                {studentGraduationAggregates.filter((s) => s.gradProgress.isReady).length}
               </div>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Alumnos con &ge; 25 puntos de tatami listos para raya o cinturón.
+                Alumnos con &ge; 25 clases acumuladas desde su último grado listos para ascenso.
               </p>
             </div>
 
@@ -1138,10 +1211,10 @@ export const AttendanceAdminPage: React.FC = () => {
                 <Trophy className="w-3.5 h-3.5 text-brand-accent" /> Censo Total en Evaluación
               </span>
               <div className="text-3xl font-black text-slate-900 mt-2 font-mono">
-                {studentMonthlyAggregates.length}
+                {studentGraduationAggregates.length}
               </div>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Atletas activos con asistencia registrada este mes.
+                Atletas evaluados según asistencias acumuladas desde beltDate.
               </p>
             </div>
 
@@ -1153,7 +1226,7 @@ export const AttendanceAdminPage: React.FC = () => {
                 25 Clases / 1 Raya BJJ
               </div>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Graduación por horas de tatami y evaluación técnica de Mario y David.
+                Graduación acumulativa desde último ascenso y evaluación técnica de Mario y David.
               </p>
             </div>
           </div>
@@ -1166,7 +1239,7 @@ export const AttendanceAdminPage: React.FC = () => {
                   Panel de Evaluación y Ascenso de Grados
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Concede rayas (stripes) o ascensos de cinturón con un solo clic. El alumno verá su nueva ficha y medalla al instante.
+                  Progreso acumulado desde la fecha de último cinturón/raya (beltDate). Concede grados al instante con confirmación segura.
                 </p>
               </div>
 
@@ -1192,12 +1265,12 @@ export const AttendanceAdminPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {studentMonthlyAggregates.map((item, index) => {
+                  {studentGraduationAggregates.map((item, index) => {
                     const st = item.student;
-                    const promotion = getNextPromotion(st.belt as any, st.stripes, st.beltSystem as any);
-                    const isReady = item.totalPoints >= 25;
-                    const pct = Math.min(100, Math.round((item.totalPoints / 25) * 100));
-                    const xpData = calculateAthleteXP(item.totalAttendances);
+                    const promotion = item.promotion;
+                    const isReady = item.gradProgress.isReady;
+                    const pct = item.gradProgress.percentage;
+                    const xpData = item.xpData;
 
                     return (
                       <tr key={st.uid} className="hover:bg-slate-50/60 transition">
@@ -1209,6 +1282,7 @@ export const AttendanceAdminPage: React.FC = () => {
                           <div className="font-extrabold text-sm text-slate-900">{st.alias}</div>
                           <span className="text-[10px] font-bold text-slate-400 uppercase">
                             {st.beltSystem === 'KIDS' ? 'Categoría Infantil' : 'Adulto'} · Nivel {xpData.level}
+                            {st.beltDate ? ` · Desde ${st.beltDate}` : ''}
                           </span>
                         </td>
 
@@ -1233,7 +1307,7 @@ export const AttendanceAdminPage: React.FC = () => {
                         <td className="py-4 px-4 min-w-[130px]">
                           <div className="flex items-center justify-between text-[10px] font-bold mb-1">
                             <span className={isReady ? 'text-emerald-700' : 'text-slate-500'}>
-                              {item.totalPoints.toFixed(0)} / 25
+                              {item.totalPoints.toFixed(0)} / {item.gradProgress.targetClasses}
                             </span>
                             <span className="font-mono text-slate-400">{pct}%</span>
                           </div>
@@ -1262,8 +1336,8 @@ export const AttendanceAdminPage: React.FC = () => {
                         <td className="py-4 px-5 text-right space-x-2">
                           <button
                             type="button"
-                            onClick={() => {
-                              generateGraduationDiplomaPdf(st as any);
+                            onClick={async () => {
+                              await generateGraduationDiplomaPdf(st as any);
                               triggerPromotionConfetti();
                             }}
                             title="Descargar Diploma Oficial en PDF"
@@ -1404,6 +1478,130 @@ export const AttendanceAdminPage: React.FC = () => {
               )}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL RADIX DIALOG: ALUMNO EN PAUSA / ASISTENCIA OBSERVADOR */}
+      <Dialog open={!!frozenObserverTarget} onOpenChange={(open) => !open && setFrozenObserverTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aviso: Alumno en Pausa Deportiva</DialogTitle>
+            <DialogDescription>
+              <strong className="text-slate-900">{frozenObserverTarget?.alias}</strong> tiene su cuenta en{' '}
+              <span className="font-bold text-blue-600">{frozenObserverTarget?.accountStatus}</span>. ¿Deseas registrar su asistencia en calidad de <strong className="text-slate-900">OBSERVADOR (0.5x)</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFrozenObserverTarget(null)}
+              disabled={!!actionLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => frozenObserverTarget && executeAddStudentManual(frozenObserverTarget, 'OBSERVER')}
+              disabled={!!actionLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Confirmar como Observador
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL RADIX DIALOG: ELIMINAR RESERVA / ASISTENCIA */}
+      <Dialog open={!!bookingToRemove} onOpenChange={(open) => !open && setBookingToRemove(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Eliminar Asistencia o Reserva</DialogTitle>
+            <DialogDescription>
+              ¿Seguro que deseas cancelar y retirar esta asistencia de la lista oficial de la sesión? El aforo de la clase se actualizará automáticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBookingToRemove(null)}
+              disabled={actionLoading === bookingToRemove?.id}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmRemoveBooking}
+              disabled={actionLoading === bookingToRemove?.id}
+            >
+              {actionLoading === bookingToRemove?.id ? 'Eliminando...' : 'Confirmar Eliminación'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL RADIX DIALOG: CONFIRMAR GRADUACIÓN DE GRADO O CINTURÓN */}
+      <Dialog open={!!studentToPromote} onOpenChange={(open) => !open && setStudentToPromote(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar Graduación de Grado</DialogTitle>
+            <DialogDescription>
+              {studentToPromote && (() => {
+                const promotion = getNextPromotion(
+                  studentToPromote.belt as any,
+                  studentToPromote.stripes,
+                  studentToPromote.beltSystem as any
+                );
+                const label = promotion.isBeltPromotion
+                  ? `ascender al Cinturón ${beltLabelEs(promotion.nextBelt)}`
+                  : `otorgar la raya ${promotion.nextStripes}º grado`;
+                return (
+                  <span>
+                    ¿Confirmas {label} a <strong className="text-slate-900">{studentToPromote.alias}</strong>? La graduación se registrará en users y se sincronizará inmediatamente con el Kiosco.
+                  </span>
+                );
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStudentToPromote(null)}
+              disabled={!!actionLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              onClick={handleConfirmPromoteStudent}
+              disabled={!!actionLoading}
+              className="bg-brand-accent hover:bg-brand-accent/90 text-white font-black uppercase tracking-wider"
+            >
+              {actionLoading ? 'Graduando...' : 'Confirmar Graduación'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL RADIX DIALOG: AVISO EXPORTACIÓN VACÍA */}
+      <Dialog open={emptyExportAlertOpen} onOpenChange={setEmptyExportAlertOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Sin Datos para Exportar</DialogTitle>
+            <DialogDescription>
+              No hay registros de asistencia completados para el mes seleccionado ({reportMonth}).
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="default" onClick={() => setEmptyExportAlertOpen(false)}>
+              Entendido
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

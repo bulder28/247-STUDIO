@@ -1,16 +1,27 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  functions = "netlify/functions"
 
+# Redirección de llamadas API a Netlify Functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Redirección SPA estándar para React Router
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
+# Cabeceras de seguridad HTTP y protección de datos para producción y dominio final .com
 [[headers]]
   for = "/*"
   [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(self), microphone=(), geolocation=()"
+    X-XSS-Protection = "1; mode=block"

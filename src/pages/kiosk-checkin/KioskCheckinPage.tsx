@@ -33,7 +33,7 @@ import QRCode from 'qrcode';
 import { db } from '@/shared/api/firebase';
 import { getAttendanceWeight } from '@/shared/domain/attendance';
 import { calculateAthleteXP, calculateGraduationProgress, getNextPromotion } from '@/shared/domain/graduation';
-import { getMadridTimeComponents, isClassInProgress } from '@/shared/domain/schedule';
+import { getMadridTimeComponents, getNextClass, isClassInProgress } from '@/shared/domain/schedule';
 import {
   ScheduleDomainModel,
   ScheduleExceptionDomainModel,
@@ -46,7 +46,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/di
 import { Input } from '@/shared/ui/input';
 import { Belt, beltLabelEs } from '@/widgets/Belt';
 import { triggerKioskCheckinConfetti } from '@/shared/utils/confetti';
-import { QrCameraScanner } from '@/widgets/QrCameraScanner';
+const QrCameraScanner = React.lazy(() =>
+  import('@/widgets/QrCameraScanner').then((m) => ({ default: m.QrCameraScanner }))
+);
 
 export interface KioskMember {
   uid: string;
@@ -135,8 +137,37 @@ export const KioskCheckinPage: React.FC = () => {
   // Estado para advertencia de cuenta pausada / bloqueada
   const [accountAlert, setAccountAlert] = useState<{ alias: string; status: string } | null>(null);
 
+  // Directorio en memoria de kiosk_members para búsquedas instantáneas O(1) red
+  const [kioskMembersCache, setKioskMembersCache] = useState<KioskMember[]>([]);
+
   const now = new Date();
   const madridNow = getMadridTimeComponents(now);
+
+  // Precargar directorio kiosk_members en memoria al inicio de la sesión del kiosco
+  useEffect(() => {
+    const loadKioskDirectory = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'kiosk_members'));
+        const list: KioskMember[] = [];
+        snap.forEach((d) => {
+          const data = d.data();
+          list.push({
+            uid: d.id,
+            alias: data.alias || 'Alumno',
+            belt: data.belt || 'WHITE',
+            stripes: Number(data.stripes || 0),
+            beltSystem: data.beltSystem || 'ADULT',
+            accountStatus: data.accountStatus || 'ACTIVE',
+            photoUrl: data.photoUrl || '',
+          });
+        });
+        setKioskMembersCache(list);
+      } catch (err) {
+        console.error('Error cargando directorio de miembros en kiosco:', err);
+      }
+    };
+    loadKioskDirectory();
+  }, []);
 
   // Generar QR para el alta de prueba exprés desde el móvil del visitante
   useEffect(() => {
@@ -188,10 +219,29 @@ export const KioskCheckinPage: React.FC = () => {
       const snap = await getDocs(q);
       const list: { uid: string; alias: string; belt: string; stripes: number; time: string }[] = [];
 
-      const membersSnap = await getDocs(collection(db, 'kiosk_members'));
-      const memberMap: Record<string, any> = {};
-      membersSnap.forEach((d) => {
-        memberMap[d.id] = d.data();
+      let membersList = kioskMembersCache;
+      if (membersList.length === 0) {
+        const membersSnap = await getDocs(collection(db, 'kiosk_members'));
+        const mList: KioskMember[] = [];
+        membersSnap.forEach((d) => {
+          const data = d.data();
+          mList.push({
+            uid: d.id,
+            alias: data.alias || 'Alumno',
+            belt: data.belt || 'WHITE',
+            stripes: Number(data.stripes || 0),
+            beltSystem: data.beltSystem || 'ADULT',
+            accountStatus: data.accountStatus || 'ACTIVE',
+            photoUrl: data.photoUrl || '',
+          });
+        });
+        membersList = mList;
+        setKioskMembersCache(mList);
+      }
+
+      const memberMap: Record<string, Partial<KioskMember>> = {};
+      membersList.forEach((m) => {
+        memberMap[m.uid] = m;
       });
 
       snap.forEach((d) => {
@@ -226,7 +276,8 @@ export const KioskCheckinPage: React.FC = () => {
         excSnap.forEach((d) => eList.push({ id: d.id, ...(d.data() as Omit<ScheduleExceptionDomainModel, 'id'>) }));
 
         const inProgress = sList.find((s) => isClassInProgress(s, eList, now));
-        const sched = inProgress || sList[0] || null;
+        const nextInfo = getNextClass(sList, eList, now);
+        const sched = inProgress || nextInfo?.schedule || sList[0] || null;
         setActiveSchedule(sched);
         if (sched) {
           fetchTodayAttendees(sched.id);
@@ -239,47 +290,24 @@ export const KioskCheckinPage: React.FC = () => {
     loadSchedules();
   }, []);
 
-  // 3. Búsqueda segura en directorio público kiosk_members (SIN notas médicas ni datos privados)
+  // 3. Búsqueda instantánea en memoria (0 peticiones de red por pulsación de tecla)
   useEffect(() => {
     if (searchTerm.trim().length < 2) {
       setSearchResults([]);
       return;
     }
 
-    const searchMembers = async () => {
-      try {
-        const membersSnap = await getDocs(collection(db, 'kiosk_members'));
-        const term = searchTerm.toLowerCase();
-        const matches: KioskMember[] = [];
-
-        membersSnap.forEach((d) => {
-          const data = d.data();
-          if (data.alias?.toLowerCase().includes(term)) {
-            matches.push({
-              uid: d.id,
-              alias: data.alias || 'Alumno',
-              belt: data.belt || 'WHITE',
-              stripes: Number(data.stripes || 0),
-              beltSystem: data.beltSystem || 'ADULT',
-              accountStatus: data.accountStatus || 'ACTIVE',
-              photoUrl: data.photoUrl || '',
-            });
-          }
-        });
-
-        setSearchResults(matches.slice(0, 5));
-      } catch (err) {
-        console.error('Error buscando atletas en kiosco:', err);
-      }
-    };
-
-    const timer = setTimeout(searchMembers, 250);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+    const term = searchTerm.toLowerCase();
+    const matches = kioskMembersCache.filter((m) =>
+      m.alias?.toLowerCase().includes(term)
+    );
+    setSearchResults(matches.slice(0, 5));
+  }, [searchTerm, kioskMembersCache]);
 
   const handleSelectStudent = (member: KioskMember) => {
-    if (member.accountStatus === 'PAUSED' || member.accountStatus === 'SUSPENDED') {
-      setAccountAlert({ alias: member.alias, status: member.accountStatus });
+    const status = member.accountStatus || 'ACTIVE';
+    if (status === 'PAUSED' || status === 'SUSPENDED' || status === 'FROZEN' || status === 'INACTIVE') {
+      setAccountAlert({ alias: member.alias, status });
       return;
     }
     setSelectedStudent(member);
@@ -294,7 +322,7 @@ export const KioskCheckinPage: React.FC = () => {
         if (memberDoc.exists()) {
           const data = memberDoc.data();
           const status = data.accountStatus || 'ACTIVE';
-          if (status === 'PAUSED' || status === 'SUSPENDED') {
+          if (status === 'PAUSED' || status === 'SUSPENDED' || status === 'FROZEN' || status === 'INACTIVE') {
             setAccountAlert({ alias: data.alias || parsed.alias || 'Atleta', status });
             return;
           }
@@ -313,13 +341,18 @@ export const KioskCheckinPage: React.FC = () => {
             const userDoc = await getDoc(doc(db, 'users', parsed.uid));
             if (userDoc.exists()) {
               const uData = userDoc.data();
+              const uStatus = uData.accountStatus || 'ACTIVE';
+              if (uStatus === 'PAUSED' || uStatus === 'SUSPENDED' || uStatus === 'FROZEN' || uStatus === 'INACTIVE') {
+                setAccountAlert({ alias: uData.alias || parsed.alias || 'Atleta', status: uStatus });
+                return;
+              }
               setSelectedStudent({
                 uid: userDoc.id,
                 alias: uData.alias || parsed.alias || 'Alumno',
                 belt: uData.belt || 'WHITE',
                 stripes: Number(uData.stripes || 0),
                 beltSystem: uData.beltSystem || 'ADULT',
-                accountStatus: uData.accountStatus || 'ACTIVE',
+                accountStatus: uStatus,
                 photoUrl: uData.photoUrl || '',
               });
               return;
@@ -473,6 +506,7 @@ export const KioskCheckinPage: React.FC = () => {
         phone: trialPhone.trim(),
         scheduleId: activeSchedule?.id || 'trial_kiosk',
         status: 'NEW',
+        source: 'KIOSK',
         honeypot: '',
         createdAt: serverTimestamp(),
       });
@@ -710,10 +744,20 @@ export const KioskCheckinPage: React.FC = () => {
               </h2>
 
               {scannerActive && (
-                <QrCameraScanner
-                  onScanSuccess={handleQrDetected}
-                  onClose={() => setScannerActive(false)}
-                />
+                <React.Suspense
+                  fallback={
+                    <div className="p-8 text-center text-xs text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">
+                      <span className="font-bold uppercase tracking-wider animate-pulse">
+                        Iniciando cámara QR...
+                      </span>
+                    </div>
+                  }
+                >
+                  <QrCameraScanner
+                    onScanSuccess={handleQrDetected}
+                    onClose={() => setScannerActive(false)}
+                  />
+                </React.Suspense>
               )}
               <button
                 onClick={() => setScannerActive(true)}
@@ -977,7 +1021,7 @@ export const KioskCheckinPage: React.FC = () => {
                   />
                 )}
                 <span className="text-[10px] text-slate-400 block font-mono">
-                  247studio.netlify.app/reserva-prueba
+                  {typeof window !== 'undefined' ? `${window.location.host}/reserva-prueba` : '247studio.com/reserva-prueba'}
                 </span>
               </div>
 

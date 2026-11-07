@@ -21,7 +21,9 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          'vendor-motion': ['framer-motion'],
           'vendor-icons': ['lucide-react'],
+          'vendor-qrcode': ['qrcode', 'html5-qrcode'],
         },
       },
     },

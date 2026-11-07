@@ -86,3 +86,36 @@ body {
 ::-webkit-scrollbar-track { background: #DDD6B8; }
 ::-webkit-scrollbar-thumb { background: #1A1D2E; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #E11D2E; }
+
+/* Ocultar badge, drawer y preview bar de Netlify */
+netlify-drawer,
+[data-netlify-deploy-id],
+#netlify-drawer,
+.netlify-drawer,
+div[class*="netlify-drawer"],
+iframe[id*="netlify"],
+iframe[name*="netlify"],
+iframe[src*="netlify"],
+div[data-netlify-identity-menu],
+.netlify-badge,
+a[href*="netlify.com"][target="_blank"],
+div[style*="netlify"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  max-height: 0 !important;
+  max-width: 0 !important;
+}
+
+/* Ocultar icono / widget flotante inyectado por Netlify (Deploy Previews / Netlify Drawer) */
+#netlify-cdp-loader,
+[data-netlify-deploy-notifications],
+iframe[src*="app.netlify.com"],
+iframe[title*="Netlify"],
+div[id^="netlify-"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

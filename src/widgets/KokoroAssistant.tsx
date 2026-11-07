@@ -17,7 +17,6 @@ import {
   KokoroActionPayload,
   KokoroContext,
 } from '@/shared/domain/kokoro';
-import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
 
 interface ChatMessage {
   id: string;
@@ -47,15 +46,15 @@ export const KokoroAssistant: React.FC = () => {
     atRiskCount: number;
     monthlyRevenueEstimateCents: number;
   }>({
-    totalActiveUsers: 24,
+    totalActiveUsers: 0,
     frozenCount: 0,
-    atRiskCount: 3,
-    monthlyRevenueEstimateCents: 145000,
+    atRiskCount: 0,
+    monthlyRevenueEstimateCents: 0,
   });
 
-  // Cargar métricas reales de la base de datos cuando se abre Kokoro
+  // Cargar métricas reales de la base de datos cuando se abre Kokoro (exclusivo para Administradores)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || kokoroRole !== 'admin') return;
     const loadLiveMetrics = async () => {
       try {
         const usersSnap = await getDocs(collection(db, 'users'));
@@ -75,17 +74,17 @@ export const KokoroAssistant: React.FC = () => {
         });
 
         setLiveMetrics({
-          totalActiveUsers: active > 0 ? active : 24,
+          totalActiveUsers: active,
           frozenCount: frozen,
-          atRiskCount: 3,
-          monthlyRevenueEstimateCents: revCents > 0 ? revCents : 145000,
+          atRiskCount: 0,
+          monthlyRevenueEstimateCents: revCents,
         });
       } catch (err) {
         console.warn('Metrics load fallback:', err);
       }
     };
     loadLiveMetrics();
-  }, [isOpen]);
+  }, [isOpen, kokoroRole]);
 
   // Mensaje inicial de bienvenida
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
@@ -171,7 +170,7 @@ export const KokoroAssistant: React.FC = () => {
     setTimeout(() => {
       const context: KokoroContext = {
         role: kokoroRole,
-        currentUser: userData || SAMPLE_ATHLETES_20[0],
+        currentUser: userData || null,
         totalActiveUsers: liveMetrics.totalActiveUsers,
         frozenCount: liveMetrics.frozenCount,
         atRiskCount: liveMetrics.atRiskCount,
@@ -271,16 +270,18 @@ export const KokoroAssistant: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setShowSettings(!showSettings)}
-                title="Configuración de IA Gemini"
-                className={`p-1.5 rounded-full transition cursor-pointer ${
-                  apiKey ? 'text-amber-400 bg-amber-500/20' : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-              </button>
+              {kokoroRole === 'admin' && (
+                <button
+                  type="button"
+                  onClick={() => setShowSettings(!showSettings)}
+                  title="Configuración de IA Gemini"
+                  className={`p-1.5 rounded-full transition cursor-pointer ${
+                    apiKey ? 'text-amber-400 bg-amber-500/20' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
@@ -292,8 +293,8 @@ export const KokoroAssistant: React.FC = () => {
             </div>
           </div>
 
-          {/* Panel de Configuración Gemini LLM */}
-          {showSettings && (
+          {/* Panel de Configuración Gemini LLM (Exclusivo para Administrador) */}
+          {kokoroRole === 'admin' && showSettings && (
             <div className="bg-slate-900 text-white p-3.5 border-b border-amber-500/30 text-xs space-y-2 animate-in slide-in-from-top-2">
               <div className="flex justify-between items-center">
                 <span className="font-bold text-amber-400 flex items-center gap-1.5">

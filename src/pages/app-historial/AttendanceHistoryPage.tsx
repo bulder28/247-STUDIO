@@ -10,6 +10,8 @@ export const AttendanceHistoryPage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [bookings, setBookings] = useState<BookingDomainModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mobileTab, setMobileTab] = useState<'mapa' | 'curva' | 'meses'>('mapa');
+  const [mobileMonthIdx, setMobileMonthIdx] = useState<0 | 1 | 2>(0);
 
   useEffect(() => {
     if (!user) return;
@@ -85,51 +87,86 @@ export const AttendanceHistoryPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 pb-12 animate-in fade-in duration-200">
+    <div className="space-y-3 md:space-y-8 pb-2 md:pb-12 animate-in fade-in duration-200">
       {/* ======================================================== */}
       {/* 1. CABECERA: CLASES ASISTIDAS + SELECTOR DE AÑO          */}
       {/* ======================================================== */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-2 sm:gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-3xl font-bold text-slate-900 tracking-tight">
             Clases Asistidas
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+          <p className="hidden sm:block text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
             Registro de entrenamientos y asistencia al tatami
           </p>
         </div>
 
         {/* Selector de año estilo MatGoat */}
-        <div className="flex items-center gap-3 self-center sm:self-auto bg-white border border-slate-200/80 rounded-2xl p-1.5 shadow-sm">
+        <div className="flex items-center gap-1.5 sm:gap-3 bg-white border border-slate-200/80 rounded-2xl p-1 sm:p-1.5 shadow-sm">
           <button
             onClick={() => setSelectedYear((y) => y - 1)}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition"
+            className="flex items-center gap-0.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
-            <span>{selectedYear - 1}</span>
+            <span className="hidden sm:inline">{selectedYear - 1}</span>
           </button>
 
-          <div className="text-center px-4">
-            <span className="text-base font-extrabold text-slate-900 block leading-tight">{selectedYear}</span>
-            <span className="text-[11px] text-slate-400 font-medium block">
-              {totalClasses} clases en total
+          <div className="text-center px-2 sm:px-4">
+            <span className="text-sm sm:text-base font-extrabold text-slate-900 block leading-tight">{selectedYear}</span>
+            <span className="text-[10px] sm:text-[11px] text-slate-400 font-medium block">
+              {totalClasses} clases
             </span>
           </div>
 
           <button
             onClick={() => setSelectedYear((y) => y + 1)}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition"
+            className="flex items-center gap-0.5 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
           >
-            <span>{selectedYear + 1}</span>
+            <span className="hidden sm:inline">{selectedYear + 1}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
+      {/* Selector de sub-pestañas móvil sin scroll vertical */}
+      <div className="md:hidden grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
+        <button
+          type="button"
+          onClick={() => setMobileTab('mapa')}
+          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+            mobileTab === 'mapa' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+          }`}
+        >
+          🔥 Mapa
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('curva')}
+          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+            mobileTab === 'curva' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+          }`}
+        >
+          📈 Curva
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('meses')}
+          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+            mobileTab === 'meses' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+          }`}
+        >
+          📅 Meses
+        </button>
+      </div>
+
       {/* ======================================================== */}
       {/* 2. HEATMAP ANUAL ESTILO MATGOAT (Puntos verdes)         */}
       {/* ======================================================== */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-7 shadow-sm overflow-x-auto">
+      <div
+        className={`${
+          mobileTab === 'mapa' ? 'block' : 'hidden md:block'
+        } bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-7 shadow-sm overflow-x-auto`}
+      >
         {/* Cabecera de meses */}
         <div className="min-w-[650px]">
           <div className="flex text-[11px] font-semibold text-slate-400 pl-6 mb-3">
@@ -173,18 +210,22 @@ export const AttendanceHistoryPage: React.FC = () => {
       {/* ======================================================== */}
       {/* 3. GRÁFICA LINEAL ACUMULADA: ASISTENCIA 2026             */}
       {/* ======================================================== */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-base font-bold text-slate-900 tracking-tight">
+      <div
+        className={`${
+          mobileTab === 'curva' ? 'block' : 'hidden md:block'
+        } bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-7 shadow-sm`}
+      >
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
             Asistencia {selectedYear}
           </h3>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+          <span className="text-[11px] sm:text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
             Crecimiento acumulado
           </span>
         </div>
 
         {/* Gráfico SVG estilizado idéntico al de MatGoat */}
-        <div className="relative h-56 w-full pt-4">
+        <div className="relative h-48 sm:h-56 w-full pt-4">
           {/* Ejes Y tenues */}
           <div className="absolute inset-0 flex flex-col justify-between pointer-events-none text-[10px] font-mono text-slate-300">
             <div className="border-b border-slate-100 w-full flex justify-between pb-0.5">
@@ -246,7 +287,7 @@ export const AttendanceHistoryPage: React.FC = () => {
           </svg>
 
           {/* Etiquetas eje X */}
-          <div className="flex justify-between text-[11px] font-medium text-slate-400 mt-3 pt-1">
+          <div className="flex justify-between text-[10px] sm:text-[11px] font-medium text-slate-400 mt-3 pt-1">
             {monthlyData.map((d) => (
               <span key={d.month}>{d.month}</span>
             ))}
@@ -257,96 +298,112 @@ export const AttendanceHistoryPage: React.FC = () => {
       {/* ======================================================== */}
       {/* 4. CALENDARIOS TRIMESTRALES CON DÍAS MARCADOS EN VERDE   */}
       {/* ======================================================== */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Enero */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
-          <h4 className="font-bold text-sm text-slate-900 mb-3">Enero {selectedYear}</h4>
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px]">
-            {['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'].map((d) => (
-              <span key={d} className="text-slate-400 font-semibold py-1">
-                {d}
-              </span>
-            ))}
-            {/* Espacios previos */}
-            <span />
-            <span />
-            <span />
-            {/* Días con círculos verdes suaves como en la captura */}
-            {Array.from({ length: 31 }).map((_, i) => {
-              const day = i + 1;
-              const isAttended = [8, 10, 13, 15, 20, 22, 27].includes(day);
-              return (
-                <div key={day} className="py-1 flex items-center justify-center">
-                  <span
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
-                      isAttended
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-400 font-bold'
-                        : 'text-slate-700'
-                    }`}
-                  >
-                    {day}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+      <div className={`${mobileTab === 'meses' ? 'block' : 'hidden md:block'} space-y-2.5 md:space-y-0`}>
+        {/* Selector de mes en móvil para mostrar solo 1 calendario a la vez sin scroll */}
+        <div className="md:hidden flex items-center justify-center gap-1.5">
+          {(['Enero', 'Febrero', 'Marzo'] as const).map((mName, idx) => (
+            <button
+              key={mName}
+              type="button"
+              onClick={() => setMobileMonthIdx(idx as 0 | 1 | 2)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                mobileMonthIdx === idx ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
+              }`}
+            >
+              {mName}
+            </button>
+          ))}
         </div>
 
-        {/* Febrero */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
-          <h4 className="font-bold text-sm text-slate-900 mb-3">Febrero {selectedYear}</h4>
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px]">
-            {['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'].map((d) => (
-              <span key={d} className="text-slate-400 font-semibold py-1">
-                {d}
-              </span>
-            ))}
-            {Array.from({ length: 28 }).map((_, i) => {
-              const day = i + 1;
-              const isAttended = [3, 5, 10, 12, 17, 19, 24].includes(day);
-              return (
-                <div key={day} className="py-1 flex items-center justify-center">
-                  <span
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
-                      isAttended
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-400 font-bold'
-                        : 'text-slate-700'
-                    }`}
-                  >
-                    {day}
-                  </span>
-                </div>
-              );
-            })}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Enero */}
+          <div className={`${mobileMonthIdx === 0 ? 'block' : 'hidden md:block'} bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-sm`}>
+            <h4 className="font-bold text-sm text-slate-900 mb-3">Enero {selectedYear}</h4>
+            <div className="grid grid-cols-7 gap-1 text-center text-[11px]">
+              {['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'].map((d) => (
+                <span key={d} className="text-slate-400 font-semibold py-1">
+                  {d}
+                </span>
+              ))}
+              <span />
+              <span />
+              <span />
+              {Array.from({ length: 31 }).map((_, i) => {
+                const day = i + 1;
+                const isAttended = [8, 10, 13, 15, 20, 22, 27].includes(day);
+                return (
+                  <div key={day} className="py-0.5 sm:py-1 flex items-center justify-center">
+                    <span
+                      className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+                        isAttended
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-400 font-bold'
+                          : 'text-slate-700'
+                      }`}
+                    >
+                      {day}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Marzo */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
-          <h4 className="font-bold text-sm text-slate-900 mb-3">Marzo {selectedYear}</h4>
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px]">
-            {['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'].map((d) => (
-              <span key={d} className="text-slate-400 font-semibold py-1">
-                {d}
-              </span>
-            ))}
-            {Array.from({ length: 31 }).map((_, i) => {
-              const day = i + 1;
-              const isAttended = [2, 4, 9, 11, 16, 18, 23, 25, 30].includes(day);
-              return (
-                <div key={day} className="py-1 flex items-center justify-center">
-                  <span
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
-                      isAttended
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-400 font-bold'
-                        : 'text-slate-700'
-                    }`}
-                  >
-                    {day}
-                  </span>
-                </div>
-              );
-            })}
+          {/* Febrero */}
+          <div className={`${mobileMonthIdx === 1 ? 'block' : 'hidden md:block'} bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-sm`}>
+            <h4 className="font-bold text-sm text-slate-900 mb-3">Febrero {selectedYear}</h4>
+            <div className="grid grid-cols-7 gap-1 text-center text-[11px]">
+              {['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'].map((d) => (
+                <span key={d} className="text-slate-400 font-semibold py-1">
+                  {d}
+                </span>
+              ))}
+              {Array.from({ length: 28 }).map((_, i) => {
+                const day = i + 1;
+                const isAttended = [3, 5, 10, 12, 17, 19, 24].includes(day);
+                return (
+                  <div key={day} className="py-0.5 sm:py-1 flex items-center justify-center">
+                    <span
+                      className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+                        isAttended
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-400 font-bold'
+                          : 'text-slate-700'
+                      }`}
+                    >
+                      {day}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Marzo */}
+          <div className={`${mobileMonthIdx === 2 ? 'block' : 'hidden md:block'} bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-sm`}>
+            <h4 className="font-bold text-sm text-slate-900 mb-3">Marzo {selectedYear}</h4>
+            <div className="grid grid-cols-7 gap-1 text-center text-[11px]">
+              {['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'].map((d) => (
+                <span key={d} className="text-slate-400 font-semibold py-1">
+                  {d}
+                </span>
+              ))}
+              {Array.from({ length: 31 }).map((_, i) => {
+                const day = i + 1;
+                const isAttended = [2, 4, 9, 11, 16, 18, 23, 25, 30].includes(day);
+                return (
+                  <div key={day} className="py-0.5 sm:py-1 flex items-center justify-center">
+                    <span
+                      className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+                        isAttended
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-400 font-bold'
+                          : 'text-slate-700'
+                      }`}
+                    >
+                      {day}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

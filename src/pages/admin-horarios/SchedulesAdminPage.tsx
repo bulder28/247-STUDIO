@@ -43,7 +43,14 @@ import {
 import { LevelRequired, ScheduleDomainModel, ScheduleExceptionDomainModel } from '@/shared/domain/types';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
 
 const PROGRAM_SUGGESTIONS = [
@@ -112,6 +119,7 @@ export const SchedulesAdminPage: React.FC = () => {
 
   // Modales
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [scheduleToDelete, setScheduleToDelete] = useState<ScheduleDomainModel | null>(null);
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [formState, setFormState] = useState<{
     dayOfWeek: number;
@@ -316,15 +324,18 @@ export const SchedulesAdminPage: React.FC = () => {
     }
   };
 
-  // ACCIÓN 5: Eliminar franja horaria
-  const handleDeleteSchedule = async (s: ScheduleDomainModel) => {
-    if (!confirm(`¿Seguro que deseas eliminar la clase de ${s.program} (${s.startTime} - ${s.endTime})?`)) {
-      return;
-    }
-    setActionLoading(s.id);
+  // ACCIÓN 5: Eliminar franja horaria (Radix Dialog)
+  const handleDeleteSchedule = (s: ScheduleDomainModel) => {
+    setScheduleToDelete(s);
+  };
+
+  const handleConfirmDeleteSchedule = async () => {
+    if (!scheduleToDelete) return;
+    setActionLoading(scheduleToDelete.id);
     try {
-      await deleteDoc(doc(db, 'schedules', s.id));
+      await deleteDoc(doc(db, 'schedules', scheduleToDelete.id));
       setMessage({ text: 'Clase eliminada de la parrilla.', type: 'success' });
+      setScheduleToDelete(null);
       await fetchData();
     } catch (err) {
       console.error('Error deleting schedule:', err);
@@ -1347,6 +1358,42 @@ export const SchedulesAdminPage: React.FC = () => {
               {actionLoading === 'restore' ? 'Cargando 25 clases...' : 'Confirmar y Volcar Parrilla'}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* ======================================================== */}
+      {/* MODAL 5: CONFIRMAR ELIMINACIÓN DE CLASE (RADIX DIALOG)    */}
+      {/* ======================================================== */}
+      <Dialog open={!!scheduleToDelete} onOpenChange={(open) => !open && setScheduleToDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black uppercase text-slate-900">
+              Eliminar Clase de la Parrilla
+            </DialogTitle>
+            <DialogDescription>
+              ¿Seguro que deseas eliminar la clase de{' '}
+              <strong className="text-slate-900">{scheduleToDelete?.program}</strong> (
+              {scheduleToDelete?.startTime} - {scheduleToDelete?.endTime})? Esta acción retirará la clase de la parrilla oficial.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setScheduleToDelete(null)}
+              disabled={actionLoading === scheduleToDelete?.id}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDeleteSchedule}
+              disabled={actionLoading === scheduleToDelete?.id}
+            >
+              {actionLoading === scheduleToDelete?.id ? 'Eliminando...' : 'Eliminar Clase'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

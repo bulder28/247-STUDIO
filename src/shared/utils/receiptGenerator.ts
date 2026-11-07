@@ -2,7 +2,6 @@
  * 247 STUDIO - Official Cash / POS Receipt Generator (PDF)
  * Produces clean, professional 80mm POS thermal format or A5 receipts client-side
  */
-import { jsPDF } from 'jspdf';
 
 export interface ReceiptData {
   receiptNumber: string;
@@ -15,7 +14,8 @@ export interface ReceiptData {
   staffName?: string;
 }
 
-export function generatePosReceiptPdf(data: ReceiptData): jsPDF {
+export async function generatePosReceiptPdf(data: ReceiptData): Promise<any> {
+  const { jsPDF } = await import('jspdf');
   // 80mm standard receipt width, 140mm height
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -109,8 +109,8 @@ export function generatePosReceiptPdf(data: ReceiptData): jsPDF {
   return doc;
 }
 
-export function downloadReceiptPdf(data: ReceiptData): void {
-  const doc = generatePosReceiptPdf(data);
+export async function downloadReceiptPdf(data: ReceiptData): Promise<void> {
+  const doc = await generatePosReceiptPdf(data);
   doc.save(`Recibo_247_${data.receiptNumber}.pdf`);
 }
 

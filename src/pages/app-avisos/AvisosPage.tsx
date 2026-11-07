@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, Bell, Calendar, CheckCircle2, Info, Pin } from 'lucide-react';
+import { AlertCircle, Bell, Calendar, CheckCircle2, Pin } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { Badge } from '@/shared/ui/badge';
 
@@ -46,7 +46,6 @@ export const AvisosPage: React.FC = () => {
   ];
 
   const hasPendingPayment = userData?.paymentStatusCache === 'NOK' || userData?.paymentStatusCache === 'GRACE';
-  const hasWaiverPending = !userData?.waiverSignedAt;
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-200">
@@ -102,7 +101,7 @@ export const AvisosPage: React.FC = () => {
           <h2 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-2">
             <span>Avisos Personales</span>
             <Badge variant="secondary" className="text-[10px]">
-              {(hasPendingPayment ? 1 : 0) + (hasWaiverPending ? 1 : 0) + 1}
+              {(hasPendingPayment ? 1 : 0) + 1}
             </Badge>
           </h2>
 
@@ -113,18 +112,6 @@ export const AvisosPage: React.FC = () => {
                 <h3 className="text-sm font-bold text-rose-900">Cuota Mensual Pendiente de Regularización</h3>
                 <p className="text-xs text-rose-700">
                   Tu cuota actual requiere validación. Puedes abonarla en metálico en recepción o mediante Bizum/tarjeta en el TPV de caja.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {hasWaiverPending && (
-            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3 shadow-2xs">
-              <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-amber-900">Consentimiento y Exención de Responsabilidad Pendiente</h3>
-                <p className="text-xs text-amber-800">
-                  Por normativa del seguro deportivo, firma digitalmente la exención de responsabilidad desde tu sección de Perfil.
                 </p>
               </div>
             </div>

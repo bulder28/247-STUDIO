@@ -43,6 +43,13 @@ service cloud.firestore {
       return url is string && url.size() <= 500 && url.matches('^https://.+');
     }
 
+    function isValidPhotoUrl(url) {
+      return url is string && (
+        (url.size() <= 500 && url.matches('^https://.+')) ||
+        (url.size() <= 70000 && url.matches('^data:image/(jpeg|jpg|png|webp);base64,.+'))
+      );
+    }
+
     function isValidSvgSignature(svg) {
       return svg is string &&
         svg.size() <= 8192 &&
@@ -121,8 +128,8 @@ service cloud.firestore {
           'waiverSignatureSvg', 'waiverSignedByUid', 'updatedAt'
         ]) &&
         request.resource.data.updatedAt == request.time &&
-        // photoUrl opcional pero con HTTPS estricto
-        (!('photoUrl' in request.resource.data) || isValidHttpsUrl(request.resource.data.photoUrl)) &&
+        // photoUrl opcional pero con HTTPS estricto o base64 optimizado (< 70KB)
+        (!('photoUrl' in request.resource.data) || isValidPhotoUrl(request.resource.data.photoUrl)) &&
         // Reglas de consentimiento médico y notas (RGPD Art. 9)
         (
           // Si edita medicalNotes, el consentimiento previo no debe ser nulo o se debe otorgar ahora
@@ -331,7 +338,13 @@ service cloud.firestore {
     match /kiosk_members/{memberId} {
       // Legible por el kiosco, admin y alumnos (sin datos médicos ni privados)
       allow read: if isKiosk() || isAdmin() || isStudent();
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      // El alumno autenticado puede actualizar su propia foto y marca de tiempo
+      allow update: if isAdmin() || (
+        isUser(memberId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoUrl', 'updatedAt']) &&
+        (!('photoUrl' in request.resource.data) || isValidPhotoUrl(request.resource.data.photoUrl))
+      );
     }
 
     // =========================================================================
@@ -363,7 +376,15 @@ service cloud.firestore {
     // =========================================================================
     match /class_capacity/{capacityId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
+      allow create, update: if isAuthenticated() &&
+        request.resource.data.scheduleId is string &&
+        request.resource.data.date is string &&
+        request.resource.data.date.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+        request.resource.data.bookedCount is int &&
+        request.resource.data.bookedCount >= 0 &&
+        (!('waitlistCount' in request.resource.data) || (request.resource.data.waitlistCount is int && request.resource.data.waitlistCount >= 0)) &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.keys().hasOnly(['scheduleId', 'date', 'bookedCount', 'waitlistCount', 'updatedAt']);
       allow delete: if isAdmin();
     }
   }
