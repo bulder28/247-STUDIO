@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { ExternalLink, MessageCircle, MapPin } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { PrivacyConsentBanner } from '@/widgets/PrivacyConsentBanner';
 
 export const LandingLayout: React.FC = () => {
   const { user, userData, role } = useAuth();
@@ -150,9 +151,12 @@ export const LandingLayout: React.FC = () => {
                   Instagram @_247studio
                 </a>
               </li>
-              <li className="pt-2">
-                <Link to="/terminos" className="text-xs text-brand-background/60 hover:text-white">
-                  Términos y Privacidad
+              <li className="pt-2 flex flex-col gap-1">
+                <Link to="/privacidad" className="text-xs text-brand-background/70 hover:text-white transition-colors">
+                  🛡️ Política de Privacidad & RGPD
+                </Link>
+                <Link to="/terminos" className="text-xs text-brand-background/60 hover:text-white transition-colors">
+                  Términos y Condiciones
                 </Link>
               </li>
             </ul>
@@ -163,6 +167,9 @@ export const LandingLayout: React.FC = () => {
           <p>© {new Date().getFullYear()} 247Studio | Unlimited Grappling. Todos los derechos reservados.</p>
         </div>
       </footer>
+
+      {/* Banner flotante de Privacidad y Cumplimiento RGPD */}
+      <PrivacyConsentBanner />
     </div>
   );
 };
