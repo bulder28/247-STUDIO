@@ -1,11 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { Bell, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  Bell,
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
+  Flame,
+  QrCode,
+  Users,
+} from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { derivePaymentStatus } from '@/shared/domain/payment-status';
-import { DEFAULT_OFFICIAL_SCHEDULES, getNextClass, isClassInProgress } from '@/shared/domain/schedule';
+import {
+  DEFAULT_OFFICIAL_SCHEDULES,
+  getNextClass,
+  isClassInProgress,
+} from '@/shared/domain/schedule';
 import {
   BookingDomainModel,
   DerivedPaymentStatus,
@@ -14,8 +27,19 @@ import {
   ScheduleDomainModel,
   ScheduleExceptionDomainModel,
 } from '@/shared/domain/types';
-import { FighterCard } from '@/widgets/FighterCard';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/shared/ui/card';
+import { Dialog, DialogContent } from '@/shared/ui/dialog';
+import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { BeltProgressionCard } from '@/widgets/BeltProgressionCard';
+import { FighterCard } from '@/widgets/FighterCard';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 
 export const HomePage: React.FC = () => {
@@ -93,8 +117,8 @@ export const HomePage: React.FC = () => {
 
   if (loading || !userData) {
     return (
-      <div className="py-20 flex justify-center items-center">
-        <div className="w-8 h-8 border-3 border-brand-accent border-t-transparent rounded-full animate-spin" />
+      <div className="py-24 flex justify-center items-center">
+        <div className="w-9 h-9 border-3 border-studio-red border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -107,258 +131,282 @@ export const HomePage: React.FC = () => {
   const isClassActive = !!activeClass;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="space-y-6 pb-10"
+    >
       {/* ======================================================== */}
-      {/* 1. ENCABEZADO ESTILO MATGOAT (Saludo + Nombre + Academia) */}
+      {/* 1. ENCABEZADO CON SHADCN / ATHLETIC TYPOGRAPHY          */}
       {/* ======================================================== */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-          {getGreeting()}, {userData.alias} 👋
-        </h1>
-        <p className="text-sm text-slate-500 font-medium mt-0.5">
-          247Studio · Pinto (Madrid Sur)
-        </p>
-      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              {getGreeting()}, {userData.alias}
+            </h1>
+            <span className="text-xl">🥋</span>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+            247Studio · Academia de Brazilian Jiu-Jitsu en Pinto (Madrid)
+          </p>
+        </div>
 
-      {/* Selector de pestañas segmentado estilo MatGoat */}
-      <div className="inline-flex p-1 bg-slate-200/70 rounded-xl">
-        <button
-          onClick={() => setActiveTab('academia')}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
-            activeTab === 'academia'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          Mi academia
-        </button>
-        <button
-          onClick={() => setActiveTab('entrenamiento')}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
-            activeTab === 'entrenamiento'
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          Entrenamiento
-        </button>
+        {/* Radix / Shadcn Tabs Selector */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-auto">
+          <TabsList className="bg-slate-100 border border-slate-200/80">
+            <TabsTrigger value="academia">Mi Academia</TabsTrigger>
+            <TabsTrigger value="entrenamiento">Ficha & Progresión</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {activeTab === 'academia' ? (
         <>
           {/* ======================================================== */}
-          {/* 2. DOS TARJETAS PRINCIPALES (Próximas clases & Pendiente) */}
+          {/* 2. BENTO GRID: PRÓXIMAS CLASES & RADAR DE SOCIO           */}
           {/* ======================================================== */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Tarjeta Izquierda: Próximas clases */}
-            <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-5">
-                  <h3 className="font-bold text-slate-900 text-base">Próximas clases</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Bento Card 1: Próximas Clases & Check-In */}
+            <Card className="lg:col-span-7 flex flex-col justify-between overflow-hidden relative group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-radial from-red-500/5 to-transparent pointer-events-none rounded-full blur-2xl" />
+
+              <CardHeader className="border-b border-slate-100 pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-studio-red" />
+                    <CardTitle className="text-sm">Próximas Sesiones de Tatami</CardTitle>
+                  </div>
                   <Link
                     to="/app/horario"
-                    className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
+                    className="text-xs font-bold text-slate-500 hover:text-slate-900 transition flex items-center gap-0.5"
                   >
-                    Calendario
+                    <span>Ver Horario</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
+              </CardHeader>
 
-                <div className="mb-6">
-                  <span className="text-xs font-semibold text-slate-400 block mb-1">
-                    {isClassActive ? 'En curso ahora' : 'Hoy'}
-                  </span>
-                  <div className="text-4xl font-extrabold text-slate-900 font-mono tracking-tight">
-                    {displayClass ? `${displayClass.startTime} – ${displayClass.endTime}` : '10:00 – 11:30'}
+              <CardContent className="pt-5 space-y-5">
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Badge variant={isClassActive ? 'destructive' : 'secondary'}>
+                      {isClassActive ? '● En curso ahora' : 'Próxima clase de hoy'}
+                    </Badge>
+                    <span className="text-xs text-slate-500 font-medium">
+                      {displayClass?.room || 'Tatami Principal'}
+                    </span>
                   </div>
 
-                  <div className="mt-2.5 flex items-center gap-2 text-xs font-bold text-slate-800">
-                    <span className={`w-2.5 h-2.5 rounded-full ${isClassActive ? 'bg-emerald-500 animate-ping' : 'bg-emerald-500'}`} />
-                    <span>Todos los niveles</span>
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                    {displayClass ? `${displayClass.startTime} – ${displayClass.endTime}` : '19:30 – 21:00'}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-800">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                    <span>{displayClass?.program || 'BJJ Gi & Grappling'}</span>
                     <span className="text-slate-300">•</span>
-                    <span className="text-slate-600">{displayClass?.program || 'BJJ Gi & Grappling'}</span>
+                    <span className="text-slate-500 font-normal">
+                      Prof. {displayClass?.professor || 'Mario Rodríguez'}
+                    </span>
                   </div>
+                </div>
 
-                  <p className="mt-1 text-xs text-slate-500 font-medium">
-                    Prof. {displayClass?.professor || 'Mario Rodríguez'}
-                  </p>
-
-                  <div className="mt-5">
-                    {role === 'admin' ? (
-                      <Link
-                        to="/admin/asistencia"
-                        className="inline-flex items-center justify-center px-4 py-2.5 bg-[#1A1D2E] hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition shadow-sm"
-                      >
-                        Ver asistencia
+                <div className="pt-2 flex flex-wrap gap-2.5">
+                  {role === 'admin' ? (
+                    <Button asChild variant="studio">
+                      <Link to="/admin/asistencia">
+                        <span>Gestionar Asistencia Tatami</span>
                       </Link>
-                    ) : (
-                      <button
-                        onClick={() => setShowQrModal(true)}
-                        className="inline-flex items-center justify-center px-4 py-2.5 bg-[#1A1D2E] hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition shadow-sm"
-                      >
-                        Ver pase de check-in
-                      </button>
-                    )}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="studio"
+                      onClick={() => setShowQrModal(true)}
+                      className="gap-1.5"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      <span>Ver Pase Check-In (QR)</span>
+                    </Button>
+                  )}
+
+                  <Button asChild variant="outline">
+                    <Link to="/app/horario">
+                      <span>Ver Calendario Semanal</span>
+                    </Link>
+                  </Button>
+                </div>
+
+                {/* Sesiones adicionales */}
+                <div className="border-t border-slate-100 pt-3 space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Otras sesiones programadas hoy:
+                  </span>
+                  {schedules.slice(1, 3).map((s) => (
+                    <Link
+                      key={s.id}
+                      to="/app/horario"
+                      className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl hover:bg-slate-50 transition border border-transparent hover:border-slate-200/60"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-slate-300" />
+                        <span className="font-bold text-slate-900">{s.program}</span>
+                      </div>
+                      <span className="font-mono text-slate-500 text-[11px]">
+                        {s.startTime} - {s.endTime}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bento Card 2: Estado del Atleta & Accesos Rápidos */}
+            <Card className="lg:col-span-5 flex flex-col justify-between">
+              <CardHeader className="border-b border-slate-100 pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-slate-700" />
+                    <CardTitle className="text-sm">Panel del Socio</CardTitle>
                   </div>
+                  <Badge variant="outline" className="font-mono text-[10px]">
+                    {userData.pricingTier || 'STD'}
+                  </Badge>
                 </div>
-              </div>
+              </CardHeader>
 
-              {/* Clases subsiguientes de hoy */}
-              <div className="border-t border-slate-100 pt-4 space-y-2">
-                {schedules.slice(1, 3).map((s) => (
-                  <Link
-                    key={s.id}
-                    to="/app/horario"
-                    className="flex items-center justify-between text-xs py-2 px-1 rounded-lg hover:bg-slate-50 transition"
-                  >
-                    <div>
-                      <span className="font-bold text-slate-900 block">{s.program}</span>
-                      <span className="text-slate-400 text-[11px]">Hoy · {s.startTime} - {s.endTime}</span>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300" />
-                  </Link>
-                ))}
-              </div>
-            </div>
+              <CardContent className="pt-5 space-y-4">
+                {/* Estado de cuota */}
+                <Link
+                  to="/app/programas"
+                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 hover:bg-slate-100/70 border border-slate-200/60 transition group"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block group-hover:text-studio-red transition">
+                      Cuota Mensual
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Membresía oficial 247Studio
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant={derivedStatus === 'OK' ? 'success' : 'warning'}>
+                      {derivedStatus === 'OK' ? 'Al día' : 'Pendiente'}
+                    </Badge>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition" />
+                  </div>
+                </Link>
 
-            {/* Tarjeta Derecha: Pendiente de revisar estilo MatGoat */}
-            <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-5">
-                  <h3 className="font-bold text-slate-900 text-base">Pendiente de revisar</h3>
-                  <Bell className="w-4 h-4 text-slate-400" />
-                </div>
+                {/* Asistencias acumuladas */}
+                <Link
+                  to="/app/historial"
+                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 hover:bg-slate-100/70 border border-slate-200/60 transition group"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block group-hover:text-studio-red transition">
+                      Horas de Tatami Este Mes
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Entrenamientos y sparrings
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-black text-sm text-slate-900 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                      {bookings.length} clases
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition" />
+                  </div>
+                </Link>
 
-                <div className="space-y-4">
-                  {/* Fila 1: Estado de cuota */}
-                  <Link to="/app/programas" className="flex items-center justify-between group py-1">
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 group-hover:text-brand-accent transition">
-                        Estado de membresía
-                      </p>
-                      <p className="text-[11px] text-slate-400">Cuota activa 247Studio</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                        derivedStatus === 'OK'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {derivedStatus === 'OK' ? 'Al día' : 'Pendiente'}
-                      </span>
-                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 transition" />
-                    </div>
-                  </Link>
-
-                  {/* Fila 2: Mensajes sin leer */}
-                  <Link to="/app/avisos" className="flex items-center justify-between group py-1">
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 group-hover:text-brand-accent transition">
-                        Mensajes sin leer
-                      </p>
-                      <p className="text-[11px] text-slate-400">Anuncios y avisos del tatami</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full text-[11px] font-bold bg-[#1A1D2E] text-white flex items-center justify-center">
-                        3
-                      </span>
-                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 transition" />
-                    </div>
-                  </Link>
-
-                  {/* Fila 3: Asistencias del mes */}
-                  <Link to="/app/horario" className="flex items-center justify-between group py-1">
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 group-hover:text-brand-accent transition">
-                        Asistencias este mes
-                      </p>
-                      <p className="text-[11px] text-slate-400">Clases registradas</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 font-mono">
-                        {bookings.length}
-                      </span>
-                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 transition" />
-                    </div>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Sección inferior: ACCESOS RÁPIDOS */}
-              <div className="pt-5 border-t border-slate-100 mt-6">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2.5">
-                  Accesos rápidos
-                </span>
-                <div className="space-y-1">
-                  <Link
-                    to="/app/programas"
-                    className="flex items-center justify-between text-xs font-semibold text-slate-700 hover:text-slate-900 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition"
-                  >
-                    <span>Pagos y Cuotas</span>
-                    <ChevronRight className="w-4 h-4 text-slate-300" />
-                  </Link>
-                  <Link
-                    to="/app/horario"
-                    className="flex items-center justify-between text-xs font-semibold text-slate-700 hover:text-slate-900 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition"
-                  >
-                    <span>Horario semanal</span>
-                    <ChevronRight className="w-4 h-4 text-slate-300" />
-                  </Link>
-                </div>
-              </div>
-            </div>
+                {/* Avisos */}
+                <Link
+                  to="/app/avisos"
+                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 hover:bg-slate-100/70 border border-slate-200/60 transition group"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block group-hover:text-studio-red transition">
+                      Tablón de Anuncios
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Comunicaciones de Mario & David
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="default" className="text-[10px]">
+                      3 nuevos
+                    </Badge>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition" />
+                  </div>
+                </Link>
+              </CardContent>
+            </Card>
           </div>
 
           {/* ======================================================== */}
-          {/* 3. FILA DE 3 CONTADORES INFERIORES ESTILO MATGOAT        */}
+          {/* 3. FILA BENTO GRID: MÉTRICAS Y COMUNIDAD                 */}
           {/* ======================================================== */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
-              <span className="text-xs text-slate-400 font-medium block">Clases esta semana</span>
-              <div className="text-3xl font-extrabold text-slate-900 mt-1 font-mono tracking-tight">
-                14 clases
-              </div>
-              <span className="text-[11px] text-emerald-600 font-semibold mt-1 block">
-                Tatami activo Lunes a Viernes
-              </span>
-            </div>
+            <Card className="hover:border-slate-300 transition-all">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                  Horario Semanal Activo
+                </CardDescription>
+                <CardTitle className="text-2xl font-mono">14 Clases</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Sesiones de Gi, No-Gi & Kids
+                </span>
+              </CardContent>
+            </Card>
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
-              <span className="text-xs text-slate-400 font-medium block">Alumnos que han asistido este mes</span>
-              <div className="text-3xl font-extrabold text-slate-900 mt-1 font-mono tracking-tight">
-                48 alumnos
-              </div>
-              <span className="text-[11px] text-slate-500 font-medium mt-1 block">
-                Comunidad 247Studio Pinto
-              </span>
-            </div>
+            <Card className="hover:border-slate-300 transition-all">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                  Comunidad de Tatami
+                </CardDescription>
+                <CardTitle className="text-2xl font-mono">48 Atletas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <span className="text-[11px] text-slate-600 font-medium flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5 text-blue-600" /> Compañeros activos en Pinto
+                </span>
+              </CardContent>
+            </Card>
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
-              <span className="text-xs text-slate-400 font-medium block">Nuevos alumnos este mes</span>
-              <div className="text-3xl font-extrabold text-slate-900 mt-1 font-mono tracking-tight">
-                12 altas
-              </div>
-              <span className="text-[11px] text-emerald-600 font-semibold mt-1 block">
-                Clases de prueba activas
-              </span>
-            </div>
+            <Card className="hover:border-slate-300 transition-all">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                  Racha y Progresión
+                </CardDescription>
+                <CardTitle className="text-2xl font-mono flex items-center gap-1.5 text-amber-600">
+                  <Flame className="w-6 h-6 fill-amber-500 text-amber-600" />
+                  <span>+25 XP / Clase</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <span className="text-[11px] text-amber-700 font-bold">
+                  Suma horas para tu próximo grado
+                </span>
+              </CardContent>
+            </Card>
           </div>
         </>
       ) : (
         /* Pestaña de Entrenamiento: Ficha de Atleta, Gamificación y Atributos */
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in duration-200">
           <BeltProgressionCard user={userData} bookings={bookings} />
           <FighterCard user={userData} />
         </div>
       )}
 
-      {/* Modal Pase QR */}
-      {showQrModal && userData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm relative">
-            <QrCodePassCard user={userData} onClose={() => setShowQrModal(false)} />
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Radix Dialog: Modal Pase QR */}
+      <Dialog open={showQrModal} onOpenChange={setShowQrModal}>
+        <DialogContent className="max-w-xs p-0 border-0 bg-transparent shadow-none">
+          {userData && <QrCodePassCard user={userData} onClose={() => setShowQrModal(false)} />}
+        </DialogContent>
+      </Dialog>
+    </motion.div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { UserDomainModel } from '@/shared/domain/types';
 import { Belt, beltLabelEs } from '@/widgets/Belt';
 
@@ -141,9 +142,12 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
   const scaleClass = size === 'sm' ? 'w-[220px]' : size === 'lg' ? 'w-[320px]' : 'w-[270px]';
 
   return (
-    <div
+    <motion.div
       onClick={onClick}
-      className={`group relative select-none cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] ${scaleClass} ${className}`}
+      whileHover={{ y: -6, scale: 1.025 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      className={`group relative select-none cursor-pointer transition-shadow ${scaleClass} ${className}`}
     >
       {/* ======================================================== */}
       {/* SILUETA ESCUDO FIFA ULTIMATE TEAM (SVG MASK & BORDER)    */}
@@ -155,6 +159,11 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
             'polygon(14% 0%, 86% 0%, 100% 8%, 100% 90%, 50% 100%, 0% 90%, 0% 8%)',
         }}
       >
+        {/* Reflejo brillante holográfico / Foil sheen en hover */}
+        <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+          <div className="w-[200%] h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+        </div>
+
         {/* Textura Láser / Diagonal Sheen estilo FIFA */}
         <div
           className="absolute inset-0 pointer-events-none opacity-25 mix-blend-overlay"
@@ -307,6 +316,6 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
