@@ -55,3 +55,72 @@ export function exportStudentsToCsv(students: UserDomainModel[]) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Exporta el Libro de Ingresos y Facturación para la Gestoría / Asesoría Fiscal
+ * con desglose exacto de Base Imponible e IVA repercutido (21%).
+ */
+export function exportPaymentsToGestoriaCsv(
+  payments: any[],
+  users: UserDomainModel[],
+  period: string
+) {
+  const headers = [
+    'ID Recibo',
+    'Fecha',
+    'Periodo',
+    'Alumno / Cliente',
+    'Email',
+    'Teléfono',
+    'Concepto',
+    'Canal de Pago',
+    'Base Imponible (€)',
+    '% IVA',
+    'Cuota IVA (€)',
+    'Total Factura (€)',
+    'Estado Liquidación',
+  ];
+
+  const userMap = new Map<string, UserDomainModel>();
+  users.forEach((u) => userMap.set(u.uid, u));
+
+  const rows = payments.map((p) => {
+    const student = userMap.get(p.uid);
+    const amountEur = ((p.amountCents || 0) / 100).toFixed(2);
+    const baseEur = ((p.baseCents || 0) / 100).toFixed(2);
+    const vatEur = ((p.vatCents || 0) / 100).toFixed(2);
+    const payDate = p.createdAt || p.paidAt;
+    const dateStr = payDate
+      ? new Date(payDate.toDate ? payDate.toDate() : payDate).toLocaleDateString('es-ES')
+      : 'N/D';
+
+    return [
+      `"REC-${(p.id || '').substring(0, 8).toUpperCase()}"`,
+      `"${dateStr}"`,
+      `"${p.period || period}"`,
+      `"${(student?.alias || p.uid).replace(/"/g, '""')}"`,
+      `"${student?.contactEmail || ''}"`,
+      `"${student?.phone || ''}"`,
+      `"Cuota ${p.billingType || 'MENSUAL'} 247Studio"`,
+      `"${p.method || 'CASH'}"`,
+      baseEur,
+      '21%',
+      vatEur,
+      amountEur,
+      `"${p.status === 'APPROVED' ? 'LIQUIDADO' : 'PENDIENTE'}"`,
+    ];
+  });
+
+  const csvContent =
+    '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Libro_Caja_247Studio_${period}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+

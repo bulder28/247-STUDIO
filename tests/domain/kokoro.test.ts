@@ -57,6 +57,11 @@ describe('Dominio Puro: Cerebro de KOKORO AI', () => {
       expect(interpretKokoroIntent('cuántos leads y clases de prueba tenemos', 'admin')).toBe('LEADS_TRIALS');
       expect(interpretKokoroIntent('cuánto peso para la categoría medio pesado ibjjf', 'student')).toBe('COMPETITION_WEIGHT');
     });
+
+    it('detecta GITHUB_OPEN_SOURCE_TOOLS y BUSINESS_GROWTH_MARKETING', () => {
+      expect(interpretKokoroIntent('¿Qué repos o librerías en github recomiendas?', 'admin')).toBe('GITHUB_OPEN_SOURCE_TOOLS');
+      expect(interpretKokoroIntent('estrategias de marketing para captar alumnos nuevos', 'admin')).toBe('BUSINESS_GROWTH_MARKETING');
+    });
   });
 
   describe('Generador de Respuestas Grounded (generateKokoroResponse)', () => {

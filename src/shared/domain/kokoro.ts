@@ -19,6 +19,8 @@ export type KokoroIntentType =
   | 'AUTONOMOUS_OPERATIONS'
   | 'LEADS_TRIALS'
   | 'COMPETITION_WEIGHT'
+  | 'GITHUB_OPEN_SOURCE_TOOLS'
+  | 'BUSINESS_GROWTH_MARKETING'
   | 'GENERAL_KOKORO';
 
 export interface KokoroContext {
@@ -227,7 +229,7 @@ export function interpretKokoroIntent(query: string, role: KokoroRole): KokoroIn
   if (
     q.includes('chancla') ||
     q.includes('kimono') ||
-    q.includes('gi') ||
+    /\bgi\b/.test(q) ||
     q.includes('higiene') ||
     q.includes('uñas') ||
     q.includes('norma') ||
@@ -267,6 +269,33 @@ export function interpretKokoroIntent(query: string, role: KokoroRole): KokoroIn
     q.includes('crres')
   ) {
     return 'IMPROVEMENTS_FEEDBACK';
+  }
+
+  // 17. Repositorios de GitHub, librerías y open-source
+  if (
+    q.includes('repo') ||
+    q.includes('repos') ||
+    q.includes('github') ||
+    q.includes('libreria') ||
+    q.includes('librería') ||
+    q.includes('open source') ||
+    q.includes('skills')
+  ) {
+    return 'GITHUB_OPEN_SOURCE_TOOLS';
+  }
+
+  // 18. Marketing, captación y crecimiento de negocio
+  if (
+    q.includes('captar') ||
+    q.includes('vender') ||
+    q.includes('marketing') ||
+    q.includes('publicidad') ||
+    q.includes('campaña') ||
+    q.includes('conseguir alumnos') ||
+    q.includes('crecer gimnasio') ||
+    q.includes('estrategia')
+  ) {
+    return 'BUSINESS_GROWTH_MARKETING';
   }
 
   return 'GENERAL_KOKORO';
@@ -557,6 +586,30 @@ export function generateKokoroResponse(
       };
     }
 
+    case 'GITHUB_OPEN_SOURCE_TOOLS': {
+      return {
+        intent,
+        badge: 'REPOSITORIOS & SKILLS',
+        text: `Oss Mario y David. Para robustecer 247Studio como una plataforma de clase mundial sin reinventar la rueda, recomiendo apoyarse en estas librerías y repositorios open-source de alto estándar:\n\n1. 📄 jspdf + html2canvas: Generación en cliente de justificantes oficiales con desglose de IVA y diplomas de graduación.\n2. 📊 Chart.js / Vega-Lite: Gráficas de asistencia semanal, evolución de MRR y mapa de calor de horas de tatami.\n3. ✂️ cropperjs: Recorte circular y centrado facial automático para las cartas FIFA Ultimate Team de los atletas.\n4. 📅 dayjs + timezone: Tratamiento exacto de horarios y periodos de facturación en zona horaria Madrid (CET).\n5. 🛡️ Zod: Validación de contratos de datos para exenciones de responsabilidad médica y menores de edad.`,
+        action: {
+          type: 'NONE',
+        },
+      };
+    }
+
+    case 'BUSINESS_GROWTH_MARKETING': {
+      return {
+        intent,
+        badge: 'ESTRATEGIA & CRECIMIENTO',
+        text: `Estrategia de Captación & Crecimiento para 247Studio (Pinto):\n\n1. 🥋 Funnel de Clase de Prueba con WhatsApp: Cada interesado de Instagram o Google recibe confirmación inmediata y recordatorio 3 horas antes.\n2. 🤝 Programa 'Hermano de Tatami' (Referrals): 10 € de descuento en la siguiente mensualidad al alumno que traiga un amigo que formalice su alta.\n3. 🏫 Clínicas de Iniciación & Defensa Personal Femenina los sábados: Eventos abiertos gratuitos para generar notoriedad de marca local en Pinto y comarca.\n4. ⭐ Reseñas en Google Maps: Solicitar 5 estrellas a los alumnos cuando alcancen su primer grado o cinturón azul.`,
+        action: {
+          type: 'NAVIGATE',
+          label: 'Ver Embudo de Leads',
+          url: '/admin/leads',
+        },
+      };
+    }
+
     case 'GENERAL_KOKORO':
     default: {
       if (context.role === 'admin') {
@@ -569,7 +622,7 @@ export function generateKokoroResponse(
         return {
           intent: 'GENERAL_KOKORO',
           badge: 'KOKORO COPILOTO',
-          text: `Oss Mario y David. Estado del Dojo: ${total} atletas activos registrados (${frozen} en pausa por lesión). Ingresos registrados este mes: ${revenue} €. Puedo guiaros en altas de alumnos, pausas de cuota, arqueo de caja efectivo/Bizum, graduaciones o mejoras. ¿Qué deseáis gestionar ahora?`,
+          text: `Oss Mario y David. Estado del Dojo: ${total} atletas activos registrados (${frozen} en pausa por lesión). Facturación estimada: ${revenue} €. Puedo guiaros en:\n\n- 👥 Censo & Alumnos: altas, bajas, pausas deportivas (freeze) y cartas FIFA.\n- 💵 Caja & Finanzas: cobro TPV mostrador, arqueo y CSV para gestoría.\n- 📅 Horarios: cuadrante semanal de clases Gi, No-Gi y Kids.\n- 🎯 Leads: embudo de clases de prueba y WhatsApp automático.\n- 💡 Kaizen: ideas de marketing y mejoras operativas.\n¿Qué área necesitáis gestionar?`,
         };
       }
 

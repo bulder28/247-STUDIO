@@ -32,7 +32,7 @@ export type PricingTier = 'STD' | 'SF' | 'FAM';
 
 export type BillingType = 'MONTHLY' | 'PASS' | 'DROP_IN';
 
-export type PaymentMethod = 'BIZUM' | 'CASH';
+export type PaymentMethod = 'BIZUM' | 'CASH' | 'CARD';
 
 export type PaymentStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
 
@@ -113,6 +113,9 @@ export interface PaymentDomainModel {
   method: PaymentMethod;
   status: PaymentStatus;
   billingType: BillingType;
+  concept?: string;
+  notes?: string;
+  paidAt?: any;
   bookingId?: string;
   sessionsIncluded?: number;
   amountCents?: number;
