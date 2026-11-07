@@ -19,7 +19,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Filter,
   LayoutGrid,
   List,
   MapPin,
@@ -145,19 +144,77 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
 export interface DisciplineFilterItem {
   id: string;
   label: string;
-  image?: string;
-  icon?: string;
+  short: string;
+  subtitle: string;
+  image: string;
+  icon: string;
 }
 
 export const DISCIPLINE_FILTERS: DisciplineFilterItem[] = [
-  { id: 'TODAS', label: 'TODAS', icon: '⚡' },
-  { id: 'GI', label: 'GI', image: '/galeria/bjj/bjj9.webp' },
-  { id: 'GRAPPLING', label: 'GRAPPLING', image: '/galeria/grappling/grappling11.webp' },
-  { id: 'MMA', label: 'MMA', image: '/galeria/grappling/grappling1.webp' },
-  { id: 'LUCHA', label: 'LUCHA', image: '/galeria/lucha/lucha5.webp' },
-  { id: 'KIDS', label: 'KIDS', image: '/galeria/kids/kids1.webp' },
-  { id: 'BJJ FEM', label: 'BJJ FEM', image: '/galeria/bjj/bjj11.webp' },
-  { id: 'OPEN MAT', label: 'OPEN MAT', image: '/galeria/bjj/bjj1.webp' },
+  {
+    id: 'TODAS',
+    label: 'Todas las Clases',
+    short: 'TODAS',
+    subtitle: 'Todo el Horario',
+    icon: '⚡',
+    image: '/herobackground.webp',
+  },
+  {
+    id: 'GI',
+    label: 'Brazilian Jiu-Jitsu',
+    short: 'BJJ GI',
+    subtitle: 'Kimono tradicional',
+    icon: '🥋',
+    image: '/galeria/bjj/bjj9.webp',
+  },
+  {
+    id: 'GRAPPLING',
+    label: 'Grappling & No-Gi',
+    short: 'NO-GI',
+    subtitle: 'Lucha sin kimono',
+    icon: '🤼',
+    image: '/galeria/grappling/grappling11.webp',
+  },
+  {
+    id: 'MMA',
+    label: 'MMA & Striking',
+    short: 'MMA',
+    subtitle: 'Golpeo y derribos',
+    icon: '🥊',
+    image: '/galeria/grappling/grappling1.webp',
+  },
+  {
+    id: 'LUCHA',
+    label: 'Lucha Olímpica',
+    short: 'LUCHA',
+    subtitle: 'Wrestling & control',
+    icon: '🤼‍♂️',
+    image: '/galeria/lucha/lucha5.webp',
+  },
+  {
+    id: 'KIDS',
+    label: 'Infantil (Kids)',
+    short: 'KIDS',
+    subtitle: '3 a 14 años',
+    icon: '👶',
+    image: '/galeria/kids/kids1.webp',
+  },
+  {
+    id: 'BJJ FEM',
+    label: 'BJJ Femenino',
+    short: 'BJJ FEM',
+    subtitle: 'Tatami femenino',
+    icon: '🥋',
+    image: '/galeria/bjj/bjj11.webp',
+  },
+  {
+    id: 'OPEN MAT',
+    label: 'Open Mat Libre',
+    short: 'OPEN MAT',
+    subtitle: 'Sparring entre socios',
+    icon: '⚡',
+    image: '/galeria/bjj/bjj1.webp',
+  },
 ];
 
 export function getActivityCategory(program: string): ActivityCategory {
@@ -1216,13 +1273,30 @@ export const SchedulePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Barra de Filtros Rápida estilo Madrid Móvil (Disciplinas con Imagen Real + Franja Horaria) */}
-          <div className="bg-white border border-slate-200/80 rounded-3xl p-3 sm:p-4 shadow-sm space-y-2.5">
-            {/* Tira horizontal de disciplinas con fotografías reales */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none py-0.5">
-              <div className="p-2 rounded-2xl bg-slate-100 text-slate-500 shrink-0" title="Filtrar por actividad">
-                <Filter className="w-3.5 h-3.5" />
+          {/* Carrusel Visual de Actividades Deportivas (Imágenes Grandes estilo Madrid Móvil) */}
+          <div className="bg-white border border-slate-200/80 rounded-3xl p-3 sm:p-5 shadow-sm space-y-3.5">
+            <div className="flex items-center justify-between px-1">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 block">
+                  Explorar por Disciplina
+                </span>
+                <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase">
+                  Actividades Disponibles
+                </h3>
               </div>
+              {selectedDiscipline !== 'TODAS' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDiscipline('TODAS')}
+                  className="px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition cursor-pointer"
+                >
+                  ✕ Ver todas
+                </button>
+              )}
+            </div>
+
+            {/* Carrusel Horizontal de Tarjetas Visuales Grandes */}
+            <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1 scrollbar-none px-0.5">
               {DISCIPLINE_FILTERS.map((disc) => {
                 const isSelected = selectedDiscipline === disc.id;
                 return (
@@ -1232,27 +1306,47 @@ export const SchedulePage: React.FC = () => {
                     onClick={() => setSelectedDiscipline(disc.id)}
                     aria-pressed={isSelected}
                     aria-label={`Filtrar por disciplina ${disc.label}`}
-                    className={`group flex items-center gap-2 pl-1 pr-3 py-1 rounded-2xl text-[11px] font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer ${
+                    className={`group relative shrink-0 w-32 sm:w-44 h-40 sm:h-52 rounded-2xl overflow-hidden text-left transition-all duration-200 cursor-pointer ${
                       isSelected
-                        ? 'bg-slate-950 text-white shadow-md ring-2 ring-slate-900 scale-102'
-                        : 'bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                        ? 'ring-4 ring-amber-400 shadow-xl scale-[1.03] z-10'
+                        : 'border border-slate-200/90 shadow-sm opacity-90 hover:opacity-100 hover:scale-[1.02]'
                     }`}
                   >
-                    {disc.image ? (
-                      <div className="w-6 h-6 rounded-xl overflow-hidden shrink-0 border border-black/10 shadow-xs bg-slate-200">
-                        <img
-                          src={disc.image}
-                          alt={disc.label}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
-                          loading="lazy"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-6 h-6 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 text-[11px] font-black shadow-xs">
-                        ⚡
-                      </div>
-                    )}
-                    <span>{disc.label}</span>
+                    {/* Fotografía Grande de Fondo */}
+                    <img
+                      src={disc.image}
+                      alt={disc.label}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 filter brightness-90"
+                      loading="lazy"
+                    />
+
+                    {/* Gradiente Oscuro para Legibilidad */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+
+                    {/* Insignia Superior */}
+                    <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-10">
+                      <span className="w-8 h-8 rounded-xl bg-slate-950/75 backdrop-blur-xs text-white flex items-center justify-center text-sm shadow-sm border border-white/10">
+                        {disc.icon}
+                      </span>
+                      {isSelected && (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-md">
+                          ✓ ACTIVO
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Texto Inferior */}
+                    <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block font-mono">
+                        {disc.short}
+                      </span>
+                      <h4 className="text-xs sm:text-sm font-black text-white uppercase leading-tight font-headline">
+                        {disc.label}
+                      </h4>
+                      <p className="text-[10px] text-slate-300 font-medium truncate mt-0.5">
+                        {disc.subtitle}
+                      </p>
+                    </div>
                   </button>
                 );
               })}
@@ -1996,36 +2090,44 @@ export const SchedulePage: React.FC = () => {
             <div className="space-y-6">
               {groupedByActivity.map(({ category, schedules: catSchedules }) => (
                 <div key={category.id} className="space-y-3">
-                  {/* Cabecera de Categoría de Actividad con Fotografía Real */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-900 text-white shadow-sm border border-slate-800">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-amber-400/50 shadow-xs bg-slate-800">
-                        <img
-                          src={category.image}
-                          alt={category.name}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-base">{category.icon}</span>
-                          <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-tight truncate font-headline">
-                            {category.name}
-                          </h3>
-                        </div>
-                        <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">
-                          {category.description}
-                        </p>
+                  {/* Cabecera de Categoría de Actividad con Banner Fotográfico Grande */}
+                  <div className="relative overflow-hidden rounded-3xl h-40 sm:h-52 text-white shadow-lg border border-slate-800 flex flex-col justify-end p-4 sm:p-6 group">
+                    {/* Foto Grande de Fondo a Sangre */}
+                    <img
+                      src={category.image}
+                      alt={category.name}
+                      className="absolute inset-0 w-full h-full object-cover object-center filter brightness-75 contrast-105 group-hover:scale-105 transition-transform duration-700"
+                      loading="lazy"
+                    />
+
+                    {/* Overlay Deportivo */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/20" />
+
+                    {/* Insignias Superiores */}
+                    <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between z-10">
+                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-950/80 backdrop-blur-xs text-white border border-white/20 shadow-sm flex items-center gap-1.5">
+                        <span className="text-base">{category.icon}</span>
+                        <span>{category.short}</span>
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-md">
+                          Aforo {category.defaultCapacity} plazas
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-slate-900/90 text-slate-200 border border-slate-700">
+                          {catSchedules.length} {catSchedules.length === 1 ? 'clase' : 'clases'} hoy
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                      <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-amber-400 text-slate-950 shadow-xs">
-                        Aforo máx. {category.defaultCapacity} plazas
-                      </span>
-                      <span className="text-[11px] font-mono font-bold text-slate-300 bg-slate-800/90 px-2.5 py-1 rounded-xl border border-slate-700">
-                        {catSchedules.length} {catSchedules.length === 1 ? 'clase' : 'clases'}
-                      </span>
+
+                    {/* Título y Descripción Inferior */}
+                    <div className="relative z-10">
+                      <h3 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight font-headline drop-shadow-md">
+                        {category.name}
+                      </h3>
+                      <p className="text-xs text-slate-200 font-medium max-w-xl mt-1 drop-shadow-xs line-clamp-1 sm:line-clamp-none">
+                        {category.description}
+                      </p>
                     </div>
                   </div>
 
@@ -2062,28 +2164,31 @@ export const SchedulePage: React.FC = () => {
                           }`}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            {/* Horario, Foto de Actividad y Duración */}
-                            <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
-                              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[78px]">
-                                <span className="text-sm font-black text-slate-900 block font-mono">
+                            {/* Imagen Grande de la Actividad + Horario y Duración */}
+                            <div className="flex items-center gap-3.5 sm:gap-4">
+                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shrink-0 border-2 border-slate-200/90 shadow-sm relative group bg-slate-900">
+                                <img
+                                  src={category.image}
+                                  alt={schedule.program}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  loading="lazy"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+                                <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-xs text-[9px] font-black text-amber-400 uppercase tracking-wider font-mono">
                                   {schedule.startTime}
                                 </span>
-                                <span className="text-[11px] text-slate-400 block font-mono">
+                              </div>
+
+                              <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[70px] sm:min-w-[78px]">
+                                <span className="text-xs sm:text-sm font-black text-slate-900 block font-mono">
+                                  {schedule.startTime}
+                                </span>
+                                <span className="text-[10px] sm:text-[11px] text-slate-400 block font-mono">
                                   {schedule.endTime}
                                 </span>
                                 <span className="text-[9px] font-bold text-slate-500 mt-0.5 block">
                                   {dur} min
                                 </span>
-                              </div>
-
-                              {/* Miniatura visual de la actividad */}
-                              <div className="hidden xs:block w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-200/80 shadow-2xs self-center bg-slate-100">
-                                <img
-                                  src={category.image}
-                                  alt={schedule.program}
-                                  className="w-full h-full object-cover"
-                                  loading="lazy"
-                                />
                               </div>
 
                               <div className="space-y-1.5 min-w-0 flex-1">
@@ -2323,27 +2428,31 @@ export const SchedulePage: React.FC = () => {
                             }`}
                           >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                              <div className="flex items-start sm:items-center gap-3 sm:gap-3.5">
-                                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[78px]">
-                                  <span className="text-sm font-black text-slate-900 block font-mono">
+                              {/* Imagen Grande de la Actividad + Horario y Duración */}
+                              <div className="flex items-center gap-3.5 sm:gap-4">
+                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shrink-0 border-2 border-slate-200/90 shadow-sm relative group bg-slate-900">
+                                  <img
+                                    src={activityCat.image}
+                                    alt={schedule.program}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    loading="lazy"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+                                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-xs text-[9px] font-black text-amber-400 uppercase tracking-wider font-mono">
                                     {schedule.startTime}
                                   </span>
-                                  <span className="text-[11px] text-slate-400 block font-mono">
+                                </div>
+
+                                <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-center shrink-0 min-w-[70px] sm:min-w-[78px]">
+                                  <span className="text-xs sm:text-sm font-black text-slate-900 block font-mono">
+                                    {schedule.startTime}
+                                  </span>
+                                  <span className="text-[10px] sm:text-[11px] text-slate-400 block font-mono">
                                     {schedule.endTime}
                                   </span>
                                   <span className="text-[9px] font-bold text-slate-500 mt-0.5 block">
                                     {dur} min
                                   </span>
-                                </div>
-
-                                {/* Miniatura visual de la actividad */}
-                                <div className="hidden xs:block w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-200/80 shadow-2xs self-center bg-slate-100">
-                                  <img
-                                    src={activityCat.image}
-                                    alt={schedule.program}
-                                    className="w-full h-full object-cover"
-                                    loading="lazy"
-                                  />
                                 </div>
 
                                 <div className="space-y-1.5 min-w-0 flex-1">
