@@ -161,3 +161,4 @@ export const TiedBeltIcon: React.FC<TiedBeltIconProps> = ({
     </svg>
   );
 };
+

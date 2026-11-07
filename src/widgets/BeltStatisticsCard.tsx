@@ -134,3 +134,4 @@ export const BeltStatisticsCard: React.FC<BeltStatisticsCardProps> = ({
     </div>
   );
 };
+
