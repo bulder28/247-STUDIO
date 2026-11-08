@@ -38,6 +38,9 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        // El service worker no debe responder con la portada a estas rutas:
+        // /__/ (retorno de Google/Firebase Auth), /.netlify/ (funciones) y /api/ (proxy a funciones)
+        navigateFallbackDenylist: [/^\/__\//, /^\/\.netlify\//, /^\/api\//],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
         runtimeCaching: [
           {
