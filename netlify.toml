@@ -3,6 +3,9 @@
   publish = "dist"
   functions = "netlify/functions"
 
+[functions]
+  included_files = ["studio-ff8d1-*.json", "netlify/functions/studio-ff8d1-*.json"]
+
 # Proxy de autenticación Firebase en el mismo dominio (elimina problemas de cookies de terceros y Safari ITP)
 [[redirects]]
   from = "/__/auth/*"

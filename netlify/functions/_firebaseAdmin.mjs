@@ -2,7 +2,8 @@
  * Helper compartido para inicializar Firebase Admin en Netlify Functions
  */
 import { existsSync, readdirSync, readFileSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -37,20 +38,40 @@ export function getAdminApp() {
     }
   }
 
-  // 3. Archivo local de service account en la raíz
+  // 3. Archivo local de service account en __dirname o process.cwd()
   if (!credential) {
     try {
-      const files = readdirSync(process.cwd());
-      const keyFile = files.find(
-        (f) =>
-          (f.includes('adminsdk') || f.includes('serviceAccount') || f.includes('studio-ff8d1')) &&
-          f.endsWith('.json')
-      );
-      if (keyFile) {
-        const fullPath = resolve(process.cwd(), keyFile);
-        credential = cert(JSON.parse(readFileSync(fullPath, 'utf8')));
+      const currentDir = dirname(fileURLToPath(import.meta.url));
+      const searchDirs = [
+        currentDir,
+        resolve(currentDir, '..'),
+        resolve(currentDir, '..', '..'),
+        process.cwd(),
+      ];
+
+      for (const dir of searchDirs) {
+        if (!existsSync(dir)) continue;
+        const directKey = resolve(dir, 'studio-ff8d1-firebase-adminsdk-fbsvc-b730cf5be9.json');
+        if (existsSync(directKey)) {
+          credential = cert(JSON.parse(readFileSync(directKey, 'utf8')));
+          break;
+        }
+
+        const files = readdirSync(dir);
+        const keyFile = files.find(
+          (f) =>
+            (f.includes('adminsdk') || f.includes('serviceAccount') || f.includes('studio-ff8d1')) &&
+            f.endsWith('.json')
+        );
+        if (keyFile) {
+          const fullPath = resolve(dir, keyFile);
+          credential = cert(JSON.parse(readFileSync(fullPath, 'utf8')));
+          break;
+        }
       }
-    } catch {}
+    } catch (fsErr) {
+      console.warn('Aviso buscando archivo de credenciales local:', fsErr.message);
+    }
   }
 
   if (!credential) {
@@ -64,4 +85,3 @@ export function getAdminApp() {
     db: getFirestore(),
   };
 }
-

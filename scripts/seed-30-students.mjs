@@ -811,3 +811,4 @@ seed().catch((err) => {
   console.error('[FATAL] Error ejecutando seed:', err);
   process.exit(1);
 });
+

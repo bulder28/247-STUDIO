@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
+  collection,
+  doc,
+  getDocs,
+  serverTimestamp,
+  updateDoc,
+} from 'firebase/firestore';
+import {
   AlertCircle,
   Check,
   CheckCircle2,
@@ -14,7 +21,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { auth } from '@/shared/api/firebase';
+import { auth, db } from '@/shared/api/firebase';
 import { Role } from '@/shared/domain/types';
 
 interface StaffUser {
@@ -58,25 +65,85 @@ export const RolesAdminPage: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      if (!auth.currentUser) return;
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch('/.netlify/functions/admin-set-role', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      setError(null);
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || `HTTP ${res.status}`);
+      // 1. Carga inmediata y resiliente desde Firestore (siempre disponible)
+      let firestoreUsers: StaffUser[] = [];
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        firestoreUsers = snap.docs.map((d) => {
+          const data = d.data();
+          const permissions: string[] = Array.isArray(data.permissions) ? data.permissions : [];
+          let role: Role = 'student';
+          if (permissions.includes('admin')) role = 'admin';
+          else if (permissions.includes('coach')) role = 'coach';
+          else if (permissions.includes('kiosk')) role = 'kiosk';
+
+          return {
+            uid: d.id,
+            email: data.authEmail || data.contactEmail || null,
+            displayName: data.alias || null,
+            role,
+            emailVerified: true,
+            disabled: data.accountStatus === 'INACTIVE' || data.accountStatus === 'SUSPENDED',
+            createdAt: data.createdAt,
+          };
+        });
+
+        if (firestoreUsers.length > 0) {
+          setUsers(firestoreUsers);
+        }
+      } catch (fsErr) {
+        console.warn('Aviso leyendo usuarios de Firestore:', fsErr);
       }
 
-      const data = await res.json();
-      setUsers(data.users || []);
+      // 2. Enriquecer con Firebase Auth Custom Claims vía Netlify Function (token forzado)
+      if (auth.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken(true);
+          const res = await fetch('/.netlify/functions/admin-set-role', {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.users) && data.users.length > 0) {
+              const netlifyUsers: StaffUser[] = data.users;
+              const map = new Map<string, StaffUser>();
+
+              // Priorizar datos de Firestore y enriquecer con Auth
+              firestoreUsers.forEach((u) => map.set(u.uid, u));
+              netlifyUsers.forEach((u) => {
+                const existing = map.get(u.uid);
+                map.set(u.uid, {
+                  ...existing,
+                  ...u,
+                  displayName: u.displayName || existing?.displayName || '',
+                });
+              });
+
+              setUsers(Array.from(map.values()));
+              setError(null);
+            }
+          } else if (firestoreUsers.length === 0) {
+            const errJson = await res.json().catch(() => ({}));
+            throw new Error(errJson.error || `HTTP ${res.status}`);
+          }
+        } catch (fnErr) {
+          // Si Firestore ya entregó usuarios, no mostramos un banner bloqueante
+          if (firestoreUsers.length === 0) {
+            throw fnErr;
+          }
+        }
+      }
     } catch (err: unknown) {
       console.error('Error fetching staff list:', err);
       setError(
-        'No se pudo conectar con el servicio de roles de Firebase Admin. Asegúrate de ejecutar la app a través de Netlify CLI o tener las funciones configuradas.'
+        err instanceof Error
+          ? err.message
+          : 'No se pudo conectar con el servicio de roles de Firebase Admin.'
       );
     } finally {
       setLoading(false);
@@ -92,29 +159,51 @@ export const RolesAdminPage: React.FC = () => {
     try {
       setUpdatingUid(targetEmailOrUid);
       setError(null);
-      if (!auth.currentUser) return;
-      const token = await auth.currentUser.getIdToken();
 
-      const isEmail = targetEmailOrUid.includes('@');
-      const bodyPayload = isEmail
-        ? { email: targetEmailOrUid, role: newRole }
-        : { uid: targetEmailOrUid, role: newRole };
+      // 1. Identificar UID y actualizar Firestore de forma optimista
+      const targetUser = users.find(
+        (u) => u.uid === targetEmailOrUid || u.email === targetEmailOrUid
+      );
+      const targetUid = targetUser?.uid || (targetEmailOrUid.includes('@') ? null : targetEmailOrUid);
 
-      const res = await fetch('/.netlify/functions/admin-set-role', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(bodyPayload),
-      });
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || `HTTP ${res.status}`);
+      if (targetUid) {
+        await updateDoc(doc(db, 'users', targetUid), {
+          permissions: [newRole],
+          updatedAt: serverTimestamp(),
+        }).catch((err) => console.warn('Aviso actualizando rol en Firestore:', err));
       }
 
-      await fetchUsers();
+      // 2. Actualización optimista en interfaz
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.uid === targetUid || (u.email && u.email === targetEmailOrUid)
+            ? { ...u, role: newRole }
+            : u
+        )
+      );
+
+      // 3. Sincronizar Custom Claims en Firebase Auth si el servicio serverless está disponible
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken(true);
+        const isEmail = targetEmailOrUid.includes('@');
+        const bodyPayload = isEmail
+          ? { email: targetEmailOrUid, role: newRole }
+          : { uid: targetEmailOrUid, role: newRole };
+
+        const res = await fetch('/.netlify/functions/admin-set-role', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(bodyPayload),
+        });
+
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          console.warn('Aviso sincronizando claim en Auth:', errJson.error || res.status);
+        }
+      }
     } catch (err: unknown) {
       console.error('Error changing user role:', err);
       const msg = err instanceof Error ? err.message : 'Error al actualizar rol';
@@ -134,7 +223,7 @@ export const RolesAdminPage: React.FC = () => {
 
     try {
       if (!auth.currentUser) return;
-      const token = await auth.currentUser.getIdToken();
+      const token = await auth.currentUser.getIdToken(true);
       const cleanEmail = inviteEmail.trim().toLowerCase();
 
       const res = await fetch('/.netlify/functions/admin-set-role', {
@@ -261,7 +350,7 @@ export const RolesAdminPage: React.FC = () => {
             <span className="text-xl font-black font-mono text-slate-900">{adminCount}</span>
           </div>
           <p className="text-[11px] text-slate-400 mt-2">
-            Control total: Caja, Tarifas, Censo médico y Roles.
+            Control total: Alumnos, Caja, Tarifas, Horarios y Roles.
           </p>
         </div>
 
@@ -273,7 +362,7 @@ export const RolesAdminPage: React.FC = () => {
             <span className="text-xl font-black font-mono text-slate-900">{coachCount}</span>
           </div>
           <p className="text-[11px] text-slate-400 mt-2">
-            Paso de lista, horarios y tatami. Sin acceso a caja ni fichas médicas.
+            Paso de lista, horarios y tatami. Sin acceso a caja ni tarifas.
           </p>
         </div>
 
@@ -285,15 +374,15 @@ export const RolesAdminPage: React.FC = () => {
             <span className="text-xl font-black font-mono text-slate-900">{staffCount}</span>
           </div>
           <p className="text-[11px] text-slate-400 mt-2">
-            Cuentas con Custom Claims asignados por Firebase Admin.
+            Cuentas con privilegios de gestión en 247 STUDIO.
           </p>
         </div>
       </div>
 
-      {/* Barra de Filtros */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col md:flex-row items-center gap-2.5 sm:gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+      {/* Buscador y Filtro */}
+      <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-white p-3.5 border border-slate-200/80 rounded-2xl shadow-xs">
+        <div className="relative w-full md:w-96">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchTerm}
@@ -449,115 +538,121 @@ export const RolesAdminPage: React.FC = () => {
               Si el usuario ya existe en Firebase, se actualizará su rol de inmediato. Si no existe, se creará su cuenta y se generará un enlace para definir contraseña.
             </p>
 
-            {inviteResult?.success ? (
-              <div className="space-y-4">
-                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900">
-                  <div className="font-bold flex items-center gap-1.5 mb-1">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>¡Rol configurado con éxito!</span>
-                  </div>
-                  <p>{inviteResult.message}</p>
+            {inviteResult && (
+              <div
+                className={`p-4 rounded-2xl mb-4 text-xs ${
+                  inviteResult.success
+                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 border border-rose-200 text-rose-800'
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>{inviteResult.message}</span>
+                </div>
+                <div className="text-[11px] text-slate-600 mt-1">
+                  <p>Email: <span className="font-mono font-bold text-slate-900">{inviteResult.email}</span></p>
+                  <p>Rol: <span className="font-bold uppercase text-slate-900">{inviteResult.role}</span></p>
                 </div>
 
                 {inviteResult.invitationLink && (
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 block">
-                      Enlace de Acceso / Contraseña:
+                  <div className="mt-3 pt-2 border-t border-emerald-200">
+                    <span className="font-bold text-[10px] text-slate-500 uppercase block mb-1">
+                      Enlace de Activación (Enviar por WhatsApp/Email):
                     </span>
-                    <input
-                      type="text"
-                      readOnly
-                      value={inviteResult.invitationLink}
-                      className="w-full text-xs font-mono bg-white p-2 border border-slate-200 rounded-lg text-slate-800"
-                    />
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        readOnly
+                        value={inviteResult.invitationLink}
+                        className="w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg text-[10px] font-mono text-slate-700"
+                      />
                       <button
                         type="button"
                         onClick={() => copyToClipboard(inviteResult.invitationLink!)}
-                        className="flex-1 py-2 px-3 bg-slate-900 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition hover:bg-slate-800 flex items-center justify-center gap-1.5"
+                        className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition shrink-0 cursor-pointer"
+                        title="Copiar enlace"
                       >
                         {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedLink ? 'Copiado' : 'Copiar Enlace'}</span>
                       </button>
-
-                      <a
-                        href={`https://wa.me/?text=${encodeURIComponent(
-                          `¡Hola! Se ha creado tu acceso a 247Studio como ${inviteResult.role}. Configura tu contraseña aquí: ${inviteResult.invitationLink}`
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition flex items-center gap-1"
-                      >
-                        WhatsApp
-                      </a>
                     </div>
                   </div>
                 )}
+              </div>
+            )}
 
+            <form onSubmit={handleInviteSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="ejemplo@247studio.com"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Rol a Asignar
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setInviteRole('coach')}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      inviteRole === 'coach'
+                        ? 'bg-blue-50 border-blue-400 text-blue-900'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <UserCheck className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Profesor (Coach)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setInviteRole('admin')}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      inviteRole === 'admin'
+                        ? 'bg-amber-50 border-amber-400 text-amber-900'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <Shield className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Director (Admin)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowInviteModal(false);
-                    setInviteResult(null);
-                  }}
-                  className="w-full py-2.5 bg-slate-900 text-white font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-slate-800 transition"
+                  onClick={() => setShowInviteModal(false)}
+                  className="py-2 px-4 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
                 >
                   Cerrar
                 </button>
+                <button
+                  type="submit"
+                  disabled={inviting}
+                  className="py-2.5 px-5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  {inviting ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <UserPlus className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{inviteResult ? 'Invitar Otro' : 'Asignar / Crear'}</span>
+                    </>
+                  )}
+                </button>
               </div>
-            ) : (
-              <form onSubmit={handleInviteSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Correo Electrónico *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="profesor@247studio.es"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                    Rol a Asignar *
-                  </label>
-                  <select
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as any)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
-                  >
-                    <option value="coach">Profesor / Entrenador (Coach)</option>
-                    <option value="admin">Director del Centro (Admin)</option>
-                  </select>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    {inviteRole === 'coach'
-                      ? 'Tendrá acceso al portal de staff (/staff/login) para pasar lista y ver horarios. No tendrá acceso a caja ni cobros.'
-                      : 'Tendrá privilegios completos de administración, caja, tarifas y censo.'}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowInviteModal(false)}
-                    className="flex-1 py-2.5 bg-slate-100 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-slate-200 transition"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={inviting}
-                    className="flex-1 py-2.5 bg-slate-900 text-white font-black text-xs uppercase tracking-wider rounded-xl hover:bg-slate-800 transition disabled:opacity-50"
-                  >
-                    {inviting ? 'Procesando...' : 'Asignar / Invitar'}
-                  </button>
-                </div>
-              </form>
-            )}
+            </form>
           </div>
         </div>
       )}
