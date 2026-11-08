@@ -33,7 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 1. Obtención estricta de Custom Claims frescos mediante getIdTokenResult(true)
       // El rol se determina ÚNICAMENTE a través del token firmado por el servidor de Auth
       const tokenPromise = firebaseUser.getIdTokenResult(true).catch(() => null);
-      const tokenTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+      const tokenTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
       const idTokenResult = await Promise.race([tokenPromise, tokenTimeout]);
       
       // Si el token contiene un custom claim ('admin', 'coach', 'kiosk'), se asigna.
@@ -48,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Aviso leyendo documento de usuario en Firestore:', err);
         return null;
       });
-      const docTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+      const docTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
       const snap = await Promise.race([docPromise, docTimeout]);
 
       if (snap && snap.exists()) {
@@ -99,10 +99,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Timeout global de seguridad: nunca dejar la pantalla de carga colgada más de 3 segundos
+    // Timeout global de seguridad: nunca dejar la pantalla de carga colgada más de 8 segundos en redes móviles
     const globalLoadingTimeout = setTimeout(() => {
       setLoading(false);
-    }, 3000);
+    }, 8000);
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {

@@ -87,6 +87,7 @@ export const LoginPage: React.FC = () => {
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [copiedInApp, setCopiedInApp] = useState(false);
 
   const searchParams = new URLSearchParams(location.search);
   const redirectParam = searchParams.get('redirect');
@@ -96,23 +97,27 @@ export const LoginPage: React.FC = () => {
     let isMounted = true;
     const processRedirect = async () => {
       try {
-        const timeoutRedirect = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
-        const redirectPromise = getRedirectResult(auth).catch(() => null);
+        // En móviles esperamos la resolución del token sin cancelarlo prematuramente
+        const redirectPromise = getRedirectResult(auth).catch((err) => {
+          console.warn('getRedirectResult notice:', err);
+          return null;
+        });
+        const timeoutRedirect = new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000));
         const result = await Promise.race([redirectPromise, timeoutRedirect]);
 
         if (result && result.user && isMounted) {
-          const tokenResult = await result.user.getIdTokenResult(true);
-          const userRole = (tokenResult.claims.role as Role) || 'student';
+          const tokenResult = await result.user.getIdTokenResult(true).catch(() => null);
+          const userRole = (tokenResult?.claims?.role as Role) || 'student';
           const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
           navigate(destination, { replace: true });
           return;
         }
 
-        // Si getRedirectResult es null, comprobar si auth.currentUser ya está activo en memoria
+        // Si getRedirectResult es null, comprobar si auth.currentUser ya está activo en memoria o local storage
         const currentFirebaseUser = auth.currentUser;
         if (currentFirebaseUser && isMounted) {
-          const tokenResult = await currentFirebaseUser.getIdTokenResult(true);
-          const userRole = (tokenResult.claims.role as Role) || 'student';
+          const tokenResult = await currentFirebaseUser.getIdTokenResult(true).catch(() => null);
+          const userRole = (tokenResult?.claims?.role as Role) || 'student';
           const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
           navigate(destination, { replace: true });
         }
@@ -136,11 +141,11 @@ export const LoginPage: React.FC = () => {
 
   // Guarda: Si el usuario ya está autenticado, redirigir automáticamente
   useEffect(() => {
-    if (!authLoading && user && role) {
+    if (user && role) {
       const destination = getSafeRedirect(redirectParam, role) || getDefaultHomeByRole(role, isMobileDevice());
       navigate(destination, { replace: true });
     }
-  }, [user, role, authLoading, redirectParam, navigate]);
+  }, [user, role, redirectParam, navigate]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,32 +205,33 @@ export const LoginPage: React.FC = () => {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
 
-      if (useRedirectFallback) {
+      // En dispositivos móviles (smartphones/tablets iOS y Android):
+      // signInWithRedirect es el método nativo oficial recomendado por Google porque
+      // los navegadores móviles (Safari/Chrome/PWA) bloquean ventanas emergentes o cortan postMessage.
+      if (useRedirectFallback || isMobileDevice()) {
         await signInWithRedirect(auth, provider);
         return;
       }
 
-      // En móviles y escritorio ejecutamos signInWithPopup directamente con el gesto táctil del usuario.
+      // En ordenadores de escritorio (pantallas no táctiles / desktop):
+      // Probamos primero signInWithPopup para no recargar la página.
       try {
         const userCredential = await signInWithPopup(auth, provider);
-        const tokenResult = await userCredential.user.getIdTokenResult(true);
-        const userRole = (tokenResult.claims.role as Role) || 'student';
+        const tokenResult = await userCredential.user.getIdTokenResult(true).catch(() => null);
+        const userRole = (tokenResult?.claims?.role as Role) || 'student';
 
-        const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
+        const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, false);
         navigate(destination, { replace: true });
       } catch (popupErr: unknown) {
         const fbErr = popupErr as { code?: string; message?: string };
         if (
           fbErr?.code === 'auth/popup-blocked' ||
-          fbErr?.code === 'auth/cancelled-popup-request'
+          fbErr?.code === 'auth/cancelled-popup-request' ||
+          fbErr?.code === 'auth/popup-closed-by-user' ||
+          fbErr?.code === 'auth/internal-error'
         ) {
-          console.warn('Popup bloqueado, cambiando a redirección completa...');
+          console.warn('Popup no disponible en este entorno, cambiando a redirección completa...');
           await signInWithRedirect(auth, provider);
-          return;
-        }
-        if (fbErr?.code === 'auth/popup-closed-by-user') {
-          console.info('El usuario cerró la ventana emergente de Google.');
-          setSubmitting(false);
           return;
         }
         throw popupErr;
@@ -322,14 +328,29 @@ export const LoginPage: React.FC = () => {
           )}
 
           {isInAppBrowser() && (
-            <div className="mt-4 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex items-start gap-2.5">
-              <span className="text-base shrink-0">💡</span>
-              <div className="space-y-0.5">
-                <p className="font-bold">Navegador integrado detectado (WhatsApp / Instagram)</p>
-                <p className="text-[11px] text-amber-800">
-                  Para acceder con Google, pulsa los <strong>3 puntos (⋮)</strong> arriba a la derecha y selecciona <strong>"Abrir en Chrome"</strong> o <strong>"Abrir en Safari"</strong>.
-                </p>
+            <div className="mt-4 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex flex-col gap-2">
+              <div className="flex items-start gap-2.5">
+                <span className="text-base shrink-0">💡</span>
+                <div className="space-y-0.5">
+                  <p className="font-bold">Navegador integrado detectado (WhatsApp / Instagram)</p>
+                  <p className="text-[11px] text-amber-800">
+                    Google bloquea accesos directos dentro de redes sociales por seguridad. Toca los <strong>3 puntos (⋮)</strong> y elige <strong>"Abrir en Chrome"</strong> o <strong>"Abrir en Safari"</strong>.
+                  </p>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                    navigator.clipboard.writeText(window.location.href);
+                    setCopiedInApp(true);
+                    setTimeout(() => setCopiedInApp(false), 3000);
+                  }
+                }}
+                className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition cursor-pointer text-center"
+              >
+                {copiedInApp ? '¡Enlace copiado! Pégalo en Chrome o Safari' : 'Copiar enlace para abrir en Chrome / Safari'}
+              </button>
             </div>
           )}
 
