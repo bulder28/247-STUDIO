@@ -22,7 +22,6 @@ import {
   Scale,
   Shield,
   Swords,
-  Ticket,
   User,
   UserPlus,
   X,
@@ -155,64 +154,61 @@ export const AppLayout: React.FC = () => {
 
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path.includes('/app/home')) return 'Bienvenido';
-    if (path.includes('/app/historial')) return 'Historial & Asistencia';
-    if (path.includes('/app/horario')) return 'Mi Calendario & Horarios';
-    if (path.includes('/app/perfil')) return 'Personal Info';
-    if (path.includes('/app/programas')) return 'Programas & Tarifas';
-    if (path.includes('/app/avisos')) return 'Avisos & Comunicados';
-    if (path.includes('/app/foro')) return 'Foro de la Comunidad';
-    if (path.includes('/app/faqs')) return 'Preguntas Frecuentes';
-    if (path.includes('/app/media')) return 'Media & Galería';
-    if (path.includes('/app/cronometro')) return 'Cronómetro Sparring';
-    if (path.includes('/app/peso')) return 'Calculadora Peso IBJJF';
-    if (path.includes('/app/curriculum')) return 'Currículum BJJ & Drills';
-    if (path.includes('/app/sparring')) return 'Diario de Sparring';
-    if (path.includes('/app/cinturon')) return 'Hoja de Ruta de Cinturón';
-    return 'Área Cliente';
+    if (path.includes('/app/home')) return 'Hoy';
+    if (path.includes('/app/horario')) return 'Clases';
+    if (path.includes('/app/progreso')) return 'Progreso';
+    if (path.includes('/app/pagos')) return 'Pagos';
+    if (path.includes('/app/perfil')) return 'Yo';
+    if (path.includes('/app/avisos')) return 'Avisos';
+    if (path.includes('/app/foro')) return 'Foro';
+    if (path.includes('/app/faqs')) return 'Preguntas frecuentes';
+    if (path.includes('/app/media')) return 'Fotos y vídeos';
+    if (path.includes('/app/cronometro')) return 'Cronómetro de sparring';
+    if (path.includes('/app/peso')) return 'Calculadora de peso';
+    if (path.includes('/app/curriculum')) return 'Técnicas y ejercicios';
+    if (path.includes('/app/sparring')) return 'Diario de sparring';
+    if (path.includes('/app/cinturon')) return 'Camino al siguiente cinturón';
+    return 'Mi cuenta';
   };
 
   const navSections: NavSection[] = [
     {
       title: null,
-      items: [{ to: '/app/home', label: 'Bienvenido', icon: Home, badge: null }],
-    },
-    {
-      title: 'ENTRENAMIENTO',
       items: [
-        { to: '/app/historial', label: 'Historial', icon: Activity, badge: null },
-        { to: '/app/horario', label: 'Mi Calendario', icon: Calendar, badge: null },
-        { to: '/app/programas', label: 'Programas & Tarifas', icon: CreditCard, badge: null },
+        { to: '/app/home', label: 'Hoy', icon: Home, badge: null },
+        { to: '/app/horario', label: 'Clases', icon: Calendar, badge: null },
+        { to: '/app/progreso', label: 'Progreso', icon: Activity, badge: null },
+        { to: '/app/pagos', label: 'Pagos', icon: CreditCard, badge: null },
+        { to: '/app/perfil', label: 'Yo', icon: User, badge: null },
       ],
     },
     {
-      title: 'CONTENIDO',
+      title: 'Comunidad',
       items: [
-        { to: '/app/avisos', label: 'Mensajes / Avisos', icon: Bell },
-        { to: '/app/foro', label: 'Foro Comunidad', icon: MessageSquare, badge: null },
-        { to: '/app/media', label: 'Media', icon: Image, badge: null },
-        { to: '/app/faqs', label: 'Recursos / FAQs', icon: HelpCircle, badge: null },
+        { to: '/app/avisos', label: 'Avisos', icon: Bell, badge: null },
+        { to: '/app/foro', label: 'Foro', icon: MessageSquare, badge: null },
+        { to: '/app/media', label: 'Fotos y vídeos', icon: Image, badge: null },
+        { to: '/app/faqs', label: 'Preguntas frecuentes', icon: HelpCircle, badge: null },
       ],
     },
     {
-      title: 'TATAMI TOOLS',
+      title: 'Herramientas',
       items: [
-        { to: '/app/cronometro', label: 'Cronómetro Sparring', icon: Swords, badge: null },
-        { to: '/app/peso', label: 'Calculadora de Peso', icon: Scale, badge: null },
-        { to: '/app/curriculum', label: 'Currículum BJJ & Drills', icon: BookOpen, badge: null },
-        { to: '/app/sparring', label: 'Diario de Sparring', icon: Activity, badge: null },
-        { to: '/app/cinturon', label: 'Hoja de Ruta Cinturón', icon: Award, badge: null },
+        { to: '/app/cronometro', label: 'Cronómetro de sparring', icon: Swords, badge: null },
+        { to: '/app/peso', label: 'Calculadora de peso', icon: Scale, badge: null },
+        { to: '/app/curriculum', label: 'Técnicas y ejercicios', icon: BookOpen, badge: null },
+        { to: '/app/sparring', label: 'Diario de sparring', icon: Activity, badge: null },
+        { to: '/app/cinturon', label: 'Camino al siguiente cinturón', icon: Award, badge: null },
       ],
     },
-    {
-      title: 'GESTIÓN',
-      items: [
-        { to: '/app/perfil', label: 'Personal Info', icon: User, badge: null },
-        ...(role === 'admin'
-          ? [{ to: '/admin/personal', label: 'Profesor / Admin', icon: Shield, badge: '→', badgeColor: 'text-brand-accent font-bold' }]
-          : []),
-      ],
-    },
+    ...(role === 'admin' || role === 'coach'
+      ? [
+          {
+            title: 'Gestión',
+            items: [{ to: '/admin/personal', label: 'Panel del gimnasio', icon: Shield, badge: null }],
+          },
+        ]
+      : []),
   ];
 
   const isCalendarPage = location.pathname.includes('/app/horario');
@@ -575,75 +571,66 @@ export const AppLayout: React.FC = () => {
 
         {/* ======================================================== */}
         {/* 3.5 BARRA INFERIOR FIJA MODO TELÉFONO (< 768px)          */}
-        {/* ESTILO NATIVO MADRID MÓVIL: INICIO | RESERVAS | CARNET VIRTUAL (QR) | MIS PASES | MENÚ */}
         {/* ======================================================== */}
         <nav
-          aria-label="Navegación principal móvil Madrid Móvil"
-          className="md:hidden shrink-0 bg-white border-t border-slate-200/90 px-3 py-1.5 grid grid-cols-5 items-end z-30 shadow-lg"
+          aria-label="Navegación principal"
+          className="md:hidden shrink-0 bg-white border-t border-slate-200/90 px-1 pt-1 pb-2 grid grid-cols-5 z-30"
         >
           <NavLink
             to="/app/home"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
-                isActive ? 'text-slate-950 font-black' : 'text-slate-500 hover:text-slate-900'
+              `flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl text-xs transition ${
+                isActive ? 'text-studio-navy font-semibold' : 'text-slate-600'
               }`
             }
           >
-            <Home className="w-4 h-4 mb-0.5" />
-            <span>Inicio</span>
+            <Home className="w-6 h-6" aria-hidden="true" />
+            <span>Hoy</span>
           </NavLink>
-
           <NavLink
             to="/app/horario"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
-                isActive && !location.search.includes('tab=mis-reservas')
-                  ? 'text-slate-950 font-black'
-                  : 'text-slate-500 hover:text-slate-900'
+              `flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl text-xs transition ${
+                isActive ? 'text-studio-navy font-semibold' : 'text-slate-600'
               }`
             }
           >
-            <Calendar className="w-4 h-4 mb-0.5" />
-            <span>Reservas</span>
+            <Calendar className="w-6 h-6" aria-hidden="true" />
+            <span>Clases</span>
           </NavLink>
-
-          {/* Botón Central Destacado estilo Madrid Móvil: CARNET VIRTUAL (QR) */}
-          <button
-            type="button"
-            onClick={() => setQrModalOpen(true)}
-            className="flex flex-col items-center justify-center -mt-3.5 py-1.5 px-1 rounded-2xl text-[9px] font-black text-slate-950 bg-amber-400 border-2 border-white shadow-lg active:scale-95 transition cursor-pointer"
-            title="Carnet Virtual con Código QR para el torno de acceso"
-          >
-            <div className="w-7 h-7 rounded-xl bg-slate-950 flex items-center justify-center mb-0.5 text-amber-400 shadow-xs">
-              <QrCode className="w-4 h-4" />
-            </div>
-            <span className="leading-tight tracking-tight uppercase font-headline">Carnet QR</span>
-          </button>
-
           <NavLink
-            to="/app/horario?tab=mis-reservas"
+            to="/app/progreso"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition ${
-                isActive && location.search.includes('tab=mis-reservas')
-                  ? 'text-emerald-700 font-black'
-                  : 'text-slate-500 hover:text-slate-900'
+              `flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl text-xs transition ${
+                isActive ? 'text-studio-navy font-semibold' : 'text-slate-600'
               }`
             }
           >
-            <Ticket className="w-4 h-4 mb-0.5" />
-            <span>Mis Pases</span>
+            <Activity className="w-6 h-6" aria-hidden="true" />
+            <span>Progreso</span>
           </NavLink>
-
-          <button
-            type="button"
-            onClick={() => setMobileDrawerOpen(true)}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition cursor-pointer ${
-              mobileDrawerOpen ? 'text-slate-950 font-black' : 'text-slate-500 hover:text-slate-900'
-            }`}
+          <NavLink
+            to="/app/pagos"
+            className={({ isActive }) =>
+              `flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl text-xs transition ${
+                isActive ? 'text-studio-navy font-semibold' : 'text-slate-600'
+              }`
+            }
           >
-            <Menu className="w-4 h-4 mb-0.5" />
-            <span>Menú</span>
-          </button>
+            <CreditCard className="w-6 h-6" aria-hidden="true" />
+            <span>Pagos</span>
+          </NavLink>
+          <NavLink
+            to="/app/perfil"
+            className={({ isActive }) =>
+              `flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl text-xs transition ${
+                isActive ? 'text-studio-navy font-semibold' : 'text-slate-600'
+              }`
+            }
+          >
+            <User className="w-6 h-6" aria-hidden="true" />
+            <span>Yo</span>
+          </NavLink>
         </nav>
       </div>
 

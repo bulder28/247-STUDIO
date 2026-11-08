@@ -93,5 +93,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // Claves ficticias: los tests no dependen de credenciales reales ni de un .env local
+    env: {
+      VITE_FIREBASE_API_KEY: 'test-api-key-for-vitest',
+      VITE_FIREBASE_AUTH_DOMAIN: 'studio-ff8d1.firebaseapp.com',
+      VITE_FIREBASE_PROJECT_ID: 'studio-ff8d1',
+    },
   },
 });

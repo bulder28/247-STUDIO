@@ -220,6 +220,8 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Navigate to="/app/home" replace /> },
+      { path: 'historial', element: <Navigate to="/app/progreso" replace /> },
+      { path: 'programas', element: <Navigate to="/app/pagos" replace /> },
       {
         path: 'home',
         element: (
@@ -237,7 +239,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'historial',
+        path: 'progreso',
         element: (
           <LazyRoute>
             <AttendanceHistoryPage />
@@ -245,7 +247,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'programas',
+        path: 'pagos',
         element: (
           <LazyRoute>
             <ProgramsPage />
