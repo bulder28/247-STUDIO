@@ -19,7 +19,7 @@ export default defineConfig({
         background_color: '#F8F9FA',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/app/horario',
+        start_url: '/app/home',
         scope: '/',
         icons: [
           {

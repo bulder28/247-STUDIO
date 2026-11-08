@@ -10,6 +10,8 @@
  * 5. Protección de cuota y claves (GEMINI_API_KEY oculta en variables de entorno del servidor).
  */
 
+import { getAdminApp } from './_firebaseAdmin.mjs';
+
 const KOKORO_SYSTEM_PROMPT = `
 Eres KOKORO (心), el maestro de IA y copiloto operativo de la academia de artes marciales 247Studio en Pinto (Madrid), fundada por los instructores Mario y David.
 Tu especialidad es el Brazilian Jiu-Jitsu (BJJ), Grappling, No-Gi y categorías Kids.
@@ -50,49 +52,22 @@ function getCorsHeaders(req) {
 }
 
 /**
- * Verifica el token de Firebase contra Google Identity Platform.
- * Devuelve el UID y el rol extraído de los Custom Claims verificados.
+ * Verifica criptográficamente el token de Firebase usando Firebase Admin SDK.
+ * No requiere API key pública ni se ve afectado por restricciones de dominio web.
  */
 async function verifyFirebaseToken(idToken) {
-  const apiKey =
-    process.env.FIREBASE_API_KEY ||
-    process.env.VITE_FIREBASE_API_KEY ||
-    Buffer.from('QUl6YVN5Q3NvZEc4bTlXMjA1bEpScXJSLWtiU2FoUmpOck5Mb2t3', 'base64').toString('utf-8');
-
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken }),
-  });
-
-  if (!res.ok) {
+  try {
+    const { auth: adminAuth } = getAdminApp();
+    const decoded = await adminAuth.verifyIdToken(idToken);
+    return {
+      uid: decoded.uid,
+      email: decoded.email,
+      role: decoded.role || 'student',
+    };
+  } catch (err) {
+    console.warn('Fallo validando token en kokoro-ai:', err.message);
     return null;
   }
-
-  const data = await res.json();
-  const user = data?.users?.[0];
-  if (!user) {
-    return null;
-  }
-
-  let verifiedRole = 'student';
-  if (user.customAttributes) {
-    try {
-      const parsed = JSON.parse(user.customAttributes);
-      if (parsed.role && typeof parsed.role === 'string') {
-        verifiedRole = parsed.role;
-      }
-    } catch {
-      // Ignorar fallo de parseo
-    }
-  }
-
-  return {
-    uid: user.localId,
-    email: user.email,
-    role: verifiedRole,
-  };
 }
 
 async function generateWithGemini(prompt, role, apiKey) {

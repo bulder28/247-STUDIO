@@ -97,11 +97,10 @@ service cloud.firestore {
     // COLECCIÓN: users
     // =========================================================================
     match /users/{userId} {
-      // Lectura: el propio usuario, el tutor asignado (guardianUid), el coach o el admin
+      // Lectura: el propio usuario, el tutor asignado (guardianUid) o el admin (Coach consulta directorio kiosk_members)
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
         isAdmin() ||
-        isCoach() ||
         (resource.data.guardianUid == request.auth.uid)
       );
 
@@ -264,8 +263,14 @@ service cloud.firestore {
         request.resource.data.checkInSource == 'TABLET' &&
         request.resource.data.attendanceWeight in [0.5, 1.0, 3.0];
 
-      // Admin o Coach (gestión de tatami y hoja de asistencia)
-      allow create, update, delete: if isAdmin() || isCoach();
+      // Admin total
+      allow create, delete: if isAdmin();
+      // Marcado de asistencia en tatami por Admin o Coach
+      allow update: if isAdmin() || (
+        isCoach() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'attendedAt', 'updatedAt']) &&
+        request.resource.data.status in ['ATTENDED', 'NO_SHOW']
+      );
     }
 
     // =========================================================================
@@ -341,8 +346,8 @@ service cloud.firestore {
     // COLECCIÓN: kiosk_members (Directorio público seguro para recepción)
     // =========================================================================
     match /kiosk_members/{memberId} {
-      // Legible por el kiosco, admin y alumnos (sin datos médicos ni privados)
-      allow read: if isKiosk() || isAdmin() || isStudent();
+      // Legible por el kiosco, admin, coach y alumnos (sin datos médicos ni privados)
+      allow read: if isKiosk() || isAdmin() || isCoach() || isStudent();
       allow create, delete: if isAdmin();
       // El alumno autenticado puede actualizar su propia foto y marca de tiempo
       allow update: if isAdmin() || (

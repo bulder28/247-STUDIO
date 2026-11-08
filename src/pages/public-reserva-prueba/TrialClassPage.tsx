@@ -15,8 +15,6 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
-  KeyRound,
-  Mail,
   MapPin,
   ShieldCheck,
 } from 'lucide-react';
@@ -141,7 +139,6 @@ export const TrialClassPage: React.FC = () => {
       setSubmittedEmail(cleanEmail);
       setSubmittedScheduleText(scheduleText);
       setSuccess(true);
-      setSuccess(true);
     } catch (err: unknown) {
       console.error('Error procesando reserva de prueba:', err);
       setError('No se pudo procesar tu reserva. Por favor inténtalo de nuevo.');
@@ -158,26 +155,26 @@ export const TrialClassPage: React.FC = () => {
           {/* Cabecera */}
           <div className="text-center mb-6">
             <div className="w-16 h-16 bg-emerald-500/15 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-3 border border-emerald-500/30">
-              <Mail className="w-8 h-8" />
+              <CheckCircle2 className="w-8 h-8" />
             </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-accent/10 text-brand-accent text-xs font-headline font-bold uppercase tracking-wider mb-2">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Enlace de Activación Enviado
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 text-xs font-headline font-bold uppercase tracking-wider mb-2">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Plaza Reservada con Éxito
             </div>
             <h2 className="text-2xl sm:text-3xl font-headline uppercase text-brand-text tracking-tight">
-              ¡Revisa tu Correo!
+              ¡Te Esperamos en el Tatami!
             </h2>
             <p className="text-xs sm:text-sm text-brand-text/80 mt-1">
-              Hemos enviado un enlace de activación y verificación a:
+              Hemos guardado tu plaza de clase de prueba gratuita para el correo:
             </p>
             <p className="font-mono text-xs sm:text-sm font-bold text-brand-text bg-brand-text/5 px-3 py-1.5 rounded-xl inline-block mt-2 border border-brand-text/10">
               {submittedEmail}
             </p>
           </div>
 
-          {/* Pasos del proceso estilo Madrid Deportes */}
+          {/* Pasos para el día de la clase de prueba */}
           <div className="space-y-3 mb-6 bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
             <p className="text-[11px] font-headline font-bold uppercase tracking-wider text-slate-500 mb-2">
-              Cómo acceder a tu clase de prueba:
+              Próximos pasos para tu clase:
             </p>
 
             <div className="flex items-start gap-3">
@@ -185,8 +182,8 @@ export const TrialClassPage: React.FC = () => {
                 1
               </div>
               <div className="text-xs leading-relaxed text-slate-700">
-                <span className="font-bold text-slate-900 block">Establece tu contraseña:</span>
-                Abre el correo que te hemos enviado y pulsa en el enlace de verificación para crear tu contraseña personal.
+                <span className="font-bold text-slate-900 block">Llega 10-15 minutos antes:</span>
+                Trae ropa deportiva cómoda (camiseta/lycra y pantalón corto sin bolsillos ni cremalleras), chanclas y botella de agua.
               </div>
             </div>
 
@@ -195,8 +192,8 @@ export const TrialClassPage: React.FC = () => {
                 2
               </div>
               <div className="text-xs leading-relaxed text-slate-700">
-                <span className="font-bold text-slate-900 block">Accede a tu Pase con Código QR:</span>
-                Inicia sesión con tu correo y tu contraseña. Tendrás tu pase de clase de prueba con tu código QR para el kiosco de entrada.
+                <span className="font-bold text-slate-900 block">Bienvenida en recepción:</span>
+                Mario o David te recibirán en la nave para conocer tus objetivos, explicarte las normas del tatami y presentarte al grupo.
               </div>
             </div>
 
@@ -205,8 +202,8 @@ export const TrialClassPage: React.FC = () => {
                 3
               </div>
               <div className="text-xs leading-relaxed text-slate-700">
-                <span className="font-bold text-slate-900 block">Completar ficha en la academia:</span>
-                Cuando vengas al tatami en Pinto, Mario o David completarán tu ficha definitiva de alumno (DNI, contacto de emergencia y seguro deportivo).
+                <span className="font-bold text-slate-900 block">Alta oficial y carnet virtual:</span>
+                Si te gusta la clase y decides unirte a la academia, completaremos tu ficha de socio y activaremos tu carnet virtual con tu acceso web.
               </div>
             </div>
           </div>
@@ -230,18 +227,18 @@ export const TrialClassPage: React.FC = () => {
             </div>
 
             <div className="pt-2 border-t border-brand-text/10 text-[11px] text-brand-text/75 leading-relaxed">
-              🥋 <strong>Qué traer el primer día:</strong> Ropa deportiva cómoda (lycra/camiseta y pantalón corto sin cremalleras ni bolsillos), chanclas y botella de agua. Llega 10-15 minutos antes.
+              🥋 <strong>Higiene y seguridad:</strong> Chanclas obligatorias siempre al bajar del tatami, uñas cortas y respeto absoluto a tus compañeros.
             </div>
           </div>
 
           {/* Botones de acción */}
           <div className="space-y-2.5">
             <Link
-              to="/login"
+              to="/registro"
               className="cta-button w-full text-center flex items-center justify-center gap-2 py-3.5"
             >
-              <KeyRound className="w-4 h-4" />
-              <span>Ya he creado mi contraseña → Iniciar Sesión</span>
+              <ArrowRight className="w-4 h-4" />
+              <span>¿Quieres darte de alta como socio ahora? → Registro</span>
             </Link>
 
             <a
@@ -396,11 +393,11 @@ export const TrialClassPage: React.FC = () => {
 
           <div className="p-4 bg-brand-text/5 rounded-2xl border border-brand-text/10 text-xs text-brand-text/80 space-y-2">
             <div className="flex items-center gap-2 font-bold text-brand-text">
-              <Mail className="w-4 h-4 text-brand-accent" />
-              <span>Verificación y activación digital estilo Madrid Deportes</span>
+              <ShieldCheck className="w-4 h-4 text-brand-accent" />
+              <span>Reserva presencial de clase de prueba gratuita</span>
             </div>
             <p className="text-[11px] leading-relaxed text-brand-text/75">
-              Al confirmar, te enviaremos un correo con un enlace de verificación para establecer tu contraseña. Una vez en la academia, Mario o David completarán tu ficha presencial con tus datos oficiales.
+              Al confirmar, guardamos tu plaza en el horario seleccionado. Te esperamos directamente en la academia en c/ Sisones 2, Nave 30 (Pinto). Sin compromiso ni pagos por adelantado.
             </p>
           </div>
 
@@ -412,11 +409,11 @@ export const TrialClassPage: React.FC = () => {
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Generando Enlace de Activación...</span>
+                <span>Guardando Reserva de Plaza...</span>
               </>
             ) : (
               <>
-                <span>Confirmar y Enviar Enlace de Activación</span>
+                <span>Confirmar Mi Clase de Prueba Gratuita</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

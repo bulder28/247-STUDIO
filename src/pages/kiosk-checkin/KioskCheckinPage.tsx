@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/app/providers/AuthProvider';
 import {
   collection,
   doc,
@@ -18,7 +19,6 @@ import {
   CheckCircle2,
   Clock,
   Eye,
-  KeyRound,
   Lock,
   QrCode,
   Search,
@@ -120,11 +120,8 @@ export const KioskCheckinPage: React.FC = () => {
     { uid: string; alias: string; belt: string; stripes: number; time: string }[]
   >([]);
 
-  const [pinModalOpen, setPinModalOpen] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState(false);
+  const { role } = useAuth();
   const [loadingCheckin, setLoadingCheckin] = useState(false);
-  const [kioskPin, setKioskPin] = useState<string>('2470');
 
   // Estados para Alta Exprés de Prueba en Kiosco
   const [trialModalOpen, setTrialModalOpen] = useState(false);
@@ -175,21 +172,6 @@ export const KioskCheckinPage: React.FC = () => {
     QRCode.toDataURL(trialUrl, { width: 220, margin: 1, color: { dark: '#0F172A', light: '#FFFFFF' } })
       .then(setTrialQrDataUrl)
       .catch(console.error);
-  }, []);
-
-  // 1. Cargar configuración de seguridad (PIN) desde Firestore
-  useEffect(() => {
-    const fetchKioskConfig = async () => {
-      try {
-        const configSnap = await getDoc(doc(db, 'kiosk_config', 'security'));
-        if (configSnap.exists() && configSnap.data().pin) {
-          setKioskPin(String(configSnap.data().pin));
-        }
-      } catch (err) {
-        console.warn('Usando configuración local de kiosco');
-      }
-    };
-    fetchKioskConfig();
   }, []);
 
   // Cuenta atrás para auto-cerrar el banner de celebración de check-in
@@ -525,14 +507,12 @@ export const KioskCheckinPage: React.FC = () => {
     }
   };
 
-  // 6. Validación de PIN dinámico de administrador
-  const handleVerifyPin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pinInput === kioskPin) {
+  // 6. Desbloqueo seguro de administración
+  const handleExitKiosk = () => {
+    if (role === 'admin') {
       navigate('/admin/personal');
     } else {
-      setPinError(true);
-      setPinInput('');
+      navigate('/login?redirect=/admin/personal');
     }
   };
 
@@ -578,7 +558,7 @@ export const KioskCheckinPage: React.FC = () => {
           )}
 
           <button
-            onClick={() => setPinModalOpen(true)}
+            onClick={handleExitKiosk}
             className="p-3 bg-white hover:bg-slate-50 rounded-2xl border border-slate-200/80 text-slate-400 hover:text-slate-800 transition shadow-sm cursor-pointer"
             title="Panel de Administración"
           >
@@ -896,57 +876,6 @@ export const KioskCheckinPage: React.FC = () => {
           </div>
         )}
       </main>
-
-      {/* ======================================================== */}
-      {/* 3. MODAL PIN DE ADMINISTRADOR (RADIX DIALOG)             */}
-      {/* ======================================================== */}
-      <Dialog
-        open={pinModalOpen}
-        onOpenChange={(open) => {
-          setPinModalOpen(open);
-          if (!open) {
-            setPinError(false);
-            setPinInput('');
-          }
-        }}
-      >
-        <DialogContent className="max-w-xs text-center">
-          <DialogHeader className="items-center text-center">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-brand-accent mx-auto flex items-center justify-center border border-rose-100 mb-2">
-              <KeyRound className="w-6 h-6" />
-            </div>
-            <DialogTitle className="text-base font-extrabold text-slate-900">
-              Desbloqueo de Gestión
-            </DialogTitle>
-            <p className="text-xs text-slate-500 mt-1">
-              Introduce el PIN de 4 dígitos para acceder al panel de administración.
-            </p>
-          </DialogHeader>
-
-          <form onSubmit={handleVerifyPin} className="space-y-3 pt-2">
-            <Input
-              type="password"
-              maxLength={4}
-              autoFocus
-              value={pinInput}
-              onChange={(e) => {
-                setPinInput(e.target.value);
-                setPinError(false);
-              }}
-              placeholder="••••"
-              className="text-center text-2xl font-mono tracking-widest h-12"
-            />
-
-            {pinError && (
-              <span className="text-xs text-rose-600 font-bold block">PIN incorrecto</span>
-            )}
-
-            <Button type="submit" variant="default" className="w-full">
-              Acceder a Administración
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* ======================================================== */}
       {/* 4. MODAL ALERTA DE CUENTA PAUSADA (RADIX DIALOG)         */}

@@ -78,13 +78,13 @@ export const AdminLayout: React.FC = () => {
   });
 
   const allLinks = [
-    { to: '/admin/personal', label: 'Alumnos & Cinturones', shortLabel: 'Alumnos', icon: Users, adminOnly: false },
+    { to: '/admin/personal', label: 'Alumnos & Cinturones', shortLabel: 'Alumnos', icon: Users, adminOnly: true },
     { to: '/admin/asistencia', label: 'Hoja de Asistencia', shortLabel: 'Asistencia', icon: UserCheck, adminOnly: false },
     { to: '/admin/caja', label: 'Caja y Pagos', shortLabel: 'Caja', icon: CreditCard, adminOnly: true },
     { to: '/admin/horarios', label: 'Horarios de Tatami', shortLabel: 'Horarios', icon: CalendarDays, adminOnly: false },
     { to: '/admin/tarifas', label: 'Tarifas & MRR', shortLabel: 'Tarifas', icon: Tags, adminOnly: true },
-    { to: '/admin/leads', label: 'Embudo de Leads', shortLabel: 'Leads', icon: Shield, adminOnly: false },
-    { to: '/admin/alta-alumno', label: 'Alta de Alumno', shortLabel: 'Alta Socio', icon: UserPlus, adminOnly: false },
+    { to: '/admin/leads', label: 'Embudo de Leads', shortLabel: 'Leads', icon: Shield, adminOnly: true },
+    { to: '/admin/alta-alumno', label: 'Alta de Alumno', shortLabel: 'Alta Socio', icon: UserPlus, adminOnly: true },
   ];
 
   const links = allLinks.filter((l) => !l.adminOnly || role === 'admin');

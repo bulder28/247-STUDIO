@@ -70,6 +70,8 @@ export const StudentRegistrationPage: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [successUid, setSuccessUid] = useState<string | null>(null);
+  const [createdLink, setCreatedLink] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mobileStep, setMobileStep] = useState<1 | 2 | 3>(1);
 
@@ -96,7 +98,65 @@ export const StudentRegistrationPage: React.FC = () => {
         throw new Error('Para atletas menores de 16 años es obligatorio registrar el tutor legal (nombre y teléfono).');
       }
 
-      // Resolver UID existente (por ejemplo si ya se registró para clase de prueba en la web)
+      if (formData.medicalNotes.trim() && !formData.medicalConsent) {
+        setError('Debe marcar la casilla de consentimiento explícito (RGPD Art. 9) para registrar información médica o lesiones del alumno.');
+        setLoading(false);
+        return;
+      }
+
+      // 1. Alta oficial en Firebase Auth y Firestore mediante Cloud/Netlify Function
+      const token = await adminAuthUser?.getIdToken().catch(() => null);
+      if (token) {
+        try {
+          const res = await fetch('/.netlify/functions/admin-create-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              email: formData.contactEmail,
+              alias: formData.alias,
+              phone: formData.phone,
+              birthDate: formData.birthDate,
+              belt: formData.belt,
+              stripes: Number(formData.stripes),
+              pricingTier: formData.pricingTier,
+              activeTariffId: formData.activeTariffId,
+              targetRole: 'student',
+              isMinor,
+              guardianName: formData.guardianName,
+              guardianPhone: formData.guardianPhone,
+              guardianDni: formData.guardianDni,
+              guardianEmail: formData.guardianEmail,
+              guardianUid: formData.guardianUid,
+              emergencyContactName: formData.emergencyContactName,
+              emergencyContactPhone: formData.emergencyContactPhone,
+              medicalNotes: formData.medicalNotes,
+              medicalConsent: formData.medicalConsent,
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            setCreatedLink(data.resetLink || null);
+            setSuccessUid(data.uid);
+
+            const effectiveLeadId = searchParams.get('leadId') || locationState.leadId;
+            if (effectiveLeadId) {
+              try {
+                const { updateDoc: updateLeadDoc } = await import('firebase/firestore');
+                await updateLeadDoc(doc(db, 'leads', effectiveLeadId), { status: 'CONVERTED' });
+              } catch {}
+            }
+            return;
+          }
+        } catch (fnErr) {
+          console.warn('Aviso: endpoint serverless no disponible, procediendo vía Firestore cliente:', fnErr);
+        }
+      }
+
+      // Fallback de aprovisionamiento directo en Firestore (modo local / offline)
       let uid = searchParams.get('uid') || locationState.uid || '';
       if (!uid && formData.contactEmail?.trim()) {
         try {
@@ -244,6 +304,38 @@ export const StudentRegistrationPage: React.FC = () => {
           <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
             Se ha creado la ficha en la BBDD, asignado su plan y sincronizado con el Kiosco de recepción para que pueda hacer check-in con su nombre o pase QR.
           </p>
+
+          {createdLink && (
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl max-w-lg mx-auto text-left space-y-2">
+              <span className="text-xs font-bold text-slate-800 block">
+                🔑 Enlace oficial de activación y contraseña:
+              </span>
+              <p className="text-[11px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200 break-all select-all">
+                {createdLink}
+              </p>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdLink);
+                    setCopiedLink(true);
+                    setTimeout(() => setCopiedLink(false), 3000);
+                  }}
+                  className="py-1.5 px-3 bg-brand-accent text-white font-bold text-xs rounded-lg hover:opacity-90 transition cursor-pointer"
+                >
+                  {copiedLink ? '✓ Copiado' : 'Copiar Enlace'}
+                </button>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`¡Hola! Te damos la bienvenida a 247Studio. Aquí tienes tu enlace oficial para configurar tu contraseña y acceder a tu carnet de alumno: ${createdLink}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-1.5 px-3 bg-emerald-600 text-white font-bold text-xs rounded-lg hover:bg-emerald-700 transition"
+                >
+                  Enviar por WhatsApp
+                </a>
+              </div>
+            </div>
+          )}
           <div className="pt-2 flex justify-center gap-3">
             <button
               onClick={() => {

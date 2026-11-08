@@ -429,9 +429,15 @@ export const LoginPage: React.FC = () => {
 
           <div className="mt-8 pt-4 border-t border-brand-text/10 space-y-2 text-center text-xs">
             <p className="text-xs text-brand-text/80">
-              ¿No tienes cuenta todavía?{' '}
+              ¿Quieres probar una clase gratis?{' '}
               <Link to="/reserva-prueba" className="font-bold text-brand-accent hover:underline block sm:inline mt-0.5">
-                Reserva tu clase de prueba y activa tu acceso →
+                Reserva tu clase de prueba →
+              </Link>
+            </p>
+            <p className="text-xs text-brand-text/80">
+              ¿Nuevo alumno?{' '}
+              <Link to="/registro" className="font-bold text-slate-800 hover:underline block sm:inline mt-0.5">
+                Crear cuenta de alumno →
               </Link>
             </p>
             <p>

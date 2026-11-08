@@ -5,13 +5,8 @@ import {
   getFirestore,
 } from 'firebase/firestore';
 
-// Clave pública de cliente Web decodificada para evitar falsos positivos en scanners de GitHub
-const defaultClientApiKey = typeof atob !== 'undefined'
-  ? atob('QUl6YVN5Q3NvZEc4bTlXMjA1bEpScXJSLWtiU2FoUmpOck5Mb2t3')
-  : '';
-
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || defaultClientApiKey,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'studio-ff8d1.firebaseapp.com',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'studio-ff8d1',
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'studio-ff8d1.firebasestorage.app',

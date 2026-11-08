@@ -36,7 +36,7 @@ const DAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 export const AttendanceHistoryPage: React.FC = () => {
   const { user, role } = useAuth();
-  const isAdmin = role === 'admin' || user?.email === 'nagorekaitz2008@gmail.com';
+  const isAdmin = role === 'admin';
 
   const [activeView, setActiveView] = useState<'METRICS' | 'PERSONAL'>(
     isAdmin ? 'METRICS' : 'PERSONAL'

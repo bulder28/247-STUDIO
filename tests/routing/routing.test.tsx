@@ -286,6 +286,101 @@ describe('Tests de routing y sitio público', () => {
       expect(screen.getByText('Admin Personal Page')).toBeDefined();
       expect(screen.queryByText('Student Secret')).toBeNull();
     });
+
+    it('E4. Coach accede a su ruta autorizada /admin/asistencia', () => {
+      vi.mocked(useAuth).mockReturnValue({
+        user: { uid: 'coach-1' } as any,
+        role: 'coach',
+        userData: null,
+        loading: false,
+        logout: vi.fn(),
+        refreshProfile: vi.fn(),
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/admin/asistencia']}>
+          <Routes>
+            <Route
+              path="/admin/asistencia"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'coach']}>
+                  <div>Coach Attendance Page</div>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText('Coach Attendance Page')).toBeDefined();
+    });
+
+    it('E5. Coach intenta acceder a /admin/caja (solo admin) y es redirigido a /admin/asistencia', () => {
+      vi.mocked(useAuth).mockReturnValue({
+        user: { uid: 'coach-1' } as any,
+        role: 'coach',
+        userData: null,
+        loading: false,
+        logout: vi.fn(),
+        refreshProfile: vi.fn(),
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/admin/caja']}>
+          <Routes>
+            <Route
+              path="/admin/caja"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <div>Caja Confidencial</div>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/admin/asistencia" element={<div>Coach Zone</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText('Coach Zone')).toBeDefined();
+      expect(screen.queryByText('Caja Confidencial')).toBeNull();
+    });
+
+    it('E6. Fail-Closed estricto: Usuario autenticado sin rol resuelto es bloqueado a /login', () => {
+      vi.mocked(useAuth).mockReturnValue({
+        user: { uid: 'user-sin-rol' } as any,
+        role: null, // Rol no resuelto
+        userData: null,
+        loading: false,
+        logout: vi.fn(),
+        refreshProfile: vi.fn(),
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/admin/caja']}>
+          <Routes>
+            <Route
+              path="/admin/caja"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <div>Secret Content</div>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/login" element={<div>LoginPage Login Screen</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText('LoginPage Login Screen')).toBeDefined();
+      expect(screen.queryByText('Secret Content')).toBeNull();
+    });
+
+    it('E7. getDefaultHomeByRole devuelve rutas correctas para coach y admin', () => {
+      expect(getDefaultHomeByRole('coach')).toBe('/admin/asistencia');
+      expect(getDefaultHomeByRole('admin')).toBe('/admin/personal');
+      expect(getDefaultHomeByRole('kiosk')).toBe('/kiosk/check-in');
+      expect(getDefaultHomeByRole('student')).toBe('/app/home');
+    });
   });
 
   // =========================================================================

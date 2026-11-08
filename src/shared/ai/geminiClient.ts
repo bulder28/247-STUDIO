@@ -51,10 +51,9 @@ export async function askGeminiKokoro(
     // se recurre al fallback local controlado.
   }
 
-  // 2. Fallback seguro para desarrollo local (solo admin o env local)
+  // 2. Fallback seguro para desarrollo local (solo con VITE_GEMINI_API_KEY en .env)
   const key =
     apiKey ||
-    (role === 'admin' && typeof localStorage !== 'undefined' ? localStorage.getItem('kokoro_gemini_key') : null) ||
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
     '';
 

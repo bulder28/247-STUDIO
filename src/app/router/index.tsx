@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { ProtectedRoute } from '@/app/router/ProtectedRoute';
 import { AdminLayout } from '@/widgets/AdminLayout';
 import { AppLayout } from '@/widgets/AppLayout';
@@ -16,6 +17,9 @@ const TrialClassPage = lazyWithRetry(() =>
 );
 const LoginPage = lazyWithRetry(() =>
   import('@/pages/public-login/LoginPage').then((m) => ({ default: m.LoginPage }))
+);
+const RegisterPage = lazyWithRetry(() =>
+  import('@/pages/public-registro/RegisterPage').then((m) => ({ default: m.RegisterPage }))
 );
 const HomePage = lazyWithRetry(() =>
   import('@/pages/app-home/HomePage').then((m) => ({ default: m.HomePage }))
@@ -104,6 +108,12 @@ const LazyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </RootErrorBoundary>
 );
 
+const AdminHomeRedirect: React.FC = () => {
+  const { role } = useAuth();
+  if (role === 'coach') return <Navigate to="/admin/asistencia" replace />;
+  return <Navigate to="/admin/personal" replace />;
+};
+
 export const router = createBrowserRouter([
   // Superficie pública (LandingLayout)
   {
@@ -157,8 +167,16 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // Ruta /registro redirige al flujo de reserva y activación de prueba estilo Madrid Deportes
-  { path: '/registro', element: <Navigate to="/reserva-prueba" replace /> },
+  // Registro público autónomo para alumnos adultos (>= 16 años según RGPD)
+  {
+    path: '/registro',
+    errorElement: <RouteErrorElement />,
+    element: (
+      <LazyRoute>
+        <RegisterPage />
+      </LazyRoute>
+    ),
+  },
 
   // App privada del Alumno (AppLayout con bottom-nav móvil)
   {
@@ -296,13 +314,15 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Navigate to="/admin/personal" replace /> },
+      { index: true, element: <AdminHomeRedirect /> },
       {
         path: 'personal',
         element: (
-          <LazyRoute>
-            <PersonalPage />
-          </LazyRoute>
+          <ProtectedRoute allowedRoles={['admin']}>
+            <LazyRoute>
+              <PersonalPage />
+            </LazyRoute>
+          </ProtectedRoute>
         ),
       },
       {
@@ -344,17 +364,21 @@ export const router = createBrowserRouter([
       {
         path: 'leads',
         element: (
-          <LazyRoute>
-            <LeadsAdminPage />
-          </LazyRoute>
+          <ProtectedRoute allowedRoles={['admin']}>
+            <LazyRoute>
+              <LeadsAdminPage />
+            </LazyRoute>
+          </ProtectedRoute>
         ),
       },
       {
         path: 'alta-alumno',
         element: (
-          <LazyRoute>
-            <StudentRegistrationPage />
-          </LazyRoute>
+          <ProtectedRoute allowedRoles={['admin']}>
+            <LazyRoute>
+              <StudentRegistrationPage />
+            </LazyRoute>
+          </ProtectedRoute>
         ),
       },
       {

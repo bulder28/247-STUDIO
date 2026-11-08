@@ -55,7 +55,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const docData = snap.data();
         setUserData({ uid: snap.id, ...(docData as Omit<UserDomainModel, 'uid'>) });
       } else {
-        setUserData(null);
+        // Si el usuario aún no tiene documento en Firestore (ej. acceso con Google recién iniciado),
+        // se suministra un perfil inicial en memoria para que la interfaz no quede bloqueada en skeleton.
+        // No escribe datos falsos en Firestore: el usuario completará su ficha oficial en recepción o perfil.
+        const fallbackProfile: UserDomainModel = {
+          uid: firebaseUser.uid,
+          authEmail: firebaseUser.email || '',
+          contactEmail: firebaseUser.email || '',
+          alias: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Atleta 247',
+          phone: firebaseUser.phoneNumber || '',
+          birthDate: '',
+          emergencyContactName: '',
+          emergencyContactPhone: '',
+          isMinor: false,
+          beltSystem: 'ADULT',
+          belt: 'WHITE',
+          stripes: 0,
+          beltDate: new Date().toISOString().slice(0, 10),
+          pricingTier: 'STD',
+          activeTariffId: 'tariff_default',
+          accountStatus: 'PENDING',
+          permissions: ['student'],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          stats: {
+            tecnica: 65,
+            fuerza: 60,
+            elasticidad: 60,
+            guardia: 65,
+            pase: 65,
+            derribos: 55,
+            leglocks: 50,
+            finalizacion: 60,
+          },
+        };
+        setUserData(fallbackProfile);
       }
     } catch (err) {
       console.error('Error al resolver claims o perfil de usuario:', err);

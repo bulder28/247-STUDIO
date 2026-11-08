@@ -4,7 +4,6 @@ import { collection, getDocs } from 'firebase/firestore';
 import {
   ArrowRight,
   Send,
-  Settings,
   Sparkles,
   X,
 } from 'lucide-react';
@@ -33,8 +32,6 @@ export const KokoroAssistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('kokoro_gemini_key') || '');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -147,9 +144,9 @@ export const KokoroAssistant: React.FC = () => {
     setInputText('');
     setIsTyping(true);
 
-    // 1. Intentar responder mediante el modelo LLM real (Google Gemini) si hay API key
+    // 1. Intentar responder mediante el modelo LLM real (Google Gemini) vía proxy serverless
     try {
-      const llmText = await askGeminiKokoro(text, apiKey || undefined, kokoroRole);
+      const llmText = await askGeminiKokoro(text, undefined, kokoroRole);
       if (llmText) {
         const botMsg: ChatMessage = {
           id: `kok_${Date.now()}`,
@@ -263,25 +260,13 @@ export const KokoroAssistant: React.FC = () => {
                 <div className="flex items-center gap-1.5 mt-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
                   <span className="text-[10px] text-slate-300 font-medium">
-                    {apiKey ? '⚡ Gemini LLM Activo' : 'Tatami 247 · En Línea'}
+                    ⚡ Gemini AI · Tatami 247
                   </span>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-1">
-              {kokoroRole === 'admin' && (
-                <button
-                  type="button"
-                  onClick={() => setShowSettings(!showSettings)}
-                  title="Configuración de IA Gemini"
-                  className={`p-1.5 rounded-full transition cursor-pointer ${
-                    apiKey ? 'text-amber-400 bg-amber-500/20' : 'text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Settings className="w-4 h-4" />
-                </button>
-              )}
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
@@ -292,59 +277,6 @@ export const KokoroAssistant: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {/* Panel de Configuración Gemini LLM (Exclusivo para Administrador) */}
-          {kokoroRole === 'admin' && showSettings && (
-            <div className="bg-slate-900 text-white p-3.5 border-b border-amber-500/30 text-xs space-y-2 animate-in slide-in-from-top-2">
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-amber-400 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" /> Motor LLM Generativo (Google Gemini)
-                </span>
-                <span className="text-[10px] text-slate-400">
-                  {apiKey ? '🟢 Live API' : '🟡 Motor Base'}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-tight">
-                Para que KOKORO razone con total libertad sobre cualquier tema, introduce tu clave gratuita de Google AI Studio:
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => {
-                    const val = e.target.value.trim();
-                    setApiKey(val);
-                    if (val) localStorage.setItem('kokoro_gemini_key', val);
-                    else localStorage.removeItem('kokoro_gemini_key');
-                  }}
-                  placeholder="Pega tu clave AIzaSy..."
-                  className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
-                />
-                {apiKey && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setApiKey('');
-                      localStorage.removeItem('kokoro_gemini_key');
-                    }}
-                    className="px-2 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/40 rounded-lg text-[10px] font-bold cursor-pointer"
-                  >
-                    Borrar
-                  </button>
-                )}
-              </div>
-              <div className="text-[10px] text-slate-400">
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-amber-400 underline hover:text-amber-300 font-semibold"
-                >
-                  Obtener clave gratis en Google AI Studio →
-                </a>
-              </div>
-            </div>
-          )}
 
           {/* Historial de Mensajes */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/60">
