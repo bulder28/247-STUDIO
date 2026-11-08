@@ -4,9 +4,9 @@ import {
   AlertTriangle,
   Camera,
   CheckCircle2,
-  HeartPulse,
   Lock,
   PauseCircle,
+  Phone,
   Save,
   User,
 } from 'lucide-react';
@@ -24,15 +24,13 @@ export const ProfilePage: React.FC = () => {
     phone: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
-    medicalNotes: '',
   });
 
-  const [medicalConsentGiven, setMedicalConsentGiven] = useState(false);
   const [freezes, setFreezes] = useState<FreezeDomainModel[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const [mobileTab, setMobileTab] = useState<'datos' | 'salud' | 'pausas'>('datos');
+  const [mobileTab, setMobileTab] = useState<'datos' | 'pausas'>('datos');
 
   useEffect(() => {
     if (userData) {
@@ -42,9 +40,7 @@ export const ProfilePage: React.FC = () => {
         phone: userData.phone || '',
         emergencyContactName: userData.emergencyContactName || '',
         emergencyContactPhone: userData.emergencyContactPhone || '',
-        medicalNotes: userData.medicalNotes || '',
       });
-      setMedicalConsentGiven(Boolean(userData.medicalConsentAt));
     }
   }, [userData]);
 
@@ -83,13 +79,8 @@ export const ProfilePage: React.FC = () => {
         phone: formData.phone.trim(),
         emergencyContactName: formData.emergencyContactName.trim(),
         emergencyContactPhone: formData.emergencyContactPhone.trim(),
-        medicalNotes: formData.medicalNotes.trim(),
         updatedAt: serverTimestamp(),
       };
-
-      if (medicalConsentGiven && !userData?.medicalConsentAt) {
-        updates.medicalConsentAt = serverTimestamp();
-      }
 
       await updateDoc(userRef, updates);
       await refreshProfile();
@@ -140,7 +131,7 @@ export const ProfilePage: React.FC = () => {
         type: 'success',
       });
     } catch (err) {
-      console.error('Error al guardar foto de atleta:', err);
+      console.error(err);
       setMessage({
         text: 'Error al optimizar o guardar la foto de perfil en Firestore.',
         type: 'error',
@@ -159,13 +150,13 @@ export const ProfilePage: React.FC = () => {
         <div>
           <h1 className="text-xl sm:text-3xl font-bold text-slate-900 tracking-tight">Mi Perfil de Atleta</h1>
           <p className="hidden sm:block text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Gestión de datos de contacto y registros médicos.
+            Gestión de datos de contacto y emergencias.
           </p>
         </div>
       </div>
 
       {/* Selector de sub-pestañas móvil sin scroll vertical */}
-      <div className="md:hidden grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
+      <div className="md:hidden grid grid-cols-2 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
         <button
           type="button"
           onClick={() => setMobileTab('datos')}
@@ -175,16 +166,6 @@ export const ProfilePage: React.FC = () => {
         >
           <User className="w-3.5 h-3.5" />
           <span>Mis Datos</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileTab('salud')}
-          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-            mobileTab === 'salud' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-          }`}
-        >
-          <HeartPulse className="w-3.5 h-3.5" />
-          <span>Salud & SOS</span>
         </button>
         <button
           type="button"
@@ -334,93 +315,47 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Sección de Salud y Contacto de Emergencia (RGPD Art. 9) */}
+        {/* Sección de Contacto de Emergencia (SOS) */}
         <div
           className={`${
-            mobileTab === 'salud' ? 'block' : 'hidden md:block'
+            mobileTab === 'datos' ? 'block' : 'hidden md:block'
           } bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-7 shadow-sm space-y-3 sm:space-y-4`}
         >
-          <div>
-            <span className="text-xs font-bold text-slate-800 block mb-2.5">
+          <div className="flex items-center gap-2 pb-2 sm:pb-3 border-b border-slate-100">
+            <Phone className="w-4 h-4 text-brand-accent" />
+            <span className="text-xs sm:text-sm font-bold text-slate-900 block">
               Contacto de Emergencia (SOS)
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pb-3 border-b border-slate-100">
-              <div>
-                <label htmlFor="profile-emergency-name" className="block text-[11px] sm:text-xs font-bold text-slate-700 mb-1">
-                  Nombre del Contacto
-                </label>
-                <input
-                  id="profile-emergency-name"
-                  type="text"
-                  name="emergencyContactName"
-                  placeholder="Nombre completo"
-                  value={formData.emergencyContactName}
-                  onChange={handleChange}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label htmlFor="profile-emergency-phone" className="block text-[11px] sm:text-xs font-bold text-slate-700 mb-1">
-                  Teléfono de Emergencia
-                </label>
-                <input
-                  id="profile-emergency-phone"
-                  type="tel"
-                  name="emergencyContactPhone"
-                  placeholder="Teléfono de contacto"
-                  value={formData.emergencyContactPhone}
-                  onChange={handleChange}
-                  className={inputCls}
-                />
-              </div>
-            </div>
           </div>
-
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <h2 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
-              <HeartPulse className="w-4 h-4 text-brand-accent" /> Notas Médicas y Lesiones (RGPD Art. 9)
-            </h2>
-            {userData.medicalConsentAt && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                Consentimiento Activo
-              </span>
-            )}
-          </div>
-
-          {!userData.medicalConsentAt && (
-            <label htmlFor="profile-medical-consent" className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label htmlFor="profile-emergency-name" className="block text-[11px] sm:text-xs font-bold text-slate-700 mb-1">
+                Nombre del Contacto
+              </label>
               <input
-                id="profile-medical-consent"
-                type="checkbox"
-                checked={medicalConsentGiven}
-                onChange={(e) => setMedicalConsentGiven(e.target.checked)}
-                className="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                id="profile-emergency-name"
+                type="text"
+                name="emergencyContactName"
+                placeholder="Nombre completo"
+                value={formData.emergencyContactName}
+                onChange={handleChange}
+                className={inputCls}
               />
-              <span className="text-[11px] sm:text-xs text-slate-700 leading-snug">
-                Autorizo expresamente a 247Studio el tratamiento confidencial de mis datos médicos y de aptitud física (Art. 9.2.a RGPD).
-              </span>
-            </label>
-          )}
-
-          <div>
-            <label htmlFor="profile-medical-notes" className="sr-only">
-              Notas médicas y lesiones (RGPD Art. 9)
-            </label>
-            <textarea
-              id="profile-medical-notes"
-              name="medicalNotes"
-              rows={2}
-              maxLength={2000}
-              disabled={!medicalConsentGiven && !userData.medicalConsentAt}
-              value={formData.medicalNotes}
-              onChange={handleChange}
-              placeholder={
-                medicalConsentGiven || userData.medicalConsentAt
-                  ? 'Describe cualquier lesión, afección respiratoria o advertencia física...'
-                  : 'Debes marcar la casilla de consentimiento para habilitar este campo.'
-              }
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
-            />
+            </div>
+            <div>
+              <label htmlFor="profile-emergency-phone" className="block text-[11px] sm:text-xs font-bold text-slate-700 mb-1">
+                Teléfono de Emergencia
+              </label>
+              <input
+                id="profile-emergency-phone"
+                type="tel"
+                name="emergencyContactPhone"
+                placeholder="Teléfono de contacto"
+                value={formData.emergencyContactPhone}
+                onChange={handleChange}
+                className={inputCls}
+              />
+            </div>
           </div>
         </div>
 

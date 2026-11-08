@@ -5,7 +5,6 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
-  HeartPulse,
   Shield,
   User,
   UserCheck,
@@ -64,8 +63,6 @@ export const StudentRegistrationPage: React.FC = () => {
     guardianEmail: '',
     guardianDni: '',
     guardianUid: searchParams.get('guardianUid') || locationState.guardianUid || '',
-    medicalNotes: '',
-    medicalConsent: true,
   });
 
   const [loading, setLoading] = useState(false);
@@ -73,7 +70,7 @@ export const StudentRegistrationPage: React.FC = () => {
   const [createdLink, setCreatedLink] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mobileStep, setMobileStep] = useState<1 | 2 | 3>(1);
+  const [mobileStep, setMobileStep] = useState<1 | 2>(1);
 
   const now = new Date();
   const isMinor = formData.birthDate ? isLegalMinor(formData.birthDate, now) : false;
@@ -96,12 +93,6 @@ export const StudentRegistrationPage: React.FC = () => {
 
       if (isMinor && (!formData.guardianName.trim() || !formData.guardianPhone.trim())) {
         throw new Error('Para atletas menores de 16 años es obligatorio registrar el tutor legal (nombre y teléfono).');
-      }
-
-      if (formData.medicalNotes.trim() && !formData.medicalConsent) {
-        setError('Debe marcar la casilla de consentimiento explícito (RGPD Art. 9) para registrar información médica o lesiones del alumno.');
-        setLoading(false);
-        return;
       }
 
       // 1. Alta oficial en Firebase Auth y Firestore mediante Cloud/Netlify Function
@@ -132,8 +123,6 @@ export const StudentRegistrationPage: React.FC = () => {
               guardianUid: formData.guardianUid,
               emergencyContactName: formData.emergencyContactName,
               emergencyContactPhone: formData.emergencyContactPhone,
-              medicalNotes: formData.medicalNotes,
-              medicalConsent: formData.medicalConsent,
             }),
           });
 
@@ -216,18 +205,6 @@ export const StudentRegistrationPage: React.FC = () => {
           finalizacion: 60,
         },
       };
-
-      if (formData.medicalNotes.trim() && !formData.medicalConsent) {
-        setError('Debe marcar la casilla de consentimiento explícito (RGPD Art. 9) para registrar información médica o lesiones del alumno.');
-        setLoading(false);
-        return;
-      }
-
-      if (formData.medicalNotes.trim() && formData.medicalConsent) {
-        userPayload.medicalNotes = formData.medicalNotes.trim();
-        userPayload.medicalConsentAt = serverTimestamp();
-        userPayload.medicalConsentVersion = 'v1.0';
-      }
 
       await setDoc(doc(db, 'users', uid), userPayload);
 
@@ -356,8 +333,6 @@ export const StudentRegistrationPage: React.FC = () => {
                   guardianEmail: '',
                   guardianDni: '',
                   guardianUid: '',
-                  medicalNotes: '',
-                  medicalConsent: true,
                 });
                 setMobileStep(1);
               }}
@@ -376,7 +351,7 @@ export const StudentRegistrationPage: React.FC = () => {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3 md:space-y-6">
           {/* Selector de pasos móvil sin scroll vertical */}
-          <div className="md:hidden grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
+          <div className="md:hidden grid grid-cols-2 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
             <button
               type="button"
               onClick={() => setMobileStep(1)}
@@ -395,17 +370,7 @@ export const StudentRegistrationPage: React.FC = () => {
               }`}
             >
               <UserCheck className="w-3.5 h-3.5" />
-              <span>2. Plan</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileStep(3)}
-              className={`py-2 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-                mobileStep === 3 ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-              }`}
-            >
-              <HeartPulse className="w-3.5 h-3.5" />
-              <span>3. Salud</span>
+              <span>2. Plan & Rango</span>
             </button>
           </div>
 
@@ -628,75 +593,22 @@ export const StudentRegistrationPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Bloque: Salud y Consentimiento Médico (RGPD Art. 9) */}
-          <div
-            className={`${
-              mobileStep === 3 ? 'block' : 'hidden md:block'
-            } p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 space-y-3 sm:space-y-4 shadow-sm`}
-          >
-            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <HeartPulse className="w-4 h-4 text-rose-500" />
-              <span>3. Salud, Lesiones y Consentimiento Médico (RGPD Art. 9)</span>
-            </h2>
-
-            <div className="space-y-3">
-              <div>
-                <label
-                  htmlFor="reg-medicalNotes"
-                  className="text-[11px] sm:text-xs font-bold uppercase text-slate-600 block mb-1"
-                >
-                  Lesiones Previas, Patologías o Alergias Relevantes (Opcional)
-                </label>
-                <textarea
-                  id="reg-medicalNotes"
-                  name="medicalNotes"
-                  value={formData.medicalNotes}
-                  onChange={handleChange}
-                  rows={2}
-                  placeholder="Ej: Cirugía de menisco en rodilla derecha (2023), asmático con inhalador..."
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-accent focus:bg-white transition resize-none"
-                />
-              </div>
-
-              <div className="pt-1">
-                <label className="flex items-start gap-2.5 p-3 bg-amber-50/60 border border-amber-200/70 rounded-2xl cursor-pointer hover:bg-amber-50/80 transition">
-                  <input
-                    type="checkbox"
-                    id="reg-medicalConsent"
-                    name="medicalConsent"
-                    checked={formData.medicalConsent}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, medicalConsent: e.target.checked }))
-                    }
-                    className="mt-1 h-4 w-4 rounded text-brand-accent focus:ring-brand-accent border-slate-300"
-                  />
-                  <div className="text-[11px] sm:text-xs text-slate-700 leading-snug">
-                    <span className="font-bold block text-slate-900 mb-0.5">
-                      Consentimiento Explícito de Datos de Salud (RGPD Art. 9)
-                    </span>
-                    El {isMinor ? 'tutor legal' : 'alumno'} autoriza expresamente a 247Studio a tratar sus datos de salud con la única finalidad de velar por su seguridad en el tatami.
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
-
           {/* Botones de navegación de paso móvil / Guardar */}
           <div className="flex items-center justify-between md:justify-end gap-2 pt-1 sm:pt-4">
             <div className="flex md:hidden gap-1.5">
               {mobileStep > 1 && (
                 <button
                   type="button"
-                  onClick={() => setMobileStep((prev) => (prev - 1) as 1 | 2 | 3)}
+                  onClick={() => setMobileStep(1)}
                   className="py-2.5 px-3.5 bg-slate-200 text-slate-800 font-bold text-xs rounded-xl cursor-pointer"
                 >
                   ← Anterior
                 </button>
               )}
-              {mobileStep < 3 && (
+              {mobileStep < 2 && (
                 <button
                   type="button"
-                  onClick={() => setMobileStep((prev) => (prev + 1) as 1 | 2 | 3)}
+                  onClick={() => setMobileStep(2)}
                   className="py-2.5 px-4 bg-slate-900 text-white font-bold text-xs rounded-xl cursor-pointer"
                 >
                   Siguiente →

@@ -104,8 +104,6 @@ export default async function handler(req, context) {
       guardianUid,
       emergencyContactName,
       emergencyContactPhone,
-      medicalNotes,
-      medicalConsent = true,
       stats,
     } = body;
 
@@ -177,8 +175,6 @@ export default async function handler(req, context) {
       accountStatus: 'ACTIVE',
       paymentStatusCache: 'OK',
       permissions: [finalRole],
-      medicalNotes: medicalNotes?.trim() || '',
-      medicalConsentAt: medicalConsent ? nowIso : null,
       waiverVersion: 'PRESENCIAL_V1',
       waiverSignedAt: nowIso,
       waiverSignedByUid: caller.uid,
