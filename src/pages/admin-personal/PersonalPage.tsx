@@ -71,7 +71,7 @@ export const PersonalPage: React.FC = () => {
   const [riskFilter, setRiskFilter] = useState<'ALL' | RetentionRisk>('ALL');
   const [beltFilter, setBeltFilter] = useState<string>('ALL');
   const [displayMode, setDisplayMode] = useState<'CARDS' | 'TABLE'>('CARDS');
-  const [includeMockAthletes, setIncludeMockAthletes] = useState(false);
+  const [includeMockAthletes, setIncludeMockAthletes] = useState(true);
   const [modalPreviewMode, setModalPreviewMode] = useState<'RADAR' | 'CARD'>('CARD');
   const [uploaderOpen, setUploaderOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserDomainModel | null>(null);

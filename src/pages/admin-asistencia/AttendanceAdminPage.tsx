@@ -39,6 +39,7 @@ import { downloadAttendanceSheetPdf } from '@/shared/utils/attendanceSheetGenera
 import { getAttendanceWeight } from '@/shared/domain/attendance';
 import { calculateAthleteXP, evaluateGraduationProgress, getNextPromotion } from '@/shared/domain/graduation';
 import { DEFAULT_OFFICIAL_SCHEDULES, getMadridTimeComponents } from '@/shared/domain/schedule';
+import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
 import {
   BookingDomainModel,
   BookingStatus,
@@ -142,6 +143,22 @@ export const AttendanceAdminPage: React.FC = () => {
             };
           }
         });
+
+        if (Object.keys(map).length === 0) {
+          SAMPLE_ATHLETES_20.forEach((ath) => {
+            map[ath.uid] = {
+              uid: ath.uid,
+              alias: ath.alias,
+              fullName: ath.alias,
+              belt: ath.belt,
+              stripes: ath.stripes,
+              beltSystem: ath.beltSystem,
+              phone: ath.phone,
+              accountStatus: ath.accountStatus,
+              beltDate: ath.beltDate,
+            };
+          });
+        }
 
         setStudents(map);
       } catch (err) {

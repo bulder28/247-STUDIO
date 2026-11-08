@@ -29,6 +29,8 @@ import {
   PaymentStatus,
   UserDomainModel,
 } from '@/shared/domain/types';
+import { SAMPLE_PAYMENTS_DEMO } from '@/shared/mock/samplePayments';
+import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
 import { Button } from '@/shared/ui/button';
 import {
   Dialog,
@@ -84,11 +86,11 @@ export const CajaPage: React.FC = () => {
 
       const pList: PaymentDomainModel[] = [];
       paySnap.forEach((d) => pList.push({ id: d.id, ...(d.data() as Omit<PaymentDomainModel, 'id'>) }));
-      setPayments(pList);
+      setPayments(pList.length > 0 ? pList : SAMPLE_PAYMENTS_DEMO);
 
       const uList: UserDomainModel[] = [];
       uSnap.forEach((d) => uList.push({ uid: d.id, ...(d.data() as Omit<UserDomainModel, 'uid'>) }));
-      setUsers(uList);
+      setUsers(uList.length > 0 ? uList : SAMPLE_ATHLETES_20);
 
       const frList: FreezeRequest[] = [];
       frSnap.forEach((d) => frList.push({ id: d.id, ...(d.data() as Omit<FreezeRequest, 'id'>) }));
