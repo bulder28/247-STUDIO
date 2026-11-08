@@ -7,16 +7,13 @@ import {
   HeartPulse,
   Lock,
   PauseCircle,
-  QrCode,
   Save,
   User,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { FreezeDomainModel } from '@/shared/domain/types';
-import { Dialog, DialogContent, DialogTitle } from '@/shared/ui/dialog';
 import { PhotoUploaderModal } from '@/widgets/PhotoUploaderModal';
-import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 import { compressImageToCanvas } from '@/shared/utils/imageCompressor';
 
 export const ProfilePage: React.FC = () => {
@@ -34,7 +31,6 @@ export const ProfilePage: React.FC = () => {
   const [freezes, setFreezes] = useState<FreezeDomainModel[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [showQrModal, setShowQrModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [mobileTab, setMobileTab] = useState<'datos' | 'salud' | 'pausas'>('datos');
 
@@ -166,16 +162,6 @@ export const ProfilePage: React.FC = () => {
             Gestión de datos de contacto y registros médicos.
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setShowQrModal(true)}
-          aria-label="Ver mi Pase QR de Acceso"
-          className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm shrink-0 cursor-pointer"
-        >
-          <QrCode className="w-4 h-4 text-brand-accent" />
-          <span>Pase QR</span>
-        </button>
       </div>
 
       {/* Selector de sub-pestañas móvil sin scroll vertical */}
@@ -488,14 +474,6 @@ export const ProfilePage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Modal Pase QR (Radix UI Dialog) */}
-      <Dialog open={showQrModal} onOpenChange={setShowQrModal}>
-        <DialogContent className="max-w-sm p-0 bg-transparent border-0 shadow-none">
-          <DialogTitle className="sr-only">Pase QR de Acceso</DialogTitle>
-          <QrCodePassCard user={userData} onClose={() => setShowQrModal(false)} />
-        </DialogContent>
-      </Dialog>
 
       {showPhotoModal && (
         <PhotoUploaderModal

@@ -188,7 +188,7 @@ export const AppLayout: React.FC = () => {
     {
       title: 'CONTENIDO',
       items: [
-        { to: '/app/avisos', label: 'Mensajes / Avisos', icon: Bell, badge: '3', badgeColor: 'bg-slate-800 text-white' },
+        { to: '/app/avisos', label: 'Mensajes / Avisos', icon: Bell },
         { to: '/app/foro', label: 'Foro Comunidad', icon: MessageSquare, badge: null },
         { to: '/app/media', label: 'Media', icon: Image, badge: null },
         { to: '/app/faqs', label: 'Recursos / FAQs', icon: HelpCircle, badge: null },
@@ -471,16 +471,13 @@ export const AppLayout: React.FC = () => {
               </Button>
             )}
 
-            {/* Notificaciones con pastilla numérica */}
+            {/* Notificaciones */}
             <Link
               to="/app/avisos"
               className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
               title="Avisos"
             >
               <Bell className="w-4 h-4" />
-              <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[9px] flex items-center justify-center font-bold">
-                3
-              </Badge>
             </Link>
 
             {/* Radix Dropdown Menu con Avatar de usuario e indicador online */}
@@ -530,10 +527,6 @@ export const AppLayout: React.FC = () => {
                     <User className="w-4 h-4 text-slate-500" />
                     <span>Mi Perfil & Stats</span>
                   </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setQrModalOpen(true)} className="flex items-center gap-2">
-                  <QrCode className="w-4 h-4 text-brand-accent" />
-                  <span>Ver Pase QR Tatami</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/app/cronometro" className="flex items-center gap-2">

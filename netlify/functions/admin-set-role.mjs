@@ -204,3 +204,4 @@ export default async function handler(req, context) {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
+
