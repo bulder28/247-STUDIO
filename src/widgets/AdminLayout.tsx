@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
-  BookOpen,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -12,10 +11,8 @@ import {
   PanelLeft,
   PanelLeftClose,
   PanelLeftOpen,
-  Scale,
   Shield,
   ShieldCheck,
-  Swords,
   Tablet,
   Tags,
   UserCheck,
@@ -30,7 +27,6 @@ import { KokoroAssistant } from '@/widgets/KokoroAssistant';
 export const AdminLayout: React.FC = () => {
   const { logout, role } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -70,9 +66,6 @@ export const AdminLayout: React.FC = () => {
 
   // Global Keyboard Shortcuts
   useGlobalShortcuts({
-    onToggleTimer: () => navigate('/admin/cronometro'),
-    onToggleWeightCalc: () => navigate('/admin/peso'),
-    onToggleCurriculum: () => navigate('/admin/curriculum'),
     onCloseModals: () => {
       setMobileMenuOpen(false);
     },
@@ -91,13 +84,7 @@ export const AdminLayout: React.FC = () => {
 
   const links = allLinks.filter((l) => !l.adminOnly || role === 'admin');
 
-  const tatamiTools = [
-    { to: '/admin/cronometro', label: 'Cronómetro Sparring', shortLabel: 'Cronómetro', icon: Swords },
-    { to: '/admin/peso', label: 'Calculadora IBJJF', shortLabel: 'Peso IBJJF', icon: Scale },
-    { to: '/admin/curriculum', label: 'Currículum & Drills', shortLabel: 'Currículum', icon: BookOpen },
-  ];
-
-  const activeLink = links.find((l) => location.pathname.startsWith(l.to)) || tatamiTools.find((l) => location.pathname.startsWith(l.to));
+  const activeLink = links.find((l) => location.pathname.startsWith(l.to));
 
   return (
     <div className="h-[100dvh] md:min-h-screen md:h-auto overflow-hidden md:overflow-visible bg-[#F8F9FA] flex flex-col md:flex-row font-sans text-slate-900 antialiased selection:bg-brand-accent selection:text-white">
@@ -194,33 +181,6 @@ export const AdminLayout: React.FC = () => {
               </nav>
             </div>
 
-            {/* Herramientas de Tatami como páginas completas */}
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1 pb-1.5">
-                Herramientas de Tatami
-              </p>
-              <div className="grid grid-cols-3 gap-1.5">
-                {tatamiTools.map((tool) => {
-                  const Icon = tool.icon;
-                  const isActive = location.pathname.startsWith(tool.to);
-                  return (
-                    <NavLink
-                      key={tool.to}
-                      to={tool.to}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl text-[11px] font-bold border transition ${
-                        isActive
-                          ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                          : 'bg-white text-slate-700 border-slate-200/80 hover:border-slate-300'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-brand-accent'}`} />
-                      <span>{tool.shortLabel}</span>
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </div>
           </div>
 
           {/* Footer Mobile Hub */}
@@ -384,44 +344,6 @@ export const AdminLayout: React.FC = () => {
                   );
                 })}
               </nav>
-            </div>
-
-            {/* Herramientas de Tatami */}
-            <div className="mt-5 pt-4 border-t border-slate-100">
-              {sidebarMode !== 'MINI' && (
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 pb-2">
-                  Herramientas de Tatami
-                </p>
-              )}
-              <div className="space-y-1">
-                {tatamiTools.map((tool) => {
-                  const Icon = tool.icon;
-                  const isActive = location.pathname.startsWith(tool.to);
-                  return (
-                    <NavLink
-                      key={tool.to}
-                      to={tool.to}
-                      title={sidebarMode === 'MINI' ? tool.label : undefined}
-                      className={`flex items-center ${
-                        sidebarMode === 'MINI' ? 'justify-center p-2.5' : 'justify-between px-3.5 py-2'
-                      } rounded-xl text-xs font-semibold transition-all group ${
-                        isActive
-                          ? 'bg-slate-900 text-white font-bold shadow-xs'
-                          : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                      }`}
-                    >
-                      <div className={`flex items-center ${sidebarMode === 'MINI' ? 'justify-center' : 'gap-2.5'}`}>
-                        <Icon
-                          className={`w-4 h-4 shrink-0 transition-colors ${
-                            isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'
-                          }`}
-                        />
-                        {sidebarMode !== 'MINI' && <span>{tool.label}</span>}
-                      </div>
-                    </NavLink>
-                  );
-                })}
-              </div>
             </div>
           </div>
 

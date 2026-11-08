@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
 import {
   Activity,
-  Award,
   Bell,
-  BookOpen,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -19,9 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   QrCode,
-  Scale,
   Shield,
-  Swords,
   User,
   UserPlus,
   X,
@@ -65,7 +61,6 @@ export type SidebarMode = 'EXPANDED' | 'MINI' | 'CLOSED';
 export const AppLayout: React.FC = () => {
   const { userData, role, logout } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -141,11 +136,8 @@ export const AppLayout: React.FC = () => {
     }
   }, [location.pathname]);
 
-  // Global Keyboard Shortcuts (Atajos rápidos de teclado con navegación directa)
+  // Global Keyboard Shortcuts (Atajos rápidos de teclado)
   useGlobalShortcuts({
-    onToggleTimer: () => navigate('/app/cronometro'),
-    onToggleWeightCalc: () => navigate('/app/peso'),
-    onToggleCurriculum: () => navigate('/app/curriculum'),
     onCloseModals: () => {
       setQrModalOpen(false);
       setMobileDrawerOpen(false);
@@ -163,11 +155,6 @@ export const AppLayout: React.FC = () => {
     if (path.includes('/app/foro')) return 'Foro';
     if (path.includes('/app/faqs')) return 'Preguntas frecuentes';
     if (path.includes('/app/media')) return 'Fotos y vídeos';
-    if (path.includes('/app/cronometro')) return 'Cronómetro de sparring';
-    if (path.includes('/app/peso')) return 'Calculadora de peso';
-    if (path.includes('/app/curriculum')) return 'Técnicas y ejercicios';
-    if (path.includes('/app/sparring')) return 'Diario de sparring';
-    if (path.includes('/app/cinturon')) return 'Camino al siguiente cinturón';
     return 'Mi cuenta';
   };
 
@@ -189,16 +176,6 @@ export const AppLayout: React.FC = () => {
         { to: '/app/foro', label: 'Foro', icon: MessageSquare, badge: null },
         { to: '/app/media', label: 'Fotos y vídeos', icon: Image, badge: null },
         { to: '/app/faqs', label: 'Preguntas frecuentes', icon: HelpCircle, badge: null },
-      ],
-    },
-    {
-      title: 'Herramientas',
-      items: [
-        { to: '/app/cronometro', label: 'Cronómetro de sparring', icon: Swords, badge: null },
-        { to: '/app/peso', label: 'Calculadora de peso', icon: Scale, badge: null },
-        { to: '/app/curriculum', label: 'Técnicas y ejercicios', icon: BookOpen, badge: null },
-        { to: '/app/sparring', label: 'Diario de sparring', icon: Activity, badge: null },
-        { to: '/app/cinturon', label: 'Camino al siguiente cinturón', icon: Award, badge: null },
       ],
     },
     ...(role === 'admin' || role === 'coach'
@@ -522,18 +499,6 @@ export const AppLayout: React.FC = () => {
                   <Link to="/app/perfil" className="flex items-center gap-2">
                     <User className="w-4 h-4 text-slate-500" />
                     <span>Mi Perfil & Stats</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/app/cronometro" className="flex items-center gap-2">
-                    <Swords className="w-4 h-4 text-rose-500" />
-                    <span>Cronómetro Sparring</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/app/peso" className="flex items-center gap-2">
-                    <Scale className="w-4 h-4 text-amber-500" />
-                    <span>Calculadora de Peso IBJJF</span>
                   </Link>
                 </DropdownMenuItem>
                 {role === 'admin' && (

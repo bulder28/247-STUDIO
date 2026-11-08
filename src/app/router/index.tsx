@@ -87,21 +87,6 @@ const TermsPage = lazyWithRetry(() =>
 const KioskCheckinPage = lazyWithRetry(() =>
   import('@/pages/kiosk-checkin/KioskCheckinPage').then((m) => ({ default: m.KioskCheckinPage }))
 );
-const SparringTimerPage = lazyWithRetry(() =>
-  import('@/pages/app-tools/SparringTimerPage').then((m) => ({ default: m.SparringTimerPage }))
-);
-const WeightDivisionPage = lazyWithRetry(() =>
-  import('@/pages/app-tools/WeightDivisionPage').then((m) => ({ default: m.WeightDivisionPage }))
-);
-const CurriculumPage = lazyWithRetry(() =>
-  import('@/pages/app-tools/CurriculumPage').then((m) => ({ default: m.CurriculumPage }))
-);
-const SparringLogPage = lazyWithRetry(() =>
-  import('@/pages/app-tools/SparringLogPage').then((m) => ({ default: m.SparringLogPage }))
-);
-const BeltRoadmapPage = lazyWithRetry(() =>
-  import('@/pages/app-tools/BeltRoadmapPage').then((m) => ({ default: m.BeltRoadmapPage }))
-);
 
 const LazyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <RootErrorBoundary>
@@ -294,46 +279,11 @@ export const router = createBrowserRouter([
           </LazyRoute>
         ),
       },
-      {
-        path: 'cronometro',
-        element: (
-          <LazyRoute>
-            <SparringTimerPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'peso',
-        element: (
-          <LazyRoute>
-            <WeightDivisionPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'curriculum',
-        element: (
-          <LazyRoute>
-            <CurriculumPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'sparring',
-        element: (
-          <LazyRoute>
-            <SparringLogPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'cinturon',
-        element: (
-          <LazyRoute>
-            <BeltRoadmapPage />
-          </LazyRoute>
-        ),
-      },
+      { path: 'cronometro', element: <Navigate to="/app/home" replace /> },
+      { path: 'peso', element: <Navigate to="/app/home" replace /> },
+      { path: 'curriculum', element: <Navigate to="/app/home" replace /> },
+      { path: 'sparring', element: <Navigate to="/app/progreso" replace /> },
+      { path: 'cinturon', element: <Navigate to="/app/progreso" replace /> },
     ],
   },
 
@@ -424,30 +374,9 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-      {
-        path: 'cronometro',
-        element: (
-          <LazyRoute>
-            <SparringTimerPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'peso',
-        element: (
-          <LazyRoute>
-            <WeightDivisionPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'curriculum',
-        element: (
-          <LazyRoute>
-            <CurriculumPage />
-          </LazyRoute>
-        ),
-      },
+      { path: 'cronometro', element: <Navigate to="/admin/asistencia" replace /> },
+      { path: 'peso', element: <Navigate to="/admin/asistencia" replace /> },
+      { path: 'curriculum', element: <Navigate to="/admin/asistencia" replace /> },
       {
         path: 'alta-menor',
         element: <Navigate to="/admin/alta-alumno" replace />,
