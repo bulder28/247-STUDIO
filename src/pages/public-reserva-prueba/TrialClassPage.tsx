@@ -22,7 +22,7 @@ import { db } from '@/shared/api/firebase';
 import { ScheduleDomainModel } from '@/shared/domain/types';
 import { DEFAULT_OFFICIAL_SCHEDULES } from '@/shared/domain/schedule';
 
-const DAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const DAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
 export const TrialClassPage: React.FC = () => {
   const [schedules, setSchedules] = useState<ScheduleDomainModel[]>(DEFAULT_OFFICIAL_SCHEDULES);
@@ -83,7 +83,7 @@ export const TrialClassPage: React.FC = () => {
   // Agrupación estructurada de horarios por día de la semana con fallback garantizado
   const groupedSchedules = useMemo(() => {
     const listToGroup = schedules.length > 0 ? schedules : DEFAULT_OFFICIAL_SCHEDULES;
-    const groups = [1, 2, 3, 4, 5, 6, 7]
+    const groups = [1, 2, 3, 4, 5]
       .map((dayNum) => {
         return {
           dayNum,

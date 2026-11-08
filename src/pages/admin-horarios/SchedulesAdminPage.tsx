@@ -99,8 +99,6 @@ const DAYS_OF_WEEK = [
   { num: 3, name: 'Miércoles', short: 'MIÉ' },
   { num: 4, name: 'Jueves', short: 'JUE' },
   { num: 5, name: 'Viernes', short: 'VIE' },
-  { num: 6, name: 'Sábado', short: 'SÁB' },
-  { num: 7, name: 'Domingo', short: 'DOM' },
 ];
 
 const MONTH_NAMES_ADMIN_ES = [

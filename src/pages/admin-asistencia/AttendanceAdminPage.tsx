@@ -75,7 +75,33 @@ export const AttendanceAdminPage: React.FC = () => {
   const now = new Date();
   const madridNow = getMadridTimeComponents(now);
 
-  const [selectedDateStr, setSelectedDateStr] = useState<string>(madridNow.dateStr);
+  // Ajusta cualquier fecha para que caiga en día lectivo de tatami (Lunes a Viernes)
+  const getClosestWorkingDate = (date: Date): string => {
+    const comp = getMadridTimeComponents(date);
+    const [y, m, d] = comp.dateStr.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+    const jsDay = dt.getUTCDay(); // 0 = Domingo, 6 = Sábado
+    if (jsDay === 6) {
+      const monday = new Date(dt.getTime() + 2 * 24 * 60 * 60 * 1000);
+      return getMadridTimeComponents(monday).dateStr;
+    }
+    if (jsDay === 0) {
+      const monday = new Date(dt.getTime() + 1 * 24 * 60 * 60 * 1000);
+      return getMadridTimeComponents(monday).dateStr;
+    }
+    return comp.dateStr;
+  };
+
+  const shiftWorkingDay = (dateStr: string, delta: -1 | 1): string => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    let dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+    do {
+      dt = new Date(dt.getTime() + delta * 24 * 60 * 60 * 1000);
+    } while (dt.getUTCDay() === 0 || dt.getUTCDay() === 6);
+    return getMadridTimeComponents(dt).dateStr;
+  };
+
+  const [selectedDateStr, setSelectedDateStr] = useState<string>(() => getClosestWorkingDate(now));
   const [schedules, setSchedules] = useState<ScheduleDomainModel[]>([]);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
   const [bookings, setBookings] = useState<BookingDomainModel[]>([]);
@@ -741,32 +767,38 @@ export const AttendanceAdminPage: React.FC = () => {
               <Calendar className="w-5 h-5 text-studio-red" />
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Fecha de la Clase
+                  Fecha de la Clase (Lunes a Viernes)
                 </label>
                 <input
                   type="date"
                   value={selectedDateStr}
-                  onChange={(e) => setSelectedDateStr(e.target.value)}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const [y, m, d] = e.target.value.split('-').map(Number);
+                      const chosen = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+                      setSelectedDateStr(getClosestWorkingDate(chosen));
+                    }
+                  }}
                   className="bg-slate-50 text-slate-900 text-sm font-bold px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:border-studio-red"
                 />
               </div>
             </div>
 
-            {/* Atajos rápidos: Ayer / Hoy / Mañana */}
+            {/* Atajos rápidos: Día Lectivo Anterior / Hoy / Día Lectivo Siguiente */}
             <div className="flex items-center gap-2">
               <button
-                onClick={() => {
-                  const d = new Date(new Date(selectedDateStr).getTime() - 24 * 60 * 60 * 1000);
-                  setSelectedDateStr(getMadridTimeComponents(d).dateStr);
-                }}
-                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 border border-slate-200/80"
+                type="button"
+                onClick={() => setSelectedDateStr(shiftWorkingDay(selectedDateStr, -1))}
+                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 border border-slate-200/80 cursor-pointer"
+                title="Día lectivo anterior (omite fines de semana)"
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> Anterior
               </button>
               <button
-                onClick={() => setSelectedDateStr(madridNow.dateStr)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
-                  selectedDateStr === madridNow.dateStr
+                type="button"
+                onClick={() => setSelectedDateStr(getClosestWorkingDate(new Date()))}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                  selectedDateStr === getClosestWorkingDate(new Date())
                     ? 'bg-studio-red/20 text-studio-red border-studio-red/40'
                     : 'bg-white/5 hover:bg-white/10 text-slate-700 border-slate-200/80'
                 }`}
@@ -774,11 +806,10 @@ export const AttendanceAdminPage: React.FC = () => {
                 Hoy
               </button>
               <button
-                onClick={() => {
-                  const d = new Date(new Date(selectedDateStr).getTime() + 24 * 60 * 60 * 1000);
-                  setSelectedDateStr(getMadridTimeComponents(d).dateStr);
-                }}
-                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 border border-slate-200/80"
+                type="button"
+                onClick={() => setSelectedDateStr(shiftWorkingDay(selectedDateStr, 1))}
+                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 border border-slate-200/80 cursor-pointer"
+                title="Día lectivo siguiente (omite fines de semana)"
               >
                 Siguiente <ChevronRight className="w-3.5 h-3.5" />
               </button>

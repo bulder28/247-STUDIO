@@ -78,7 +78,7 @@ export interface TatamiDemandSummary {
   monthlyAggregates: MonthlyAggregateMetric[];
 }
 
-const DAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const DAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
@@ -373,7 +373,7 @@ export function calculateTatamiDemandMetrics(
     }
   });
 
-  const demandByDay: DayOfWeekDemandMetric[] = [1, 2, 3, 4, 5, 6].map((dayNum) => {
+  const demandByDay: DayOfWeekDemandMetric[] = [1, 2, 3, 4, 5].map((dayNum) => {
     const d = dayMap[dayNum];
     return {
       dayOfWeek: dayNum,

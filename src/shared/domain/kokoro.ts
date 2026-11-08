@@ -601,7 +601,7 @@ export function generateKokoroResponse(
       return {
         intent,
         badge: 'ESTRATEGIA & CRECIMIENTO',
-        text: `Estrategia de Captación & Crecimiento para 247Studio (Pinto):\n\n1. 🥋 Funnel de Clase de Prueba con WhatsApp: Cada interesado de Instagram o Google recibe confirmación inmediata y recordatorio 3 horas antes.\n2. 🤝 Programa 'Hermano de Tatami' (Referrals): 10 € de descuento en la siguiente mensualidad al alumno que traiga un amigo que formalice su alta.\n3. 🏫 Clínicas de Iniciación & Defensa Personal Femenina los sábados: Eventos abiertos gratuitos para generar notoriedad de marca local en Pinto y comarca.\n4. ⭐ Reseñas en Google Maps: Solicitar 5 estrellas a los alumnos cuando alcancen su primer grado o cinturón azul.`,
+        text: `Estrategia de Captación & Crecimiento para 247Studio (Pinto):\n\n1. 🥋 Funnel de Clase de Prueba con WhatsApp: Cada interesado de Instagram o Google recibe confirmación inmediata y recordatorio 3 horas antes.\n2. 🤝 Programa 'Hermano de Tatami' (Referrals): 10 € de descuento en la siguiente mensualidad al alumno que traiga un amigo que formalice su alta.\n3. 🏫 Clínicas de Iniciación & Defensa Personal Femenina los viernes: Eventos abiertos gratuitos para generar notoriedad de marca local en Pinto y comarca.\n4. ⭐ Reseñas en Google Maps: Solicitar 5 estrellas a los alumnos cuando alcancen su primer grado o cinturón azul.`,
         action: {
           type: 'NAVIGATE',
           label: 'Ver Embudo de Leads',

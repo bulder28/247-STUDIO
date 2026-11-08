@@ -309,7 +309,7 @@ export function detectScheduleConflicts(schedules: ScheduleDomainModel[]): Sched
       const overlaps = Math.max(aStart, bStart) < Math.min(aEnd, bEnd);
       if (!overlaps) continue;
 
-      const dayName = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][a.dayOfWeek];
+      const dayName = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'][a.dayOfWeek] || `Día ${a.dayOfWeek}`;
 
       // Conflicto de tatami / sala
       if (a.room && b.room && a.room.trim().toLowerCase() === b.room.trim().toLowerCase()) {

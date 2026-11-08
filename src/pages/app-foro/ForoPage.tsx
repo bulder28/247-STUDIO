@@ -55,7 +55,7 @@ export const ForoPage: React.FC = () => {
       belt: 'Grappler Avanzado',
       avatarText: 'CR',
       date: 'Hace 2 días',
-      content: '¿Alguien para hacer drill de golpeo contra la jaula el sábado por la mañana antes del Open Mat libre?',
+      content: '¿Alguien para hacer drill de golpeo contra la jaula el viernes por la tarde antes del Open Mat libre?',
       likes: 5,
       commentsCount: 4,
     },

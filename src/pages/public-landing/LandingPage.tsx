@@ -67,7 +67,7 @@ const instructors = [
   },
 ];
 
-const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
 export const LandingPage: React.FC = () => {
   const [activeSchedules, setActiveSchedules] = useState<ScheduleDomainModel[]>([]);
@@ -80,8 +80,10 @@ export const LandingPage: React.FC = () => {
         const snap = await getDocs(q);
         const list: ScheduleDomainModel[] = [];
         snap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) }));
-        list.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
-        setActiveSchedules(list.length > 0 ? list : DEFAULT_OFFICIAL_SCHEDULES);
+        const workingDaysList = list
+          .filter((s) => s.dayOfWeek >= 1 && s.dayOfWeek <= 5)
+          .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
+        setActiveSchedules(workingDaysList.length > 0 ? workingDaysList : DEFAULT_OFFICIAL_SCHEDULES);
       } catch (err) {
         console.error('Error fetching public schedule:', err);
         setActiveSchedules(DEFAULT_OFFICIAL_SCHEDULES);

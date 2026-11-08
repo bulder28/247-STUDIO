@@ -258,12 +258,10 @@ const WEEKDAY_HEADERS = [
   { num: 3, label: 'Miércoles', short: 'MIÉ', letter: 'X' },
   { num: 4, label: 'Jueves', short: 'JUE', letter: 'J' },
   { num: 5, label: 'Viernes', short: 'VIE', letter: 'V' },
-  { num: 6, label: 'Sábado', short: 'SÁB', letter: 'S' },
-  { num: 7, label: 'Domingo', short: 'DOM', letter: 'D' },
 ];
 
 // Días lectivos de 247 STUDIO (Lunes a Viernes exclusivamente; sábados y domingos no hay actividades)
-const WORKING_WEEKDAY_HEADERS = WEEKDAY_HEADERS.slice(0, 5);
+const WORKING_WEEKDAY_HEADERS = WEEKDAY_HEADERS;
 
 function formatDateYMD(year: number, monthIndex0: number, day: number): string {
   const y = String(year);

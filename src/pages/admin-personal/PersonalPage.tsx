@@ -1,50 +1,50 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   collection,
   doc,
   getDocs,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore';
 import {
-  AlertTriangle,
-  Award,
-  Camera,
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  CreditCard,
   Download,
-  HeartPulse,
-  LayoutGrid,
-  List,
+  Mail,
   MessageCircle,
+  Pause,
+  Phone,
+  Play,
   Plus,
+  RefreshCw,
   Search,
-  ShieldAlert,
-  Sparkles,
-  TrendingDown,
-  UserCheck,
-  Users,
-  X,
+  User,
+  UserMinus,
+  UserPlus,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { db } from '@/shared/api/firebase';
 import { deriveRetentionRisk } from '@/shared/domain/attendance';
-import { calculateExactAge } from '@/shared/domain/minor';
-import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
+import { calculateExactAge, isLegalMinor } from '@/shared/domain/minor';
 import {
   AccountStatus,
   AdultBelt,
   Belt,
+  BeltSystem,
   BookingDomainModel,
-  FighterStats,
   KidsBelt,
+  PaymentDomainModel,
   PricingTier,
   RetentionRisk,
   UserDomainModel,
 } from '@/shared/domain/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/ui/avatar';
-import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import {
   Dialog,
@@ -55,97 +55,401 @@ import {
   DialogTitle,
 } from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { exportStudentsToCsv } from '@/shared/utils/csvExporter';
-import { BeltStatisticsCard, BeltStatsData } from '@/widgets/BeltStatisticsCard';
-import { FifaFighterCard } from '@/widgets/FifaFighterCard';
-import { FighterRadarChart } from '@/widgets/FighterRadarChart';
 import { PhotoUploaderModal } from '@/widgets/PhotoUploaderModal';
 
-export const PersonalPage: React.FC = () => {
-  const [users, setUsers] = useState<UserDomainModel[]>([]);
-  const [bookings, setBookings] = useState<BookingDomainModel[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | AccountStatus>('ALL');
-  const [tierFilter, setTierFilter] = useState<'ALL' | PricingTier>('ALL');
-  const [riskFilter, setRiskFilter] = useState<'ALL' | RetentionRisk>('ALL');
-  const [beltFilter, setBeltFilter] = useState<string>('ALL');
-  const [displayMode, setDisplayMode] = useState<'CARDS' | 'TABLE'>('CARDS');
-  const [includeMockAthletes, setIncludeMockAthletes] = useState(true);
-  const [modalPreviewMode, setModalPreviewMode] = useState<'RADAR' | 'CARD'>('CARD');
-  const [uploaderOpen, setUploaderOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserDomainModel | null>(null);
-  const [editingStats, setEditingStats] = useState<FighterStats | null>(null);
-  const [editingBelt, setEditingBelt] = useState<Belt>('WHITE');
-  const [editingStripes, setEditingStripes] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+// --- Constantes y Helpers de Cinturones ---
+const ADULT_BELTS: { value: AdultBelt; label: string; bg: string; text: string }[] = [
+  { value: 'WHITE', label: 'Blanco', bg: 'bg-white border-2 border-slate-300', text: 'text-slate-900' },
+  { value: 'BLUE', label: 'Azul', bg: 'bg-blue-600', text: 'text-white' },
+  { value: 'PURPLE', label: 'Morado', bg: 'bg-purple-700', text: 'text-white' },
+  { value: 'BROWN', label: 'Marrón', bg: 'bg-amber-900', text: 'text-white' },
+  { value: 'BLACK', label: 'Negro', bg: 'bg-slate-950 border border-rose-600', text: 'text-rose-500' },
+];
 
-  // Estados para modales Radix Dialog (sustituyen prompt y confirm)
-  const [freezeUserTarget, setFreezeUserTarget] = useState<UserDomainModel | null>(null);
+const KIDS_BELTS: { value: KidsBelt; label: string; bg: string; text: string }[] = [
+  { value: 'WHITE', label: 'Blanco', bg: 'bg-white border border-slate-300', text: 'text-slate-900' },
+  { value: 'GREY_WHITE', label: 'Gris / Blanco', bg: 'bg-slate-300', text: 'text-slate-900' },
+  { value: 'GREY', label: 'Gris', bg: 'bg-slate-400', text: 'text-white' },
+  { value: 'GREY_BLACK', label: 'Gris / Negro', bg: 'bg-slate-500', text: 'text-white' },
+  { value: 'YELLOW_WHITE', label: 'Amarillo / Blanco', bg: 'bg-yellow-200', text: 'text-yellow-900' },
+  { value: 'YELLOW', label: 'Amarillo', bg: 'bg-yellow-400', text: 'text-yellow-950' },
+  { value: 'YELLOW_BLACK', label: 'Amarillo / Negro', bg: 'bg-yellow-500', text: 'text-slate-950' },
+  { value: 'ORANGE_WHITE', label: 'Naranja / Blanco', bg: 'bg-orange-200', text: 'text-orange-950' },
+  { value: 'ORANGE', label: 'Naranja', bg: 'bg-orange-400', text: 'text-white' },
+  { value: 'ORANGE_BLACK', label: 'Naranja / Negro', bg: 'bg-orange-500', text: 'text-white' },
+  { value: 'GREEN_WHITE', label: 'Verde / Blanco', bg: 'bg-emerald-200', text: 'text-emerald-950' },
+  { value: 'GREEN', label: 'Verde', bg: 'bg-emerald-500', text: 'text-white' },
+  { value: 'GREEN_BLACK', label: 'Verde / Negro', bg: 'bg-emerald-600', text: 'text-white' },
+];
+
+const TIER_PRICES: Record<PricingTier, { name: string; price: string }> = {
+  STD: { name: 'Estándar (3 días)', price: '65 €' },
+  SF: { name: 'Sin Fin (Ilimitado)', price: '85 €' },
+  FAM: { name: 'Familiar', price: '55 €' },
+};
+
+export interface LeadModel {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  scheduleId?: string;
+  programInterest?: string;
+  source?: string;
+  notes?: string;
+  status: 'NEW' | 'SCHEDULED' | 'ATTENDED' | 'CONVERTED' | 'LOST';
+  createdAt?: any;
+}
+
+export const PersonalPage: React.FC = () => {
+  // Estado de datos
+  const [users, setUsers] = useState<UserDomainModel[]>([]);
+  const [leads, setLeads] = useState<LeadModel[]>([]);
+  const [bookings, setBookings] = useState<BookingDomainModel[]>([]);
+  const [payments, setPayments] = useState<PaymentDomainModel[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Vistas superiores de ciclo de vida
+  const [view, setView] = useState<'ACTIVOS' | 'INTERESADOS' | 'BAJAS'>('ACTIVOS');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Selección en modo Maestro-Detalle
+  const [selectedUser, setSelectedUser] = useState<UserDomainModel | null>(null);
+  const [selectedLead, setSelectedLead] = useState<LeadModel | null>(null);
+
+  // Pestañas de la Ficha
+  const [activeTab, setActiveTab] = useState<'resumen' | 'datos' | 'cinturon' | 'pagos' | 'asistencia'>('resumen');
+
+  // Formularios de edición en la ficha
+  const [datosForm, setDatosForm] = useState({
+    alias: '',
+    contactEmail: '',
+    phone: '',
+    birthDate: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    notes: '',
+  });
+
+  const [beltForm, setBeltForm] = useState<{ belt: Belt; stripes: number }>({
+    belt: 'WHITE',
+    stripes: 0,
+  });
+
+  const [tierForm, setTierForm] = useState<PricingTier>('STD');
+
+  // Modales
+  const [altaModalOpen, setAltaModalOpen] = useState(false);
+  const [altaForm, setAltaForm] = useState({
+    alias: '',
+    email: '',
+    phone: '',
+    birthDate: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    belt: 'WHITE' as Belt,
+    stripes: 0,
+    pricingTier: 'STD' as PricingTier,
+    isLeadOnly: false,
+    notes: '',
+  });
+
+  const [freezeModalOpen, setFreezeModalOpen] = useState(false);
   const [freezeReason, setFreezeReason] = useState('Lesión deportiva');
-  const [deactivateUserTarget, setDeactivateUserTarget] = useState<UserDomainModel | null>(null);
-  const [actionInProgress, setActionInProgress] = useState(false);
+  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
+  const [quickPaymentModalOpen, setQuickPaymentModalOpen] = useState(false);
+  const [quickPaymentForm, setQuickPaymentForm] = useState({
+    amount: '65',
+    method: 'BIZUM' as 'BIZUM' | 'CASH' | 'CARD',
+    concept: 'Cuota mensual tatami',
+  });
+  const [uploaderOpen, setUploaderOpen] = useState(false);
+
+  const [actionLoading, setActionLoading] = useState(false);
+  const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
 
   const now = new Date();
 
-  const fetchUsersAndHistory = async () => {
+  // Carga optimizada paralela con límite temporal de 60 días para reservas
+  const fetchData = async () => {
     try {
+      setLoading(true);
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const minDateStr = sixtyDaysAgo.toISOString().slice(0, 10);
 
-      const bookingsQuery = query(collection(db, 'bookings'), where('date', '>=', minDateStr));
-      const [usersSnap, bookingsSnap] = await Promise.all([
+      const [usersSnap, leadsSnap, bookingsSnap, paymentsSnap] = await Promise.all([
         getDocs(collection(db, 'users')),
-        getDocs(bookingsQuery),
+        getDocs(collection(db, 'leads')),
+        getDocs(query(collection(db, 'bookings'), where('date', '>=', minDateStr))),
+        getDocs(collection(db, 'payments')),
       ]);
 
       const uList: UserDomainModel[] = [];
       usersSnap.forEach((d) => uList.push({ uid: d.id, ...(d.data() as Omit<UserDomainModel, 'uid'>) }));
       setUsers(uList);
 
+      const lList: LeadModel[] = [];
+      leadsSnap.forEach((d) => lList.push({ id: d.id, ...(d.data() as Omit<LeadModel, 'id'>) }));
+      setLeads(lList);
+
       const bList: BookingDomainModel[] = [];
       bookingsSnap.forEach((d) => bList.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) }));
       setBookings(bList);
+
+      const pList: PaymentDomainModel[] = [];
+      paymentsSnap.forEach((d) => pList.push({ id: d.id, ...(d.data() as Omit<PaymentDomainModel, 'id'>) }));
+      setPayments(pList);
+
+      // Si había un alumno seleccionado, refrescar su referencia
+      if (selectedUser) {
+        const refreshed = uList.find((u) => u.uid === selectedUser.uid);
+        if (refreshed) syncFormsWithUser(refreshed);
+      }
     } catch (err) {
-      console.error('Error fetching admin personal:', err);
+      console.error('Error cargando gestión de alumnos:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsersAndHistory();
+    fetchData();
   }, []);
 
-  // Pre-indexación O(B) en memoria mediante useMemo para búsquedas O(1)
-  const bookingsByUid = React.useMemo(() => {
+  // Pre-indexación en memoria de reservas O(1) por usuario
+  const bookingsByUid = useMemo(() => {
     const map = new Map<string, BookingDomainModel[]>();
     for (const b of bookings) {
       const list = map.get(b.uid);
-      if (list) {
-        list.push(b);
-      } else {
-        map.set(b.uid, [b]);
-      }
+      if (list) list.push(b);
+      else map.set(b.uid, [b]);
     }
     return map;
   }, [bookings]);
 
-  // Consulta de riesgo O(1) por usuario
-  const getRetentionRiskForUser = React.useCallback(
-    (user: UserDomainModel): RetentionRisk => {
-      if (user.accountStatus === 'FROZEN' || user.accountStatus === 'PAUSED') {
-        return 'LOW';
-      }
-      const userBookings = bookingsByUid.get(user.uid) || [];
-      return deriveRetentionRisk(userBookings, now);
-    },
-    [bookingsByUid, now]
-  );
+  // Pre-indexación de pagos O(1) por usuario
+  const paymentsByUid = useMemo(() => {
+    const map = new Map<string, PaymentDomainModel[]>();
+    for (const p of payments) {
+      const list = map.get(p.uid);
+      if (list) list.push(p);
+      else map.set(p.uid, [p]);
+    }
+    return map;
+  }, [payments]);
 
+  // Riesgo de abandono por usuario
+  const getRetentionRisk = (user: UserDomainModel): RetentionRisk => {
+    if (user.accountStatus === 'FROZEN' || user.accountStatus === 'PAUSED' || user.accountStatus === 'INACTIVE') {
+      return 'LOW';
+    }
+    const userBookings = bookingsByUid.get(user.uid) || [];
+    return deriveRetentionRisk(userBookings, now);
+  };
+
+  // Sincronizar formularios al seleccionar alumno
+  const syncFormsWithUser = (user: UserDomainModel) => {
+    setSelectedUser(user);
+    setSelectedLead(null);
+    setDatosForm({
+      alias: user.alias || '',
+      contactEmail: user.contactEmail || user.authEmail || '',
+      phone: user.phone || '',
+      birthDate: user.birthDate || '',
+      emergencyContactName: user.emergencyContactName || '',
+      emergencyContactPhone: user.emergencyContactPhone || '',
+      notes: (user as any).notes || '',
+    });
+    setBeltForm({
+      belt: user.belt || 'WHITE',
+      stripes: user.stripes || 0,
+    });
+    setTierForm(user.pricingTier || 'STD');
+  };
+
+  const handleSelectLead = (lead: LeadModel) => {
+    setSelectedLead(lead);
+    setSelectedUser(null);
+    setActiveTab('resumen');
+  };
+
+  // Filtrado en las 3 vistas principales
+  const activosList = useMemo(() => {
+    return users.filter((u) => u.accountStatus === 'ACTIVE');
+  }, [users]);
+
+  const interesadosList = useMemo(() => {
+    const leadsNotConverted = leads.filter((l) => l.status !== 'CONVERTED');
+    const trialUsers = users.filter((u) => u.accountStatus === 'TRIAL' || u.accountStatus === 'PENDING');
+    return { leads: leadsNotConverted, trialUsers };
+  }, [leads, users]);
+
+  const bajasList = useMemo(() => {
+    return users.filter(
+      (u) =>
+        u.accountStatus === 'INACTIVE' ||
+        u.accountStatus === 'FROZEN' ||
+        u.accountStatus === 'PAUSED' ||
+        u.accountStatus === 'SUSPENDED'
+    );
+  }, [users]);
+
+  // Lista visible según vista y término de búsqueda
+  const filteredVisibleItems = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+
+    if (view === 'ACTIVOS') {
+      return activosList.filter((u) => {
+        if (!term) return true;
+        return (
+          u.alias?.toLowerCase().includes(term) ||
+          u.contactEmail?.toLowerCase().includes(term) ||
+          u.phone?.includes(term)
+        );
+      });
+    }
+
+    if (view === 'BAJAS') {
+      return bajasList.filter((u) => {
+        if (!term) return true;
+        return (
+          u.alias?.toLowerCase().includes(term) ||
+          u.contactEmail?.toLowerCase().includes(term) ||
+          u.phone?.includes(term)
+        );
+      });
+    }
+
+    // INTERESADOS (Leads + Usuarios en Prueba)
+    const matchedLeads = interesadosList.leads.filter((l) => {
+      if (!term) return true;
+      return (
+        l.name?.toLowerCase().includes(term) ||
+        l.email?.toLowerCase().includes(term) ||
+        l.phone?.includes(term)
+      );
+    });
+    const matchedTrialUsers = interesadosList.trialUsers.filter((u) => {
+      if (!term) return true;
+      return (
+        u.alias?.toLowerCase().includes(term) ||
+        u.contactEmail?.toLowerCase().includes(term) ||
+        u.phone?.includes(term)
+      );
+    });
+
+    return { leads: matchedLeads, trialUsers: matchedTrialUsers };
+  }, [view, searchTerm, activosList, bajasList, interesadosList]);
+
+  // Total de elementos por vista
+  const counts = {
+    activos: activosList.length,
+    interesados: interesadosList.leads.length + interesadosList.trialUsers.length,
+    bajas: bajasList.length,
+  };
+
+  // --- Operaciones de Escritura Firestore (con sincronización en kiosk_members) ---
+
+  const showNotification = (msg: string) => {
+    setSaveSuccessNotice(msg);
+    setTimeout(() => setSaveSuccessNotice(null), 3000);
+  };
+
+  // 1. Guardar Datos Personales
+  const handleSaveDatos = async () => {
+    if (!selectedUser) return;
+    setActionLoading(true);
+    try {
+      const isMinorUser = datosForm.birthDate ? isLegalMinor(datosForm.birthDate, now) : false;
+      const updates = {
+        alias: datosForm.alias.trim(),
+        contactEmail: datosForm.contactEmail.trim().toLowerCase(),
+        phone: datosForm.phone.trim(),
+        birthDate: datosForm.birthDate,
+        isMinor: isMinorUser,
+        emergencyContactName: datosForm.emergencyContactName.trim(),
+        emergencyContactPhone: datosForm.emergencyContactPhone.trim(),
+        notes: datosForm.notes.trim(),
+        updatedAt: serverTimestamp(),
+      };
+
+      await updateDoc(doc(db, 'users', selectedUser.uid), updates);
+
+      // Sincronizar en kiosk_members
+      try {
+        await updateDoc(doc(db, 'kiosk_members', selectedUser.uid), {
+          fullName: datosForm.alias.trim(),
+          updatedAt: serverTimestamp(),
+        });
+      } catch {}
+
+      showNotification('Datos personales actualizados correctamente.');
+      await fetchData();
+    } catch (err) {
+      console.error('Error al guardar datos:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // 2. Guardar Graduación (Cinturón & Rayas)
+  const handleSaveGraduacion = async () => {
+    if (!selectedUser) return;
+    setActionLoading(true);
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const updates = {
+        belt: beltForm.belt,
+        stripes: beltForm.stripes,
+        beltDate: todayStr,
+        updatedAt: serverTimestamp(),
+      };
+
+      await updateDoc(doc(db, 'users', selectedUser.uid), updates);
+
+      // Sincronizar en kiosk_members para reflejo inmediato en tatami
+      try {
+        await updateDoc(doc(db, 'kiosk_members', selectedUser.uid), {
+          belt: beltForm.belt,
+          stripes: beltForm.stripes,
+          fullName: selectedUser.alias || '',
+          updatedAt: serverTimestamp(),
+        });
+      } catch {}
+
+      showNotification(`Graduación actualizada: ${beltForm.belt} · ${beltForm.stripes} rayas.`);
+      await fetchData();
+    } catch (err) {
+      console.error('Error al guardar graduación:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // 3. Guardar Tarifa
+  const handleSaveTariff = async (newTier: PricingTier) => {
+    if (!selectedUser) return;
+    setActionLoading(true);
+    try {
+      await updateDoc(doc(db, 'users', selectedUser.uid), {
+        pricingTier: newTier,
+        updatedAt: serverTimestamp(),
+      });
+      setTierForm(newTier);
+      showNotification(`Tarifa actualizada a ${TIER_PRICES[newTier].name}.`);
+      await fetchData();
+    } catch (err) {
+      console.error('Error al actualizar tarifa:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // 4. Activar / Reactivar Alumno
   const handleActivateUser = async (uid: string) => {
+    setActionLoading(true);
     try {
       await updateDoc(doc(db, 'users', uid), {
         accountStatus: 'ACTIVE',
@@ -156,980 +460,1694 @@ export const PersonalPage: React.FC = () => {
           accountStatus: 'ACTIVE',
           updatedAt: serverTimestamp(),
         });
-      } catch {
-        // kiosk_member might not exist yet
-      }
-      await fetchUsersAndHistory();
+      } catch {}
+
+      showNotification('Alumno activado con éxito.');
+      await fetchData();
     } catch (err) {
-      console.error('Error activating user:', err);
+      console.error('Error al activar alumno:', err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
+  // 5. Congelar Alumno
   const handleConfirmFreeze = async () => {
-    if (!freezeUserTarget) return;
-    setActionInProgress(true);
+    if (!selectedUser) return;
+    setActionLoading(true);
     try {
-      await updateDoc(doc(db, 'users', freezeUserTarget.uid), {
+      await updateDoc(doc(db, 'users', selectedUser.uid), {
         accountStatus: 'FROZEN',
-        freezeReason: freezeReason.trim() || 'Lesión deportiva',
+        freezeReason: freezeReason.trim() || 'Pausa temporal solicitada',
         frozenAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
       try {
-        await updateDoc(doc(db, 'kiosk_members', freezeUserTarget.uid), {
+        await updateDoc(doc(db, 'kiosk_members', selectedUser.uid), {
           accountStatus: 'PAUSED',
           updatedAt: serverTimestamp(),
         });
-      } catch {
-        // kiosk_member might not exist yet
-      }
-      setFreezeUserTarget(null);
-      await fetchUsersAndHistory();
+      } catch {}
+
+      setFreezeModalOpen(false);
+      showNotification('Alumno pausado/congelado correctamente.');
+      await fetchData();
     } catch (err) {
-      console.error('Error freezing user:', err);
+      console.error('Error al congelar alumno:', err);
     } finally {
-      setActionInProgress(false);
+      setActionLoading(false);
     }
   };
 
+  // 6. Dar de Baja Alumno
   const handleConfirmDeactivate = async () => {
-    if (!deactivateUserTarget) return;
-    setActionInProgress(true);
+    if (!selectedUser) return;
+    setActionLoading(true);
     try {
-      await updateDoc(doc(db, 'users', deactivateUserTarget.uid), {
+      await updateDoc(doc(db, 'users', selectedUser.uid), {
         accountStatus: 'INACTIVE',
+        deactivatedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
       try {
-        await updateDoc(doc(db, 'kiosk_members', deactivateUserTarget.uid), {
+        await updateDoc(doc(db, 'kiosk_members', selectedUser.uid), {
           accountStatus: 'INACTIVE',
           updatedAt: serverTimestamp(),
         });
-      } catch {
-        // kiosk_member might not exist yet
-      }
-      setDeactivateUserTarget(null);
-      await fetchUsersAndHistory();
+      } catch {}
+
+      setDeactivateModalOpen(false);
+      showNotification('Alumno dado de baja.');
+      await fetchData();
     } catch (err) {
-      console.error('Error deactivating user:', err);
+      console.error('Error al dar de baja:', err);
     } finally {
-      setActionInProgress(false);
+      setActionLoading(false);
     }
   };
 
-  const openEditor = (user: UserDomainModel) => {
-    setSelectedUser(user);
-    setEditingBelt(user.belt || 'WHITE');
-    setEditingStripes(user.stripes || 0);
-    setEditingStats(
-      user.stats || {
-        tecnica: 50,
-        fuerza: 50,
-        elasticidad: 50,
-        guardia: 50,
-        pase: 50,
-        derribos: 50,
-        leglocks: 50,
-        finalizacion: 50,
-      }
-    );
-  };
-
-  const handleSaveEditor = async () => {
-    if (!selectedUser || !editingStats) return;
-    setSaving(true);
+  // 7. Convertir Lead a Alumno Activo
+  const handleConvertLeadToStudent = async (lead: LeadModel) => {
+    setActionLoading(true);
     try {
-      await updateDoc(doc(db, 'users', selectedUser.uid), {
-        belt: editingBelt,
-        stripes: editingStripes,
-        stats: editingStats,
+      const newUid = `usr_${Date.now()}`;
+      const nowIso = new Date().toISOString();
+
+      await setDoc(doc(db, 'users', newUid), {
+        uid: newUid,
+        alias: lead.name,
+        contactEmail: lead.email || '',
+        phone: lead.phone || '',
+        birthDate: '1995-01-01',
+        isMinor: false,
+        beltSystem: 'ADULT',
+        belt: 'WHITE',
+        stripes: 0,
+        beltDate: nowIso.slice(0, 10),
+        pricingTier: 'STD',
+        accountStatus: 'ACTIVE',
+        notes: lead.notes || '',
+        permissions: ['STUDENT'],
+        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
+      // Crear miembro de kiosco
       try {
-        await updateDoc(doc(db, 'kiosk_members', selectedUser.uid), {
-          belt: editingBelt,
-          stripes: editingStripes,
-          fullName: (selectedUser as any).fullName || selectedUser.alias || '',
-          accountStatus: selectedUser.accountStatus || 'ACTIVE',
+        await setDoc(doc(db, 'kiosk_members', newUid), {
+          uid: newUid,
+          fullName: lead.name,
+          belt: 'WHITE',
+          stripes: 0,
+          accountStatus: 'ACTIVE',
+          createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
-      } catch {
-        // kiosk_member might not exist yet
-      }
+      } catch {}
 
-      setSelectedUser(null);
-      await fetchUsersAndHistory();
+      // Marcar lead como CONVERTED
+      await updateDoc(doc(db, 'leads', lead.id), {
+        status: 'CONVERTED',
+        convertedAt: serverTimestamp(),
+      });
+
+      showNotification(`${lead.name} convertido en alumno activo.`);
+      await fetchData();
+      setView('ACTIVOS');
+      const newUserDoc = {
+        uid: newUid,
+        alias: lead.name,
+        contactEmail: lead.email || '',
+        phone: lead.phone || '',
+        birthDate: '1995-01-01',
+        isMinor: false,
+        beltSystem: 'ADULT' as BeltSystem,
+        belt: 'WHITE' as Belt,
+        stripes: 0,
+        beltDate: nowIso.slice(0, 10),
+        pricingTier: 'STD' as PricingTier,
+        activeTariffId: '',
+        authEmail: lead.email || '',
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        accountStatus: 'ACTIVE' as AccountStatus,
+        permissions: ['STUDENT'],
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      syncFormsWithUser(newUserDoc);
     } catch (err) {
-      console.error('Error saving user editor:', err);
+      console.error('Error al convertir lead:', err);
     } finally {
-      setSaving(false);
+      setActionLoading(false);
     }
   };
 
-  // 20 Atletas de muestra combinados para visualización top
-  const effectiveUsers = React.useMemo(() => {
-    if (!includeMockAthletes) return users;
-    const realUids = new Set(users.map((u) => u.uid));
-    const mocks = SAMPLE_ATHLETES_20.filter((m) => !realUids.has(m.uid));
-    return [...users, ...mocks];
-  }, [users, includeMockAthletes]);
+  // 8. Crear Nuevo Alumno / Interesado desde el Modal Principal
+  const handleCreateStudentOrLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!altaForm.alias.trim()) return;
 
-  // Resumen del Radar Anti-Abandono
-  const retentionStats = React.useMemo(() => {
-    let high = 0;
-    let medium = 0;
-    let low = 0;
+    setActionLoading(true);
+    try {
+      const nowIso = new Date().toISOString();
 
-    effectiveUsers.forEach((u) => {
-      if (u.accountStatus !== 'ACTIVE') return;
-      const risk = getRetentionRiskForUser(u);
-      if (risk === 'HIGH') high++;
-      else if (risk === 'MEDIUM') medium++;
-      else low++;
-    });
+      if (altaForm.isLeadOnly) {
+        // Guardar como Lead en el embudo
+        const newLeadRef = doc(collection(db, 'leads'));
+        await setDoc(newLeadRef, {
+          name: altaForm.alias.trim(),
+          email: altaForm.email.trim().toLowerCase(),
+          phone: altaForm.phone.trim(),
+          status: 'NEW',
+          notes: altaForm.notes.trim(),
+          createdAt: serverTimestamp(),
+        });
+        showNotification(`Interesado ${altaForm.alias} registrado.`);
+        setAltaModalOpen(false);
+        await fetchData();
+        setView('INTERESADOS');
+      } else {
+        // Guardar como Alumno en `users` y `kiosk_members`
+        const newUid = `usr_${Date.now()}`;
+        const isMinorUser = altaForm.birthDate ? isLegalMinor(altaForm.birthDate, now) : false;
 
-    return { high, medium, low };
-  }, [effectiveUsers, getRetentionRiskForUser]);
+        await setDoc(doc(db, 'users', newUid), {
+          uid: newUid,
+          alias: altaForm.alias.trim(),
+          contactEmail: altaForm.email.trim().toLowerCase(),
+          phone: altaForm.phone.trim(),
+          birthDate: altaForm.birthDate || '1995-01-01',
+          isMinor: isMinorUser,
+          beltSystem: isMinorUser ? 'KIDS' : 'ADULT',
+          belt: altaForm.belt,
+          stripes: altaForm.stripes,
+          beltDate: nowIso.slice(0, 10),
+          pricingTier: altaForm.pricingTier,
+          emergencyContactName: altaForm.emergencyContactName.trim(),
+          emergencyContactPhone: altaForm.emergencyContactPhone.trim(),
+          accountStatus: 'ACTIVE',
+          notes: altaForm.notes.trim(),
+          permissions: ['STUDENT'],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
 
-  const isKidBelt = (b: Belt) =>
-    b.includes('GREY') || b.includes('YELLOW') || b.includes('ORANGE') || b.includes('GREEN');
+        try {
+          await setDoc(doc(db, 'kiosk_members', newUid), {
+            uid: newUid,
+            fullName: altaForm.alias.trim(),
+            belt: altaForm.belt,
+            stripes: altaForm.stripes,
+            accountStatus: 'ACTIVE',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        } catch {}
 
-  const isProfessorUser = (u: UserDomainModel) => {
-    const isCoach =
-      u.alias?.toLowerCase().includes('mario') ||
-      u.alias?.toLowerCase().includes('david') ||
-      u.permissions?.includes('ADMIN') ||
-      u.permissions?.includes('COACH');
-    return isCoach && (u.belt === 'BLACK' || u.belt === 'BROWN');
+        showNotification(`Alumno ${altaForm.alias} dado de alta.`);
+        setAltaModalOpen(false);
+        await fetchData();
+        setView('ACTIVOS');
+        const createdUser: UserDomainModel = {
+          uid: newUid,
+          alias: altaForm.alias.trim(),
+          contactEmail: altaForm.email.trim().toLowerCase(),
+          phone: altaForm.phone.trim(),
+          birthDate: altaForm.birthDate || '1995-01-01',
+          isMinor: isMinorUser,
+          beltSystem: isMinorUser ? 'KIDS' : 'ADULT',
+          belt: altaForm.belt,
+          stripes: altaForm.stripes,
+          beltDate: nowIso.slice(0, 10),
+          pricingTier: altaForm.pricingTier,
+          activeTariffId: '',
+          authEmail: altaForm.email.trim().toLowerCase(),
+          emergencyContactName: altaForm.emergencyContactName.trim(),
+          emergencyContactPhone: altaForm.emergencyContactPhone.trim(),
+          accountStatus: 'ACTIVE',
+          permissions: ['STUDENT'],
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
+        syncFormsWithUser(createdUser);
+      }
+    } catch (err) {
+      console.error('Error al crear alumno:', err);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const profesorCount = effectiveUsers.filter(isProfessorUser).length;
-  const blackCount = effectiveUsers.filter((u) => u.belt === 'BLACK').length;
-  const brownCount = effectiveUsers.filter((u) => u.belt === 'BROWN').length;
-  const purpleCount = effectiveUsers.filter((u) => u.belt === 'PURPLE').length;
-  const blueCount = effectiveUsers.filter((u) => u.belt === 'BLUE').length;
-  const whiteCount = effectiveUsers.filter((u) => u.belt === 'WHITE').length;
+  // 9. Registrar Cobro Rápido en la Ficha
+  const handleRegisterQuickPayment = async () => {
+    if (!selectedUser) return;
+    setActionLoading(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const currentPeriod = nowIso.slice(0, 7);
+      const amountNum = parseFloat(quickPaymentForm.amount) || 65;
 
-  const beltStatsData: BeltStatsData = {
-    profesorCount,
-    blackCount,
-    brownCount,
-    purpleCount,
-    blueCount,
-    whiteCount,
-    totalCount: effectiveUsers.length,
+      const newPayRef = doc(collection(db, 'payments'));
+      await setDoc(newPayRef, {
+        uid: selectedUser.uid,
+        period: currentPeriod,
+        method: quickPaymentForm.method,
+        status: 'APPROVED',
+        billingType: 'MONTHLY',
+        concept: quickPaymentForm.concept || 'Cuota mensual tatami',
+        amountCents: Math.round(amountNum * 100),
+        baseCents: Math.round(amountNum * 100),
+        vatCents: 0,
+        paidAt: serverTimestamp(),
+        validatedBy: 'Admin Directo',
+        validatedAt: nowIso,
+        createdAt: nowIso,
+      });
+
+      setQuickPaymentModalOpen(false);
+      showNotification(`Pago de ${amountNum} € registrado.`);
+      await fetchData();
+    } catch (err) {
+      console.error('Error al registrar pago:', err);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const filteredUsers = effectiveUsers.filter((u) => {
-    const matchesSearch =
-      u.alias?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.contactEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.phone?.includes(searchTerm);
+  // Datos derivados del alumno seleccionado
+  const selectedUserBookings = useMemo(() => {
+    if (!selectedUser) return [];
+    return (bookingsByUid.get(selectedUser.uid) || []).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [selectedUser, bookingsByUid]);
 
-    const matchesStatus = statusFilter === 'ALL' || u.accountStatus === statusFilter;
-    const matchesTier = tierFilter === 'ALL' || u.pricingTier === tierFilter;
-    const userRisk = getRetentionRiskForUser(u);
-    const matchesRisk = riskFilter === 'ALL' || userRisk === riskFilter;
+  const selectedUserPayments = useMemo(() => {
+    if (!selectedUser) return [];
+    return (paymentsByUid.get(selectedUser.uid) || []).sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  }, [selectedUser, paymentsByUid]);
 
-    const matchesBelt =
-      beltFilter === 'ALL' ||
-      (beltFilter === 'PROFESOR'
-        ? isProfessorUser(u)
-        : beltFilter === 'KIDS'
-        ? isKidBelt(u.belt)
-        : u.belt === beltFilter);
+  const selectedUserAge = useMemo(() => {
+    if (!selectedUser?.birthDate) return null;
+    return calculateExactAge(selectedUser.birthDate, now);
+  }, [selectedUser]);
 
-    return matchesSearch && matchesStatus && matchesTier && matchesRisk && matchesBelt;
-  });
+  // Indicador de ciclo de vida del alumno
+  const getLifecycleStage = (user: UserDomainModel | null, lead: LeadModel | null) => {
+    if (lead) {
+      if (lead.status === 'SCHEDULED' || lead.status === 'ATTENDED') return 2; // Prueba
+      return 1; // Interesado
+    }
+    if (user) {
+      if (user.accountStatus === 'TRIAL') return 2; // Prueba
+      if (user.accountStatus === 'PENDING') return 3; // Alta en proceso
+      return 4; // Activo
+    }
+    return 1;
+  };
 
-  const adultBelts: AdultBelt[] = ['WHITE', 'BLUE', 'PURPLE', 'BROWN', 'BLACK'];
-  const kidsBelts: KidsBelt[] = [
-    'WHITE',
-    'GREY_WHITE',
-    'GREY',
-    'GREY_BLACK',
-    'YELLOW_WHITE',
-    'YELLOW',
-    'YELLOW_BLACK',
-    'ORANGE_WHITE',
-    'ORANGE',
-    'ORANGE_BLACK',
-    'GREEN_WHITE',
-    'GREEN',
-    'GREEN_BLACK',
-  ];
-
-  const [mobileSection, setMobileSection] = useState<'censo' | 'cinturones' | 'retencion'>('censo');
+  const currentStage = getLifecycleStage(selectedUser, selectedLead);
 
   return (
-    <div className="space-y-3 md:space-y-6 pb-2 md:pb-12 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+    <div className="space-y-4 pb-12 animate-in fade-in duration-200">
+      {/* ======================================================== */}
+      {/* 1. CABECERA SUPERIOR Y FILTROS DE CICLO DE VIDA         */}
+      {/* ======================================================== */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wide text-slate-900">Alumnos</h1>
-          <p className="hidden sm:block text-xs text-slate-500 mt-0.5">
-            Censo oficial de atletas de 247Studio, control de cinturones, grados y radar de retención.
+          <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 font-headline">
+            Gestión de Alumnos
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Censo de tatami, control de cinturones, cuotas y seguimiento integral del alumno.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => exportStudentsToCsv(filteredUsers)}
-            className="py-2 sm:py-3 px-3 sm:px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200/80 shadow-2xs"
+            onClick={() => exportStudentsToCsv(users)}
+            className="px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            title="Descargar censo en CSV"
           >
-            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600" />
-            <span>Exportar CSV</span>
+            <Download className="w-4 h-4 text-slate-500" />
+            <span className="hidden sm:inline">Exportar CSV</span>
           </button>
 
-          <Link
-            to="/admin/alta-alumno"
-            className="py-2 sm:py-3 px-3.5 sm:px-5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg flex items-center justify-center gap-1.5"
+          {/* ÚNICO BOTÓN ROJO DE ACCIÓN PRINCIPAL */}
+          <button
+            type="button"
+            onClick={() => {
+              setAltaForm({
+                alias: '',
+                email: '',
+                phone: '',
+                birthDate: '',
+                emergencyContactName: '',
+                emergencyContactPhone: '',
+                belt: 'WHITE',
+                stripes: 0,
+                pricingTier: 'STD',
+                isLeadOnly: false,
+                notes: '',
+              });
+              setAltaModalOpen(true);
+            }}
+            className="px-4 py-2 bg-studio-red hover:bg-studio-red/90 text-white text-xs font-black uppercase tracking-wider rounded-xl transition shadow-md flex items-center gap-1.5 cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Alta Alumno
-          </Link>
+            <Plus className="w-4 h-4" />
+            <span>Dar de alta alumno</span>
+          </button>
         </div>
       </div>
 
-      {/* Selector de sub-pestañas móvil sin scroll vertical */}
-      <div className="md:hidden grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
-        <button
-          type="button"
-          onClick={() => setMobileSection('censo')}
-          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
-            mobileSection === 'censo' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-          }`}
-        >
-          👥 Censo ({filteredUsers.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileSection('cinturones')}
-          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
-            mobileSection === 'cinturones' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-          }`}
-        >
-          🥋 Cinturones
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileSection('retencion')}
-          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
-            mobileSection === 'retencion' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-          }`}
-        >
-          🚨 Retención
-        </button>
-      </div>
+      {/* Alerta de notificación flotante de éxito */}
+      {saveSuccessNotice && (
+        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{saveSuccessNotice}</span>
+        </div>
+      )}
 
-      {/* ======================================================== */}
-      {/* RADAR ANTI-ABANDONO (ANTI-CHURN & RETENCIÓN DE TATAMI)  */}
-      {/* ======================================================== */}
-      <div
-        className={`${
-          mobileSection === 'retencion' ? 'grid' : 'hidden md:grid'
-        } grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4`}
-      >
-        {/* Riesgo Alto */}
-        <motion.div
-          whileHover={{ y: -2, scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setRiskFilter(riskFilter === 'HIGH' ? 'ALL' : 'HIGH')}
-          className={`p-4 rounded-2xl border transition cursor-pointer select-none shadow-xs ${
-            riskFilter === 'HIGH'
-              ? 'bg-rose-50/90 border-rose-400 ring-2 ring-rose-400/50 shadow-md'
-              : 'bg-white border-slate-200/80 hover:border-rose-200 hover:bg-rose-50/20'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
-              <ShieldAlert className="w-4 h-4 text-rose-600" /> Riesgo de Abandono (Alto)
+      {/* Barra de 3 vistas superiores: Interesados, Activos y Bajas */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center bg-slate-200/70 p-1 rounded-xl gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              setView('INTERESADOS');
+              setSelectedUser(null);
+              setSelectedLead(null);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+              view === 'INTERESADOS'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>Interesados</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                view === 'INTERESADOS' ? 'bg-amber-400 text-slate-950' : 'bg-slate-300 text-slate-700'
+              }`}
+            >
+              {counts.interesados}
             </span>
-            <Badge variant={riskFilter === 'HIGH' ? 'destructive' : 'secondary'} className="text-[9px]">
-              {riskFilter === 'HIGH' ? 'Filtro activo' : 'Filtrar'}
-            </Badge>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-rose-900 font-mono tracking-tight">
-              {retentionStats.high}
-            </span>
-            <span className="text-xs text-rose-700 font-medium">alumnos &gt; 12-21 días ausentes</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Requieren mensaje de reactivación directa por WhatsApp.
-          </p>
-        </motion.div>
+          </button>
 
-        {/* Riesgo Medio */}
-        <motion.div
-          whileHover={{ y: -2, scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setRiskFilter(riskFilter === 'MEDIUM' ? 'ALL' : 'MEDIUM')}
-          className={`p-4 rounded-2xl border transition cursor-pointer select-none shadow-xs ${
-            riskFilter === 'MEDIUM'
-              ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/50 shadow-md'
-              : 'bg-white border-slate-200/80 hover:border-amber-200 hover:bg-amber-50/20'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
-              <TrendingDown className="w-4 h-4 text-amber-600" /> Asistencia Irregular (Medio)
+          <button
+            type="button"
+            onClick={() => {
+              setView('ACTIVOS');
+              setSelectedLead(null);
+              if (activosList.length > 0 && !selectedUser) {
+                syncFormsWithUser(activosList[0]);
+              }
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+              view === 'ACTIVOS'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>Activos</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                view === 'ACTIVOS' ? 'bg-emerald-400 text-slate-950' : 'bg-slate-300 text-slate-700'
+              }`}
+            >
+              {counts.activos}
             </span>
-            <Badge variant={riskFilter === 'MEDIUM' ? 'warning' : 'secondary'} className="text-[9px]">
-              {riskFilter === 'MEDIUM' ? 'Filtro activo' : 'Filtrar'}
-            </Badge>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-amber-900 font-mono tracking-tight">
-              {retentionStats.medium}
-            </span>
-            <span className="text-xs text-amber-700 font-medium">caída en frecuencia semanal</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Alumnos que redujeron su ritmo habitual de clases.
-          </p>
-        </motion.div>
+          </button>
 
-        {/* Activos Saludables */}
-        <motion.div
-          whileHover={{ y: -2, scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setRiskFilter(riskFilter === 'LOW' ? 'ALL' : 'LOW')}
-          className={`p-4 rounded-2xl border transition cursor-pointer select-none shadow-xs ${
-            riskFilter === 'LOW'
-              ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-400/50 shadow-md'
-              : 'bg-white border-slate-200/80 hover:border-emerald-200 hover:bg-emerald-50/20'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-              <UserCheck className="w-4 h-4 text-emerald-600" /> Frecuencia Óptima (Bajo)
+          <button
+            type="button"
+            onClick={() => {
+              setView('BAJAS');
+              setSelectedUser(null);
+              setSelectedLead(null);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+              view === 'BAJAS'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>Bajas</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                view === 'BAJAS' ? 'bg-rose-400 text-white' : 'bg-slate-300 text-slate-700'
+              }`}
+            >
+              {counts.bajas}
             </span>
-            <Badge variant={riskFilter === 'LOW' ? 'success' : 'secondary'} className="text-[9px]">
-              {riskFilter === 'LOW' ? 'Filtro activo' : 'Filtrar'}
-            </Badge>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-emerald-900 font-mono tracking-tight">
-              {retentionStats.low}
-            </span>
-            <span className="text-xs text-emerald-700 font-medium">ritmo constante en tatami</span>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Alumnos fieles con asistencia periódica semanal.
-          </p>
-        </motion.div>
-      </div>
+          </button>
+        </div>
 
-      {/* Estadísticas de Cinturones con Cinturones Anudados */}
-      <div className={mobileSection === 'cinturones' ? 'block' : 'hidden md:block'}>
-        <BeltStatisticsCard
-          stats={beltStatsData}
-          activeFilter={beltFilter}
-          onSelectBelt={(rankKey) => setBeltFilter(rankKey)}
-        />
-      </div>
-
-      {/* Barra de Filtros y Censo */}
-      <div className={`${mobileSection === 'censo' ? 'block' : 'hidden md:block'} space-y-3 md:space-y-6`}>
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col md:flex-row items-center gap-2.5 sm:gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+        <div className="relative w-full sm:w-64">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por alias, email o teléfono..."
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800"
+            placeholder="Buscar por nombre, email..."
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800"
           />
         </div>
-
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          {/* Toggle Vista: Cartas FIFA vs Tabla Censo */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setDisplayMode('CARDS')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition ${
-                displayMode === 'CARDS'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5 text-amber-500" /> Cartas FIFA
-            </button>
-            <button
-              type="button"
-              onClick={() => setDisplayMode('TABLE')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition ${
-                displayMode === 'TABLE'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <List className="w-3.5 h-3.5" /> Tabla Censo
-            </button>
-          </div>
-
-          {/* Toggle 20 Atletas Demo para Preview Top */}
-          <button
-            type="button"
-            onClick={() => setIncludeMockAthletes(!includeMockAthletes)}
-            title="Activar o desactivar los 20 atletas de muestra con fotos y stats completas"
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
-              includeMockAthletes
-                ? 'bg-amber-50 text-amber-900 border-amber-300'
-                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5 text-amber-600" />
-            <span>20 Demo: {includeMockAthletes ? 'ON' : 'OFF'}</span>
-          </button>
-
-          {beltFilter !== 'ALL' && (
-            <button
-              type="button"
-              onClick={() => setBeltFilter('ALL')}
-              className="px-2.5 py-1.5 bg-slate-100 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" /> Quitar filtro cinturón
-            </button>
-          )}
-
-          {riskFilter !== 'ALL' && (
-            <button
-              onClick={() => setRiskFilter('ALL')}
-              className="px-2.5 py-1.5 bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" /> Quitar filtro riesgo
-            </button>
-          )}
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
-          >
-            <option value="ALL">Todos los Estados</option>
-            <option value="ACTIVE">Activos</option>
-            <option value="FROZEN">Pausa / Lesión</option>
-            <option value="PENDING">Pendientes</option>
-            <option value="INACTIVE">Inactivos</option>
-          </select>
-
-          <select
-            value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value as any)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
-          >
-            <option value="ALL">Todas las Tarifas</option>
-            <option value="STD">Estándar (STD)</option>
-            <option value="SF">Socio Fundador (SF)</option>
-            <option value="FAM">Familiar (FAM)</option>
-          </select>
-        </div>
       </div>
 
-      {/* Contenido Principal: Cartas FIFA vs Tabla Censo */}
-      {loading ? (
-        <div className="py-12 flex justify-center items-center">
-          <div className="w-8 h-8 border-3 border-brand-accent border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : displayMode === 'CARDS' ? (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 px-1 gap-2">
+      {/* ======================================================== */}
+      {/* 2. CONTENEDOR MAESTRO-DETALLE (DOS COLUMNAS)             */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start min-h-[640px]">
+        {/* ------------------------------------------------------ */}
+        {/* COLUMNA IZQUIERDA: LISTA MAESTRA (Oculta en móvil si   */}
+        {/* hay seleccionado)                                      */}
+        {/* ------------------------------------------------------ */}
+        <div
+          className={`${
+            (selectedUser || selectedLead) ? 'hidden lg:block' : 'block'
+          } lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl shadow-subtle overflow-hidden flex flex-col h-[700px]`}
+        >
+          <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
             <span>
-              Mostrando <strong className="text-slate-900 font-bold">{filteredUsers.length}</strong> atletas en formato{' '}
-              <span className="font-extrabold text-amber-600">FIFA Ultimate Team</span>. Haz clic en cualquier carta para ver/editar su radar y atributos.
+              {view === 'ACTIVOS' && `Alumnos Activos (${activosList.length})`}
+              {view === 'INTERESADOS' && `Prospectos (${counts.interesados})`}
+              {view === 'BAJAS' && `Alumnos en Baja (${bajasList.length})`}
             </span>
-            {includeMockAthletes && (
-              <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 self-start sm:self-auto">
-                <Sparkles className="w-3 h-3 text-amber-600" /> 20 Atletas demo cargados
-              </span>
-            )}
+            <span className="text-[10px] lowercase font-normal text-slate-400">click para ficha</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2.5 sm:gap-3.5 justify-items-center pt-2">
-            {filteredUsers.map((athlete) => (
-              <div
-                key={athlete.uid}
-                className="group flex flex-col items-center"
-              >
-                <FifaFighterCard
-                  athlete={athlete}
-                  size="sm"
-                  onClick={() => openEditor(athlete)}
-                />
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+            {loading ? (
+              <div className="p-8 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
+                <RefreshCw className="w-5 h-5 animate-spin text-slate-400" />
+                <span>Cargando tatami...</span>
               </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white border border-slate-200/80 rounded-3xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700">
-              <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200/80">
-                <tr>
-                  <th className="py-4 px-5">Atleta / Contacto</th>
-                  <th className="py-4 px-4">Cinturón / Grados</th>
-                  <th className="py-4 px-4">Tarifa</th>
-                  <th className="py-4 px-4">Estado</th>
-                  <th className="py-4 px-4">Radar Retención</th>
-                  <th className="py-4 px-4">Alertas</th>
-                  <th className="py-4 px-5 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredUsers.map((u) => {
-                  const isFrozen = u.accountStatus === 'FROZEN' || u.accountStatus === 'PAUSED';
-                  const retentionRisk = getRetentionRiskForUser(u);
-                  const isNearAdult = u.birthDate && calculateExactAge(u.birthDate, now) === 17;
-                  const hasMedicalNotes = Boolean(u.medicalNotes && u.medicalNotes.trim().length > 0);
+            ) : view === 'INTERESADOS' ? (
+              // Vista Interesados: Leads + Trial Users
+              <div>
+                {(filteredVisibleItems as any).leads?.map((lead: LeadModel) => (
+                  <button
+                    key={lead.id}
+                    type="button"
+                    onClick={() => handleSelectLead(lead)}
+                    className={`w-full text-left p-3.5 flex items-center justify-between transition cursor-pointer ${
+                      selectedLead?.id === lead.id
+                        ? 'bg-amber-50/80 border-l-4 border-amber-500'
+                        : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 truncate">
+                      <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs shrink-0">
+                        {lead.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="truncate">
+                        <div className="font-bold text-xs text-slate-900 truncate">{lead.name}</div>
+                        <div className="text-[11px] text-slate-400 truncate">{lead.phone || lead.email}</div>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-800">
+                      {lead.status === 'SCHEDULED' ? 'Prueba agendada' : 'Lead'}
+                    </span>
+                  </button>
+                ))}
 
-                  const cleanPhone = u.phone ? u.phone.replace(/[^0-9]/g, '') : '';
-                  const waMessage = encodeURIComponent(
-                    `Hola ${u.alias}, ¿qué tal todo? Te echamos de menos en el tatami de 247Studio. ¡Dinos si necesitas adaptar tu horario o si podemos ayudarte en algo!`
-                  );
+                {(filteredVisibleItems as any).trialUsers?.map((u: UserDomainModel) => (
+                  <button
+                    key={u.uid}
+                    type="button"
+                    onClick={() => syncFormsWithUser(u)}
+                    className={`w-full text-left p-3.5 flex items-center justify-between transition cursor-pointer ${
+                      selectedUser?.uid === u.uid
+                        ? 'bg-amber-50/80 border-l-4 border-amber-500'
+                        : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 truncate">
+                      <Avatar className="w-9 h-9 shrink-0 border border-slate-200">
+                        {u.photoUrl && <AvatarImage src={u.photoUrl} alt={u.alias} />}
+                        <AvatarFallback className="text-xs font-bold bg-slate-200 text-slate-700">
+                          {u.alias.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="truncate">
+                        <div className="font-bold text-xs text-slate-900 truncate">{u.alias}</div>
+                        <div className="text-[11px] text-slate-400 truncate">{u.contactEmail}</div>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-100 text-blue-800">
+                      Clase Prueba
+                    </span>
+                  </button>
+                ))}
+
+                {(filteredVisibleItems as any).leads?.length === 0 &&
+                  (filteredVisibleItems as any).trialUsers?.length === 0 && (
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      No hay prospectos o pruebas pendientes.
+                    </div>
+                  )}
+              </div>
+            ) : (
+              // Vista Alumnos (Activos o Bajas)
+              <div>
+                {(filteredVisibleItems as UserDomainModel[]).map((u) => {
+                  const isSelected = selectedUser?.uid === u.uid;
+                  const risk = getRetentionRisk(u);
 
                   return (
-                    <tr key={u.uid} className="hover:bg-slate-50/60 transition">
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-9 h-9 border border-slate-200 shrink-0">
-                            {u.photoUrl && <AvatarImage src={u.photoUrl} alt={u.alias} />}
-                            <AvatarFallback className="bg-slate-900 text-amber-400 font-bold text-xs">
-                              {u.alias.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-extrabold text-sm text-slate-900">{u.alias}</div>
-                            <div className="text-[11px] text-slate-500">{u.contactEmail}</div>
-                            <div className="text-[10px] text-slate-400">{u.phone || 'Sin teléfono'}</div>
+                    <button
+                      key={u.uid}
+                      type="button"
+                      onClick={() => syncFormsWithUser(u)}
+                      className={`w-full text-left p-3.5 flex items-center justify-between transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-slate-100/90 border-l-4 border-slate-900'
+                          : 'hover:bg-slate-50/80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 truncate">
+                        <Avatar className="w-9 h-9 shrink-0 border border-slate-200">
+                          {u.photoUrl && <AvatarImage src={u.photoUrl} alt={u.alias} />}
+                          <AvatarFallback className="text-xs font-bold bg-slate-900 text-white">
+                            {u.alias.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="truncate">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs text-slate-900 truncate">{u.alias}</span>
+                            {risk === 'HIGH' && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" title="Riesgo de abandono" />
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-400 truncate flex items-center gap-1">
+                            <span>{u.belt}</span>
+                            <span>•</span>
+                            <span>{u.stripes} {u.stripes === 1 ? 'raya' : 'rayas'}</span>
                           </div>
                         </div>
-                      </td>
+                      </div>
 
-                      <td className="py-4 px-4">
-                        <span className="font-bold text-slate-900 uppercase">{u.belt}</span>
-                        <span className="text-slate-400 block text-[11px]">
-                          {u.stripes} {u.stripes === 1 ? 'grado' : 'grados'}
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-4">
+                      <div className="text-right shrink-0">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                            u.pricingTier === 'SF'
-                              ? 'bg-slate-900 text-white'
-                              : 'bg-slate-100 text-slate-700 border border-slate-200'
-                          }`}
-                        >
-                          {u.pricingTier}
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                          className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
                             u.accountStatus === 'ACTIVE'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : isFrozen
-                              ? 'bg-blue-50 text-blue-800 border-blue-200'
-                              : u.accountStatus === 'PENDING'
-                              ? 'bg-amber-50 text-amber-800 border-amber-200'
-                              : 'bg-rose-50 text-rose-800 border-rose-200'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : u.accountStatus === 'FROZEN'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-rose-50 text-rose-700 border border-rose-200'
                           }`}
                         >
-                          {isFrozen ? '❄️ Pausa Deportiva' : u.accountStatus}
+                          {u.accountStatus === 'ACTIVE'
+                            ? 'Al día'
+                            : u.accountStatus === 'FROZEN'
+                            ? 'Pausa'
+                            : 'Baja'}
                         </span>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                              isFrozen
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : retentionRisk === 'HIGH'
-                                ? 'bg-rose-50 text-rose-800 border-rose-200'
-                                : retentionRisk === 'MEDIUM'
-                                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            }`}
-                          >
-                            {isFrozen
-                              ? 'En Pausa'
-                              : retentionRisk === 'HIGH'
-                              ? 'Riesgo Alto'
-                              : retentionRisk === 'MEDIUM'
-                              ? 'Irregular'
-                              : 'Al Día'}
-                          </span>
-
-                          {/* Botón WhatsApp Anti-Abandono */}
-                          {!isFrozen && retentionRisk !== 'LOW' && cleanPhone && (
-                            <a
-                              href={`https://wa.me/${cleanPhone}?text=${waMessage}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="Reactivar alumno por WhatsApp"
-                              className="p-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                            </a>
-                          )}
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          {TIER_PRICES[u.pricingTier]?.price || '65 €'}
                         </div>
-                      </td>
-
-                      <td className="py-4 px-4 space-y-1">
-                        {hasMedicalNotes && (
-                          <span
-                            title={u.medicalNotes}
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 cursor-help"
-                          >
-                            <HeartPulse className="w-3 h-3 text-brand-accent" /> Médica
-                          </span>
-                        )}
-
-                        {isNearAdult && (
-                          <span
-                            title="Atleta cumple 18 años pronto. Graduación a ADULT recomendada."
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-900 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 block"
-                          >
-                            <AlertTriangle className="w-3 h-3 text-blue-600" /> Próximo Adulto
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="py-4 px-5 text-right space-x-1.5">
-                        {u.accountStatus === 'PENDING' && (
-                          <button
-                            type="button"
-                            onClick={() => handleActivateUser(u.uid)}
-                            className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg font-bold text-[11px] hover:bg-emerald-100 transition cursor-pointer"
-                          >
-                            Activar
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => openEditor(u)}
-                          className="px-2.5 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-lg font-bold text-[11px] hover:bg-slate-200 transition cursor-pointer inline-flex items-center gap-1"
-                        >
-                          <Sparkles className="w-3 h-3 text-brand-accent" />
-                          <span>Radar & Stats</span>
-                        </button>
-
-                        {isFrozen && (
-                          <button
-                            type="button"
-                            onClick={() => handleActivateUser(u.uid)}
-                            className="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg font-bold text-[11px] hover:bg-blue-100 transition cursor-pointer"
-                            title="Reactivar alumno de su pausa deportiva"
-                          >
-                            Reactivar
-                          </button>
-                        )}
-
-                        {u.accountStatus === 'ACTIVE' && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setFreezeUserTarget(u);
-                                setFreezeReason('Lesión deportiva');
-                              }}
-                              className="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg font-bold text-[11px] hover:bg-blue-100 transition cursor-pointer"
-                              title="Pausar cuota y asistencia por lesión médica o viaje"
-                            >
-                              ❄️ Pausa
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeactivateUserTarget(u)}
-                              className="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg font-bold text-[11px] hover:bg-rose-100 transition cursor-pointer"
-                            >
-                              Baja
-                            </button>
-                          </>
-                        )}
-
-                        {u.accountStatus === 'INACTIVE' && (
-                          <button
-                            type="button"
-                            onClick={() => handleActivateUser(u.uid)}
-                            className="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg font-bold text-[11px] hover:bg-slate-200 transition cursor-pointer"
-                            title="Reactivar alumno dado de baja"
-                          >
-                            Reactivar
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                      </div>
+                    </button>
                   );
                 })}
-              </tbody>
-            </table>
+
+                {(filteredVisibleItems as UserDomainModel[]).length === 0 && (
+                  <div className="p-8 text-center text-xs text-slate-400">
+                    No se encontraron alumnos con el filtro actual.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
-      )}
-      </div>
 
-      {/* Modal Editor de Cinturón, Grados y 8 Atributos con Radar FIFA en Vivo (Radix Dialog & Tabs) */}
-      <Dialog
-        open={!!selectedUser && !!editingStats}
-        onOpenChange={(open) => !open && setSelectedUser(null)}
-      >
-        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
-          {selectedUser && editingStats && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-xl font-black text-slate-900">
-                  {selectedUser.alias}
-                </DialogTitle>
-                <p className="text-xs text-slate-400">
-                  Editor Técnico y Radar de Habilidades FIFA Ultimate Team
-                </p>
-              </DialogHeader>
+        {/* ------------------------------------------------------ */}
+        {/* COLUMNA DERECHA: FICHA DE DETALLE DEL ALUMNO           */}
+        {/* ------------------------------------------------------ */}
+        <div
+          className={`${
+            (!selectedUser && !selectedLead) ? 'hidden lg:block' : 'block'
+          } lg:col-span-8 bg-white border border-slate-200/80 rounded-2xl shadow-subtle flex flex-col min-h-[700px] overflow-hidden`}
+        >
+          {selectedLead ? (
+            // ====================================================
+            // DETALLE DE LEAD / INTERESADO
+            // ====================================================
+            <div className="p-5 sm:p-6 space-y-6">
+              {/* Botón Volver en móvil */}
+              <button
+                type="button"
+                onClick={() => setSelectedLead(null)}
+                className="lg:hidden flex items-center gap-1 text-xs font-bold text-slate-600 mb-2"
+              >
+                <ArrowLeft className="w-4 h-4" /> Volver a la lista
+              </button>
 
-              <div className="space-y-6 pt-2">
-                {/* Preview Interactivo con Radix Tabs: Polígono Radar vs Carta FIFA Shield */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col items-center">
-                  <Tabs
-                    defaultValue={modalPreviewMode}
-                    value={modalPreviewMode}
-                    onValueChange={(val) => setModalPreviewMode(val as any)}
-                    className="w-full flex flex-col items-center"
-                  >
-                    <TabsList className="w-56 mb-3">
-                      <TabsTrigger value="CARD" className="text-xs font-bold">Carta FIFA FUT</TabsTrigger>
-                      <TabsTrigger value="RADAR" className="text-xs font-bold">Polígono Radar</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="CARD" className="py-2 flex justify-center w-full">
-                      <FifaFighterCard
-                        athlete={{
-                          ...selectedUser,
-                          belt: editingBelt,
-                          stripes: editingStripes,
-                          stats: editingStats,
-                        }}
-                        size="sm"
-                      />
-                    </TabsContent>
-
-                    <TabsContent value="RADAR" className="py-2 flex justify-center w-full">
-                      <FighterRadarChart stats={editingStats} alias={selectedUser.alias} size={250} />
-                    </TabsContent>
-                  </Tabs>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setUploaderOpen(true)}
-                    className="mt-3"
-                  >
-                    <Camera className="w-3.5 h-3.5 text-amber-500 mr-1.5" />
-                    <span>Subir / Cambiar Foto de Carta</span>
-                  </Button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-900 font-black text-lg flex items-center justify-center">
+                    {selectedLead.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 font-headline uppercase">
+                      {selectedLead.name}
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Prospecto interesado en el tatami • {selectedLead.status}
+                    </p>
+                  </div>
                 </div>
 
-                {/* Selector de Cinturón y Grados */}
-                <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-                      Cinturón
-                    </label>
-                    <select
-                      value={editingBelt}
-                      onChange={(e) => setEditingBelt(e.target.value as Belt)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-slate-800"
+                <Button
+                  onClick={() => handleConvertLeadToStudent(selectedLead)}
+                  disabled={actionLoading}
+                  className="bg-studio-red hover:bg-studio-red/90 text-white font-bold text-xs uppercase"
+                >
+                  <UserPlus className="w-4 h-4 mr-1.5" /> Convertir en Alumno Activo
+                </Button>
+              </div>
+
+              {/* Barra de Etapa */}
+              <div className="bg-slate-50 border border-slate-200/70 p-4 rounded-xl">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                  Ciclo de Vida
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600">
+                    <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px]">1</span>
+                    <span>Interesado</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">2</span>
+                    <span>Clase Prueba</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">3</span>
+                    <span>Alta Socio</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">4</span>
+                    <span>Activo Tatami</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Datos de contacto */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                    Teléfono
+                  </span>
+                  <div className="flex items-center gap-2 font-mono text-sm font-bold text-slate-900">
+                    <Phone className="w-4 h-4 text-slate-500" />
+                    <span>{selectedLead.phone || 'No indicado'}</span>
+                  </div>
+                  {selectedLead.phone && (
+                    <a
+                      href={`https://wa.me/${selectedLead.phone.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-emerald-600 font-bold mt-2 hover:underline"
                     >
-                      {(selectedUser.beltSystem === 'KIDS' ? kidsBelts : adultBelts).map((b) => (
-                        <option key={b} value={b}>
-                          {b}
+                      <MessageCircle className="w-3.5 h-3.5" /> Abrir WhatsApp
+                    </a>
+                  )}
+                </div>
+
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                    Email
+                  </span>
+                  <div className="flex items-center gap-2 text-sm font-bold text-slate-900 truncate">
+                    <Mail className="w-4 h-4 text-slate-500 shrink-0" />
+                    <span className="truncate">{selectedLead.email || 'No indicado'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notas del lead */}
+              <div>
+                <span className="text-xs font-bold text-slate-700 block mb-1">
+                  Notas de seguimiento
+                </span>
+                <p className="text-xs text-slate-600 p-3 bg-slate-50 rounded-xl border border-slate-200/60 min-h-[80px]">
+                  {selectedLead.notes || 'Sin observaciones registradas.'}
+                </p>
+              </div>
+            </div>
+          ) : selectedUser ? (
+            // ====================================================
+            // DETALLE DE ALUMNO (MAESTRO-DETALLE COMPLETO)
+            // ====================================================
+            <div className="flex flex-col h-full">
+              {/* Botón Volver en móvil */}
+              <div className="p-4 lg:hidden border-b border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setSelectedUser(null)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Volver al listado
+                </button>
+              </div>
+
+              {/* Cabecera de la Ficha */}
+              <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="relative group">
+                    <Avatar className="w-14 h-14 border-2 border-slate-300">
+                      {selectedUser.photoUrl && <AvatarImage src={selectedUser.photoUrl} alt={selectedUser.alias} />}
+                      <AvatarFallback className="text-lg font-black bg-slate-900 text-white">
+                        {selectedUser.alias.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <button
+                      type="button"
+                      onClick={() => setUploaderOpen(true)}
+                      className="absolute inset-0 bg-slate-900/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer text-[10px] font-bold"
+                    >
+                      Foto
+                    </button>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-black text-slate-900 font-headline uppercase">
+                        {selectedUser.alias}
+                      </h2>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                          selectedUser.accountStatus === 'ACTIVE'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : selectedUser.accountStatus === 'FROZEN'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-rose-100 text-rose-800'
+                        }`}
+                      >
+                        {selectedUser.accountStatus}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                      <span>{selectedUser.contactEmail}</span>
+                      {selectedUser.phone && (
+                        <>
+                          <span>•</span>
+                          <span>{selectedUser.phone}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Acciones de Cuenta */}
+                <div className="flex items-center gap-2">
+                  {selectedUser.accountStatus === 'ACTIVE' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setFreezeModalOpen(true)}
+                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1"
+                      >
+                        <Pause className="w-3.5 h-3.5" /> Pausar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeactivateModalOpen(true)}
+                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1"
+                      >
+                        <UserMinus className="w-3.5 h-3.5" /> Baja
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleActivateUser(selectedUser.uid)}
+                      disabled={actionLoading}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1"
+                    >
+                      <Play className="w-3.5 h-3.5" /> Reactivar Alumno
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Barra de Etapa de Ciclo de Vida */}
+              <div className="px-5 py-3 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Etapa
+                </span>
+                <div className="flex items-center gap-1.5 sm:gap-3 text-xs">
+                  <span className={`flex items-center gap-1 font-bold ${currentStage >= 1 ? 'text-slate-900' : 'text-slate-400'}`}>
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${currentStage >= 1 ? 'text-emerald-500' : 'text-slate-300'}`} />
+                    Interesado
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                  <span className={`flex items-center gap-1 font-bold ${currentStage >= 2 ? 'text-slate-900' : 'text-slate-400'}`}>
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${currentStage >= 2 ? 'text-emerald-500' : 'text-slate-300'}`} />
+                    Prueba
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                  <span className={`flex items-center gap-1 font-bold ${currentStage >= 3 ? 'text-slate-900' : 'text-slate-400'}`}>
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${currentStage >= 3 ? 'text-emerald-500' : 'text-slate-300'}`} />
+                    Alta
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                  <span className={`flex items-center gap-1 font-bold ${currentStage >= 4 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${currentStage >= 4 ? 'text-emerald-500' : 'text-slate-300'}`} />
+                    Activo
+                  </span>
+                </div>
+              </div>
+
+              {/* Navegación de 5 pestañas de la Ficha (¡SIN SALUD!) */}
+              <div className="flex border-b border-slate-200/80 px-5 bg-white">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('resumen')}
+                  className={`py-3 px-3 text-xs font-black uppercase tracking-wider border-b-2 transition cursor-pointer ${
+                    activeTab === 'resumen'
+                      ? 'border-slate-900 text-slate-900'
+                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Resumen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('datos')}
+                  className={`py-3 px-3 text-xs font-black uppercase tracking-wider border-b-2 transition cursor-pointer ${
+                    activeTab === 'datos'
+                      ? 'border-slate-900 text-slate-900'
+                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Datos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('cinturon')}
+                  className={`py-3 px-3 text-xs font-black uppercase tracking-wider border-b-2 transition cursor-pointer ${
+                    activeTab === 'cinturon'
+                      ? 'border-slate-900 text-slate-900'
+                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Cinturón
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('pagos')}
+                  className={`py-3 px-3 text-xs font-black uppercase tracking-wider border-b-2 transition cursor-pointer ${
+                    activeTab === 'pagos'
+                      ? 'border-slate-900 text-slate-900'
+                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Pagos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('asistencia')}
+                  className={`py-3 px-3 text-xs font-black uppercase tracking-wider border-b-2 transition cursor-pointer ${
+                    activeTab === 'asistencia'
+                      ? 'border-slate-900 text-slate-900'
+                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Asistencia
+                </button>
+              </div>
+
+              {/* Contenido de la pestaña activa */}
+              <div className="p-5 sm:p-6 flex-1 overflow-y-auto">
+                {/* ---------------- PESTAÑA 1: RESUMEN ---------------- */}
+                {activeTab === 'resumen' && (
+                  <div className="space-y-5">
+                    {/* Tarjetas KPI */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                          Tarifa Cuota
+                        </span>
+                        <span className="text-lg font-black text-slate-900 block mt-0.5">
+                          {TIER_PRICES[selectedUser.pricingTier]?.price || '65 €'}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          {TIER_PRICES[selectedUser.pricingTier]?.name}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                          Graduación
+                        </span>
+                        <span className="text-lg font-black text-slate-900 block mt-0.5">
+                          {selectedUser.belt}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          {selectedUser.stripes} {selectedUser.stripes === 1 ? 'raya' : 'rayas'}
+                        </span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                          Clases (60d)
+                        </span>
+                        <span className="text-lg font-black text-slate-900 block mt-0.5 font-mono">
+                          {selectedUserBookings.length}
+                        </span>
+                        <span className="text-[10px] text-slate-500">sesiones tatami</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                          Retención
+                        </span>
+                        <span className="text-lg font-black text-slate-900 block mt-0.5">
+                          {getRetentionRisk(selectedUser) === 'HIGH' ? (
+                            <span className="text-rose-600">Alerta</span>
+                          ) : (
+                            <span className="text-emerald-600">Constante</span>
+                          )}
+                        </span>
+                        <span className="text-[10px] text-slate-500">asistencia mensual</span>
+                      </div>
+                    </div>
+
+                    {/* Últimas sesiones en tatami */}
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold text-slate-900 uppercase tracking-wide block">
+                        Últimas clases registradas
+                      </span>
+                      {selectedUserBookings.slice(0, 3).length > 0 ? (
+                        <div className="divide-y divide-slate-100 border border-slate-200/70 rounded-xl overflow-hidden">
+                          {selectedUserBookings.slice(0, 3).map((b) => (
+                            <div key={b.id} className="p-3 flex items-center justify-between bg-white text-xs">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                <span className="font-bold text-slate-800">{b.date}</span>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700">
+                                Asistencia confirmada
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 p-3 bg-slate-50 rounded-xl border border-slate-200/60">
+                          Sin asistencias en los últimos 60 días.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Observaciones Generales (No médicas) */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="student-notes" className="text-xs font-bold text-slate-900 uppercase tracking-wide block">
+                        Observaciones y Notas Internas
+                      </label>
+                      <textarea
+                        id="student-notes"
+                        rows={3}
+                        value={datosForm.notes}
+                        onChange={(e) => setDatosForm({ ...datosForm, notes: e.target.value })}
+                        placeholder="Añadir notas de seguimiento técnico, objetivos deportivos o comentarios..."
+                        className="w-full p-3 text-xs bg-slate-50 border border-slate-200/80 rounded-xl focus:outline-none focus:border-slate-800"
+                      />
+                      <Button
+                        onClick={handleSaveDatos}
+                        disabled={actionLoading}
+                        className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
+                      >
+                        Guardar Observaciones
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ---------------- PESTAÑA 2: DATOS ---------------- */}
+                {activeTab === 'datos' && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSaveDatos();
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Nombre completo / Alias
+                        </label>
+                        <Input
+                          value={datosForm.alias}
+                          onChange={(e) => setDatosForm({ ...datosForm, alias: e.target.value })}
+                          required
+                          className="bg-slate-50 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Email de contacto
+                        </label>
+                        <Input
+                          type="email"
+                          value={datosForm.contactEmail}
+                          onChange={(e) => setDatosForm({ ...datosForm, contactEmail: e.target.value })}
+                          required
+                          className="bg-slate-50 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Teléfono
+                        </label>
+                        <Input
+                          type="tel"
+                          value={datosForm.phone}
+                          onChange={(e) => setDatosForm({ ...datosForm, phone: e.target.value })}
+                          className="bg-slate-50 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Fecha de Nacimiento
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="date"
+                            value={datosForm.birthDate}
+                            onChange={(e) => setDatosForm({ ...datosForm, birthDate: e.target.value })}
+                            className="bg-slate-50 text-xs flex-1"
+                          />
+                          {selectedUserAge !== null && (
+                            <span className="text-xs text-slate-500 font-mono shrink-0">
+                              {selectedUserAge} años
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Contacto de Emergencia (Nombre)
+                        </label>
+                        <Input
+                          value={datosForm.emergencyContactName}
+                          onChange={(e) =>
+                            setDatosForm({ ...datosForm, emergencyContactName: e.target.value })
+                          }
+                          className="bg-slate-50 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Contacto de Emergencia (Teléfono)
+                        </label>
+                        <Input
+                          type="tel"
+                          value={datosForm.emergencyContactPhone}
+                          onChange={(e) =>
+                            setDatosForm({ ...datosForm, emergencyContactPhone: e.target.value })
+                          }
+                          className="bg-slate-50 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex justify-end">
+                      <Button
+                        type="submit"
+                        disabled={actionLoading}
+                        className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs"
+                      >
+                        Guardar Cambios
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                {/* ---------------- PESTAÑA 3: CINTURÓN ---------------- */}
+                {activeTab === 'cinturon' && (
+                  <div className="space-y-6">
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 block mb-2">
+                        Cinturón Adultos
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {ADULT_BELTS.map((belt) => (
+                          <button
+                            key={belt.value}
+                            type="button"
+                            onClick={() => setBeltForm({ ...beltForm, belt: belt.value })}
+                            className={`p-3 rounded-xl text-center border-2 transition cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                              beltForm.belt === belt.value
+                                ? 'border-slate-900 shadow-md ring-2 ring-slate-900/20'
+                                : 'border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className={`w-8 h-3 rounded-xs ${belt.bg} inline-block`} />
+                            <span className="text-xs font-bold text-slate-800">{belt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 block mb-2">
+                        Cinturones Infantiles (Kids)
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                        {KIDS_BELTS.map((belt) => (
+                          <button
+                            key={belt.value}
+                            type="button"
+                            onClick={() => setBeltForm({ ...beltForm, belt: belt.value })}
+                            className={`p-2 rounded-xl text-center border-2 transition cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                              beltForm.belt === belt.value
+                                ? 'border-slate-900 shadow-md ring-2 ring-slate-900/20'
+                                : 'border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className={`w-6 h-2 rounded-xs ${belt.bg} inline-block`} />
+                            <span className="text-[10px] font-bold text-slate-800 truncate w-full">{belt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 block mb-2">
+                        Grados / Rayas (0 a 4)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {[0, 1, 2, 3, 4].map((stripe) => (
+                          <button
+                            key={stripe}
+                            type="button"
+                            onClick={() => setBeltForm({ ...beltForm, stripes: stripe })}
+                            className={`w-12 h-12 rounded-xl text-sm font-bold border-2 transition cursor-pointer flex items-center justify-center ${
+                              beltForm.stripes === stripe
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {stripe === 0 ? 'Sin rayas' : `${stripe}ª`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/70 text-xs text-slate-600 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>
+                        Al guardar, se sincronizará automáticamente el rango del alumno en el tablet del Kiosco de recepción y tatami.
+                      </span>
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
+                      <Button
+                        onClick={handleSaveGraduacion}
+                        disabled={actionLoading}
+                        className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs"
+                      >
+                        Guardar Graduación
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ---------------- PESTAÑA 4: PAGOS ---------------- */}
+                {activeTab === 'pagos' && (
+                  <div className="space-y-6">
+                    {/* Tarifa asignada */}
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 block mb-2">
+                        Tarifa de Mensualidad
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {(['STD', 'SF', 'FAM'] as PricingTier[]).map((tier) => (
+                          <button
+                            key={tier}
+                            type="button"
+                            onClick={() => handleSaveTariff(tier)}
+                            className={`p-3 rounded-xl border-2 text-left transition cursor-pointer ${
+                              tierForm === tier
+                                ? 'border-slate-900 bg-slate-50/80 shadow-xs'
+                                : 'border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className="text-xs font-bold text-slate-900 block">
+                              {TIER_PRICES[tier].name}
+                            </span>
+                            <span className="text-sm font-black text-slate-900 mt-1 block">
+                              {TIER_PRICES[tier].price} / mes
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Botón Registrar Cobro */}
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                        Historial de Cobros
+                      </span>
+                      <Button
+                        onClick={() => setQuickPaymentModalOpen(true)}
+                        className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
+                      >
+                        <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Registrar Cobro
+                      </Button>
+                    </div>
+
+                    {/* Tabla de Cobros */}
+                    {selectedUserPayments.length > 0 ? (
+                      <div className="border border-slate-200/80 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
+                        {selectedUserPayments.map((p) => (
+                          <div key={p.id} className="p-3 flex items-center justify-between bg-white">
+                            <div>
+                              <span className="font-bold text-slate-900 block">
+                                {p.concept || 'Cuota mensual tatami'}
+                              </span>
+                              <span className="text-[11px] text-slate-400">
+                                Periodo: {p.period} • Método: {p.method}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-mono font-bold text-slate-900 block">
+                                {((p.amountCents || 6500) / 100).toFixed(2)} €
+                              </span>
+                              <span className="text-[9px] font-black uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                                {p.status}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 p-4 bg-slate-50 rounded-xl border border-slate-200/60 text-center">
+                        No hay cobros registrados en el sistema para este alumno.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* ---------------- PESTAÑA 5: ASISTENCIA ---------------- */}
+                {activeTab === 'asistencia' && (
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                          Total Asistencias
+                        </span>
+                        <span className="text-xl font-black text-slate-900 font-mono">
+                          {selectedUserBookings.length}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">últimos 60 días</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                          Media Semanal
+                        </span>
+                        <span className="text-xl font-black text-slate-900 font-mono">
+                          {(selectedUserBookings.length / 8.5).toFixed(1)}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">clases / semana</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                          Estado Tatami
+                        </span>
+                        <span className="text-base font-bold text-emerald-700 block">
+                          {selectedUserBookings.length >= 8 ? 'Alta Frecuencia' : 'Ritmo Regular'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">compromiso activo</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold text-slate-900 uppercase tracking-wide block">
+                        Registro de Clases Asistidas
+                      </span>
+                      {selectedUserBookings.length > 0 ? (
+                        <div className="border border-slate-200/80 rounded-xl divide-y divide-slate-100 overflow-hidden text-xs max-h-[320px] overflow-y-auto">
+                          {selectedUserBookings.map((b) => (
+                            <div key={b.id} className="p-3 flex items-center justify-between bg-white">
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                <span className="font-bold text-slate-900">{b.date}</span>
+                                <span className="text-slate-400">•</span>
+                                <span className="text-slate-600">{b.sessionType || 'Clase regular'}</span>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-800">
+                                Asistió
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 p-4 bg-slate-50 rounded-xl border border-slate-200/60 text-center">
+                          Sin clases registradas en el periodo.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            // ====================================================
+            // ESTADO VACÍO (NINGÚN ALUMNO SELECCIONADO)
+            // ====================================================
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400">
+              <User className="w-12 h-12 stroke-1 text-slate-300 mb-3" />
+              <p className="text-sm font-bold text-slate-700">Selecciona un alumno o interesado</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                Haz clic en cualquier persona de la lista izquierda para consultar o editar su ficha completa.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 3. MODALES DE ACCIÓN RÁPIDA (RADIX DIALOG)              */}
+      {/* ======================================================== */}
+
+      {/* Modal 1: Dar de alta alumno / Interesado */}
+      <Dialog open={altaModalOpen} onOpenChange={setAltaModalOpen}>
+        <DialogContent className="max-w-lg bg-white rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black uppercase text-slate-900 font-headline">
+              {altaForm.isLeadOnly ? 'Registrar Interesado' : 'Dar de alta Alumno'}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              {altaForm.isLeadOnly
+                ? 'Añadir un nuevo contacto interesado al embudo de prospectos.'
+                : 'Registrar un nuevo atleta activo con acceso a tatami y clases.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateStudentOrLead} className="space-y-3.5 mt-2">
+            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setAltaForm({ ...altaForm, isLeadOnly: false })}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
+                  !altaForm.isLeadOnly ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                }`}
+              >
+                Alumno Activo
+              </button>
+              <button
+                type="button"
+                onClick={() => setAltaForm({ ...altaForm, isLeadOnly: true })}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
+                  altaForm.isLeadOnly ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                }`}
+              >
+                Sólo Interesado (Lead)
+              </button>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Nombre completo / Alias *</label>
+              <Input
+                value={altaForm.alias}
+                onChange={(e) => setAltaForm({ ...altaForm, alias: e.target.value })}
+                placeholder="Ej. Mario Silva"
+                required
+                className="bg-slate-50 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Email</label>
+                <Input
+                  type="email"
+                  value={altaForm.email}
+                  onChange={(e) => setAltaForm({ ...altaForm, email: e.target.value })}
+                  placeholder="alumno@ejemplo.com"
+                  className="bg-slate-50 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Teléfono</label>
+                <Input
+                  type="tel"
+                  value={altaForm.phone}
+                  onChange={(e) => setAltaForm({ ...altaForm, phone: e.target.value })}
+                  placeholder="600 000 000"
+                  className="bg-slate-50 text-xs"
+                />
+              </div>
+            </div>
+
+            {!altaForm.isLeadOnly && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Cinturón</label>
+                    <select
+                      value={altaForm.belt}
+                      onChange={(e) => setAltaForm({ ...altaForm, belt: e.target.value as Belt })}
+                      className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none"
+                    >
+                      {ADULT_BELTS.map((b) => (
+                        <option key={b.value} value={b.value}>
+                          {b.label}
                         </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
-                      Grados (Stripes: 0 a 4)
-                    </label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={4}
-                      value={editingStripes}
-                      onChange={(e) => setEditingStripes(parseInt(e.target.value, 10) || 0)}
-                      className="h-9 text-xs"
-                    />
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Tarifa Mensual</label>
+                    <select
+                      value={altaForm.pricingTier}
+                      onChange={(e) => setAltaForm({ ...altaForm, pricingTier: e.target.value as PricingTier })}
+                      className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none"
+                    >
+                      <option value="STD">Estándar (65 €)</option>
+                      <option value="SF">Sin Fin / Ilimitado (85 €)</option>
+                      <option value="FAM">Familiar (55 €)</option>
+                    </select>
                   </div>
                 </div>
 
-                {/* Sliders de los 8 Atributos */}
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-1.5">
-                    <Award className="w-4 h-4 text-brand-accent" /> Ajuste de los 8 Atributos (0 a 100)
-                  </label>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(Object.keys(editingStats) as (keyof FighterStats)[]).map((key) => (
-                      <div key={key} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="font-bold uppercase tracking-wider text-slate-700 text-[11px]">
-                            {key}
-                          </span>
-                          <span className="font-mono font-black text-brand-accent">{editingStats[key]}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={editingStats[key]}
-                          onChange={(e) =>
-                            setEditingStats((prev) =>
-                              prev ? { ...prev, [key]: parseInt(e.target.value, 10) } : prev
-                            )
-                          }
-                          className="w-full accent-brand-accent cursor-pointer"
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Fecha de Nacimiento</label>
+                  <Input
+                    type="date"
+                    value={altaForm.birthDate}
+                    onChange={(e) => setAltaForm({ ...altaForm, birthDate: e.target.value })}
+                    className="bg-slate-50 text-xs"
+                  />
                 </div>
-              </div>
+              </>
+            )}
 
-              <div className="mt-6 flex gap-3 pt-3 border-t border-slate-200/80">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setSelectedUser(null)}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  disabled={saving}
-                  onClick={handleSaveEditor}
-                  variant="default"
-                  className="flex-1"
-                >
-                  {saving ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    'Guardar Cambios'
-                  )}
-                </Button>
-              </div>
-            </>
-          )}
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Notas iniciales</label>
+              <textarea
+                rows={2}
+                value={altaForm.notes}
+                onChange={(e) => setAltaForm({ ...altaForm, notes: e.target.value })}
+                placeholder="Observaciones de inscripción..."
+                className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAltaModalOpen(false)}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={actionLoading}
+                className="bg-studio-red hover:bg-studio-red/90 text-white font-bold text-xs uppercase"
+              >
+                {altaForm.isLeadOnly ? 'Registrar Interesado' : 'Completar Alta'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
-      {/* Modal Subida de Foto Autónoma para Carta FIFA */}
+      {/* Modal 2: Congelar / Pausar Alumno */}
+      <Dialog open={freezeModalOpen} onOpenChange={setFreezeModalOpen}>
+        <DialogContent className="max-w-md bg-white rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black uppercase text-slate-900 font-headline">
+              Pausar membresía de alumno
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Pausar la cuota y acceso de {selectedUser?.alias}. Podrás reactivarlo en cualquier momento.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-2">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Motivo de la pausa</label>
+              <Input
+                value={freezeReason}
+                onChange={(e) => setFreezeReason(e.target.value)}
+                placeholder="Ej. Vacaciones, viaje de trabajo, etc."
+                className="bg-slate-50 text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="pt-3">
+            <Button variant="outline" onClick={() => setFreezeModalOpen(false)} className="text-xs">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmFreeze}
+              disabled={actionLoading}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold"
+            >
+              Confirmar Pausa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal 3: Dar de Baja Alumno */}
+      <Dialog open={deactivateModalOpen} onOpenChange={setDeactivateModalOpen}>
+        <DialogContent className="max-w-md bg-white rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black uppercase text-rose-700 font-headline">
+              Dar de baja definitiva
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              ¿Confirmas la baja de {selectedUser?.alias}? El alumno pasará a la lista de Bajas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="pt-3">
+            <Button variant="outline" onClick={() => setDeactivateModalOpen(false)} className="text-xs">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmDeactivate}
+              disabled={actionLoading}
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold"
+            >
+              Confirmar Baja
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal 4: Registrar Cobro Rápido */}
+      <Dialog open={quickPaymentModalOpen} onOpenChange={setQuickPaymentModalOpen}>
+        <DialogContent className="max-w-md bg-white rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black uppercase text-slate-900 font-headline">
+              Registrar Cobro
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Registrar pago de mensualidad para {selectedUser?.alias}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-2">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Importe (€)</label>
+              <Input
+                type="number"
+                value={quickPaymentForm.amount}
+                onChange={(e) => setQuickPaymentForm({ ...quickPaymentForm, amount: e.target.value })}
+                className="bg-slate-50 text-xs font-mono font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Método de Cobro</label>
+              <select
+                value={quickPaymentForm.method}
+                onChange={(e) =>
+                  setQuickPaymentForm({
+                    ...quickPaymentForm,
+                    method: e.target.value as 'BIZUM' | 'CASH' | 'CARD',
+                  })
+                }
+                className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none"
+              >
+                <option value="BIZUM">Bizum</option>
+                <option value="CASH">Efectivo en recepción</option>
+                <option value="CARD">Tarjeta de crédito</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Concepto</label>
+              <Input
+                value={quickPaymentForm.concept}
+                onChange={(e) => setQuickPaymentForm({ ...quickPaymentForm, concept: e.target.value })}
+                className="bg-slate-50 text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="pt-3">
+            <Button variant="outline" onClick={() => setQuickPaymentModalOpen(false)} className="text-xs">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleRegisterQuickPayment}
+              disabled={actionLoading}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
+            >
+              Guardar Cobro
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal 5: Subir Foto de Perfil */}
       {uploaderOpen && selectedUser && (
         <PhotoUploaderModal
-          currentPhotoUrl={selectedUser.photoUrl}
           athleteAlias={selectedUser.alias}
+          currentPhotoUrl={selectedUser.photoUrl}
           onSave={async (photoDataUrl) => {
-            setSelectedUser((prev) => (prev ? { ...prev, photoUrl: photoDataUrl } : prev));
-            setUsers((prev) =>
-              prev.map((u) => (u.uid === selectedUser.uid ? { ...u, photoUrl: photoDataUrl } : u))
-            );
             try {
               await updateDoc(doc(db, 'users', selectedUser.uid), {
                 photoUrl: photoDataUrl,
                 updatedAt: serverTimestamp(),
               });
-            } catch {
-              // En modo muestra o si falla la red, el estado local ya está actualizado
+              setUploaderOpen(false);
+              showNotification('Foto de perfil actualizada.');
+              await fetchData();
+            } catch (err) {
+              console.error('Error al guardar foto:', err);
             }
           }}
           onClose={() => setUploaderOpen(false)}
         />
       )}
-
-      {/* Modal Radix Dialog: Pausa Deportiva (sustituye prompt) */}
-      <Dialog open={!!freezeUserTarget} onOpenChange={(open) => !open && setFreezeUserTarget(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Pausa Deportiva / Congelación</DialogTitle>
-            <DialogDescription>
-              Indica el motivo de la pausa deportiva para{' '}
-              <strong className="text-slate-900">{freezeUserTarget?.alias}</strong> (ej: Lesión médica, Viaje laboral).
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-2 space-y-3">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Motivo de la Pausa
-            </label>
-            <Input
-              value={freezeReason}
-              onChange={(e) => setFreezeReason(e.target.value)}
-              placeholder="Ej: Esguince de rodilla, Viaje laboral..."
-              className="text-xs"
-            />
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setFreezeUserTarget(null)}
-              disabled={actionInProgress}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              onClick={handleConfirmFreeze}
-              disabled={actionInProgress || !freezeReason.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {actionInProgress ? 'Guardando...' : 'Confirmar Pausa'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal Radix Dialog: Baja Alumno (sustituye confirm) */}
-      <Dialog open={!!deactivateUserTarget} onOpenChange={(open) => !open && setDeactivateUserTarget(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Dar de Baja al Alumno</DialogTitle>
-            <DialogDescription>
-              ¿Seguro que deseas pasar a <strong className="text-slate-900">{deactivateUserTarget?.alias}</strong> a estado <span className="font-bold text-rose-600">INACTIVE</span>? Perderá acceso a la reserva de clases en la app.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDeactivateUserTarget(null)}
-              disabled={actionInProgress}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleConfirmDeactivate}
-              disabled={actionInProgress}
-            >
-              {actionInProgress ? 'Procesando...' : 'Confirmar Baja'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
