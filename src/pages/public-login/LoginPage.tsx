@@ -190,29 +190,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickAdminLogin = async () => {
-    setError(null);
-    setSubmitting(true);
-    setEmail('nagorekaitz2008@gmail.com');
-    setPassword('Studio247AdminPassword!');
-    try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        'nagorekaitz2008@gmail.com',
-        'Studio247AdminPassword!'
-      );
-      const tokenResult = await userCredential.user.getIdTokenResult(true);
-      const userRole = (tokenResult.claims.role as Role) || 'admin';
-      const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
-      navigate(destination, { replace: true });
-    } catch (err: unknown) {
-      console.error('Error en acceso admin:', err);
-      setError('Error al acceder con credenciales de administrador.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleGoogleSignIn = async (useRedirectFallback = false) => {
     setError(null);
     setSubmitting(true);
@@ -370,7 +347,7 @@ export const LoginPage: React.FC = () => {
           </button>
 
           {/* Opción secundaria si el navegador móvil tiene bloqueo estricto */}
-          <div className="text-center mt-2.5 space-y-2">
+          <div className="text-center mt-2.5">
             <button
               type="button"
               onClick={() => handleGoogleSignIn(true)}
@@ -378,16 +355,6 @@ export const LoginPage: React.FC = () => {
               className="text-[11px] text-brand-text/60 hover:text-brand-text hover:underline font-bold cursor-pointer block w-full"
             >
               ¿Tu móvil bloquea ventanas emergentes? Toca aquí para entrar por redirección completa
-            </button>
-
-            <button
-              type="button"
-              onClick={handleQuickAdminLogin}
-              disabled={submitting}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-[11px] font-extrabold text-amber-950 hover:bg-amber-100 transition cursor-pointer shadow-2xs"
-            >
-              <span>⚡</span>
-              <span>Acceso Directo Administrador (nagorekaitz2008@gmail.com)</span>
             </button>
           </div>
 
