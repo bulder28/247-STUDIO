@@ -149,3 +149,4 @@ export const RouteErrorElement: React.FC = () => {
 
   return <ErrorFallbackView error={errorObj} />;
 };
+

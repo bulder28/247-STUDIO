@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { UserDomainModel } from '@/shared/domain/types';
 import { Belt, beltLabelEs } from '@/widgets/Belt';
+import { calculateFighterElo } from '@/shared/domain/eloCalculator';
 
 interface FifaFighterCardProps {
   athlete: UserDomainModel;
@@ -18,43 +19,25 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
 }) => {
   const shouldReduceMotion = useReducedMotion();
 
-  const stats = athlete.stats || {
-    tecnica: 70,
-    fuerza: 65,
-    elasticidad: 60,
-    guardia: 75,
-    pase: 70,
-    derribos: 60,
-    leglocks: 55,
-    finalizacion: 70,
-  };
+  // Cálculo de ELO y estadísticas ponderadas con el Skill Tree
+  const eloResult = useMemo(() => {
+    let savedMastered: string[] = [];
+    try {
+      const saved = localStorage.getItem('247_mastered_techniques');
+      if (saved) savedMastered = JSON.parse(saved);
+    } catch {
+      // Ignorar fallo de almacenamiento
+    }
+    return calculateFighterElo(
+      athlete,
+      savedMastered,
+      (athlete as unknown as { totalClassesAttended?: number }).totalClassesAttended || 24
+    );
+  }, [athlete]);
 
-  // 1. Cálculo de Media OVR FIFA
-  const { ovr, cardTier } = useMemo(() => {
-    const vals = [
-      stats.tecnica ?? 65,
-      stats.fuerza ?? 60,
-      stats.elasticidad ?? 55,
-      stats.guardia ?? 70,
-      stats.pase ?? 65,
-      stats.derribos ?? 55,
-      stats.leglocks ?? 50,
-      stats.finalizacion ?? 65,
-    ];
-    const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-
-    // Detección de edición de carta FIFA
-    if (athlete.belt === 'BLACK' || athlete.pricingTier === 'SF') {
-      return { ovr: avg, cardTier: 'ICON_BLACK' as const };
-    }
-    if (avg >= 75) {
-      return { ovr: avg, cardTier: 'GOLD' as const };
-    }
-    if (avg >= 65) {
-      return { ovr: avg, cardTier: 'SILVER' as const };
-    }
-    return { ovr: avg, cardTier: 'BRONZE' as const };
-  }, [stats, athlete.belt, athlete.pricingTier]);
+  const stats = athlete.stats || eloResult.stats;
+  const ovr = eloResult.ovr;
+  const cardTier = eloResult.tier;
 
   // 2. Estilos según el tier de la carta (Gold, Icon Black, Silver, Bronze)
   const tierStyles = useMemo(() => {
@@ -277,6 +260,12 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
                 </div>
                 <span className={`text-[9px] font-extrabold uppercase ${tierStyles.statLabelColor}`}>
                   {beltLabelEs(athlete.belt)}
+                </span>
+                <span
+                  className={`text-[7.5px] font-mono font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full ${tierStyles.badgeBg} truncate max-w-[110px]`}
+                  title={eloResult.archetype}
+                >
+                  {eloResult.archetype.split('/')[0].trim()}
                 </span>
               </div>
             </div>

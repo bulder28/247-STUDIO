@@ -31,3 +31,4 @@ export const OfflineBanner: React.FC = () => {
     </aside>
   );
 };
+
