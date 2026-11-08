@@ -236,11 +236,15 @@ export const LoginPage: React.FC = () => {
         const fbErr = popupErr as { code?: string; message?: string };
         if (
           fbErr?.code === 'auth/popup-blocked' ||
-          fbErr?.code === 'auth/cancelled-popup-request' ||
-          fbErr?.code === 'auth/popup-closed-by-user'
+          fbErr?.code === 'auth/cancelled-popup-request'
         ) {
-          console.warn('Popup bloqueado o cerrado, cambiando a redirección completa...');
+          console.warn('Popup bloqueado, cambiando a redirección completa...');
           await signInWithRedirect(auth, provider);
+          return;
+        }
+        if (fbErr?.code === 'auth/popup-closed-by-user') {
+          console.info('El usuario cerró la ventana emergente de Google.');
+          setSubmitting(false);
           return;
         }
         throw popupErr;
