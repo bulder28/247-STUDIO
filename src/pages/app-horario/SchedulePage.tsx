@@ -54,7 +54,6 @@ import {
 } from '@/shared/ui/dialog';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 
-type TimeBandFilter = 'ALL' | 'MORNING' | 'AFTERNOON' | 'NIGHT';
 type GroupingMode = 'BY_ACTIVITY' | 'BY_TIME_BAND';
 
 export interface ActivityCategory {
@@ -345,8 +344,6 @@ export const SchedulePage: React.FC = () => {
     setOnlyMyBookings,
   } = useScheduleStore();
 
-  const [selectedTimeBand, setSelectedTimeBand] = useState<TimeBandFilter>('ALL');
-
   // Modo de agrupación de clases en vista diaria: Por Actividad (BJJ Gi, No-Gi, MMA...) o Por Franja Horaria
   const [groupingMode, setGroupingMode] = useState<GroupingMode>('BY_ACTIVITY');
 
@@ -517,10 +514,8 @@ export const SchedulePage: React.FC = () => {
       selectedProfessor === 'ALL' || schedule.professor === selectedProfessor;
     const matchRoom =
       selectedRoom === 'ALL' || (schedule.room || 'Tatami Principal') === selectedRoom;
-    const matchBand =
-      selectedTimeBand === 'ALL' || getScheduleTimeBand(schedule.startTime) === selectedTimeBand;
 
-    if (!matchDiscipline || !matchProfessor || !matchRoom || !matchBand) return false;
+    if (!matchDiscipline || !matchProfessor || !matchRoom) return false;
 
     if (onlyMyBookings && dateStr) {
       return !!getMyBookingForSlot(schedule.id, dateStr);
@@ -838,7 +833,6 @@ export const SchedulePage: React.FC = () => {
     selectedDiscipline,
     selectedProfessor,
     selectedRoom,
-    selectedTimeBand,
     onlyMyBookings,
     todayStr,
     selectedDateStr,
@@ -912,7 +906,6 @@ export const SchedulePage: React.FC = () => {
     selectedDiscipline,
     selectedProfessor,
     selectedRoom,
-    selectedTimeBand,
     onlyMyBookings,
     myBookings,
   ]);
@@ -1489,43 +1482,14 @@ export const SchedulePage: React.FC = () => {
               })}
             </div>
 
-            {/* Franjas Horarias (Mañana / Tarde / Noche) + Filtros de Profesor y Sala */}
+            {/* Filtros de Profesor y Sala */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
-              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200/80">
-                {(
-                  [
-                    { id: 'ALL', label: 'Todo el día', icon: null },
-                    { id: 'MORNING', label: 'Mañana', icon: Sunrise },
-                    { id: 'AFTERNOON', label: 'Tarde', icon: Sun },
-                    { id: 'NIGHT', label: 'Noche', icon: Moon },
-                  ] as const
-                ).map((band) => {
-                  const IconComp = band.icon;
-                  const active = selectedTimeBand === band.id;
-                  return (
-                    <button
-                      key={band.id}
-                      type="button"
-                      onClick={() => setSelectedTimeBand(band.id)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
-                        active
-                          ? 'bg-white text-slate-950 shadow-2xs font-black'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      {IconComp && <IconComp className="w-3 h-3" />}
-                      <span>{band.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
               <div className="flex items-center gap-2">
                 <select
                   value={selectedProfessor}
                   onChange={(e) => setSelectedProfessor(e.target.value)}
                   aria-label="Filtrar por profesor"
-                  className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
+                  className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
                 >
                   <option value="ALL">Todos los Profesores</option>
                   {distinctProfessors.map((prof) => (
@@ -1539,7 +1503,7 @@ export const SchedulePage: React.FC = () => {
                   value={selectedRoom}
                   onChange={(e) => setSelectedRoom(e.target.value)}
                   aria-label="Filtrar por tatami"
-                  className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none hidden sm:block"
+                  className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none hidden sm:block"
                 >
                   <option value="ALL">Todos los Tatamis</option>
                   {distinctRooms.map((room) => (
@@ -1551,17 +1515,15 @@ export const SchedulePage: React.FC = () => {
 
                 {(selectedDiscipline !== 'TODAS' ||
                   selectedProfessor !== 'ALL' ||
-                  selectedRoom !== 'ALL' ||
-                  selectedTimeBand !== 'ALL') && (
+                  selectedRoom !== 'ALL') && (
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedDiscipline('TODAS');
                       setSelectedProfessor('ALL');
                       setSelectedRoom('ALL');
-                      setSelectedTimeBand('ALL');
                     }}
-                    className="text-[11px] font-bold text-slate-500 hover:text-slate-900 underline cursor-pointer"
+                    className="text-[11px] font-bold text-slate-500 hover:text-slate-900 underline cursor-pointer ml-1"
                   >
                     Restablecer
                   </button>
