@@ -38,3 +38,4 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       selectedRoom: 'ALL',
     }),
 }));
+
