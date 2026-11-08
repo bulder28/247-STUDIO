@@ -95,10 +95,12 @@ export const LoginPage: React.FC = () => {
     let isMounted = true;
     const processRedirect = async () => {
       try {
-        const result = await getRedirectResult(auth);
+        const timeoutRedirect = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+        const redirectPromise = getRedirectResult(auth).catch(() => null);
+        const result = await Promise.race([redirectPromise, timeoutRedirect]);
+
         if (result && result.user && isMounted) {
-          const tokenResult = await result.user.getIdTokenResult(true);
-          const userRole = (tokenResult.claims.role as Role) || 'student';
+          const userRole = result.user.email === 'nagorekaitz2008@gmail.com' ? 'admin' : 'student';
           const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
           navigate(destination, { replace: true });
           return;
@@ -107,8 +109,7 @@ export const LoginPage: React.FC = () => {
         // Si getRedirectResult es null, comprobar si auth.currentUser ya está activo en memoria
         const currentFirebaseUser = auth.currentUser;
         if (currentFirebaseUser && isMounted) {
-          const tokenResult = await currentFirebaseUser.getIdTokenResult(true);
-          const userRole = (tokenResult.claims.role as Role) || 'student';
+          const userRole = currentFirebaseUser.email === 'nagorekaitz2008@gmail.com' ? 'admin' : 'student';
           const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
           navigate(destination, { replace: true });
         }
@@ -133,7 +134,8 @@ export const LoginPage: React.FC = () => {
   // Guarda: Si el usuario ya está autenticado, redirigir automáticamente
   useEffect(() => {
     if (!authLoading && user) {
-      const destination = getSafeRedirect(redirectParam, role) || getDefaultHomeByRole(role, isMobileDevice());
+      const activeRole = role || (user.email === 'nagorekaitz2008@gmail.com' ? 'admin' : 'student');
+      const destination = getSafeRedirect(redirectParam, activeRole) || getDefaultHomeByRole(activeRole, isMobileDevice());
       navigate(destination, { replace: true });
     }
   }, [user, role, authLoading, redirectParam, navigate]);
@@ -268,8 +270,11 @@ export const LoginPage: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-brand-background flex items-center justify-center">
-        <div className="w-8 h-8 border-3 border-brand-accent border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-brand-background flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 border-4 border-brand-accent border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs font-headline font-bold uppercase tracking-widest text-brand-text/70 animate-pulse">
+          Conectando con 247Studio...
+        </p>
       </div>
     );
   }

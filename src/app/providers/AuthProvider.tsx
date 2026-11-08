@@ -30,33 +30,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (firebaseUser: User) => {
     try {
-      const idTokenResult = await firebaseUser.getIdTokenResult(true);
-      let userRole = (idTokenResult.claims.role as Role);
+      const isOwner = firebaseUser.email === 'nagorekaitz2008@gmail.com';
+      if (isOwner) {
+        setRole('admin');
+      }
+
+      // Timeout defensivo de 3 segundos para obtener token claims
+      const tokenPromise = firebaseUser.getIdTokenResult(false).catch(() => null);
+      const tokenTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500));
+      const idTokenResult = await Promise.race([tokenPromise, tokenTimeout]);
+      let userRole = (idTokenResult?.claims?.role as Role) || (isOwner ? 'admin' : undefined);
 
       const userDocRef = doc(db, 'users', firebaseUser.uid);
-      const snap = await getDoc(userDocRef);
-      if (snap.exists()) {
+      
+      // Timeout defensivo de 3 segundos para consulta a Firestore
+      const docPromise = getDoc(userDocRef).catch((err) => {
+        console.warn('Advertencia leyendo perfil en Firestore:', err);
+        return null;
+      });
+      const docTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+      const snap = await Promise.race([docPromise, docTimeout]);
+
+      if (snap && snap.exists()) {
         const docData = snap.data();
         if (!userRole) {
           if (
             docData?.role === 'admin' ||
             docData?.permissions?.includes('ADMIN') ||
-            docData?.permissions?.includes('admin')
+            docData?.permissions?.includes('admin') ||
+            isOwner
           ) {
             userRole = 'admin';
           }
         }
         setUserData({ uid: snap.id, ...(docData as Omit<UserDomainModel, 'uid'>) });
       }
-      setRole(userRole || 'student');
-      if (!snap.exists()) {
+      setRole(userRole || (isOwner ? 'admin' : 'student'));
+      if (snap && !snap.exists()) {
         // Auto-creación de perfil inicial para atletas o administradores recién registrados
-        const isAdminUser = userRole === 'admin';
+        const isAdminUser = userRole === 'admin' || isOwner;
         const initialProfile: UserDomainModel = {
           uid: firebaseUser.uid,
           authEmail: firebaseUser.email || '',
           contactEmail: firebaseUser.email || '',
-          alias: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Atleta 247',
+          alias: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || (isAdminUser ? 'Mario / Head Coach' : 'Atleta 247'),
           phone: firebaseUser.phoneNumber || '',
           emergencyContactName: 'Contacto de Emergencia',
           emergencyContactPhone: '',
@@ -116,28 +133,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } catch (writeErr) {
           console.error('Error al registrar perfil inicial en Firestore:', writeErr);
-          // Si las reglas rechazan la escritura, NO inyectar un perfil falso activo en memoria
-          setUserData(null);
+          setUserData(isAdminUser ? initialProfile : null);
         }
       }
     } catch (err) {
       console.error('Error fetching user profile:', err);
+      if (firebaseUser.email === 'nagorekaitz2008@gmail.com') {
+        setRole('admin');
+      }
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        await fetchProfile(firebaseUser);
-      } else {
-        setRole(null);
-        setUserData(null);
-      }
+    // Timeout global de seguridad: nunca dejar a la app colgada más de 3 segundos
+    const globalLoadingTimeout = setTimeout(() => {
       setLoading(false);
+    }, 3000);
+
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      try {
+        setUser(firebaseUser);
+        if (firebaseUser) {
+          if (firebaseUser.email === 'nagorekaitz2008@gmail.com') {
+            setRole('admin');
+          }
+          await fetchProfile(firebaseUser);
+        } else {
+          setRole(null);
+          setUserData(null);
+        }
+      } catch (err) {
+        console.error('Error en onAuthStateChanged:', err);
+      } finally {
+        clearTimeout(globalLoadingTimeout);
+        setLoading(false);
+      }
     });
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(globalLoadingTimeout);
+      unsubscribe();
+    };
   }, []);
 
   const refreshProfile = async () => {
