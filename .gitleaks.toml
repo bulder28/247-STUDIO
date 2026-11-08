@@ -19,3 +19,4 @@ regexes = [
   # Permitir claves mock/dummy en tests y variables de entorno por defecto
   '''AIzaSyDummyKeyForDevelopment12345''',
 ]
+

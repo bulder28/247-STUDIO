@@ -1,0 +1,20 @@
+# robots.txt para 247 STUDIO (https://247studio.netlify.app)
+User-agent: *
+Allow: /
+Allow: /reserva-prueba
+Allow: /programas
+Allow: /privacidad
+Allow: /terminos
+Allow: /faqs
+Allow: /login
+
+# Bloquear indexación de áreas privadas y administrativas
+Disallow: /admin/
+Disallow: /admin/*
+Disallow: /kiosk/
+Disallow: /kiosk/*
+Disallow: /api/
+Disallow: /api/*
+
+# Mapa del sitio oficial
+Sitemap: https://247studio.netlify.app/sitemap.xml
