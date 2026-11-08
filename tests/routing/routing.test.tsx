@@ -381,6 +381,36 @@ describe('Tests de routing y sitio público', () => {
       expect(getDefaultHomeByRole('kiosk')).toBe('/kiosk/check-in');
       expect(getDefaultHomeByRole('student')).toBe('/app/home');
     });
+
+    it('E8. Coach autenticado no puede acceder a /admin/roles (solo admin)', () => {
+      vi.mocked(useAuth).mockReturnValue({
+        user: { uid: 'coach-1' } as any,
+        role: 'coach',
+        userData: { alias: 'Coach Pro' } as any,
+        loading: false,
+        logout: vi.fn(),
+        refreshProfile: vi.fn(),
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/admin/roles']}>
+          <Routes>
+            <Route
+              path="/admin/roles"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <div>Roles Management Console</div>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/admin/asistencia" element={<div>Coach Dashboard</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText('Coach Dashboard')).toBeDefined();
+      expect(screen.queryByText('Roles Management Console')).toBeNull();
+    });
   });
 
   // =========================================================================

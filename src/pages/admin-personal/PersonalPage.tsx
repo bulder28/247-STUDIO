@@ -650,14 +650,17 @@ export const PersonalPage: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 justify-items-center pt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2.5 sm:gap-3.5 justify-items-center pt-2">
             {filteredUsers.map((athlete) => (
               <div
                 key={athlete.uid}
-                onClick={() => openEditor(athlete)}
-                className="cursor-pointer group flex flex-col items-center w-full"
+                className="group flex flex-col items-center"
               >
-                <FifaFighterCard athlete={athlete} size="sm" />
+                <FifaFighterCard
+                  athlete={athlete}
+                  size="sm"
+                  onClick={() => openEditor(athlete)}
+                />
               </div>
             ))}
           </div>

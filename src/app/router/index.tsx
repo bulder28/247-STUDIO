@@ -18,6 +18,12 @@ const TrialClassPage = lazyWithRetry(() =>
 const LoginPage = lazyWithRetry(() =>
   import('@/pages/public-login/LoginPage').then((m) => ({ default: m.LoginPage }))
 );
+const StaffLoginPage = lazyWithRetry(() =>
+  import('@/pages/staff-login/StaffLoginPage').then((m) => ({ default: m.StaffLoginPage }))
+);
+const AdminLoginPage = lazyWithRetry(() =>
+  import('@/pages/admin-login/AdminLoginPage').then((m) => ({ default: m.AdminLoginPage }))
+);
 const RegisterPage = lazyWithRetry(() =>
   import('@/pages/public-registro/RegisterPage').then((m) => ({ default: m.RegisterPage }))
 );
@@ -68,6 +74,9 @@ const AttendanceAdminPage = lazyWithRetry(() =>
 );
 const StudentRegistrationPage = lazyWithRetry(() =>
   import('@/pages/admin-alta-alumno/StudentRegistrationPage').then((m) => ({ default: m.StudentRegistrationPage }))
+);
+const RolesAdminPage = lazyWithRetry(() =>
+  import('@/pages/admin-roles/RolesAdminPage').then((m) => ({ default: m.RolesAdminPage }))
 );
 const PrivacyPage = lazyWithRetry(() =>
   import('@/pages/public-legal/PrivacyPage').then((m) => ({ default: m.PrivacyPage }))
@@ -174,6 +183,28 @@ export const router = createBrowserRouter([
     element: (
       <LazyRoute>
         <RegisterPage />
+      </LazyRoute>
+    ),
+  },
+
+  // Portal exclusivo para Profesores y Entrenadores
+  {
+    path: '/staff/login',
+    errorElement: <RouteErrorElement />,
+    element: (
+      <LazyRoute>
+        <StaffLoginPage />
+      </LazyRoute>
+    ),
+  },
+
+  // Portal exclusivo para Directores (Mario & David)
+  {
+    path: '/admin/login',
+    errorElement: <RouteErrorElement />,
+    element: (
+      <LazyRoute>
+        <AdminLoginPage />
       </LazyRoute>
     ),
   },
@@ -377,6 +408,16 @@ export const router = createBrowserRouter([
           <ProtectedRoute allowedRoles={['admin']}>
             <LazyRoute>
               <StudentRegistrationPage />
+            </LazyRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'roles',
+        element: (
+          <ProtectedRoute allowedRoles={['admin']}>
+            <LazyRoute>
+              <RolesAdminPage />
             </LazyRoute>
           </ProtectedRoute>
         ),

@@ -15,7 +15,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
   athlete,
   onClick,
   className = '',
-  size = 'md',
+  size = 'sm',
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const [imageError, setImageError] = React.useState(false);
@@ -40,7 +40,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
   const ovr = eloResult.ovr;
   const cardTier = eloResult.tier;
 
-  // 2. Estilos según el tier de la carta (Gold, Icon Black, Silver, Bronze)
+  // Estilos según el tier de la carta (Gold, Icon Black, Silver, Bronze)
   const tierStyles = useMemo(() => {
     switch (cardTier) {
       case 'ICON_BLACK':
@@ -55,7 +55,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
           statLabelColor: 'text-[#D4AF37]',
           divider: 'border-[#E5C158]/30',
           badgeBg: 'bg-[#D4AF37] text-slate-900',
-          glow: 'shadow-[0_15px_35px_rgba(229,193,88,0.25)]',
+          glow: 'shadow-[0_8px_20px_rgba(229,193,88,0.22)]',
           badgeText: 'TOTW / SF',
         };
       case 'GOLD':
@@ -70,7 +70,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
           statLabelColor: 'text-[#4A370B]',
           divider: 'border-[#8C6713]/30',
           badgeBg: 'bg-[#3E2D07] text-[#F9EBB2]',
-          glow: 'shadow-[0_15px_30px_rgba(179,140,50,0.3)]',
+          glow: 'shadow-[0_8px_20px_rgba(179,140,50,0.25)]',
           badgeText: 'ORO RARO',
         };
       case 'SILVER':
@@ -85,7 +85,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
           statLabelColor: 'text-[#3B3E4D]',
           divider: 'border-[#767988]/30',
           badgeBg: 'bg-[#20222B] text-white',
-          glow: 'shadow-[0_15px_25px_rgba(151,154,168,0.25)]',
+          glow: 'shadow-[0_8px_18px_rgba(151,154,168,0.2)]',
           badgeText: 'PLATA',
         };
       case 'BRONZE':
@@ -101,7 +101,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
           statLabelColor: 'text-[#3C2010]',
           divider: 'border-[#5A351D]/30',
           badgeBg: 'bg-[#2B1508] text-[#E4C9B5]',
-          glow: 'shadow-[0_15px_25px_rgba(130,85,55,0.25)]',
+          glow: 'shadow-[0_8px_18px_rgba(130,85,55,0.2)]',
           badgeText: 'BRONCE',
         };
     }
@@ -120,28 +120,17 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
     { label: 'FÍS', val: Math.round(((stats.fuerza || 60) + (stats.elasticidad || 60)) / 2) },
   ];
 
-  // Tamaño dinámico del nombre para que jamás se corte ni use puntos suspensivos
-  const nameFontSize = useMemo(() => {
-    const len = athlete.alias.length;
-    if (size === 'xs' || size === 'sm') {
-      if (len > 20) return 'text-[10px] sm:text-[11px]';
-      if (len > 14) return 'text-xs sm:text-[13px]';
-      return 'text-[13px] sm:text-sm';
-    }
-    if (len > 22) return 'text-xs sm:text-sm';
-    if (len > 16) return 'text-sm sm:text-base';
-    return 'text-base sm:text-lg';
-  }, [athlete.alias, size]);
-
-  // Escala según tamaño (compacto coleccionable y fluido en pantallas móviles)
+  // Escala compacta proporcional para que quepan todos los atributos sin recortarse
   const scaleClass =
     size === 'xs'
-      ? 'w-[140px] sm:w-[155px]'
+      ? 'w-[115px] sm:w-[125px]'
       : size === 'sm'
-      ? 'w-[150px] min-[400px]:w-[165px] sm:w-[180px]'
+      ? 'w-[130px] min-[400px]:w-[142px] sm:w-[155px]'
       : size === 'lg'
-      ? 'w-[230px] sm:w-[255px]'
-      : 'w-[185px] sm:w-[210px]';
+      ? 'w-[200px] sm:w-[220px]'
+      : 'w-[160px] sm:w-[175px]';
+
+  const isCompact = size === 'xs' || size === 'sm';
 
   return (
     <motion.div
@@ -155,129 +144,116 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
           onClick?.();
         }
       }}
-      whileHover={shouldReduceMotion ? undefined : { y: -5, scale: 1.02 }}
+      whileHover={shouldReduceMotion ? undefined : { y: -4, scale: 1.02 }}
       whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
       transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 350, damping: 25 }}
-      className={`group relative select-none cursor-pointer transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-[26px] ${scaleClass} ${className}`}
+      className={`group relative select-none cursor-pointer transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-[20px] ${scaleClass} ${className}`}
     >
-      {/* ======================================================== */}
-      {/* SILUETA ESCUDO FIFA ULTIMATE TEAM (SVG MASK & BORDER)    */}
-      {/* ======================================================== */}
-      <div className={`relative w-full aspect-[1/1.54] ${tierStyles.glow} rounded-[26px]`}>
+      {/* Silueta Escudo FIFA Ultimate Team */}
+      <div className={`relative w-full aspect-[1/1.56] ${tierStyles.glow} rounded-[20px]`}>
         <div
-          className={`relative w-full h-full p-2.5 pb-4 rounded-[26px] bg-gradient-to-b ${tierStyles.cardBg} overflow-hidden flex flex-col justify-between`}
+          className={`relative w-full h-full p-2 pb-2.5 rounded-[20px] bg-gradient-to-b ${tierStyles.cardBg} overflow-hidden flex flex-col justify-between`}
           style={{
-            clipPath:
-              'polygon(14% 0%, 86% 0%, 100% 8%, 100% 90%, 50% 100%, 0% 90%, 0% 8%)',
+            clipPath: 'polygon(14% 0%, 86% 0%, 100% 8%, 100% 90%, 50% 100%, 0% 90%, 0% 8%)',
           }}
         >
-          {/* Reflejo brillante holográfico / Foil sheen en hover */}
+          {/* Reflejo brillante holográfico / Sheen en hover */}
           {!shouldReduceMotion && (
-            <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-700">
-              <div className="w-[200%] h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+            <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+              <div className="w-[200%] h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
             </div>
           )}
 
-          {/* Textura Láser / Diagonal Sheen estilo FIFA */}
+          {/* Textura Láser Diagonal */}
           <div
-            className="absolute inset-0 pointer-events-none opacity-25 mix-blend-overlay"
+            className="absolute inset-0 pointer-events-none opacity-20 mix-blend-overlay"
             style={{
               backgroundImage:
-                'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.4) 10px, rgba(255,255,255,0.4) 20px)',
+                'repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.4) 8px, rgba(255,255,255,0.4) 16px)',
             }}
           />
 
           {/* Marco interno fino */}
           <div
-            className={`absolute inset-1 rounded-[22px] border ${tierStyles.innerBorder} pointer-events-none`}
+            className={`absolute inset-0.5 rounded-[18px] border ${tierStyles.innerBorder} pointer-events-none`}
             style={{
-              clipPath:
-                'polygon(14% 0%, 86% 0%, 100% 8%, 100% 90%, 50% 100%, 0% 90%, 0% 8%)',
+              clipPath: 'polygon(14% 0%, 86% 0%, 100% 8%, 100% 90%, 50% 100%, 0% 90%, 0% 8%)',
             }}
           />
 
-          {/* ======================================================== */}
-          {/* PARTE SUPERIOR: OVR, POSICIÓN Y FOTO CENTRAL             */}
-          {/* ======================================================== */}
-          <div className="relative z-10 pt-1 px-1.5 flex justify-between items-start">
-            {/* Bloque Izquierdo: OVR, Posición e Insignia Química/Estilo */}
-            <div className="flex flex-col items-center">
-              {/* Número OVR */}
+          {/* PARTE SUPERIOR: OVR, POSICIÓN Y FOTO CENTRAL */}
+          <div className="relative z-10 pt-0.5 px-1 flex justify-between items-start gap-1">
+            {/* Bloque OVR y Posición */}
+            <div className="flex flex-col items-center shrink-0">
               <span
-                className={`font-mono text-3xl sm:text-4xl font-black tracking-tighter leading-none ${tierStyles.numColor} drop-shadow-sm`}
+                className={`font-mono text-2xl min-[400px]:text-3xl font-black tracking-tighter leading-none ${tierStyles.numColor} drop-shadow-sm`}
               >
                 {ovr}
               </span>
-
-              {/* Posición / Disciplina */}
               <span
-                className={`text-[10px] font-black tracking-wider uppercase mt-0.5 ${tierStyles.textColor}`}
+                className={`text-[8px] min-[400px]:text-[9px] font-black tracking-wider uppercase mt-0.5 ${tierStyles.textColor}`}
               >
                 {positionLabel}
               </span>
-
-              {/* Divisor sutil */}
-              <div className={`w-5 h-0.5 my-1 border-b ${tierStyles.divider}`} />
-
-              {/* Insignia Química / Estilo de Combate (Icono Cohete/Tatami FUT) */}
+              <div className={`w-4 h-px my-0.5 border-b ${tierStyles.divider}`} />
               <div
-                className={`px-1 py-0.2 rounded border ${tierStyles.innerBorder} bg-black/20 text-[8px] font-black uppercase tracking-widest ${tierStyles.textColor} shadow-2xs mt-0.5`}
-                title="Estilo de Combate Tatami"
+                className={`px-1 py-0.2 rounded border ${tierStyles.innerBorder} bg-black/25 text-[7px] font-black uppercase tracking-wider ${tierStyles.textColor}`}
               >
                 {athlete.belt === 'BLACK' ? '★ PRO' : '⚡ BJJ'}
               </div>
             </div>
 
-            {/* Foto del Atleta (Recorte Estilo FIFA FUT con fundido) */}
-            <div className="relative flex-1 flex justify-center -mt-1 -mr-0.5">
-              <div className="relative w-24 sm:w-28 h-24 sm:h-28 overflow-hidden flex items-end justify-center rounded-2xl">
-                {athlete.photoUrl && !imageError ? (
-                  <img
-                    src={athlete.photoUrl}
-                    alt={athlete.alias}
-                    onError={() => setImageError(true)}
-                    className="w-full h-full object-cover object-top filter contrast-[1.05] drop-shadow-[0_6px_10px_rgba(0,0,0,0.35)]"
-                  />
-                ) : (
-                  <div className="w-20 sm:w-24 h-22 sm:h-26 rounded-xl bg-black/15 border border-black/10 flex flex-col items-center justify-center text-3xl shadow-inner">
-                    <span>🥋</span>
-                    <span className="text-[8px] font-black uppercase tracking-wider opacity-60 mt-0.5">247</span>
-                  </div>
-                )}
-
-                {/* Degradado inferior para fundir la foto con la tarjeta */}
-                <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
-              </div>
+            {/* Foto del Atleta / Avatar Marcial Fallback Robusto */}
+            <div className="relative flex-1 flex justify-center items-end h-16 min-[400px]:h-18 overflow-hidden rounded-xl">
+              {athlete.photoUrl && !imageError ? (
+                <img
+                  src={athlete.photoUrl}
+                  alt={athlete.alias}
+                  loading="lazy"
+                  onError={() => setImageError(true)}
+                  className="w-full h-full object-cover object-top filter contrast-[1.05] drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]"
+                />
+              ) : (
+                <div className="w-12 min-[400px]:w-14 h-14 min-[400px]:h-16 rounded-xl bg-black/20 border border-black/10 flex flex-col items-center justify-center shadow-inner">
+                  <span className="text-xl min-[400px]:text-2xl filter drop-shadow">🥋</span>
+                  <span className="text-[7px] font-black uppercase tracking-wider opacity-70 mt-0.5 font-mono">
+                    {athlete.alias.slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              {/* Degradado inferior para fundir el avatar */}
+              <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
             </div>
           </div>
 
-          {/* ======================================================== */}
-          {/* PARTE INFERIOR: NOMBRE, CINTURÓN Y 6 STATS FIFA          */}
-          {/* ======================================================== */}
-          <div className="relative z-10 px-2">
-            {/* Nombre / Alias del Atleta (Sin cortes ni puntos suspensivos) */}
-            <div className="text-center mb-1">
+          {/* PARTE INFERIOR: NOMBRE, CINTURÓN, 6 STATS Y SELLOS */}
+          <div className="relative z-10 px-1 mt-auto">
+            {/* Nombre / Alias del Atleta */}
+            <div className="text-center mb-0.5">
               <h3
-                className={`font-headline ${nameFontSize} uppercase tracking-tight font-black leading-tight ${tierStyles.textColor} drop-shadow-sm px-1`}
+                className={`font-black uppercase tracking-tight leading-tight ${tierStyles.textColor} drop-shadow-sm truncate ${
+                  isCompact ? 'text-[10px] min-[400px]:text-[11px]' : 'text-xs'
+                }`}
+                title={athlete.alias}
               >
                 {athlete.alias}
               </h3>
 
               {/* Cinturón Oficial BJJ miniaturizado */}
-              <div className="flex items-center justify-center gap-1.5 mt-1">
-                <div className="w-16">
+              <div className="flex items-center justify-center gap-1 mt-0.5">
+                <div className="w-10 min-[400px]:w-12">
                   <Belt
                     belt={athlete.belt}
                     stripes={athlete.stripes}
                     decorative
-                    className="h-2.5 rounded shadow-2xs"
+                    className="h-2 rounded shadow-2xs"
                   />
                 </div>
-                <span className={`text-[9px] font-extrabold uppercase ${tierStyles.statLabelColor}`}>
+                <span className={`text-[7.5px] font-extrabold uppercase ${tierStyles.statLabelColor}`}>
                   {beltLabelEs(athlete.belt)}
                 </span>
                 <span
-                  className={`text-[7.5px] font-mono font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full ${tierStyles.badgeBg} truncate max-w-[110px]`}
+                  className={`text-[6.5px] font-mono font-black uppercase tracking-wider px-1 py-0.2 rounded-full ${tierStyles.badgeBg} truncate max-w-[70px]`}
                   title={eloResult.archetype}
                 >
                   {eloResult.archetype.split('/')[0].trim()}
@@ -285,20 +261,20 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
               </div>
             </div>
 
-            {/* Línea divisoria dorada */}
-            <div className={`w-full h-px border-b ${tierStyles.divider} my-1.5`} />
+            {/* Divisor */}
+            <div className={`w-full h-px border-b ${tierStyles.divider} my-0.5`} />
 
             {/* Rejilla de 6 Estadísticas (FUT Style) */}
-            <div className="grid grid-cols-6 gap-1 text-center py-1">
+            <div className="grid grid-cols-6 gap-0.5 text-center py-0.5">
               {coreStats.map((st) => (
                 <div key={st.label} className="flex flex-col items-center">
                   <span
-                    className={`text-[9px] font-black tracking-tighter ${tierStyles.statLabelColor}`}
+                    className={`text-[7px] min-[400px]:text-[7.5px] font-black tracking-tighter ${tierStyles.statLabelColor}`}
                   >
                     {st.label}
                   </span>
                   <span
-                    className={`font-mono text-sm font-black leading-none mt-0.5 ${tierStyles.statNumColor}`}
+                    className={`font-mono text-[10px] min-[400px]:text-[11px] font-black leading-none mt-0.5 ${tierStyles.statNumColor}`}
                   >
                     {st.val}
                   </span>
@@ -306,40 +282,37 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
               ))}
             </div>
 
-            {/* ======================================================== */}
-            {/* INSIGNIAS OFICIALES FIFA FUT EN LA PUNTA INFERIOR        */}
-            {/* Centradas en el eje medio para que JAMÁS se corten       */}
-            {/* ======================================================== */}
-            <div className="mt-2 flex items-center justify-center gap-2">
-              {/* Bandera Nacional (España) */}
+            {/* Insignias en la punta inferior */}
+            <div className="mt-1 flex items-center justify-center gap-1.5 pb-0.5">
+              {/* Bandera España */}
               <div
-                className="w-4.5 h-3 rounded-xs overflow-hidden shadow-2xs border border-black/25 shrink-0"
+                className="w-3.5 h-2.5 rounded-2xs overflow-hidden shadow-2xs border border-black/25 shrink-0"
                 title="Madrid / España"
               >
-                <div className="h-1 bg-[#AA151B]" />
-                <div className="h-1 bg-[#F1BF00]" />
-                <div className="h-1 bg-[#AA151B]" />
+                <div className="h-0.8 bg-[#AA151B]" />
+                <div className="h-0.9 bg-[#F1BF00]" />
+                <div className="h-0.8 bg-[#AA151B]" />
               </div>
 
               {/* Insignia Edición / Tarifa */}
               <span
-                className={`px-2 py-0.5 rounded-full ${tierStyles.badgeBg} text-[8px] font-mono font-black tracking-wider shadow-2xs truncate max-w-[140px]`}
+                className={`px-1.5 py-0.2 rounded-full ${tierStyles.badgeBg} text-[6.5px] min-[400px]:text-[7px] font-mono font-black tracking-wider shadow-2xs truncate max-w-[85px]`}
               >
-                {athlete.pricingTier === 'SF' ? '★ SOCIO FUNDADOR' : tierStyles.badgeText}
+                {athlete.pricingTier === 'SF' ? '★ FUNDADOR' : tierStyles.badgeText}
               </span>
 
               {/* Escudo Club 247Studio */}
               <div
-                className="w-4.5 h-4.5 rounded-full bg-slate-900 border border-[#D4AF37] flex items-center justify-center p-0.5 shadow-2xs shrink-0"
+                className="w-3.5 h-3.5 rounded-full bg-slate-900 border border-[#D4AF37] flex items-center justify-center p-0.5 shadow-2xs shrink-0"
                 title="247Studio Pinto"
               >
-                <img src="/logo.webp" alt="247" className="w-3.5 h-3.5 object-contain" />
+                <img src="/logo.webp" alt="247" className="w-2.5 h-2.5 object-contain" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Borde perimetral vectorial SVG continuo para el bisel exacto */}
+        {/* Borde perimetral vectorial SVG continuo */}
         <svg
           className="absolute inset-0 pointer-events-none w-full h-full z-20"
           viewBox="0 0 100 100"
@@ -349,7 +322,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
             points="14,0 86,0 100,8 100,90 50,100 0,90 0,8"
             fill="none"
             stroke={tierStyles.strokeColor}
-            strokeWidth="2.5"
+            strokeWidth="2"
             vectorEffect="non-scaling-stroke"
           />
         </svg>

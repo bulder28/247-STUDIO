@@ -54,15 +54,22 @@ export const TrialClassPage: React.FC = () => {
         if (isMounted) {
           const finalList = list.length > 0 ? list : DEFAULT_OFFICIAL_SCHEDULES;
           setSchedules(finalList);
-          setFormData((prev) => ({
-            ...prev,
-            scheduleId: prev.scheduleId || finalList[0]?.id || '',
-          }));
+          setFormData((prev) => {
+            const exists = finalList.some((s) => s.id === prev.scheduleId);
+            return {
+              ...prev,
+              scheduleId: exists ? prev.scheduleId : finalList[0]?.id || '',
+            };
+          });
         }
       } catch (err) {
         console.error('Error fetching schedules (usando horario oficial predeterminado):', err);
         if (isMounted) {
           setSchedules(DEFAULT_OFFICIAL_SCHEDULES);
+          setFormData((prev) => ({
+            ...prev,
+            scheduleId: DEFAULT_OFFICIAL_SCHEDULES[0]?.id || '',
+          }));
         }
       }
     };
@@ -73,19 +80,32 @@ export const TrialClassPage: React.FC = () => {
     };
   }, []);
 
-  // Agrupación estructurada de horarios por día de la semana
+  // Agrupación estructurada de horarios por día de la semana con fallback garantizado
   const groupedSchedules = useMemo(() => {
-    return [1, 2, 3, 4, 5]
+    const listToGroup = schedules.length > 0 ? schedules : DEFAULT_OFFICIAL_SCHEDULES;
+    const groups = [1, 2, 3, 4, 5, 6, 7]
       .map((dayNum) => {
         return {
           dayNum,
           dayName: DAY_NAMES[dayNum] || `Día ${dayNum}`,
-          items: schedules
-            .filter((s) => s.dayOfWeek === dayNum && s.active !== false)
-            .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+          items: listToGroup
+            .filter((s) => Number(s.dayOfWeek) === dayNum && s.active !== false)
+            .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')),
         };
       })
       .filter((g) => g.items.length > 0);
+
+    if (groups.length === 0) {
+      return [1, 2, 3, 4, 5]
+        .map((dayNum) => ({
+          dayNum,
+          dayName: DAY_NAMES[dayNum] || `Día ${dayNum}`,
+          items: DEFAULT_OFFICIAL_SCHEDULES.filter((s) => Number(s.dayOfWeek) === dayNum),
+        }))
+        .filter((g) => g.items.length > 0);
+    }
+
+    return groups;
   }, [schedules]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

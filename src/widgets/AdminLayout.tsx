@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   Scale,
   Shield,
+  ShieldCheck,
   Swords,
   Tablet,
   Tags,
@@ -85,6 +86,7 @@ export const AdminLayout: React.FC = () => {
     { to: '/admin/tarifas', label: 'Tarifas & MRR', shortLabel: 'Tarifas', icon: Tags, adminOnly: true },
     { to: '/admin/leads', label: 'Embudo de Leads', shortLabel: 'Leads', icon: Shield, adminOnly: true },
     { to: '/admin/alta-alumno', label: 'Alta de Alumno', shortLabel: 'Alta Socio', icon: UserPlus, adminOnly: true },
+    { to: '/admin/roles', label: 'Equipo & Roles', shortLabel: 'Equipo', icon: ShieldCheck, adminOnly: true },
   ];
 
   const links = allLinks.filter((l) => !l.adminOnly || role === 'admin');
