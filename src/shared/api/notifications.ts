@@ -36,7 +36,9 @@ export async function requestNotificationPermission(userUid?: string): Promise<s
 
     // Obtener token FCM del dispositivo
     const token = await getToken(messaging, {
-      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY || undefined,
+      vapidKey:
+        import.meta.env.VITE_FIREBASE_VAPID_KEY ||
+        'BPEUllp5dEwAEw3Wz1_Y5PtOsz3IlUrQw8Hrf_EUNY-qoB9-WzZD8goBrfPK0BMkX9PSn3_nYTz7vXVsgbr5zCM',
     });
 
     if (token && userUid) {

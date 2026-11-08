@@ -42,3 +42,4 @@ Este archivo define las reglas de acceso, permisos y directrices técnicas perma
    * Antes de cualquier commit o push a `main`, es obligatorio ejecutar y validar la compilación limpia con `npm run build` (`tsc && vite build`), garantizando cero errores de tipado TypeScript y cero advertencias de tamaño de bundle.
 4. **Resiliencia Offline:**
    * Toda ruta debe mantener carga resiliente con [`lazyWithRetry.ts`](file:///c:/Desktop/247 STUDIO/src/shared/utils/lazyWithRetry.ts) y envolverse en [`RootErrorBoundary.tsx`](file:///c:/Desktop/247 STUDIO/src/shared/ui/RootErrorBoundary.tsx).
+
