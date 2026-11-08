@@ -17,6 +17,8 @@ import {
   Clock,
   CreditCard,
   Download,
+  LayoutGrid,
+  List,
   Mail,
   MessageCircle,
   Pause,
@@ -25,6 +27,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Sparkles,
   User,
   UserMinus,
   UserPlus,
@@ -32,6 +35,7 @@ import {
 import { db } from '@/shared/api/firebase';
 import { deriveRetentionRisk } from '@/shared/domain/attendance';
 import { calculateExactAge, isLegalMinor } from '@/shared/domain/minor';
+import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
 import {
   AccountStatus,
   AdultBelt,
@@ -56,6 +60,8 @@ import {
 } from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
 import { exportStudentsToCsv } from '@/shared/utils/csvExporter';
+import { FifaFighterCard } from '@/widgets/FifaFighterCard';
+import { FighterCard } from '@/widgets/FighterCard';
 import { PhotoUploaderModal } from '@/widgets/PhotoUploaderModal';
 
 // --- Constantes y Helpers de Cinturones ---
@@ -110,6 +116,11 @@ export const PersonalPage: React.FC = () => {
   const [payments, setPayments] = useState<PaymentDomainModel[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Modo de visualización: Álbum de Cartas FIFA vs Ficha y Gestión
+  const [displayMode, setDisplayMode] = useState<'CARDS' | 'LIST'>('CARDS');
+  const [cardBeltFilter, setCardBeltFilter] = useState<string>('ALL');
+  const [modalCardUser, setModalCardUser] = useState<UserDomainModel | null>(null);
+
   // Vistas superiores de ciclo de vida
   const [view, setView] = useState<'ACTIVOS' | 'INTERESADOS' | 'BAJAS'>('ACTIVOS');
   const [searchTerm, setSearchTerm] = useState('');
@@ -119,7 +130,7 @@ export const PersonalPage: React.FC = () => {
   const [selectedLead, setSelectedLead] = useState<LeadModel | null>(null);
 
   // Pestañas de la Ficha
-  const [activeTab, setActiveTab] = useState<'resumen' | 'datos' | 'cinturon' | 'pagos' | 'asistencia'>('resumen');
+  const [activeTab, setActiveTab] = useState<'resumen' | 'datos' | 'cinturon' | 'pagos' | 'asistencia' | 'carta'>('resumen');
 
   // Formularios de edición en la ficha
   const [datosForm, setDatosForm] = useState({
@@ -188,7 +199,8 @@ export const PersonalPage: React.FC = () => {
 
       const uList: UserDomainModel[] = [];
       usersSnap.forEach((d) => uList.push({ uid: d.id, ...(d.data() as Omit<UserDomainModel, 'uid'>) }));
-      setUsers(uList);
+      const effectiveUsers = uList.length > 0 ? uList : SAMPLE_ATHLETES_20;
+      setUsers(effectiveUsers);
 
       const lList: LeadModel[] = [];
       leadsSnap.forEach((d) => lList.push({ id: d.id, ...(d.data() as Omit<LeadModel, 'id'>) }));
@@ -342,6 +354,27 @@ export const PersonalPage: React.FC = () => {
 
     return { leads: matchedLeads, trialUsers: matchedTrialUsers };
   }, [view, searchTerm, activosList, bajasList, interesadosList]);
+
+  // Lista de atletas para la vista de Álbum de Cartas FIFA FUT
+  const cardAthletes = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    let baseList = activosList;
+    if (view === 'BAJAS') baseList = bajasList;
+    if (view === 'INTERESADOS') baseList = interesadosList.trialUsers;
+
+    return baseList.filter((u) => {
+      if (term) {
+        const matchesTerm =
+          u.alias?.toLowerCase().includes(term) ||
+          u.contactEmail?.toLowerCase().includes(term) ||
+          u.phone?.includes(term);
+        if (!matchesTerm) return false;
+      }
+      if (cardBeltFilter === 'ALL') return true;
+      if (cardBeltFilter === 'KIDS') return u.beltSystem === 'KIDS';
+      return u.belt === cardBeltFilter && u.beltSystem !== 'KIDS';
+    });
+  }, [activosList, bajasList, interesadosList, view, searchTerm, cardBeltFilter]);
 
   // Total de elementos por vista
   const counts = {
@@ -907,22 +940,145 @@ export const PersonalPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nombre, email..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800"
-          />
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {/* Selector de Modo: Cartas FIFA vs Ficha y Gestión */}
+          <div className="flex items-center bg-slate-200/80 p-0.5 rounded-xl gap-0.5 border border-slate-300/60 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setDisplayMode('CARDS')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+                displayMode === 'CARDS'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-slate-950" />
+              <span>Cartas FIFA ({cardAthletes.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisplayMode('LIST')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+                displayMode === 'LIST'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <List className="w-3.5 h-3.5 text-slate-400" />
+              <span>Ficha y Gestión</span>
+            </button>
+          </div>
+
+          <div className="relative w-full sm:w-56">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por nombre, email..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800"
+            />
+          </div>
         </div>
       </div>
 
-      {/* ======================================================== */}
-      {/* 2. CONTENEDOR MAESTRO-DETALLE (DOS COLUMNAS)             */}
-      {/* ======================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start min-h-[640px]">
+      {displayMode === 'CARDS' ? (
+        <div className="space-y-4">
+          {/* Sub-barra de filtros de cinturón para el Álbum de Cartas */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-2 flex-wrap shadow-2xs">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2 shrink-0">
+                Cinturón:
+              </span>
+              {[
+                { id: 'ALL', label: 'Todos' },
+                { id: 'WHITE', label: '⚪ Blanco' },
+                { id: 'BLUE', label: '🔵 Azul' },
+                { id: 'PURPLE', label: '🟣 Morado' },
+                { id: 'BROWN', label: '🟤 Marrón' },
+                { id: 'BLACK', label: '⚫ Negro' },
+                { id: 'KIDS', label: '🥋 Kids' },
+              ].map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setCardBeltFilter(b.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer shrink-0 ${
+                    cardBeltFilter === b.id
+                      ? 'bg-slate-900 text-white font-black shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="text-xs font-mono font-bold text-slate-500 px-2">
+              Mostrando <strong className="text-slate-900">{cardAthletes.length}</strong> cartas de atletas
+            </div>
+          </div>
+
+          {/* Grid de Cartas FIFA Ultimate Team */}
+          {cardAthletes.length === 0 ? (
+            <div className="p-12 text-center bg-white border border-slate-200/80 rounded-2xl">
+              <Sparkles className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-800">No se encontraron cartas con los filtros seleccionados.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setCardBeltFilter('ALL');
+                }}
+                className="mt-3 text-xs font-bold text-brand-accent hover:underline cursor-pointer"
+              >
+                Restablecer filtros
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {cardAthletes.map((athlete) => (
+                <div
+                  key={athlete.uid}
+                  className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-subtle hover:shadow-md transition-all flex flex-col items-center justify-between gap-3 group hover:border-slate-400"
+                >
+                  <div
+                    onClick={() => setModalCardUser(athlete)}
+                    className="w-full flex justify-center cursor-pointer transition-transform duration-200 group-hover:scale-[1.03]"
+                    title={`Ver cromo completo de ${athlete.alias}`}
+                  >
+                    <FifaFighterCard athlete={athlete} size="sm" />
+                  </div>
+
+                  <div className="w-full flex items-center justify-between gap-1.5 pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setModalCardUser(athlete)}
+                      className="flex-1 py-1.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 rounded-xl text-[11px] font-black uppercase tracking-wider transition cursor-pointer text-center"
+                    >
+                      Cromo FUT
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        syncFormsWithUser(athlete);
+                        setDisplayMode('LIST');
+                      }}
+                      className="flex-1 py-1.5 px-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-black uppercase tracking-wider transition cursor-pointer text-center"
+                    >
+                      Ver Ficha
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ======================================================== */
+        /* 2. CONTENEDOR MAESTRO-DETALLE (DOS COLUMNAS)             */
+        /* ======================================================== */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start min-h-[640px]">
         {/* ------------------------------------------------------ */}
         {/* COLUMNA IZQUIERDA: LISTA MAESTRA (Oculta en móvil si   */}
         {/* hay seleccionado)                                      */}
@@ -1384,6 +1540,18 @@ export const PersonalPage: React.FC = () => {
                 >
                   Asistencia
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('carta')}
+                  className={`py-3 px-3 text-xs font-black uppercase tracking-wider border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'carta'
+                      ? 'border-amber-500 text-amber-700 font-black'
+                      : 'border-transparent text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Carta FIFA</span>
+                </button>
               </div>
 
               {/* Contenido de la pestaña activa */}
@@ -1827,6 +1995,13 @@ export const PersonalPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* ---------------- PESTAÑA 6: CARTA FIFA FUT ---------------- */}
+                {activeTab === 'carta' && (
+                  <div className="py-2">
+                    <FighterCard user={selectedUser} />
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -1843,6 +2018,38 @@ export const PersonalPage: React.FC = () => {
           )}
         </div>
       </div>
+      )}
+
+      {/* Modal Cromo FIFA FUT (Vista previa interactiva) */}
+      <Dialog open={!!modalCardUser} onOpenChange={(open) => !open && setModalCardUser(null)}>
+        <DialogContent className="max-w-2xl bg-white rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
+          {modalCardUser && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div>
+                  <DialogTitle className="text-xl font-black uppercase text-slate-900 font-headline">
+                    Carta Oficial — {modalCardUser.alias}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500">
+                    Cromo coleccionable FIFA Ultimate Team y radar de habilidades.
+                  </DialogDescription>
+                </div>
+                <Button
+                  onClick={() => {
+                    syncFormsWithUser(modalCardUser);
+                    setModalCardUser(null);
+                    setDisplayMode('LIST');
+                  }}
+                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
+                >
+                  Abrir Ficha de Alumno
+                </Button>
+              </div>
+              <FighterCard user={modalCardUser} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ======================================================== */}
       {/* 3. MODALES DE ACCIÓN RÁPIDA (RADIX DIALOG)              */}
