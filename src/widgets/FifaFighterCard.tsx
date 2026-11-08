@@ -8,7 +8,7 @@ interface FifaFighterCardProps {
   athlete: UserDomainModel;
   onClick?: () => void;
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
 }
 
 export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
@@ -18,6 +18,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
   size = 'md',
 }) => {
   const shouldReduceMotion = useReducedMotion();
+  const [imageError, setImageError] = React.useState(false);
 
   // Cálculo de ELO y estadísticas ponderadas con el Skill Tree
   const eloResult = useMemo(() => {
@@ -122,13 +123,25 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
   // Tamaño dinámico del nombre para que jamás se corte ni use puntos suspensivos
   const nameFontSize = useMemo(() => {
     const len = athlete.alias.length;
-    if (len > 22) return 'text-sm sm:text-base';
-    if (len > 16) return 'text-base sm:text-lg';
-    return 'text-lg sm:text-xl';
-  }, [athlete.alias]);
+    if (size === 'xs' || size === 'sm') {
+      if (len > 20) return 'text-[10px] sm:text-[11px]';
+      if (len > 14) return 'text-xs sm:text-[13px]';
+      return 'text-[13px] sm:text-sm';
+    }
+    if (len > 22) return 'text-xs sm:text-sm';
+    if (len > 16) return 'text-sm sm:text-base';
+    return 'text-base sm:text-lg';
+  }, [athlete.alias, size]);
 
-  // Escala según tamaño
-  const scaleClass = size === 'sm' ? 'w-[220px]' : size === 'lg' ? 'w-[320px]' : 'w-[270px]';
+  // Escala según tamaño (reducido para adaptarse como cartas coleccionables compactas)
+  const scaleClass =
+    size === 'xs'
+      ? 'w-[160px]'
+      : size === 'sm'
+      ? 'w-[190px]'
+      : size === 'lg'
+      ? 'w-[260px]'
+      : 'w-[215px]';
 
   return (
     <motion.div
@@ -142,17 +155,17 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
           onClick?.();
         }
       }}
-      whileHover={shouldReduceMotion ? undefined : { y: -6, scale: 1.025 }}
+      whileHover={shouldReduceMotion ? undefined : { y: -5, scale: 1.02 }}
       whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
       transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 350, damping: 25 }}
-      className={`group relative select-none cursor-pointer transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-[32px] ${scaleClass} ${className}`}
+      className={`group relative select-none cursor-pointer transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-[26px] ${scaleClass} ${className}`}
     >
       {/* ======================================================== */}
       {/* SILUETA ESCUDO FIFA ULTIMATE TEAM (SVG MASK & BORDER)    */}
       {/* ======================================================== */}
-      <div className={`relative w-full aspect-[1/1.58] ${tierStyles.glow} rounded-[32px]`}>
+      <div className={`relative w-full aspect-[1/1.54] ${tierStyles.glow} rounded-[26px]`}>
         <div
-          className={`relative w-full h-full p-3 pb-6 rounded-[32px] bg-gradient-to-b ${tierStyles.cardBg} overflow-hidden flex flex-col justify-between`}
+          className={`relative w-full h-full p-2.5 pb-4 rounded-[26px] bg-gradient-to-b ${tierStyles.cardBg} overflow-hidden flex flex-col justify-between`}
           style={{
             clipPath:
               'polygon(14% 0%, 86% 0%, 100% 8%, 100% 90%, 50% 100%, 0% 90%, 0% 8%)',
@@ -176,7 +189,7 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
 
           {/* Marco interno fino */}
           <div
-            className={`absolute inset-1.5 rounded-[28px] border ${tierStyles.innerBorder} pointer-events-none`}
+            className={`absolute inset-1 rounded-[22px] border ${tierStyles.innerBorder} pointer-events-none`}
             style={{
               clipPath:
                 'polygon(14% 0%, 86% 0%, 100% 8%, 100% 90%, 50% 100%, 0% 90%, 0% 8%)',
@@ -186,29 +199,29 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
           {/* ======================================================== */}
           {/* PARTE SUPERIOR: OVR, POSICIÓN Y FOTO CENTRAL             */}
           {/* ======================================================== */}
-          <div className="relative z-10 pt-2 px-2 flex justify-between items-start">
+          <div className="relative z-10 pt-1 px-1.5 flex justify-between items-start">
             {/* Bloque Izquierdo: OVR, Posición e Insignia Química/Estilo */}
             <div className="flex flex-col items-center">
               {/* Número OVR */}
               <span
-                className={`font-mono text-4xl sm:text-5xl font-black tracking-tighter leading-none ${tierStyles.numColor} drop-shadow-sm`}
+                className={`font-mono text-3xl sm:text-4xl font-black tracking-tighter leading-none ${tierStyles.numColor} drop-shadow-sm`}
               >
                 {ovr}
               </span>
 
               {/* Posición / Disciplina */}
               <span
-                className={`text-xs font-black tracking-wider uppercase mt-0.5 ${tierStyles.textColor}`}
+                className={`text-[10px] font-black tracking-wider uppercase mt-0.5 ${tierStyles.textColor}`}
               >
                 {positionLabel}
               </span>
 
               {/* Divisor sutil */}
-              <div className={`w-6 h-0.5 my-1.5 border-b ${tierStyles.divider}`} />
+              <div className={`w-5 h-0.5 my-1 border-b ${tierStyles.divider}`} />
 
               {/* Insignia Química / Estilo de Combate (Icono Cohete/Tatami FUT) */}
               <div
-                className={`px-1.5 py-0.5 rounded-md border ${tierStyles.innerBorder} bg-black/20 text-[9px] font-black uppercase tracking-widest ${tierStyles.textColor} shadow-2xs mt-1`}
+                className={`px-1 py-0.2 rounded border ${tierStyles.innerBorder} bg-black/20 text-[8px] font-black uppercase tracking-widest ${tierStyles.textColor} shadow-2xs mt-0.5`}
                 title="Estilo de Combate Tatami"
               >
                 {athlete.belt === 'BLACK' ? '★ PRO' : '⚡ BJJ'}
@@ -216,22 +229,24 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
             </div>
 
             {/* Foto del Atleta (Recorte Estilo FIFA FUT con fundido) */}
-            <div className="relative flex-1 flex justify-center -mt-2 -mr-1">
-              <div className="relative w-36 sm:w-40 h-36 sm:h-38 overflow-hidden flex items-end justify-center rounded-2xl">
-                {athlete.photoUrl ? (
+            <div className="relative flex-1 flex justify-center -mt-1 -mr-0.5">
+              <div className="relative w-24 sm:w-28 h-24 sm:h-28 overflow-hidden flex items-end justify-center rounded-2xl">
+                {athlete.photoUrl && !imageError ? (
                   <img
                     src={athlete.photoUrl}
                     alt={athlete.alias}
-                    className="w-full h-full object-cover object-top filter contrast-[1.05] drop-shadow-[0_8px_12px_rgba(0,0,0,0.35)]"
+                    onError={() => setImageError(true)}
+                    className="w-full h-full object-cover object-top filter contrast-[1.05] drop-shadow-[0_6px_10px_rgba(0,0,0,0.35)]"
                   />
                 ) : (
-                  <div className="w-28 h-32 rounded-2xl bg-black/10 border border-black/10 flex items-center justify-center text-4xl">
-                    🥋
+                  <div className="w-20 sm:w-24 h-22 sm:h-26 rounded-xl bg-black/15 border border-black/10 flex flex-col items-center justify-center text-3xl shadow-inner">
+                    <span>🥋</span>
+                    <span className="text-[8px] font-black uppercase tracking-wider opacity-60 mt-0.5">247</span>
                   </div>
                 )}
 
                 {/* Degradado inferior para fundir la foto con la tarjeta */}
-                <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
               </div>
             </div>
           </div>
