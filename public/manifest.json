@@ -1,11 +1,13 @@
 {
   "short_name": "247Studio",
-  "name": "247Studio BJJ WebApp",
+  "name": "247 STUDIO — Unlimited Grappling & BJJ",
+  "description": "Academia oficial de BJJ, Grappling No-Gi, MMA y Lucha en Pinto (Madrid)",
   "icons": [
     {
       "src": "/logo.webp",
       "type": "image/webp",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     },
     {
       "src": "/favicon-32x32.png",
@@ -13,10 +15,10 @@
       "sizes": "32x32"
     }
   ],
-  "start_url": "/app/home",
+  "start_url": "/app/horario",
   "scope": "/",
-  "background_color": "#F8F9FA",
-  "theme_color": "#F8F9FA",
+  "background_color": "#0a0f1d",
+  "theme_color": "#0a0f1d",
   "display": "standalone",
   "orientation": "portrait"
 }

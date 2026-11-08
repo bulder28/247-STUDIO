@@ -4,100 +4,104 @@ import { ProtectedRoute } from '@/app/router/ProtectedRoute';
 import { AdminLayout } from '@/widgets/AdminLayout';
 import { AppLayout } from '@/widgets/AppLayout';
 import { LandingLayout } from '@/widgets/LandingLayout';
+import { lazyWithRetry } from '@/shared/utils/lazyWithRetry';
+import { RootErrorBoundary, RouteErrorElement } from '@/shared/ui/RootErrorBoundary';
 
-// Lazy loading por ruta (Code Splitting)
-const LandingPage = React.lazy(() =>
+// Lazy loading resiliente por ruta con auto-recuperación ante nuevos despliegues en caliente
+const LandingPage = lazyWithRetry(() =>
   import('@/pages/public-landing/LandingPage').then((m) => ({ default: m.LandingPage }))
 );
-const TrialClassPage = React.lazy(() =>
+const TrialClassPage = lazyWithRetry(() =>
   import('@/pages/public-reserva-prueba/TrialClassPage').then((m) => ({ default: m.TrialClassPage }))
 );
-const LoginPage = React.lazy(() =>
+const LoginPage = lazyWithRetry(() =>
   import('@/pages/public-login/LoginPage').then((m) => ({ default: m.LoginPage }))
 );
-const HomePage = React.lazy(() =>
+const HomePage = lazyWithRetry(() =>
   import('@/pages/app-home/HomePage').then((m) => ({ default: m.HomePage }))
 );
-const AttendanceHistoryPage = React.lazy(() =>
+const AttendanceHistoryPage = lazyWithRetry(() =>
   import('@/pages/app-historial/AttendanceHistoryPage').then((m) => ({ default: m.AttendanceHistoryPage }))
 );
-const SchedulePage = React.lazy(() =>
+const SchedulePage = lazyWithRetry(() =>
   import('@/pages/app-horario/SchedulePage').then((m) => ({ default: m.SchedulePage }))
 );
-const ProgramsPage = React.lazy(() =>
+const ProgramsPage = lazyWithRetry(() =>
   import('@/pages/app-programas/ProgramsPage').then((m) => ({ default: m.ProgramsPage }))
 );
-const ProfilePage = React.lazy(() =>
+const ProfilePage = lazyWithRetry(() =>
   import('@/pages/app-perfil/ProfilePage').then((m) => ({ default: m.ProfilePage }))
 );
-const AvisosPage = React.lazy(() =>
+const AvisosPage = lazyWithRetry(() =>
   import('@/pages/app-avisos/AvisosPage').then((m) => ({ default: m.AvisosPage }))
 );
-const ForoPage = React.lazy(() =>
+const ForoPage = lazyWithRetry(() =>
   import('@/pages/app-foro/ForoPage').then((m) => ({ default: m.ForoPage }))
 );
-const FaqsPage = React.lazy(() =>
+const FaqsPage = lazyWithRetry(() =>
   import('@/pages/app-faqs/FaqsPage').then((m) => ({ default: m.FaqsPage }))
 );
-const MediaPage = React.lazy(() =>
+const MediaPage = lazyWithRetry(() =>
   import('@/pages/app-media/MediaPage').then((m) => ({ default: m.MediaPage }))
 );
-const PersonalPage = React.lazy(() =>
+const PersonalPage = lazyWithRetry(() =>
   import('@/pages/admin-personal/PersonalPage').then((m) => ({ default: m.PersonalPage }))
 );
-const CajaPage = React.lazy(() =>
+const CajaPage = lazyWithRetry(() =>
   import('@/pages/admin-caja/CajaPage').then((m) => ({ default: m.CajaPage }))
 );
-const SchedulesAdminPage = React.lazy(() =>
+const SchedulesAdminPage = lazyWithRetry(() =>
   import('@/pages/admin-horarios/SchedulesAdminPage').then((m) => ({ default: m.SchedulesAdminPage }))
 );
-const TariffsAdminPage = React.lazy(() =>
+const TariffsAdminPage = lazyWithRetry(() =>
   import('@/pages/admin-tarifas/TariffsAdminPage').then((m) => ({ default: m.TariffsAdminPage }))
 );
-const LeadsAdminPage = React.lazy(() =>
+const LeadsAdminPage = lazyWithRetry(() =>
   import('@/pages/admin-leads/LeadsAdminPage').then((m) => ({ default: m.LeadsAdminPage }))
 );
-const AttendanceAdminPage = React.lazy(() =>
+const AttendanceAdminPage = lazyWithRetry(() =>
   import('@/pages/admin-asistencia/AttendanceAdminPage').then((m) => ({ default: m.AttendanceAdminPage }))
 );
-const StudentRegistrationPage = React.lazy(() =>
+const StudentRegistrationPage = lazyWithRetry(() =>
   import('@/pages/admin-alta-alumno/StudentRegistrationPage').then((m) => ({ default: m.StudentRegistrationPage }))
 );
-const PrivacyPage = React.lazy(() =>
+const PrivacyPage = lazyWithRetry(() =>
   import('@/pages/public-legal/PrivacyPage').then((m) => ({ default: m.PrivacyPage }))
 );
-const TermsPage = React.lazy(() =>
+const TermsPage = lazyWithRetry(() =>
   import('@/pages/public-legal/TermsPage').then((m) => ({ default: m.TermsPage }))
 );
-const KioskCheckinPage = React.lazy(() =>
+const KioskCheckinPage = lazyWithRetry(() =>
   import('@/pages/kiosk-checkin/KioskCheckinPage').then((m) => ({ default: m.KioskCheckinPage }))
 );
-const SparringTimerPage = React.lazy(() =>
+const SparringTimerPage = lazyWithRetry(() =>
   import('@/pages/app-tools/SparringTimerPage').then((m) => ({ default: m.SparringTimerPage }))
 );
-const WeightDivisionPage = React.lazy(() =>
+const WeightDivisionPage = lazyWithRetry(() =>
   import('@/pages/app-tools/WeightDivisionPage').then((m) => ({ default: m.WeightDivisionPage }))
 );
-const CurriculumPage = React.lazy(() =>
+const CurriculumPage = lazyWithRetry(() =>
   import('@/pages/app-tools/CurriculumPage').then((m) => ({ default: m.CurriculumPage }))
 );
-const SparringLogPage = React.lazy(() =>
+const SparringLogPage = lazyWithRetry(() =>
   import('@/pages/app-tools/SparringLogPage').then((m) => ({ default: m.SparringLogPage }))
 );
-const BeltRoadmapPage = React.lazy(() =>
+const BeltRoadmapPage = lazyWithRetry(() =>
   import('@/pages/app-tools/BeltRoadmapPage').then((m) => ({ default: m.BeltRoadmapPage }))
 );
 
 const LazyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Suspense
-    fallback={
-      <div className="min-h-screen bg-studio-navy flex items-center justify-center">
-        <div className="w-8 h-8 border-3 border-studio-red border-t-transparent rounded-full animate-spin" />
-      </div>
-    }
-  >
-    {children}
-  </Suspense>
+  <RootErrorBoundary>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-studio-navy flex items-center justify-center">
+          <div className="w-8 h-8 border-3 border-studio-red border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  </RootErrorBoundary>
 );
 
 export const router = createBrowserRouter([
@@ -105,6 +109,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <LandingLayout />,
+    errorElement: <RouteErrorElement />,
     children: [
       {
         index: true,
@@ -144,6 +149,7 @@ export const router = createBrowserRouter([
   // Login público
   {
     path: '/login',
+    errorElement: <RouteErrorElement />,
     element: (
       <LazyRoute>
         <LoginPage />
@@ -157,6 +163,7 @@ export const router = createBrowserRouter([
   // App privada del Alumno (AppLayout con bottom-nav móvil)
   {
     path: '/app',
+    errorElement: <RouteErrorElement />,
     element: (
       <ProtectedRoute allowedRoles={['student', 'admin']}>
         <AppLayout />
@@ -282,6 +289,7 @@ export const router = createBrowserRouter([
   // Consola privada del Administrador (AdminLayout con sidebar)
   {
     path: '/admin',
+    errorElement: <RouteErrorElement />,
     element: (
       <ProtectedRoute allowedRoles={['admin']}>
         <AdminLayout />
@@ -379,6 +387,7 @@ export const router = createBrowserRouter([
   // Modo Kiosco (Tablet de recepción)
   {
     path: '/kiosk/check-in',
+    errorElement: <RouteErrorElement />,
     element: (
       <ProtectedRoute allowedRoles={['kiosk', 'admin']}>
         <LazyRoute>
