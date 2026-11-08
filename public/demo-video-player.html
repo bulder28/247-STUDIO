@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>247 STUDIO — Official Motion Video Generator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #05070e;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .header-bar {
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .header-bar h1 {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    .header-bar p {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .stage-wrapper {
+      position: relative;
+      width: 960px;
+      height: 540px;
+      background: #0a0f1d;
+      border: 2px solid rgba(220, 38, 38, 0.4);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(220, 38, 38, 0.15);
+    }
+    #stageCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .controls-panel {
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn {
+      padding: 12px 24px;
+      border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .btn-record {
+      background: #dc2626;
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+    }
+    .btn-record:hover { background: #ef4444; transform: scale(1.02); }
+    .btn-record:active { transform: scale(0.98); }
+    .btn-preview {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .btn-preview:hover { background: rgba(255, 255, 255, 0.18); }
+    .status-badge {
+      font-size: 12px;
+      font-family: monospace;
+      color: #38bdf8;
+      padding: 6px 12px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-bar">
+    <h1>247 STUDIO · Motion Demo Video Generator</h1>
+    <p>Renderizador cinemático en 1080p con audio sintetizado del dojo y exportador de vídeo</p>
+  </div>
+
+  <div class="stage-wrapper">
+    <canvas id="stageCanvas" width="1920" height="1080"></canvas>
+  </div>
+
+  <div class="controls-panel">
+    <button id="btnPlay" class="btn btn-preview">▶ Previsualizar</button>
+    <button id="btnRecord" class="btn btn-record">🎥 Renderizar y Descargar Vídeo (MP4/WebM)</button>
+    <span id="statusTxt" class="status-badge">Listo para renderizar</span>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('stageCanvas');
+    const ctx = canvas.getContext('2d');
+    const btnPlay = document.getElementById('btnPlay');
+    const btnRecord = document.getElementById('btnRecord');
+    const statusTxt = document.getElementById('statusTxt');
+
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playBell() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(820, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(780, audioCtx.currentTime + 1.2);
+      gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 1.2);
+    }
+
+    function playGong() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 2.5);
+      gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.5);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 2.5);
+    }
+
+    const DURATION = 35; // 35 segundos de demo condensada de alto impacto
+    let startTime = null;
+    let isRecording = false;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+
+    function renderFrame(timeSec) {
+      ctx.fillStyle = '#0a0f1d';
+      ctx.fillRect(0, 0, 1920, 1080);
+
+      // Fondo rejilla tecnológica sutil
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < 1920; x += 80) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 1080); ctx.stroke();
+      }
+      for (let y = 0; y < 1080; y += 80) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1920, y); ctx.stroke();
+      }
+
+      // Barra superior constante de marca
+      ctx.fillStyle = '#11192e';
+      ctx.fillRect(0, 0, 1920, 90);
+      ctx.strokeStyle = 'rgba(220, 38, 38, 0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, 90); ctx.lineTo(1920, 90); ctx.stroke();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = '900 36px sans-serif';
+      ctx.fillText('247 STUDIO', 60, 58);
+      ctx.fillStyle = '#dc2626';
+      ctx.font = '800 20px sans-serif';
+      ctx.fillText('UNLIMITED GRAPPLING · PINTO (MADRID)', 320, 56);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '600 18px monospace';
+      ctx.fillText('SISTEMA OPERATIVO DE TATAMI', 1580, 56);
+
+      // ESCENAS SEGÚN EL TIEMPO
+      if (timeSec < 7) {
+        // ESCENA 1: INTRO Y MARCA
+        const p = timeSec / 7;
+        const scale = 1 + p * 0.08;
+        ctx.save();
+        ctx.translate(960, 540);
+        ctx.scale(scale, scale);
+
+        // Resplandor central
+        const grad = ctx.createRadialGradient(0, 0, 50, 0, 0, 450);
+        grad.addColorStop(0, 'rgba(220, 38, 38, 0.25)');
+        grad.addColorStop(1, 'rgba(10, 15, 29, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(-600, -600, 1200, 1200);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 110px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('247 STUDIO', 0, -40);
+
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '800 34px sans-serif';
+        ctx.fillText('BRAZILIAN JIU-JITSU · GRAPPLING · MMA', 0, 40);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '500 24px monospace';
+        ctx.fillText('La plataforma de élite para academias de combate', 0, 100);
+        ctx.restore();
+
+      } else if (timeSec < 15) {
+        // ESCENA 2: HORARIO Y RESERVAS EN 0 MS
+        ctx.fillStyle = '#fff';
+        ctx.font = '900 48px sans-serif';
+        ctx.fillText('⚡ HORARIOS Y RESERVAS EN 0 MILISEGUNDOS', 100, 180);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '500 24px sans-serif';
+        ctx.fillText('Arquitectura TanStack Query v5 + PWA Offline First', 100, 225);
+
+        const days = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES'];
+        days.forEach((day, i) => {
+          const x = 100 + i * 350;
+          const isSelected = i === 1;
+          ctx.fillStyle = isSelected ? '#dc2626' : '#11192e';
+          ctx.strokeStyle = isSelected ? '#ef4444' : 'rgba(255,255,255,0.1)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(x, 280, 320, 70, 14);
+          ctx.fill(); ctx.stroke();
+
+          ctx.fillStyle = '#fff';
+          ctx.font = '800 22px sans-serif';
+          ctx.fillText(day, x + 30, 325);
+        });
+
+        // Tarjeta de clase
+        ctx.fillStyle = '#16203a';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(100, 390, 800, 480, 20);
+        ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '800 22px monospace';
+        ctx.fillText('19:30 - 21:00 · TATAMI 1', 140, 460);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '900 42px sans-serif';
+        ctx.fillText('Grappling No-Gi Competición', 140, 520);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '600 24px sans-serif';
+        ctx.fillText('Profesor: Mario · Sala Principal', 140, 570);
+
+        // Cupos en vivo
+        const booked = Math.min(20, 14 + Math.floor((timeSec - 7) * 0.8));
+        ctx.fillStyle = '#10b981';
+        ctx.font = '900 32px monospace';
+        ctx.fillText(`${booked} / 20 ATLETAS RESERVADOS`, 140, 680);
+
+        // Botón reservar
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.roundRect(140, 730, 340, 70, 16);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '800 24px sans-serif';
+        ctx.fillText('✓ PLAZA CONFIRMADA', 180, 775);
+
+      } else if (timeSec < 24) {
+        // ESCENA 3: FIGHTER CARD FUT + SKILL TREE RPG
+        ctx.fillStyle = '#fff';
+        ctx.font = '900 48px sans-serif';
+        ctx.fillText('🎮 FIGHTER CARD FUT CON ELO MARCIAL & SKILL TREE', 100, 180);
+
+        // Carta FIFA Dorada a la izquierda
+        ctx.save();
+        ctx.translate(350, 620);
+        const cardGrad = ctx.createLinearGradient(0, -320, 0, 320);
+        cardGrad.addColorStop(0, '#fef08a');
+        cardGrad.addColorStop(0.5, '#eab308');
+        cardGrad.addColorStop(1, '#854d0e');
+        ctx.fillStyle = cardGrad;
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(-220, -320, 440, 640, 32);
+        ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = '#422006';
+        ctx.font = '900 72px sans-serif';
+        ctx.fillText('75', -170, -220);
+        ctx.font = '800 24px monospace';
+        ctx.fillText('OVR', -170, -185);
+        ctx.fillText('BJJ', -170, -155);
+
+        ctx.font = '900 34px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('LUCÍA RAMOS', 0, 30);
+        ctx.font = '800 20px monospace';
+        ctx.fillText('PRESSURE PASSER · CINTURÓN AZUL', 0, 70);
+
+        ctx.font = '800 24px monospace';
+        ctx.fillText('TEC 86 | PAS 88 | SUB 82', 0, 150);
+        ctx.fillText('GUA 78 | DER 74 | FIS 80', 0, 195);
+        ctx.restore();
+
+        // Skill tree a la derecha
+        ctx.fillStyle = '#11192e';
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(750, 260, 1050, 680, 24);
+        ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '800 28px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('Árbol de Habilidades (Currículum BJJ)', 800, 330);
+
+        const skills = [
+          { name: 'Pase Knee Slide', pillar: 'Pases', status: '✓ DOMINADA' },
+          { name: 'Salida de Montada (Upa)', pillar: 'Escapes', status: '✓ DOMINADA' },
+          { name: 'Kimura Trap System', pillar: 'Sumisiones', status: '✓ DOMINADA' },
+          { name: 'Entrada Ashi Garami', pillar: 'Leglocks', status: '⚡ EN APRENDIZAJE' },
+        ];
+
+        skills.forEach((sk, idx) => {
+          const y = 390 + idx * 110;
+          ctx.fillStyle = '#16203a';
+          ctx.strokeStyle = idx < 3 ? '#10b981' : '#f59e0b';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(800, y, 950, 85, 14);
+          ctx.fill(); ctx.stroke();
+
+          ctx.fillStyle = '#fff';
+          ctx.font = '800 24px sans-serif';
+          ctx.fillText(sk.name, 840, y + 50);
+
+          ctx.fillStyle = idx < 3 ? '#10b981' : '#f59e0b';
+          ctx.font = '800 20px monospace';
+          ctx.fillText(sk.status, 1520, y + 50);
+        });
+
+      } else {
+        // ESCENA 4: KIOSCO TABLET, CONTROL ADMIN Y CIERRE
+        ctx.fillStyle = '#fff';
+        ctx.font = '900 48px sans-serif';
+        ctx.fillText('📱 KIOSCO DE RECEPCIÓN TÁCTIL & GESTIÓN ADMINISTRATIVA', 100, 180);
+
+        // Kiosco tablet a la izquierda
+        ctx.fillStyle = '#11192e';
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(100, 260, 800, 680, 24);
+        ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = '#10b981';
+        ctx.font = '900 36px monospace';
+        ctx.fillText('KIOSCO TABLET · CHECK-IN QR', 160, 350);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '800 28px sans-serif';
+        ctx.fillText('¡Bienvenido, Carlos García!', 160, 440);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '600 22px sans-serif';
+        ctx.fillText('Asistencia nº 32 registrada · Cinturón Blanco (2 Rayas)', 160, 490);
+
+        ctx.fillStyle = '#10b981';
+        ctx.font = '800 22px monospace';
+        ctx.fillText('MODO OFFLINE LOCAL ACTIVO (INDEXEDDB)', 160, 580);
+
+        // Radar anti-abandono y caja a la derecha
+        ctx.fillStyle = '#11192e';
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(960, 260, 860, 680, 24);
+        ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = '#ef4444';
+        ctx.font = '900 36px monospace';
+        ctx.fillText('CONSOLA DE CONTROL · MARIO & DAVID', 1010, 350);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '800 26px sans-serif';
+        ctx.fillText('Radar Anti-Abandono: Alertas de inactividad > 10 días', 1010, 430);
+        ctx.fillText('Control de Caja: Facturación automática con 21% IVA', 1010, 500);
+        ctx.fillText('Dojo Sparring Timer: Asaltos y campanas sincronizadas', 1010, 570);
+
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '900 34px sans-serif';
+        ctx.fillText('247 STUDIO · Disponible en 247studio.netlify.app', 1010, 720);
+      }
+
+      // Barra de progreso inferior del vídeo
+      const pct = Math.min(1, timeSec / DURATION);
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(0, 1065, 1920 * pct, 15);
+    }
+
+    // Render estático inicial
+    renderFrame(0);
+
+    function startPlayback(onEnd) {
+      initAudio();
+      startTime = performance.now();
+      let lastBell = 0;
+      let lastGong = 0;
+
+      function step(now) {
+        const elapsed = (now - startTime) / 1000;
+        if (elapsed >= 7 && lastBell === 0) { playBell(); lastBell = 1; }
+        if (elapsed >= 15 && lastBell === 1) { playBell(); lastBell = 2; }
+        if (elapsed >= 24 && lastGong === 0) { playGong(); lastGong = 1; }
+
+        if (elapsed <= DURATION) {
+          renderFrame(elapsed);
+          statusTxt.innerText = `Renderizando: ${elapsed.toFixed(1)}s / ${DURATION}s`;
+          requestAnimationFrame(step);
+        } else {
+          renderFrame(DURATION);
+          statusTxt.innerText = 'Renderizado completado exitosamente';
+          if (onEnd) onEnd();
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    btnPlay.addEventListener('click', () => {
+      startPlayback();
+    });
+
+    btnRecord.addEventListener('click', () => {
+      initAudio();
+      recordedChunks = [];
+      const stream = canvas.captureStream(60); // 60 FPS
+
+      // Capturar audio sintetizado también si está disponible
+      if (audioCtx) {
+        const dest = audioCtx.createMediaStreamDestination();
+        const audioTracks = dest.stream.getAudioTracks();
+        if (audioTracks.length > 0) stream.addTrack(audioTracks[0]);
+      }
+
+      let mimeType = 'video/webm;codecs=vp9';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm';
+      }
+
+      mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8000000 }); // 8 Mbps alta calidad
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '247_STUDIO_Demo_Oficial_1080p.webm';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        statusTxt.innerText = '¡Vídeo descargado en tu carpeta de Descargas!';
+      };
+
+      mediaRecorder.start();
+      btnRecord.disabled = true;
+      btnPlay.disabled = true;
+
+      startPlayback(() => {
+        mediaRecorder.stop();
+        btnRecord.disabled = false;
+        btnPlay.disabled = false;
+      });
+    });
+  </script>
+</body>
+</html>
