@@ -29,8 +29,12 @@ service cloud.firestore {
       return hasRole('kiosk');
     }
 
+    function isCoach() {
+      return hasRole('coach');
+    }
+
     function isStudent() {
-      return hasRole('student') || (!isAdmin() && !isKiosk() && isAuthenticated());
+      return hasRole('student') || (!isAdmin() && !isCoach() && !isKiosk() && isAuthenticated());
     }
 
     function isValidEmail(email) {
@@ -93,10 +97,11 @@ service cloud.firestore {
     // COLECCIÓN: users
     // =========================================================================
     match /users/{userId} {
-      // Lectura: el propio usuario, el tutor asignado (guardianUid) o el admin
+      // Lectura: el propio usuario, el tutor asignado (guardianUid), el coach o el admin
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
         isAdmin() ||
+        isCoach() ||
         (resource.data.guardianUid == request.auth.uid)
       );
 
@@ -228,7 +233,7 @@ service cloud.firestore {
     // =========================================================================
     match /bookings/{bookingId} {
       allow read: if isAuthenticated() && (
-        resource.data.uid == request.auth.uid || isAdmin() || isKiosk()
+        resource.data.uid == request.auth.uid || isAdmin() || isCoach() || isKiosk()
       );
 
       // Creación por el alumno
@@ -259,8 +264,8 @@ service cloud.firestore {
         request.resource.data.checkInSource == 'TABLET' &&
         request.resource.data.attendanceWeight in [0.5, 1.0, 3.0];
 
-      // Admin total
-      allow create, update, delete: if isAdmin();
+      // Admin o Coach (gestión de tatami y hoja de asistencia)
+      allow create, update, delete: if isAdmin() || isCoach();
     }
 
     // =========================================================================
@@ -376,7 +381,8 @@ service cloud.firestore {
     // =========================================================================
     match /class_capacity/{capacityId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() &&
+      // Solo staff autorizado (Admin, Coach o Tablet Kiosco) puede ajustar el aforo
+      allow create, update: if (isAdmin() || isCoach() || isKiosk()) &&
         request.resource.data.scheduleId is string &&
         request.resource.data.date is string &&
         request.resource.data.date.matches('^\\d{4}-\\d{2}-\\d{2}$') &&

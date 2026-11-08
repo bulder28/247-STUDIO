@@ -48,11 +48,12 @@ export function getSafeRedirect(redirectParam: string | null, role: Role | null)
 
 export function getDefaultHomeByRole(role: Role | null, isMobile = false): string {
   if (role === 'kiosk') return '/kiosk/check-in';
+  if (role === 'coach') return '/admin/asistencia';
+  if (role === 'admin') return '/admin/personal';
   if (isMobile) {
-    // En smartphone/móvil, tanto atletas como administradores entran al horario y carnet virtual QR
+    // En smartphone/móvil, tanto atletas como staff entran al horario y carnet virtual QR
     return '/app/horario';
   }
-  if (role === 'admin') return '/admin/personal';
   return '/app/home';
 }
 
@@ -100,7 +101,8 @@ export const LoginPage: React.FC = () => {
         const result = await Promise.race([redirectPromise, timeoutRedirect]);
 
         if (result && result.user && isMounted) {
-          const userRole = result.user.email === 'nagorekaitz2008@gmail.com' ? 'admin' : 'student';
+          const tokenResult = await result.user.getIdTokenResult(true);
+          const userRole = (tokenResult.claims.role as Role) || 'student';
           const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
           navigate(destination, { replace: true });
           return;
@@ -109,7 +111,8 @@ export const LoginPage: React.FC = () => {
         // Si getRedirectResult es null, comprobar si auth.currentUser ya está activo en memoria
         const currentFirebaseUser = auth.currentUser;
         if (currentFirebaseUser && isMounted) {
-          const userRole = currentFirebaseUser.email === 'nagorekaitz2008@gmail.com' ? 'admin' : 'student';
+          const tokenResult = await currentFirebaseUser.getIdTokenResult(true);
+          const userRole = (tokenResult.claims.role as Role) || 'student';
           const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
           navigate(destination, { replace: true });
         }
@@ -133,9 +136,8 @@ export const LoginPage: React.FC = () => {
 
   // Guarda: Si el usuario ya está autenticado, redirigir automáticamente
   useEffect(() => {
-    if (!authLoading && user) {
-      const activeRole = role || (user.email === 'nagorekaitz2008@gmail.com' ? 'admin' : 'student');
-      const destination = getSafeRedirect(redirectParam, activeRole) || getDefaultHomeByRole(activeRole, isMobileDevice());
+    if (!authLoading && user && role) {
+      const destination = getSafeRedirect(redirectParam, role) || getDefaultHomeByRole(role, isMobileDevice());
       navigate(destination, { replace: true });
     }
   }, [user, role, authLoading, redirectParam, navigate]);
@@ -178,9 +180,7 @@ export const LoginPage: React.FC = () => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const tokenResult = await userCredential.user.getIdTokenResult(true);
-      const userRole =
-        (tokenResult.claims.role as Role) ||
-        (email.toLowerCase().includes('nagorekaitz') ? 'admin' : 'student');
+      const userRole = (tokenResult.claims.role as Role) || 'student';
 
       const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
       navigate(destination, { replace: true });

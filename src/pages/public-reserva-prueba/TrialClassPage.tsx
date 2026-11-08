@@ -10,11 +10,6 @@ import {
   where,
 } from 'firebase/firestore';
 import {
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  signOut,
-} from 'firebase/auth';
-import {
   ArrowRight,
   Calendar,
   CheckCircle2,
@@ -25,7 +20,7 @@ import {
   MapPin,
   ShieldCheck,
 } from 'lucide-react';
-import { auth, db } from '@/shared/api/firebase';
+import { db } from '@/shared/api/firebase';
 import { ScheduleDomainModel } from '@/shared/domain/types';
 import { DEFAULT_OFFICIAL_SCHEDULES } from '@/shared/domain/schedule';
 
@@ -143,52 +138,9 @@ export const TrialClassPage: React.FC = () => {
         createdAt: serverTimestamp(),
       });
 
-      // 2. Registro seguro y envío de link de verificación estilo Madrid Deportes
-      try {
-        const tempPassword = `247Studio_${Math.random().toString(36).slice(2, 8)}_${Date.now()}!`;
-        const cred = await createUserWithEmailAndPassword(auth, cleanEmail, tempPassword);
-        const uid = cred.user.uid;
-
-        // Crear perfil provisional en 'users' con estado TRIAL
-        await setDoc(doc(db, 'users', uid), {
-          uid,
-          authEmail: cleanEmail,
-          contactEmail: cleanEmail,
-          alias: cleanName,
-          phone: cleanPhone,
-          accountStatus: 'TRIAL',
-          role: 'student',
-          trialScheduleId: selectedSchedule?.id || '',
-          trialScheduleDetails: scheduleText,
-          trialStatus: 'CONFIRMED',
-          beltSystem: 'ADULT',
-          belt: 'WHITE',
-          stripes: 0,
-          pricingTier: 'STD',
-          activeTariffId: 'tariff_trial',
-          permissions: ['student'],
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-
-        // Enviar link de verificación para que el alumno establezca su contraseña personal
-        await sendPasswordResetEmail(auth, cleanEmail);
-        await signOut(auth);
-      } catch (authErr: any) {
-        if (authErr?.code === 'auth/email-already-in-use') {
-          // Si el correo ya existía, enviamos el link de establecimiento/recuperación
-          try {
-            await sendPasswordResetEmail(auth, cleanEmail);
-          } catch (e) {
-            console.warn('Aviso enviando email de acceso a cuenta existente:', e);
-          }
-        } else {
-          console.warn('Aviso en aprovisionamiento de Auth:', authErr);
-        }
-      }
-
       setSubmittedEmail(cleanEmail);
       setSubmittedScheduleText(scheduleText);
+      setSuccess(true);
       setSuccess(true);
     } catch (err: unknown) {
       console.error('Error procesando reserva de prueba:', err);

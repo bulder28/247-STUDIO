@@ -27,7 +27,7 @@ import { useGlobalShortcuts } from '@/shared/hooks/useGlobalShortcuts';
 import { KokoroAssistant } from '@/widgets/KokoroAssistant';
 
 export const AdminLayout: React.FC = () => {
-  const { logout } = useAuth();
+  const { logout, role } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
@@ -77,15 +77,17 @@ export const AdminLayout: React.FC = () => {
     },
   });
 
-  const links = [
-    { to: '/admin/personal', label: 'Alumnos & Cinturones', shortLabel: 'Alumnos', icon: Users },
-    { to: '/admin/asistencia', label: 'Hoja de Asistencia', shortLabel: 'Asistencia', icon: UserCheck },
-    { to: '/admin/caja', label: 'Caja y Pagos', shortLabel: 'Caja', icon: CreditCard },
-    { to: '/admin/horarios', label: 'Horarios de Tatami', shortLabel: 'Horarios', icon: CalendarDays },
-    { to: '/admin/tarifas', label: 'Tarifas & MRR', shortLabel: 'Tarifas', icon: Tags },
-    { to: '/admin/leads', label: 'Embudo de Leads', shortLabel: 'Leads', icon: Shield },
-    { to: '/admin/alta-alumno', label: 'Alta de Alumno', shortLabel: 'Alta Socio', icon: UserPlus },
+  const allLinks = [
+    { to: '/admin/personal', label: 'Alumnos & Cinturones', shortLabel: 'Alumnos', icon: Users, adminOnly: false },
+    { to: '/admin/asistencia', label: 'Hoja de Asistencia', shortLabel: 'Asistencia', icon: UserCheck, adminOnly: false },
+    { to: '/admin/caja', label: 'Caja y Pagos', shortLabel: 'Caja', icon: CreditCard, adminOnly: true },
+    { to: '/admin/horarios', label: 'Horarios de Tatami', shortLabel: 'Horarios', icon: CalendarDays, adminOnly: false },
+    { to: '/admin/tarifas', label: 'Tarifas & MRR', shortLabel: 'Tarifas', icon: Tags, adminOnly: true },
+    { to: '/admin/leads', label: 'Embudo de Leads', shortLabel: 'Leads', icon: Shield, adminOnly: false },
+    { to: '/admin/alta-alumno', label: 'Alta de Alumno', shortLabel: 'Alta Socio', icon: UserPlus, adminOnly: false },
   ];
+
+  const links = allLinks.filter((l) => !l.adminOnly || role === 'admin');
 
   const tatamiTools = [
     { to: '/admin/cronometro', label: 'Cronómetro Sparring', shortLabel: 'Cronómetro', icon: Swords },

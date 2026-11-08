@@ -37,4 +37,5 @@ ui-debug.log
 *serviceAccount*.json
 *-adminsdk-*.json
 *.pem
+*.zip
 

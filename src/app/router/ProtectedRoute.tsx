@@ -34,9 +34,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={`/login?redirect=${encodeURI(target)}`} replace />;
   }
 
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
-    // Redirigir según el rol real si intenta entrar a una sección no autorizada
+  if (allowedRoles && (!role || !allowedRoles.includes(role))) {
+    // Fail-Closed: Si el rol no está resuelto o no está en la lista permitida, se bloquea el acceso
+    if (!role) {
+      return <Navigate to={`/login?redirect=${encodeURI(location.pathname + location.search)}`} replace />;
+    }
+    // Redirigir según su rol real a su zona autorizada
     if (role === 'admin') return <Navigate to="/admin/personal" replace />;
+    if (role === 'coach') return <Navigate to="/admin/asistencia" replace />;
     if (role === 'kiosk') return <Navigate to="/kiosk/check-in" replace />;
     return <Navigate to="/app/home" replace />;
   }

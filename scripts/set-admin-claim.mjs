@@ -12,11 +12,11 @@ import admin from 'firebase-admin';
 
 const [uid, role] = process.argv.slice(2);
 
-const VALID_ROLES = ['admin', 'kiosk', 'student'];
+const VALID_ROLES = ['admin', 'coach', 'kiosk', 'student'];
 
 if (!uid || !role || !VALID_ROLES.includes(role)) {
   console.error('Uso incorrecto.');
-  console.error('Ejemplo: node scripts/set-admin-claim.mjs <UID> <admin|kiosk|student>');
+  console.error('Ejemplo: node scripts/set-admin-claim.mjs <UID> <admin|coach|kiosk|student>');
   process.exit(1);
 }
 

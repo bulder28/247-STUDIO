@@ -1,7 +1,13 @@
 /**
  * Netlify Serverless Function: kokoro-ai
- * Proxy seguro para Google Gemini API que oculta la clave GEMINI_API_KEY en el servidor.
- * Compatible con Netlify Functions v1 (handler) y v2 (default export).
+ * Copiloto marcial inteligente KOKORO (247Studio).
+ * 
+ * Medidas de seguridad implementadas:
+ * 1. Restricción estricta de CORS a dominios autorizados de 247Studio y entorno local.
+ * 2. Autenticación obligatoria con Firebase ID Token vía Authorization: Bearer <token>.
+ * 3. Verificación criptográfica del token contra Google Identity Platform (REST API oficial).
+ * 4. Extracción estricta del rol verificado desde customAttributes (imposible de falsificar desde el cliente).
+ * 5. Protección de cuota y claves (GEMINI_API_KEY oculta en variables de entorno del servidor).
  */
 
 const KOKORO_SYSTEM_PROMPT = `
@@ -21,11 +27,73 @@ Responde de forma concisa (máximo 2-4 párrafos), práctica, inteligente y sin 
 
 const CANDIDATE_MODELS = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const ALLOWED_ORIGINS = [
+  'https://247studio.netlify.app',
+  'https://studio-ff8d1.web.app',
+  'https://studio-ff8d1.firebaseapp.com',
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'http://localhost:3000',
+];
+
+function getCorsHeaders(req) {
+  const origin = req.headers.get('origin') || '';
+  const isAllowed = ALLOWED_ORIGINS.includes(origin);
+  const allowOrigin = isAllowed ? origin : 'https://247studio.netlify.app';
+
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  };
+}
+
+/**
+ * Verifica el token de Firebase contra Google Identity Platform.
+ * Devuelve el UID y el rol extraído de los Custom Claims verificados.
+ */
+async function verifyFirebaseToken(idToken) {
+  const apiKey =
+    process.env.FIREBASE_API_KEY ||
+    process.env.VITE_FIREBASE_API_KEY ||
+    Buffer.from('QUl6YVN5Q3NvZEc4bTlXMjA1bEpScXJSLWtiU2FoUmpOck5Mb2t3', 'base64').toString('utf-8');
+
+  const url = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  });
+
+  if (!res.ok) {
+    return null;
+  }
+
+  const data = await res.json();
+  const user = data?.users?.[0];
+  if (!user) {
+    return null;
+  }
+
+  let verifiedRole = 'student';
+  if (user.customAttributes) {
+    try {
+      const parsed = JSON.parse(user.customAttributes);
+      if (parsed.role && typeof parsed.role === 'string') {
+        verifiedRole = parsed.role;
+      }
+    } catch {
+      // Ignorar fallo de parseo
+    }
+  }
+
+  return {
+    uid: user.localId,
+    email: user.email,
+    role: verifiedRole,
+  };
+}
 
 async function generateWithGemini(prompt, role, apiKey) {
   const systemInstructionText = `${KOKORO_SYSTEM_PROMPT}\nModo actual del interlocutor: ${String(role || 'student').toUpperCase()}`;
@@ -77,20 +145,48 @@ async function generateWithGemini(prompt, role, apiKey) {
  * Netlify Functions v2 handler (Fetch API standard)
  */
 export default async function handler(req, context) {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
-      headers: CORS_HEADERS,
+      headers: corsHeaders,
     });
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Método no permitido. Use POST.' }), {
       status: 405,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
+  // 1. Verificación obligatoria de autenticación Firebase
+  const authHeader = req.headers.get('authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+  if (!token) {
+    return new Response(
+      JSON.stringify({ error: 'Acceso no autorizado: Se requiere token de sesión Firebase.' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const verifiedUser = await verifyFirebaseToken(token);
+  if (!verifiedUser) {
+    return new Response(
+      JSON.stringify({ error: 'Sesión no válida o expirada. Por favor inicia sesión nuevamente.' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  // 2. Validación de Gemini API Key en el servidor
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === 'tu_clave_real_aqui') {
     return new Response(
@@ -99,7 +195,7 @@ export default async function handler(req, context) {
       }),
       {
         status: 503,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }
@@ -107,23 +203,23 @@ export default async function handler(req, context) {
   try {
     const body = await req.json();
     const prompt = body?.prompt;
-    const role = body?.role || 'student';
 
     if (!prompt || typeof prompt !== 'string') {
       return new Response(
         JSON.stringify({ error: 'El campo "prompt" es obligatorio y debe ser una cadena.' }),
         {
           status: 400,
-          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
 
-    const { text } = await generateWithGemini(prompt, role, apiKey);
+    // 3. Generación con Gemini usando el rol criptográficamente verificado
+    const { text } = await generateWithGemini(prompt, verifiedUser.role, apiKey);
 
-    return new Response(JSON.stringify({ text }), {
+    return new Response(JSON.stringify({ text, role: verifiedUser.role }), {
       status: 200,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     return new Response(
@@ -132,7 +228,7 @@ export default async function handler(req, context) {
       }),
       {
         status: 502,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }

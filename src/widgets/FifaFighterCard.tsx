@@ -133,15 +133,15 @@ export const FifaFighterCard: React.FC<FifaFighterCardProps> = ({
     return 'text-base sm:text-lg';
   }, [athlete.alias, size]);
 
-  // Escala según tamaño (reducido para adaptarse como cartas coleccionables compactas)
+  // Escala según tamaño (compacto coleccionable y fluido en pantallas móviles)
   const scaleClass =
     size === 'xs'
-      ? 'w-[160px]'
+      ? 'w-[140px] sm:w-[155px]'
       : size === 'sm'
-      ? 'w-[190px]'
+      ? 'w-[150px] min-[400px]:w-[165px] sm:w-[180px]'
       : size === 'lg'
-      ? 'w-[260px]'
-      : 'w-[215px]';
+      ? 'w-[230px] sm:w-[255px]'
+      : 'w-[185px] sm:w-[210px]';
 
   return (
     <motion.div

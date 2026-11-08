@@ -3,7 +3,7 @@
  * Agnósticos a frameworks (React, Firebase) e I/O.
  */
 
-export type Role = 'student' | 'admin' | 'kiosk';
+export type Role = 'student' | 'admin' | 'kiosk' | 'coach';
 
 export type AccountStatus = 'PENDING' | 'ACTIVE' | 'PAUSED' | 'FROZEN' | 'SUSPENDED' | 'INACTIVE' | 'TRIAL';
 

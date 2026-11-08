@@ -3,6 +3,8 @@
  * Conexión directa con Google Gemini API para razonamiento natural y abierto.
  */
 
+import { auth } from '@/shared/api/firebase';
+
 const KOKORO_SYSTEM_PROMPT = `
 Eres KOKORO (心), el maestro de IA y copiloto operativo de la academia de artes marciales 247Studio en Pinto (Madrid), fundada por los instructores Mario y David.
 Tu especialidad es el Brazilian Jiu-Jitsu (BJJ), Grappling, No-Gi y categorías Kids.
@@ -25,10 +27,17 @@ export async function askGeminiKokoro(
 ): Promise<string | null> {
   // 1. Intentar llamar al proxy serverless de Netlify (mantiene la API Key segura en el servidor)
   try {
+    const user = auth.currentUser;
+    const token = user ? await user.getIdToken().catch(() => null) : null;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const serverlessRes = await fetch('/.netlify/functions/kokoro-ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, role }),
+      headers,
+      body: JSON.stringify({ prompt }),
     });
 
     if (serverlessRes.ok) {

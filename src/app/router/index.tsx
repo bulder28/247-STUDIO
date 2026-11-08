@@ -286,12 +286,12 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Consola privada del Administrador (AdminLayout con sidebar)
+  // Consola privada del Administrador y Staff Técnico / Coaches (AdminLayout con sidebar)
   {
     path: '/admin',
     errorElement: <RouteErrorElement />,
     element: (
-      <ProtectedRoute allowedRoles={['admin']}>
+      <ProtectedRoute allowedRoles={['admin', 'coach']}>
         <AdminLayout />
       </ProtectedRoute>
     ),
@@ -308,9 +308,11 @@ export const router = createBrowserRouter([
       {
         path: 'caja',
         element: (
-          <LazyRoute>
-            <CajaPage />
-          </LazyRoute>
+          <ProtectedRoute allowedRoles={['admin']}>
+            <LazyRoute>
+              <CajaPage />
+            </LazyRoute>
+          </ProtectedRoute>
         ),
       },
       {
@@ -332,9 +334,11 @@ export const router = createBrowserRouter([
       {
         path: 'tarifas',
         element: (
-          <LazyRoute>
-            <TariffsAdminPage />
-          </LazyRoute>
+          <ProtectedRoute allowedRoles={['admin']}>
+            <LazyRoute>
+              <TariffsAdminPage />
+            </LazyRoute>
+          </ProtectedRoute>
         ),
       },
       {
