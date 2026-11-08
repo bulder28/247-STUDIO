@@ -32,7 +32,7 @@ import {
   UserMinus,
   UserPlus,
 } from 'lucide-react';
-import { db } from '@/shared/api/firebase';
+import { auth, db } from '@/shared/api/firebase';
 import { deriveRetentionRisk } from '@/shared/domain/attendance';
 import { calculateExactAge, isLegalMinor } from '@/shared/domain/minor';
 import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
@@ -643,8 +643,6 @@ export const PersonalPage: React.FC = () => {
 
     setActionLoading(true);
     try {
-      const nowIso = new Date().toISOString();
-
       if (altaForm.isLeadOnly) {
         // Guardar como Lead en el embudo
         const newLeadRef = doc(collection(db, 'leads'));
@@ -661,65 +659,73 @@ export const PersonalPage: React.FC = () => {
         await fetchData();
         setView('INTERESADOS');
       } else {
-        // Guardar como Alumno en `users` y `kiosk_members`
-        const newUid = `usr_${Date.now()}`;
+        // Alta oficial: cuenta real en Firebase Auth + ficha con el UID real (función de servidor).
+        // Así el alumno puede entrar luego con Google (mismo email) o con contraseña.
+        const email = altaForm.email.trim().toLowerCase();
+        if (!email) {
+          showNotification('Indica el email del alumno: lo necesita para entrar con Google o con contraseña.');
+          return;
+        }
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) throw new Error('No hay sesión de administrador activa.');
+
+        const nowIso = new Date().toISOString();
         const isMinorUser = altaForm.birthDate ? isLegalMinor(altaForm.birthDate, now) : false;
 
-        await setDoc(doc(db, 'users', newUid), {
-          uid: newUid,
-          alias: altaForm.alias.trim(),
-          contactEmail: altaForm.email.trim().toLowerCase(),
-          phone: altaForm.phone.trim(),
-          birthDate: altaForm.birthDate || '1995-01-01',
-          isMinor: isMinorUser,
-          beltSystem: isMinorUser ? 'KIDS' : 'ADULT',
-          belt: altaForm.belt,
-          stripes: altaForm.stripes,
-          beltDate: nowIso.slice(0, 10),
-          pricingTier: altaForm.pricingTier,
-          emergencyContactName: altaForm.emergencyContactName.trim(),
-          emergencyContactPhone: altaForm.emergencyContactPhone.trim(),
-          accountStatus: 'ACTIVE',
-          notes: altaForm.notes.trim(),
-          permissions: ['STUDENT'],
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-
-        try {
-          await setDoc(doc(db, 'kiosk_members', newUid), {
-            uid: newUid,
-            fullName: altaForm.alias.trim(),
+        const res = await fetch('/.netlify/functions/admin-create-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            email,
+            alias: altaForm.alias.trim(),
+            phone: altaForm.phone.trim(),
+            birthDate: altaForm.birthDate || '',
             belt: altaForm.belt,
             stripes: altaForm.stripes,
-            accountStatus: 'ACTIVE',
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-        } catch {}
+            pricingTier: altaForm.pricingTier,
+            targetRole: 'student',
+            isMinor: isMinorUser,
+            emergencyContactName: altaForm.emergencyContactName.trim(),
+            emergencyContactPhone: altaForm.emergencyContactPhone.trim(),
+            notes: altaForm.notes.trim(),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.uid) {
+          throw new Error(data?.error || `Error ${res.status} al crear la cuenta.`);
+        }
 
-        showNotification(`Alumno ${altaForm.alias} dado de alta.`);
+        const newUid: string = data.uid;
+        if (data.resetLink) {
+          try {
+            await navigator.clipboard.writeText(data.resetLink);
+          } catch {
+            // sin permiso de portapapeles: el alumno puede usar Google o "He olvidado mi contraseña"
+          }
+        }
+
+        showNotification(`Alumno ${altaForm.alias} dado de alta. Ya puede entrar con Google usando ${email}.`);
         setAltaModalOpen(false);
         await fetchData();
         setView('ACTIVOS');
         const createdUser: UserDomainModel = {
           uid: newUid,
           alias: altaForm.alias.trim(),
-          contactEmail: altaForm.email.trim().toLowerCase(),
+          contactEmail: email,
           phone: altaForm.phone.trim(),
-          birthDate: altaForm.birthDate || '1995-01-01',
+          birthDate: altaForm.birthDate || '',
           isMinor: isMinorUser,
           beltSystem: isMinorUser ? 'KIDS' : 'ADULT',
           belt: altaForm.belt,
           stripes: altaForm.stripes,
           beltDate: nowIso.slice(0, 10),
           pricingTier: altaForm.pricingTier,
-          activeTariffId: '',
-          authEmail: altaForm.email.trim().toLowerCase(),
+          activeTariffId: 'tariff_default',
+          authEmail: email,
           emergencyContactName: altaForm.emergencyContactName.trim(),
           emergencyContactPhone: altaForm.emergencyContactPhone.trim(),
           accountStatus: 'ACTIVE',
-          permissions: ['STUDENT'],
+          permissions: ['student'],
           createdAt: nowIso,
           updatedAt: nowIso,
         };
@@ -727,6 +733,7 @@ export const PersonalPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Error al crear alumno:', err);
+      showNotification(`No se pudo dar de alta al alumno: ${err instanceof Error ? err.message : 'error desconocido'}`);
     } finally {
       setActionLoading(false);
     }

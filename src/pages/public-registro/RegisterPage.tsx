@@ -1,13 +1,30 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  getRedirectResult,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+} from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { auth, db } from '@/shared/api/firebase';
 import { isLegalMinor } from '@/shared/domain/minor';
 
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = (navigator.userAgent || '').toLowerCase();
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  return /android|iphone|ipad|ipod|mobile/i.test(ua) || (isTouch && window.innerWidth <= 768);
+}
+
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, role, profileMissing, loading: authLoading, refreshProfile } = useAuth();
+  // Usuario ya autenticado (p. ej. con Google) que solo necesita completar su ficha
+  const completing = !!user && profileMissing === true;
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,6 +40,65 @@ export const RegisterPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [minorBlocked, setMinorBlocked] = useState(false);
 
+  // Resultado de Google al volver de una redirección (móviles)
+  useEffect(() => {
+    getRedirectResult(auth).catch((err: { code?: string }) => {
+      if (err?.code) setError(`No se pudo completar el acceso con Google (${err.code}).`);
+    });
+  }, []);
+
+  // Si ya tiene ficha, no hay nada que registrar: continuar a su zona
+  useEffect(() => {
+    if (!user || authLoading || profileMissing !== false) return;
+    navigate(role && role !== 'student' ? '/login' : '/app/home', { replace: true });
+  }, [user, authLoading, profileMissing, role, navigate]);
+
+  // Rellenar con los datos que ya da Google
+  useEffect(() => {
+    if (completing && user) {
+      setFormData((prev) => ({
+        ...prev,
+        alias: prev.alias || user.displayName || user.email?.split('@')[0] || '',
+        email: user.email || prev.email,
+        phone: prev.phone || user.phoneNumber || '',
+      }));
+    }
+  }, [completing, user]);
+
+  const handleGoogle = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      if (isMobileDevice()) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (popupErr) {
+        const code = (popupErr as { code?: string })?.code;
+        if (code === 'auth/popup-blocked' || code === 'auth/internal-error') {
+          await signInWithRedirect(auth, provider);
+          return;
+        }
+        throw popupErr;
+      }
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'auth/unauthorized-domain') {
+        setError(`El dominio "${window.location.hostname}" no está autorizado en Firebase Authentication.`);
+      } else if (code === 'auth/operation-not-allowed') {
+        setError('El acceso con Google no está activado en Firebase Authentication.');
+      } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+        setError(`No se pudo continuar con Google (${code || 'error de conexión'}).`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     if (e.target.name === 'birthDate') {
@@ -35,7 +111,7 @@ export const RegisterPage: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    if (formData.password !== formData.confirmPassword) {
+    if (!completing && formData.password !== formData.confirmPassword) {
       setError('Las contraseñas no coinciden.');
       return;
     }
@@ -55,14 +131,22 @@ export const RegisterPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // 1. Crear usuario en Firebase Auth
-      const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      const uid = cred.user.uid;
+      // 1. Crear usuario en Firebase Auth (si ya entró con Google, se reutiliza su cuenta)
+      let uid: string;
+      let accountEmail: string;
+      if (completing && user) {
+        uid = user.uid;
+        accountEmail = user.email || formData.email;
+      } else {
+        const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        uid = cred.user.uid;
+        accountEmail = formData.email;
+      }
 
       // 2. Crear documento de perfil en Firestore según reglas estrictas (PENDING, isMinor=false, stripes=0)
       await setDoc(doc(db, 'users', uid), {
-        authEmail: formData.email,
-        contactEmail: formData.email,
+        authEmail: accountEmail,
+        contactEmail: accountEmail,
         alias: formData.alias,
         phone: formData.phone,
         emergencyContactName: formData.emergencyContactName,
@@ -81,6 +165,7 @@ export const RegisterPage: React.FC = () => {
         updatedAt: serverTimestamp(),
       });
 
+      if (completing) await refreshProfile();
       navigate('/app/home');
     } catch (err: unknown) {
       console.error(err);
@@ -127,7 +212,7 @@ export const RegisterPage: React.FC = () => {
       <div className="w-full max-w-xl bg-studio-navy-light/90 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
         <div className="text-center mb-6">
           <img src="/logo.svg" alt="247Studio" className="w-12 h-12 mx-auto mb-2 rounded-2xl shadow-lg" />
-          <h1 className="text-xl font-black uppercase tracking-wider text-white">Registro de Alumno</h1>
+          <h1 className="text-xl font-black uppercase tracking-wider text-white">{completing ? 'Completa tu ficha' : 'Registro de Alumno'}</h1>
           <p className="text-xs text-studio-cream/70">Mayores de 16 años (247Studio BJJ)</p>
         </div>
 
@@ -135,6 +220,31 @@ export const RegisterPage: React.FC = () => {
           <div className="mb-6 p-3 bg-studio-red/15 border border-studio-red/40 rounded-xl text-xs text-studio-red font-bold">
             {error}
           </div>
+        )}
+
+        {!completing && !user && (
+          <>
+            <button
+              type="button"
+              onClick={handleGoogle}
+              disabled={loading}
+              className="mb-4 flex min-h-[48px] w-full cursor-pointer items-center justify-center gap-3 rounded-xl bg-white text-sm font-bold text-studio-navy transition hover:bg-studio-cream-light disabled:opacity-60"
+            >
+              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z"/>
+                <path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/>
+                <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/>
+              </svg>
+              Registrarme con Google
+            </button>
+            <p className="mb-4 text-center text-xs text-studio-cream/70">o con tu correo y contraseña</p>
+          </>
+        )}
+        {completing && (
+          <p className="mb-4 text-center text-sm text-studio-cream/80">
+            Ya has entrado con Google. Solo faltan unos datos para crear tu ficha de alumno.
+          </p>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -170,6 +280,7 @@ export const RegisterPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {!completing && (
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
                 Correo Electrónico *
@@ -184,6 +295,7 @@ export const RegisterPage: React.FC = () => {
                 className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
               />
             </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
@@ -227,6 +339,7 @@ export const RegisterPage: React.FC = () => {
             </div>
           </div>
 
+          {!completing && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
@@ -258,13 +371,14 @@ export const RegisterPage: React.FC = () => {
               />
             </div>
           </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full py-3.5 px-4 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 disabled:opacity-50 mt-4"
           >
-            {loading ? 'Creando cuenta...' : 'Completar Registro'}
+            {loading ? (completing ? 'Guardando...' : 'Creando cuenta...') : completing ? 'Guardar mi ficha' : 'Completar Registro'}
           </button>
         </form>
 

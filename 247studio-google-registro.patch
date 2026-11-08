@@ -1,0 +1,647 @@
+diff -ruN -x node_modules -x dist -x .git -x '*.tsbuildinfo' orig5/247-STUDIO-main/netlify/functions/admin-create-user.mjs /home/claude/v5/247-STUDIO-main/netlify/functions/admin-create-user.mjs
+--- a/netlify/functions/admin-create-user.mjs	2026-11-08 22:27:40.000000000 +0000
++++ b/netlify/functions/admin-create-user.mjs	2026-11-08 23:30:24.984901051 +0000
+@@ -105,6 +105,7 @@
+       emergencyContactName,
+       emergencyContactPhone,
+       stats,
++      notes,
+     } = body;
+ 
+     const cleanEmail = email?.trim().toLowerCase();
+@@ -174,6 +175,7 @@
+       activeTariffId,
+       accountStatus: 'ACTIVE',
+       paymentStatusCache: 'OK',
++      notes: notes?.trim() || null,
+       permissions: [finalRole],
+       waiverVersion: 'PRESENCIAL_V1',
+       waiverSignedAt: nowIso,
+diff -ruN -x node_modules -x dist -x .git -x '*.tsbuildinfo' orig5/247-STUDIO-main/netlify/functions/claim-profile.mjs /home/claude/v5/247-STUDIO-main/netlify/functions/claim-profile.mjs
+--- a/netlify/functions/claim-profile.mjs	1970-01-01 00:00:00.000000000 +0000
++++ b/netlify/functions/claim-profile.mjs	2026-11-08 23:29:17.225039617 +0000
+@@ -0,0 +1,115 @@
++/**
++ * Netlify Function: claim-profile
++ * Vincula la cuenta de acceso (p. ej. Google) de un alumno con su ficha pre-registrada por el gimnasio.
++ *
++ * Caso que resuelve: el administrador dio de alta al alumno con un id provisional ("usr_...") y ahora el
++ * alumno entra por primera vez con Google. Su uid real es distinto, así que no encontraría su ficha.
++ *
++ * Seguridad: solo actúa si el token es válido, el email está verificado por el proveedor (Google lo verifica)
++ * y existe EXACTAMENTE una ficha provisional con ese email. Guarda copia de la ficha original en audit_logs.
++ */
++import { getAdminApp } from './_firebaseAdmin.mjs';
++
++const REF_COLLECTIONS = ['payments', 'bookings', 'freezes'];
++
++function json(status, body) {
++  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
++}
++
++async function rekeyReferences(adminDb, oldUid, newUid) {
++  for (const col of REF_COLLECTIONS) {
++    const snap = await adminDb.collection(col).where('uid', '==', oldUid).get();
++    for (let i = 0; i < snap.docs.length; i += 400) {
++      const batch = adminDb.batch();
++      snap.docs.slice(i, i + 400).forEach((d) => batch.update(d.ref, { uid: newUid }));
++      await batch.commit();
++    }
++  }
++}
++
++export default async function handler(req) {
++  if (req.method !== 'POST') return json(405, { status: 'error', error: 'Use POST.' });
++
++  let adminAuth, adminDb;
++  try {
++    ({ auth: adminAuth, db: adminDb } = getAdminApp());
++  } catch (err) {
++    return json(503, { status: 'error', error: 'Servicio de administración no disponible.' });
++  }
++
++  const authHeader = req.headers.get('authorization') || '';
++  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
++  if (!token) return json(401, { status: 'error', error: 'Falta token.' });
++
++  let decoded;
++  try {
++    decoded = await adminAuth.verifyIdToken(token);
++  } catch {
++    return json(401, { status: 'error', error: 'Token inválido o caducado.' });
++  }
++
++  const uid = decoded.uid;
++  const email = (decoded.email || '').trim().toLowerCase();
++  if (!email || decoded.email_verified !== true) {
++    return json(200, { status: 'none', reason: 'email-not-verified' });
++  }
++
++  try {
++    const mine = await adminDb.collection('users').doc(uid).get();
++    if (mine.exists) return json(200, { status: 'exists' });
++
++    // Fichas provisionales (creadas por el gimnasio con id "usr_...") que coinciden con este email
++    const found = new Map();
++    for (const field of ['authEmail', 'contactEmail']) {
++      const snap = await adminDb.collection('users').where(field, '==', email).get();
++      snap.forEach((d) => {
++        const data = d.data();
++        if (d.id !== uid && d.id.startsWith('usr_') && !data.claimedBy) found.set(d.id, d);
++      });
++    }
++
++    if (found.size === 0) return json(200, { status: 'none' });
++    if (found.size > 1) return json(200, { status: 'ambiguous' });
++
++    const [oldId, oldDoc] = [...found.entries()][0];
++    const oldData = oldDoc.data();
++    const nowIso = new Date().toISOString();
++
++    // 1) Nueva ficha con el uid real
++    await adminDb.collection('users').doc(uid).set({
++      ...oldData,
++      uid,
++      authEmail: email,
++      linkedFromUid: oldId,
++      updatedAt: nowIso,
++    });
++
++    // 2) Directorio del kiosco
++    const oldKiosk = await adminDb.collection('kiosk_members').doc(oldId).get();
++    if (oldKiosk.exists) {
++      await adminDb.collection('kiosk_members').doc(uid).set({ ...oldKiosk.data(), uid, updatedAt: nowIso });
++    }
++
++    // 3) Pagos, reservas y congelaciones pasan al uid real
++    await rekeyReferences(adminDb, oldId, uid);
++
++    // 4) Copia de seguridad para poder revertir y retirada de la ficha provisional
++    await adminDb.collection('audit_logs').add({
++      action: 'CLAIM_PROFILE',
++      performedBy: uid,
++      fromUid: oldId,
++      toUid: uid,
++      email,
++      previousUserDoc: oldData,
++      previousKioskDoc: oldKiosk.exists ? oldKiosk.data() : null,
++      timestamp: nowIso,
++    });
++    if (oldKiosk.exists) await oldKiosk.ref.delete();
++    await oldDoc.ref.delete();
++
++    return json(200, { status: 'claimed' });
++  } catch (err) {
++    console.error('Error en claim-profile:', err);
++    return json(500, { status: 'error', error: 'No se pudo vincular la ficha.' });
++  }
++}
+diff -ruN -x node_modules -x dist -x .git -x '*.tsbuildinfo' orig5/247-STUDIO-main/src/app/providers/AuthProvider.tsx /home/claude/v5/247-STUDIO-main/src/app/providers/AuthProvider.tsx
+--- a/src/app/providers/AuthProvider.tsx	2026-11-08 22:27:40.000000000 +0000
++++ b/src/app/providers/AuthProvider.tsx	2026-11-08 23:29:17.447357906 +0000
+@@ -8,6 +8,8 @@
+   user: User | null;
+   role: Role | null;
+   userData: UserDomainModel | null;
++  /** true = el usuario existe en Auth pero aún no tiene ficha en Firestore; null = aún sin comprobar */
++  profileMissing: boolean | null;
+   loading: boolean;
+   logout: () => Promise<void>;
+   refreshProfile: () => Promise<void>;
+@@ -17,15 +19,40 @@
+   user: null,
+   role: null,
+   userData: null,
++  profileMissing: null,
+   loading: true,
+   logout: async () => {},
+   refreshProfile: async () => {},
+ });
+ 
++/**
++ * Si el gimnasio ya dio de alta al alumno con un id provisional, vincula esa ficha a su cuenta real.
++ * Mejor esfuerzo: si la función no está disponible, se sigue como un alumno nuevo.
++ */
++async function tryClaimPreRegisteredProfile(firebaseUser: User): Promise<boolean> {
++  try {
++    const token = await firebaseUser.getIdToken();
++    const controller = new AbortController();
++    const timer = setTimeout(() => controller.abort(), 8000);
++    const res = await fetch('/.netlify/functions/claim-profile', {
++      method: 'POST',
++      headers: { Authorization: `Bearer ${token}` },
++      signal: controller.signal,
++    });
++    clearTimeout(timer);
++    if (!res.ok) return false;
++    const data = (await res.json()) as { status?: string };
++    return data.status === 'claimed';
++  } catch {
++    return false;
++  }
++}
++
+ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+   const [user, setUser] = useState<User | null>(null);
+   const [role, setRole] = useState<Role | null>(null);
+   const [userData, setUserData] = useState<UserDomainModel | null>(null);
++  const [profileMissing, setProfileMissing] = useState<boolean | null>(null);
+   const [loading, setLoading] = useState<boolean>(true);
+ 
+   const fetchProfile = async (firebaseUser: User) => {
+@@ -49,12 +76,24 @@
+         return null;
+       });
+       const docTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
+-      const snap = await Promise.race([docPromise, docTimeout]);
++      let snap = await Promise.race([docPromise, docTimeout]);
++
++      // Alumno sin ficha: primero intentamos vincular la que pudo crear el gimnasio con su email
++      if (snap && !snap.exists() && userRole === 'student') {
++        const claimed = await tryClaimPreRegisteredProfile(firebaseUser);
++        if (claimed) {
++          snap = await getDoc(userDocRef).catch(() => snap);
++        }
++      }
+ 
+       if (snap && snap.exists()) {
+         const docData = snap.data();
+         setUserData({ uid: snap.id, ...(docData as Omit<UserDomainModel, 'uid'>) });
++        setProfileMissing(false);
+       } else {
++        // Solo se marca "sin ficha" si Firestore respondió y el documento no existe.
++        // Si la lectura falló o tardó, no se bloquea al usuario (se mantiene el comportamiento anterior).
++        setProfileMissing(snap && userRole === 'student' ? true : false);
+         // Si el usuario aún no tiene documento en Firestore (ej. acceso con Google recién iniciado),
+         // se suministra un perfil inicial en memoria para que la interfaz no quede bloqueada en skeleton.
+         // No escribe datos falsos en Firestore: el usuario completará su ficha oficial en recepción o perfil.
+@@ -108,10 +147,12 @@
+       try {
+         setUser(firebaseUser);
+         if (firebaseUser) {
++          setProfileMissing(null);
+           await fetchProfile(firebaseUser);
+         } else {
+           setRole(null);
+           setUserData(null);
++          setProfileMissing(null);
+         }
+       } catch (err) {
+         console.error('Error en onAuthStateChanged:', err);
+@@ -144,6 +185,7 @@
+       setUser(null);
+       setRole(null);
+       setUserData(null);
++      setProfileMissing(null);
+     }
+   };
+ 
+@@ -153,6 +195,7 @@
+         user,
+         role,
+         userData,
++        profileMissing,
+         loading,
+         logout,
+         refreshProfile,
+diff -ruN -x node_modules -x dist -x .git -x '*.tsbuildinfo' orig5/247-STUDIO-main/src/app/router/ProtectedRoute.tsx /home/claude/v5/247-STUDIO-main/src/app/router/ProtectedRoute.tsx
+--- a/src/app/router/ProtectedRoute.tsx	2026-11-08 22:27:40.000000000 +0000
++++ b/src/app/router/ProtectedRoute.tsx	2026-11-08 23:29:17.447702465 +0000
+@@ -12,7 +12,7 @@
+   children,
+   allowedRoles,
+ }) => {
+-  const { user, role, loading } = useAuth();
++  const { user, role, loading, profileMissing } = useAuth();
+   const location = useLocation();
+ 
+   if (loading) {
+@@ -46,5 +46,19 @@
+     return <Navigate to="/app/home" replace />;
+   }
+ 
++  // Alumno autenticado (p. ej. con Google) que aún no tiene ficha: completar el registro
++  if (role === 'student' && location.pathname.startsWith('/app')) {
++    if (profileMissing === null) {
++      return (
++        <div className="min-h-screen flex items-center justify-center bg-studio-navy text-studio-cream">
++          <div className="w-10 h-10 border-4 border-studio-red border-t-transparent rounded-full animate-spin" role="status" aria-label="Cargando" />
++        </div>
++      );
++    }
++    if (profileMissing) {
++      return <Navigate to="/registro?completar=1" replace />;
++    }
++  }
++
+   return children;
+ };
+diff -ruN -x node_modules -x dist -x .git -x '*.tsbuildinfo' orig5/247-STUDIO-main/src/pages/admin-personal/PersonalPage.tsx /home/claude/v5/247-STUDIO-main/src/pages/admin-personal/PersonalPage.tsx
+--- a/src/pages/admin-personal/PersonalPage.tsx	2026-11-08 22:27:40.000000000 +0000
++++ b/src/pages/admin-personal/PersonalPage.tsx	2026-11-08 23:30:44.794224470 +0000
+@@ -32,7 +32,7 @@
+   UserMinus,
+   UserPlus,
+ } from 'lucide-react';
+-import { db } from '@/shared/api/firebase';
++import { auth, db } from '@/shared/api/firebase';
+ import { deriveRetentionRisk } from '@/shared/domain/attendance';
+ import { calculateExactAge, isLegalMinor } from '@/shared/domain/minor';
+ import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
+@@ -643,8 +643,6 @@
+ 
+     setActionLoading(true);
+     try {
+-      const nowIso = new Date().toISOString();
+-
+       if (altaForm.isLeadOnly) {
+         // Guardar como Lead en el embudo
+         const newLeadRef = doc(collection(db, 'leads'));
+@@ -661,65 +659,73 @@
+         await fetchData();
+         setView('INTERESADOS');
+       } else {
+-        // Guardar como Alumno en `users` y `kiosk_members`
+-        const newUid = `usr_${Date.now()}`;
+-        const isMinorUser = altaForm.birthDate ? isLegalMinor(altaForm.birthDate, now) : false;
++        // Alta oficial: cuenta real en Firebase Auth + ficha con el UID real (función de servidor).
++        // Así el alumno puede entrar luego con Google (mismo email) o con contraseña.
++        const email = altaForm.email.trim().toLowerCase();
++        if (!email) {
++          showNotification('Indica el email del alumno: lo necesita para entrar con Google o con contraseña.');
++          return;
++        }
++        const token = await auth.currentUser?.getIdToken();
++        if (!token) throw new Error('No hay sesión de administrador activa.');
+ 
+-        await setDoc(doc(db, 'users', newUid), {
+-          uid: newUid,
+-          alias: altaForm.alias.trim(),
+-          contactEmail: altaForm.email.trim().toLowerCase(),
+-          phone: altaForm.phone.trim(),
+-          birthDate: altaForm.birthDate || '1995-01-01',
+-          isMinor: isMinorUser,
+-          beltSystem: isMinorUser ? 'KIDS' : 'ADULT',
+-          belt: altaForm.belt,
+-          stripes: altaForm.stripes,
+-          beltDate: nowIso.slice(0, 10),
+-          pricingTier: altaForm.pricingTier,
+-          emergencyContactName: altaForm.emergencyContactName.trim(),
+-          emergencyContactPhone: altaForm.emergencyContactPhone.trim(),
+-          accountStatus: 'ACTIVE',
+-          notes: altaForm.notes.trim(),
+-          permissions: ['STUDENT'],
+-          createdAt: serverTimestamp(),
+-          updatedAt: serverTimestamp(),
+-        });
++        const nowIso = new Date().toISOString();
++        const isMinorUser = altaForm.birthDate ? isLegalMinor(altaForm.birthDate, now) : false;
+ 
+-        try {
+-          await setDoc(doc(db, 'kiosk_members', newUid), {
+-            uid: newUid,
+-            fullName: altaForm.alias.trim(),
++        const res = await fetch('/.netlify/functions/admin-create-user', {
++          method: 'POST',
++          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
++          body: JSON.stringify({
++            email,
++            alias: altaForm.alias.trim(),
++            phone: altaForm.phone.trim(),
++            birthDate: altaForm.birthDate || '',
+             belt: altaForm.belt,
+             stripes: altaForm.stripes,
+-            accountStatus: 'ACTIVE',
+-            createdAt: serverTimestamp(),
+-            updatedAt: serverTimestamp(),
+-          });
+-        } catch {}
++            pricingTier: altaForm.pricingTier,
++            targetRole: 'student',
++            isMinor: isMinorUser,
++            emergencyContactName: altaForm.emergencyContactName.trim(),
++            emergencyContactPhone: altaForm.emergencyContactPhone.trim(),
++            notes: altaForm.notes.trim(),
++          }),
++        });
++        const data = await res.json().catch(() => ({}));
++        if (!res.ok || !data?.uid) {
++          throw new Error(data?.error || `Error ${res.status} al crear la cuenta.`);
++        }
++
++        const newUid: string = data.uid;
++        if (data.resetLink) {
++          try {
++            await navigator.clipboard.writeText(data.resetLink);
++          } catch {
++            // sin permiso de portapapeles: el alumno puede usar Google o "He olvidado mi contraseña"
++          }
++        }
+ 
+-        showNotification(`Alumno ${altaForm.alias} dado de alta.`);
++        showNotification(`Alumno ${altaForm.alias} dado de alta. Ya puede entrar con Google usando ${email}.`);
+         setAltaModalOpen(false);
+         await fetchData();
+         setView('ACTIVOS');
+         const createdUser: UserDomainModel = {
+           uid: newUid,
+           alias: altaForm.alias.trim(),
+-          contactEmail: altaForm.email.trim().toLowerCase(),
++          contactEmail: email,
+           phone: altaForm.phone.trim(),
+-          birthDate: altaForm.birthDate || '1995-01-01',
++          birthDate: altaForm.birthDate || '',
+           isMinor: isMinorUser,
+           beltSystem: isMinorUser ? 'KIDS' : 'ADULT',
+           belt: altaForm.belt,
+           stripes: altaForm.stripes,
+           beltDate: nowIso.slice(0, 10),
+           pricingTier: altaForm.pricingTier,
+-          activeTariffId: '',
+-          authEmail: altaForm.email.trim().toLowerCase(),
++          activeTariffId: 'tariff_default',
++          authEmail: email,
+           emergencyContactName: altaForm.emergencyContactName.trim(),
+           emergencyContactPhone: altaForm.emergencyContactPhone.trim(),
+           accountStatus: 'ACTIVE',
+-          permissions: ['STUDENT'],
++          permissions: ['student'],
+           createdAt: nowIso,
+           updatedAt: nowIso,
+         };
+@@ -727,6 +733,7 @@
+       }
+     } catch (err) {
+       console.error('Error al crear alumno:', err);
++      showNotification(`No se pudo dar de alta al alumno: ${err instanceof Error ? err.message : 'error desconocido'}`);
+     } finally {
+       setActionLoading(false);
+     }
+diff -ruN -x node_modules -x dist -x .git -x '*.tsbuildinfo' orig5/247-STUDIO-main/src/pages/public-registro/RegisterPage.tsx /home/claude/v5/247-STUDIO-main/src/pages/public-registro/RegisterPage.tsx
+--- a/src/pages/public-registro/RegisterPage.tsx	2026-11-08 22:27:40.000000000 +0000
++++ b/src/pages/public-registro/RegisterPage.tsx	2026-11-08 23:29:58.635693500 +0000
+@@ -1,13 +1,30 @@
+-import React, { useState } from 'react';
++import React, { useEffect, useState } from 'react';
+ import { Link, useNavigate } from 'react-router-dom';
+-import { createUserWithEmailAndPassword } from 'firebase/auth';
++import {
++  createUserWithEmailAndPassword,
++  getRedirectResult,
++  GoogleAuthProvider,
++  signInWithPopup,
++  signInWithRedirect,
++} from 'firebase/auth';
+ import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+ import { AlertTriangle, ArrowRight } from 'lucide-react';
++import { useAuth } from '@/app/providers/AuthProvider';
+ import { auth, db } from '@/shared/api/firebase';
+ import { isLegalMinor } from '@/shared/domain/minor';
+ 
++function isMobileDevice(): boolean {
++  if (typeof window === 'undefined') return false;
++  const ua = (navigator.userAgent || '').toLowerCase();
++  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
++  return /android|iphone|ipad|ipod|mobile/i.test(ua) || (isTouch && window.innerWidth <= 768);
++}
++
+ export const RegisterPage: React.FC = () => {
+   const navigate = useNavigate();
++  const { user, role, profileMissing, loading: authLoading, refreshProfile } = useAuth();
++  // Usuario ya autenticado (p. ej. con Google) que solo necesita completar su ficha
++  const completing = !!user && profileMissing === true;
+   const [formData, setFormData] = useState({
+     email: '',
+     password: '',
+@@ -23,6 +40,65 @@
+   const [error, setError] = useState<string | null>(null);
+   const [minorBlocked, setMinorBlocked] = useState(false);
+ 
++  // Resultado de Google al volver de una redirección (móviles)
++  useEffect(() => {
++    getRedirectResult(auth).catch((err: { code?: string }) => {
++      if (err?.code) setError(`No se pudo completar el acceso con Google (${err.code}).`);
++    });
++  }, []);
++
++  // Si ya tiene ficha, no hay nada que registrar: continuar a su zona
++  useEffect(() => {
++    if (!user || authLoading || profileMissing !== false) return;
++    navigate(role && role !== 'student' ? '/login' : '/app/home', { replace: true });
++  }, [user, authLoading, profileMissing, role, navigate]);
++
++  // Rellenar con los datos que ya da Google
++  useEffect(() => {
++    if (completing && user) {
++      setFormData((prev) => ({
++        ...prev,
++        alias: prev.alias || user.displayName || user.email?.split('@')[0] || '',
++        email: user.email || prev.email,
++        phone: prev.phone || user.phoneNumber || '',
++      }));
++    }
++  }, [completing, user]);
++
++  const handleGoogle = async () => {
++    setError(null);
++    setLoading(true);
++    try {
++      const provider = new GoogleAuthProvider();
++      provider.setCustomParameters({ prompt: 'select_account' });
++      if (isMobileDevice()) {
++        await signInWithRedirect(auth, provider);
++        return;
++      }
++      try {
++        await signInWithPopup(auth, provider);
++      } catch (popupErr) {
++        const code = (popupErr as { code?: string })?.code;
++        if (code === 'auth/popup-blocked' || code === 'auth/internal-error') {
++          await signInWithRedirect(auth, provider);
++          return;
++        }
++        throw popupErr;
++      }
++    } catch (err) {
++      const code = (err as { code?: string })?.code;
++      if (code === 'auth/unauthorized-domain') {
++        setError(`El dominio "${window.location.hostname}" no está autorizado en Firebase Authentication.`);
++      } else if (code === 'auth/operation-not-allowed') {
++        setError('El acceso con Google no está activado en Firebase Authentication.');
++      } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
++        setError(`No se pudo continuar con Google (${code || 'error de conexión'}).`);
++      }
++    } finally {
++      setLoading(false);
++    }
++  };
++
+   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+     if (e.target.name === 'birthDate') {
+@@ -35,7 +111,7 @@
+     e.preventDefault();
+     setError(null);
+ 
+-    if (formData.password !== formData.confirmPassword) {
++    if (!completing && formData.password !== formData.confirmPassword) {
+       setError('Las contraseñas no coinciden.');
+       return;
+     }
+@@ -55,14 +131,22 @@
+     setLoading(true);
+ 
+     try {
+-      // 1. Crear usuario en Firebase Auth
+-      const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+-      const uid = cred.user.uid;
++      // 1. Crear usuario en Firebase Auth (si ya entró con Google, se reutiliza su cuenta)
++      let uid: string;
++      let accountEmail: string;
++      if (completing && user) {
++        uid = user.uid;
++        accountEmail = user.email || formData.email;
++      } else {
++        const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
++        uid = cred.user.uid;
++        accountEmail = formData.email;
++      }
+ 
+       // 2. Crear documento de perfil en Firestore según reglas estrictas (PENDING, isMinor=false, stripes=0)
+       await setDoc(doc(db, 'users', uid), {
+-        authEmail: formData.email,
+-        contactEmail: formData.email,
++        authEmail: accountEmail,
++        contactEmail: accountEmail,
+         alias: formData.alias,
+         phone: formData.phone,
+         emergencyContactName: formData.emergencyContactName,
+@@ -81,6 +165,7 @@
+         updatedAt: serverTimestamp(),
+       });
+ 
++      if (completing) await refreshProfile();
+       navigate('/app/home');
+     } catch (err: unknown) {
+       console.error(err);
+@@ -127,7 +212,7 @@
+       <div className="w-full max-w-xl bg-studio-navy-light/90 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
+         <div className="text-center mb-6">
+           <img src="/logo.svg" alt="247Studio" className="w-12 h-12 mx-auto mb-2 rounded-2xl shadow-lg" />
+-          <h1 className="text-xl font-black uppercase tracking-wider text-white">Registro de Alumno</h1>
++          <h1 className="text-xl font-black uppercase tracking-wider text-white">{completing ? 'Completa tu ficha' : 'Registro de Alumno'}</h1>
+           <p className="text-xs text-studio-cream/70">Mayores de 16 años (247Studio BJJ)</p>
+         </div>
+ 
+@@ -137,6 +222,31 @@
+           </div>
+         )}
+ 
++        {!completing && !user && (
++          <>
++            <button
++              type="button"
++              onClick={handleGoogle}
++              disabled={loading}
++              className="mb-4 flex min-h-[48px] w-full cursor-pointer items-center justify-center gap-3 rounded-xl bg-white text-sm font-bold text-studio-navy transition hover:bg-studio-cream-light disabled:opacity-60"
++            >
++              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
++                <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/>
++                <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z"/>
++                <path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/>
++                <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/>
++              </svg>
++              Registrarme con Google
++            </button>
++            <p className="mb-4 text-center text-xs text-studio-cream/70">o con tu correo y contraseña</p>
++          </>
++        )}
++        {completing && (
++          <p className="mb-4 text-center text-sm text-studio-cream/80">
++            Ya has entrado con Google. Solo faltan unos datos para crear tu ficha de alumno.
++          </p>
++        )}
++
+         <form onSubmit={handleSubmit} className="space-y-4">
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <div>
+@@ -170,6 +280,7 @@
+           </div>
+ 
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
++            {!completing && (
+             <div>
+               <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+                 Correo Electrónico *
+@@ -184,6 +295,7 @@
+                 className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
+               />
+             </div>
++            )}
+ 
+             <div>
+               <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+@@ -227,6 +339,7 @@
+             </div>
+           </div>
+ 
++          {!completing && (
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <div>
+               <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
+@@ -258,13 +371,14 @@
+               />
+             </div>
+           </div>
++          )}
+ 
+           <button
+             type="submit"
+             disabled={loading}
+             className="w-full py-3.5 px-4 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 disabled:opacity-50 mt-4"
+           >
+-            {loading ? 'Creando cuenta...' : 'Completar Registro'}
++            {loading ? (completing ? 'Guardando...' : 'Creando cuenta...') : completing ? 'Guardar mi ficha' : 'Completar Registro'}
+           </button>
+         </form>
+ 

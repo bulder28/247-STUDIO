@@ -105,6 +105,7 @@ export default async function handler(req, context) {
       emergencyContactName,
       emergencyContactPhone,
       stats,
+      notes,
     } = body;
 
     const cleanEmail = email?.trim().toLowerCase();
@@ -174,6 +175,7 @@ export default async function handler(req, context) {
       activeTariffId,
       accountStatus: 'ACTIVE',
       paymentStatusCache: 'OK',
+      notes: notes?.trim() || null,
       permissions: [finalRole],
       waiverVersion: 'PRESENCIAL_V1',
       waiverSignedAt: nowIso,

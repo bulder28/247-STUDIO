@@ -12,7 +12,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   allowedRoles,
 }) => {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, profileMissing } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -44,6 +44,20 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (role === 'coach') return <Navigate to="/admin/asistencia" replace />;
     if (role === 'kiosk') return <Navigate to="/kiosk/check-in" replace />;
     return <Navigate to="/app/home" replace />;
+  }
+
+  // Alumno autenticado (p. ej. con Google) que aún no tiene ficha: completar el registro
+  if (role === 'student' && location.pathname.startsWith('/app')) {
+    if (profileMissing === null) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-studio-navy text-studio-cream">
+          <div className="w-10 h-10 border-4 border-studio-red border-t-transparent rounded-full animate-spin" role="status" aria-label="Cargando" />
+        </div>
+      );
+    }
+    if (profileMissing) {
+      return <Navigate to="/registro?completar=1" replace />;
+    }
   }
 
   return children;
