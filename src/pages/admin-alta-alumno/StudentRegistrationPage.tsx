@@ -165,21 +165,25 @@ export const StudentRegistrationPage: React.FC = () => {
       const adminUid = adminAuthUser?.uid || 'admin_presencial';
 
       // 1. Guardar documento maestro en users/{uid}
-      const userPayload: any = {
+      const userPayload: Record<string, any> = {
         uid,
-        authEmail: formData.contactEmail || `alumno_${uid}@247studiobjj.com`,
-        contactEmail: formData.contactEmail,
+        authEmail: formData.contactEmail?.trim() || `alumno_${uid}@247studiobjj.com`,
+        contactEmail: formData.contactEmail?.trim() || '',
         alias: formData.alias.trim(),
         phone: formData.phone.trim(),
-        emergencyContactName: isMinor ? formData.guardianName : formData.emergencyContactName,
-        emergencyContactPhone: isMinor ? formData.guardianPhone : formData.emergencyContactPhone,
-        birthDate: formData.birthDate,
+        emergencyContactName: isMinor
+          ? (formData.guardianName?.trim() || null)
+          : (formData.emergencyContactName?.trim() || null),
+        emergencyContactPhone: isMinor
+          ? (formData.guardianPhone?.trim() || null)
+          : (formData.emergencyContactPhone?.trim() || null),
+        birthDate: formData.birthDate || '',
         isMinor,
-        guardianName: isMinor ? formData.guardianName : undefined,
-        guardianPhone: isMinor ? formData.guardianPhone : undefined,
-        guardianDni: isMinor ? formData.guardianDni : undefined,
-        guardianEmail: isMinor ? formData.guardianEmail : undefined,
-        guardianUid: isMinor ? (formData.guardianUid?.trim() || undefined) : undefined,
+        guardianName: isMinor ? (formData.guardianName?.trim() || null) : null,
+        guardianPhone: isMinor ? (formData.guardianPhone?.trim() || null) : null,
+        guardianDni: isMinor ? (formData.guardianDni?.trim() || null) : null,
+        guardianEmail: isMinor ? (formData.guardianEmail?.trim() || null) : null,
+        guardianUid: isMinor ? (formData.guardianUid?.trim() || null) : null,
         beltSystem,
         belt: formData.belt,
         stripes: Number(formData.stripes),
@@ -206,7 +210,12 @@ export const StudentRegistrationPage: React.FC = () => {
         },
       };
 
-      await setDoc(doc(db, 'users', uid), userPayload);
+      // Sanitizar payload eliminando claves con valor undefined para cumplir la especificación de Firestore
+      const cleanUserPayload = Object.fromEntries(
+        Object.entries(userPayload).filter(([_, v]) => v !== undefined)
+      );
+
+      await setDoc(doc(db, 'users', uid), cleanUserPayload);
 
       // 2. Guardar proyección pública y segura para Kiosco (sin notas médicas ni teléfonos privados)
       await setDoc(doc(db, 'kiosk_members', uid), {
