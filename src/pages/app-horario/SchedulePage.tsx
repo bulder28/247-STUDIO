@@ -1,15 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  collection,
   doc,
-  getDocs,
   increment,
-  query,
   serverTimestamp,
   setDoc,
   updateDoc,
-  where,
 } from 'firebase/firestore';
 import {
   AlertCircle,
@@ -34,10 +30,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
+import { useScheduleStore } from '@/shared/stores/useScheduleStore';
+import { useScheduleData } from '@/shared/hooks/useScheduleQueries';
 import {
   calculateScheduleDurationMinutes,
   canCancel,
-  DEFAULT_OFFICIAL_SCHEDULES,
   getMadridTimeComponents,
   getProgramTheme,
   isClassInProgress,
@@ -56,7 +53,6 @@ import {
 } from '@/shared/ui/dialog';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 
-type CalendarViewMode = 'DAY' | 'WEEK' | 'MONTH';
 type TimeBandFilter = 'ALL' | 'MORNING' | 'AFTERNOON' | 'NIGHT';
 type GroupingMode = 'BY_ACTIVITY' | 'BY_TIME_BAND';
 
@@ -323,14 +319,6 @@ export const SchedulePage: React.FC = () => {
   const madridNow = getMadridTimeComponents(now);
   const todayStr = madridNow.dateStr;
 
-  // Vista activa: en escritorio prioriza SEMANA para aprovechar la parrilla visual; en móvil prioriza DÍA estilo Madrid Móvil
-  const [viewMode, setViewMode] = useState<CalendarViewMode>(() => {
-    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-      return 'WEEK';
-    }
-    return 'DAY';
-  });
-
   // Fecha activa seleccionada (YYYY-MM-DD): si hoy es fin de semana, apunta directamente al próximo día lectivo (Lunes)
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
     return getClosestWorkingDay(todayStr);
@@ -342,12 +330,23 @@ export const SchedulePage: React.FC = () => {
     return { year: parsed.year, month0: parsed.month0 };
   });
 
-  // Filtros REA (Recursos, Eventos y Agentes) + Franja Horaria estilo Madrid Móvil
-  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('TODAS');
-  const [selectedProfessor, setSelectedProfessor] = useState<string>('ALL');
-  const [selectedRoom, setSelectedRoom] = useState<string>('ALL');
+  // Filtros globales sincronizados vía Zustand Store
+  const {
+    selectedDiscipline,
+    selectedProfessor,
+    selectedRoom,
+    viewMode,
+    mobileSectionTab,
+    onlyMyBookings,
+    setSelectedDiscipline,
+    setSelectedProfessor,
+    setSelectedRoom,
+    setViewMode,
+    setMobileSectionTab,
+    setOnlyMyBookings,
+  } = useScheduleStore();
+
   const [selectedTimeBand, setSelectedTimeBand] = useState<TimeBandFilter>('ALL');
-  const [onlyMyBookings, setOnlyMyBookings] = useState<boolean>(false);
 
   // Modo de agrupación de clases en vista diaria: Por Actividad (BJJ Gi, No-Gi, MMA...) o Por Franja Horaria
   const [groupingMode, setGroupingMode] = useState<GroupingMode>('BY_ACTIVITY');
@@ -366,13 +365,21 @@ export const SchedulePage: React.FC = () => {
     dateStr: string;
   } | null>(null);
 
-  // Pestaña activa estilo Madrid Móvil: 'RESERVAR' (Clases Abiertas) o 'MIS_RESERVAS' (Pases y Anulaciones)
-  const [mobileSectionTab, setMobileSectionTab] = useState<'RESERVAR' | 'MIS_RESERVAS'>(() => {
-    if (typeof window !== 'undefined' && window.location.search.includes('tab=mis-reservas')) {
-      return 'MIS_RESERVAS';
+  // TanStack Query: consulta reactiva con caché inteligente (5 minutos de frescura)
+  const {
+    data: scheduleQueryData,
+    refetch: refetchScheduleData,
+  } = useScheduleData(user?.uid);
+
+  useEffect(() => {
+    if (scheduleQueryData) {
+      setSchedules(scheduleQueryData.schedules);
+      setExceptions(scheduleQueryData.exceptions);
+      setMyBookings(scheduleQueryData.myBookings);
+      setClassCapacities(scheduleQueryData.classCapacities);
+      setLoading(false);
     }
-    return 'RESERVAR';
-  });
+  }, [scheduleQueryData]);
 
   // Sincronizar parámetro URL si el usuario pulsa en "Mis Pases" de la barra inferior
   useEffect(() => {
@@ -380,64 +387,10 @@ export const SchedulePage: React.FC = () => {
       setMobileSectionTab('MIS_RESERVAS');
       setOnlyMyBookings(true);
     }
-  }, [searchParams]);
+  }, [searchParams, setMobileSectionTab, setOnlyMyBookings]);
 
   const fetchScheduleData = async () => {
-    try {
-      const schedQuery = query(collection(db, 'schedules'), where('active', '==', true));
-      const excQuery = collection(db, 'scheduleExceptions');
-      const bQuery = user
-        ? query(collection(db, 'bookings'), where('uid', '==', user.uid))
-        : null;
-      const capQuery = collection(db, 'class_capacity');
-
-      const [schedSnap, excSnap, bSnap, capSnap] = await Promise.all([
-        getDocs(schedQuery),
-        getDocs(excQuery),
-        bQuery ? getDocs(bQuery) : Promise.resolve(null),
-        getDocs(capQuery),
-      ]);
-
-      const sList: ScheduleDomainModel[] = [];
-      schedSnap.forEach((d) =>
-        sList.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) })
-      );
-      setSchedules(sList.length > 0 ? sList : DEFAULT_OFFICIAL_SCHEDULES);
-
-      const eList: ScheduleExceptionDomainModel[] = [];
-      excSnap.forEach((d) =>
-        eList.push({ id: d.id, ...(d.data() as Omit<ScheduleExceptionDomainModel, 'id'>) })
-      );
-      setExceptions(eList);
-
-      if (bSnap) {
-        const bList: BookingDomainModel[] = [];
-        bSnap.forEach((d) =>
-          bList.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) })
-        );
-        setMyBookings(bList);
-      } else {
-        setMyBookings([]);
-      }
-
-      // Mapa indexado por `${scheduleId}_${date}`
-      const capMap: Record<string, { bookedCount: number; waitlistCount: number }> = {};
-      capSnap.forEach((d) => {
-        const data = d.data();
-        if (data.scheduleId && data.date) {
-          capMap[`${data.scheduleId}_${data.date}`] = {
-            bookedCount: Number(data.bookedCount || 0),
-            waitlistCount: Number(data.waitlistCount || 0),
-          };
-        }
-      });
-      setClassCapacities(capMap);
-    } catch (err) {
-      console.error('Error fetching schedule data:', err);
-      setSchedules((prev) => (prev.length > 0 ? prev : DEFAULT_OFFICIAL_SCHEDULES));
-    } finally {
-      setLoading(false);
-    }
+    await refetchScheduleData();
   };
 
   useEffect(() => {

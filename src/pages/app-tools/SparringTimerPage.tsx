@@ -1,106 +1,39 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { ArrowLeft, Pause, Play, RotateCcw, SkipForward, Swords } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { dojoAudio } from '@/shared/utils/audioEffects';
-
-type TimerPhase = 'PREP' | 'FIGHT' | 'REST' | 'FINISHED';
+import { useSparringTimerStore } from '@/shared/stores/useSparringTimerStore';
 
 export const SparringTimerPage: React.FC = () => {
   const navigate = useNavigate();
-  const [roundDuration, setRoundDuration] = useState<number>(300); // 5 min
-  const [restDuration, setRestDuration] = useState<number>(60); // 1 min
-  const [totalRounds, setTotalRounds] = useState<number>(5);
 
-  const [currentRound, setCurrentRound] = useState<number>(1);
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(roundDuration);
-  const [phase, setPhase] = useState<TimerPhase>('FIGHT');
-  const [isRunning, setIsRunning] = useState<boolean>(false);
+  const {
+    roundDuration,
+    totalRounds,
+    currentRound,
+    secondsRemaining,
+    phase,
+    isRunning,
+    setRoundDuration,
+    setRestDuration,
+    setTotalRounds,
+    togglePlayPause,
+    resetTimer,
+    skipRound,
+    tick,
+  } = useSparringTimerStore();
 
-  // Synchronize when settings change and not running
-  useEffect(() => {
-    if (!isRunning && phase === 'FIGHT') {
-      setSecondsRemaining(roundDuration);
-    }
-  }, [roundDuration, isRunning, phase]);
-
-  // Main Timer Loop
+  // Bucle central de ejecución del cronómetro
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
-
     if (isRunning) {
       interval = setInterval(() => {
-        setSecondsRemaining((prev) => {
-          if (prev === 11 && phase === 'FIGHT') {
-            dojoAudio.playWoodTick();
-            dojoAudio.triggerHaptic('warning');
-          }
-
-          if (prev <= 1) {
-            if (phase === 'FIGHT') {
-              dojoAudio.playRoundBell();
-              dojoAudio.triggerHaptic('medium');
-
-              if (currentRound >= totalRounds) {
-                setPhase('FINISHED');
-                setIsRunning(false);
-                return 0;
-              } else {
-                setPhase('REST');
-                return restDuration;
-              }
-            } else if (phase === 'REST') {
-              dojoAudio.playRoundBell();
-              dojoAudio.triggerHaptic('success');
-              setCurrentRound((r) => r + 1);
-              setPhase('FIGHT');
-              return roundDuration;
-            }
-          }
-          return prev - 1;
-        });
+        tick();
       }, 1000);
     }
-
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, phase, currentRound, totalRounds, roundDuration, restDuration]);
-
-  const toggleRunning = () => {
-    if (!isRunning) {
-      if (phase === 'FINISHED') {
-        resetTimer();
-      }
-      dojoAudio.playRoundBell();
-      dojoAudio.triggerHaptic('success');
-    }
-    setIsRunning(!isRunning);
-  };
-
-  const resetTimer = () => {
-    setIsRunning(false);
-    setPhase('FIGHT');
-    setCurrentRound(1);
-    setSecondsRemaining(roundDuration);
-  };
-
-  const skipPhase = () => {
-    if (phase === 'FIGHT') {
-      dojoAudio.playRoundBell();
-      if (currentRound >= totalRounds) {
-        setPhase('FINISHED');
-        setIsRunning(false);
-      } else {
-        setPhase('REST');
-        setSecondsRemaining(restDuration);
-      }
-    } else if (phase === 'REST') {
-      dojoAudio.playRoundBell();
-      setCurrentRound((r) => r + 1);
-      setPhase('FIGHT');
-      setSecondsRemaining(roundDuration);
-    }
-  };
+  }, [isRunning, tick]);
 
   const formatTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
@@ -158,9 +91,7 @@ export const SparringTimerPage: React.FC = () => {
               setRoundDuration(p.round);
               setRestDuration(p.rest);
               setTotalRounds(p.rounds);
-              setSecondsRemaining(p.round);
-              setPhase('FIGHT');
-              setCurrentRound(1);
+              resetTimer();
             }}
             className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold border transition ${
               roundDuration === p.round && !isRunning
@@ -209,7 +140,7 @@ export const SparringTimerPage: React.FC = () => {
 
         <button
           type="button"
-          onClick={toggleRunning}
+          onClick={togglePlayPause}
           className={`flex items-center justify-center gap-2 py-3 sm:py-3.5 rounded-2xl text-xs sm:text-sm font-black transition cursor-pointer ${
             isRunning
               ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-md'
@@ -231,7 +162,7 @@ export const SparringTimerPage: React.FC = () => {
 
         <button
           type="button"
-          onClick={skipPhase}
+          onClick={skipRound}
           disabled={phase === 'FINISHED'}
           className="flex items-center justify-center gap-2 py-3 sm:py-3.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-2xl text-xs sm:text-sm font-bold transition disabled:opacity-40 cursor-pointer"
         >

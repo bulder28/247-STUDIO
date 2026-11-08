@@ -64,3 +64,4 @@ export async function onForegroundMessage(callback: (payload: unknown) => void) 
   if (!messaging) return () => {};
   return onMessage(messaging, callback);
 }
+
