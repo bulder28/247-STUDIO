@@ -41,6 +41,7 @@ import {
 } from '@/shared/domain/schedule';
 import {
   BookingDomainModel,
+  BookingStatus,
   ScheduleDomainModel,
   ScheduleExceptionDomainModel,
 } from '@/shared/domain/types';
@@ -528,7 +529,7 @@ export const SchedulePage: React.FC = () => {
     return true;
   };
 
-  // Acción: Reservar Clase (con fecha explícita YYYY-MM-DD)
+  // Acción: Reservar Clase (con fecha explícita YYYY-MM-DD y respuesta instantánea 0 ms)
   const handleBookClass = async (schedule: ScheduleDomainModel, targetDateStr: string) => {
     if (!user) return;
     const slotKey = `${schedule.id}_${targetDateStr}`;
@@ -548,29 +549,32 @@ export const SchedulePage: React.FC = () => {
 
       const { isFull } = getCapacityForSlot(schedule, targetDateStr);
       const bookingId = `${schedule.id}_${targetDateStr}_${user.uid}`;
-      const status = isFull ? 'WAITLISTED' : 'BOOKED';
+      const status: BookingStatus = isFull ? 'WAITLISTED' : 'BOOKED';
 
-      await setDoc(doc(db, 'bookings', bookingId), {
+      // 1. ACTUALIZACIÓN OPTIMISTA INSTANTÁNEA (0 ms): Se actualiza en memoria sin bloquear
+      const newBooking: BookingDomainModel = {
+        id: bookingId,
         uid: user.uid,
         scheduleId: schedule.id,
         date: targetDateStr,
         status,
+        sessionType: 'PARTICIPANT',
+        attendanceWeight: 1,
         checkInSource: 'APP',
-        createdAt: serverTimestamp(),
-      });
+        createdAt: new Date().toISOString(),
+      };
 
-      const capDocId = `${schedule.id}_${targetDateStr}`;
-      await setDoc(
-        doc(db, 'class_capacity', capDocId),
-        {
-          scheduleId: schedule.id,
-          date: targetDateStr,
-          bookedCount: isFull ? increment(0) : increment(1),
-          waitlistCount: isFull ? increment(1) : increment(0),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      setMyBookings((prev) => [...prev.filter((b) => b.id !== bookingId), newBooking]);
+      setClassCapacities((prev) => {
+        const cur = prev[slotKey] || { bookedCount: 0, waitlistCount: 0 };
+        return {
+          ...prev,
+          [slotKey]: {
+            bookedCount: isFull ? cur.bookedCount : cur.bookedCount + 1,
+            waitlistCount: isFull ? cur.waitlistCount + 1 : cur.waitlistCount,
+          },
+        };
+      });
 
       setMessage({
         text: isFull
@@ -579,7 +583,49 @@ export const SchedulePage: React.FC = () => {
         type: 'success',
       });
 
-      await fetchScheduleData();
+      // 2. Persistencia en background sin bloquear al usuario
+      const capDocId = `${schedule.id}_${targetDateStr}`;
+      Promise.all([
+        setDoc(doc(db, 'bookings', bookingId), {
+          uid: user.uid,
+          scheduleId: schedule.id,
+          date: targetDateStr,
+          status,
+          sessionType: 'PARTICIPANT',
+          attendanceWeight: 1,
+          checkInSource: 'APP',
+          createdAt: serverTimestamp(),
+        }),
+        setDoc(
+          doc(db, 'class_capacity', capDocId),
+          {
+            scheduleId: schedule.id,
+            date: targetDateStr,
+            bookedCount: isFull ? increment(0) : increment(1),
+            waitlistCount: isFull ? increment(1) : increment(0),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        ),
+      ]).catch((err) => {
+        console.error('Error persistiendo reserva en segundo plano:', err);
+        // Reversión optimista
+        setMyBookings((prev) => prev.filter((b) => b.id !== bookingId));
+        setClassCapacities((prev) => {
+          const cur = prev[slotKey] || { bookedCount: 1, waitlistCount: 0 };
+          return {
+            ...prev,
+            [slotKey]: {
+              bookedCount: isFull ? cur.bookedCount : Math.max(0, cur.bookedCount - 1),
+              waitlistCount: isFull ? Math.max(0, cur.waitlistCount - 1) : cur.waitlistCount,
+            },
+          };
+        });
+        setMessage({
+          text: 'Error de conexión con la base de datos. Se revirtió la reserva.',
+          type: 'error',
+        });
+      });
     } catch (err: unknown) {
       setMessage({
         text: err instanceof Error ? err.message : 'No se pudo realizar la reserva.',
@@ -590,7 +636,7 @@ export const SchedulePage: React.FC = () => {
     }
   };
 
-  // Acción: Cancelar Reserva
+  // Acción: Cancelar Reserva (Respuesta instantánea 0 ms)
   const handleCancelBooking = async (
     booking: BookingDomainModel,
     schedule: ScheduleDomainModel,
@@ -607,38 +653,61 @@ export const SchedulePage: React.FC = () => {
         throw new Error('No es posible cancelar con menos de 2 horas de antelación.');
       }
 
-      await updateDoc(doc(db, 'bookings', booking.id), {
-        status: 'CANCELLED',
-        cancelledAt: serverTimestamp(),
+      // 1. ACTUALIZACIÓN OPTIMISTA INSTANTÁNEA (0 ms)
+      const prevBooking = booking;
+      setMyBookings((prev) => prev.filter((b) => b.id !== booking.id));
+      setClassCapacities((prev) => {
+        const cur = prev[slotKey] || { bookedCount: 1, waitlistCount: 0 };
+        return {
+          ...prev,
+          [slotKey]: {
+            bookedCount:
+              booking.status === 'BOOKED' ? Math.max(0, cur.bookedCount - 1) : cur.bookedCount,
+            waitlistCount:
+              booking.status === 'WAITLISTED' ? Math.max(0, cur.waitlistCount - 1) : cur.waitlistCount,
+          },
+        };
       });
 
-      const capDocId = `${schedule.id}_${targetDateStr}`;
-      if (booking.status === 'BOOKED') {
-        await setDoc(
-          doc(db, 'class_capacity', capDocId),
-          {
-            scheduleId: schedule.id,
-            date: targetDateStr,
-            bookedCount: increment(-1),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      } else if (booking.status === 'WAITLISTED') {
-        await setDoc(
-          doc(db, 'class_capacity', capDocId),
-          {
-            scheduleId: schedule.id,
-            date: targetDateStr,
-            waitlistCount: increment(-1),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
-
       setMessage({ text: 'Reserva cancelada correctamente. Plaza liberada.', type: 'success' });
-      await fetchScheduleData();
+
+      // 2. Persistencia en background sin bloquear
+      const capDocId = `${schedule.id}_${targetDateStr}`;
+      Promise.all([
+        updateDoc(doc(db, 'bookings', booking.id), {
+          status: 'CANCELLED',
+          cancelledAt: serverTimestamp(),
+        }),
+        booking.status === 'BOOKED'
+          ? setDoc(
+              doc(db, 'class_capacity', capDocId),
+              {
+                scheduleId: schedule.id,
+                date: targetDateStr,
+                bookedCount: increment(-1),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            )
+          : setDoc(
+              doc(db, 'class_capacity', capDocId),
+              {
+                scheduleId: schedule.id,
+                date: targetDateStr,
+                waitlistCount: increment(-1),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            ),
+      ]).catch((err) => {
+        console.error('Error persistiendo cancelación en segundo plano:', err);
+        // Reversión optimista
+        setMyBookings((prev) => [...prev, prevBooking]);
+        setMessage({
+          text: 'Error de red al cancelar la reserva.',
+          type: 'error',
+        });
+      });
     } catch (err: unknown) {
       setMessage({
         text: err instanceof Error ? err.message : 'No se pudo cancelar la reserva.',

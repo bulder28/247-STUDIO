@@ -107,7 +107,7 @@ export const HomePage: React.FC = () => {
         // 4. Reservas del usuario
         try {
           const bookingsSnap = await getDocs(
-            query(collection(db, 'bookings'), where('userId', '==', user.uid))
+            query(collection(db, 'bookings'), where('uid', '==', user.uid))
           );
           const bookingsList: BookingDomainModel[] = [];
           bookingsSnap.forEach((doc) => {

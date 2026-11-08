@@ -71,6 +71,9 @@ interface StudentDirectoryItem {
   beltDate?: string;
 }
 
+// Caché en memoria para evitar re-descargar el censo completo en cada navegación
+let cachedStudentsDirectory: Record<string, StudentDirectoryItem> | null = null;
+
 export const AttendanceAdminPage: React.FC = () => {
   const now = new Date();
   const madridNow = getMadridTimeComponents(now);
@@ -130,6 +133,10 @@ export const AttendanceAdminPage: React.FC = () => {
 
   // 1. Cargar directorio de alumnos para referencias de nombre y cinturón
   useEffect(() => {
+    if (cachedStudentsDirectory && Object.keys(cachedStudentsDirectory).length > 0) {
+      setStudents(cachedStudentsDirectory);
+    }
+
     const fetchStudents = async () => {
       try {
         const [uSnap, kSnap] = await Promise.all([
@@ -186,6 +193,7 @@ export const AttendanceAdminPage: React.FC = () => {
           });
         }
 
+        cachedStudentsDirectory = map;
         setStudents(map);
       } catch (err) {
         console.error('Error cargando estudiantes:', err);
@@ -275,12 +283,33 @@ export const AttendanceAdminPage: React.FC = () => {
   const graduationCount = attendedBookings.filter((b) => b.sessionType === 'GRADUATION_CLASS').length;
   const maxCapacity = activeSchedule?.capacity || 26;
 
-  // ACCIÓN 1: "Check in all" - Confirmar todos los pendientes a ATTENDED
+  // ACCIÓN 1: "Check in all" - Confirmar todos los pendientes a ATTENDED (Optimista 0 ms)
   const handleCheckInAll = async () => {
     if (pendingBookings.length === 0) return;
-    setActionLoading('ALL');
     setMessage(null);
 
+    const prevBookings = bookings;
+
+    // 1. Actualización optimista inmediata
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.status === 'BOOKED'
+          ? {
+              ...b,
+              status: 'ATTENDED',
+              checkInSource: 'ADMIN',
+              attendanceWeight: getAttendanceWeight(b.sessionType || 'PARTICIPANT'),
+            }
+          : b
+      )
+    );
+
+    setMessage({
+      text: `¡Confirmados ${pendingBookings.length} alumnos presentes con éxito!`,
+      type: 'success',
+    });
+
+    // 2. Persistencia en background sin bloquear
     try {
       const batch = writeBatch(db);
       for (const booking of pendingBookings) {
@@ -296,7 +325,6 @@ export const AttendanceAdminPage: React.FC = () => {
         });
       }
 
-      // Actualizar contador agregado class_capacity
       const capRef = doc(db, 'class_capacity', `cap_${selectedScheduleId}_${selectedDateStr}`);
       batch.set(
         capRef,
@@ -310,40 +338,47 @@ export const AttendanceAdminPage: React.FC = () => {
       );
 
       await batch.commit();
-
-      setMessage({
-        text: `¡Confirmados ${pendingBookings.length} alumnos presentes con éxito!`,
-        type: 'success',
-      });
-      await fetchClassBookings();
     } catch (err: unknown) {
+      console.error('Error persistiendo check-in masivo:', err);
+      setBookings(prevBookings);
       setMessage({
-        text: err instanceof Error ? err.message : 'Error al confirmar pendientes.',
+        text: err instanceof Error ? err.message : 'Error al confirmar pendientes en la base de datos.',
         type: 'error',
       });
-    } finally {
-      setActionLoading(null);
     }
   };
 
-  // ACCIÓN 2: Cambiar estado individual (Check-in individual o Deshacer)
+  // ACCIÓN 2: Cambiar estado individual (Check-in individual o Deshacer con respuesta instantánea 0 ms)
   const handleToggleAttendance = async (booking: BookingDomainModel) => {
-    setActionLoading(booking.id);
     setMessage(null);
 
     const isCurrentlyAttended = booking.status === 'ATTENDED';
     const newStatus: BookingStatus = isCurrentlyAttended ? 'BOOKED' : 'ATTENDED';
+    const prevBookings = bookings;
 
-    try {
-      await updateDoc(doc(db, 'bookings', booking.id), {
+    // 1. Actualización optimista inmediata (0 ms)
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === booking.id
+          ? {
+              ...b,
+              status: newStatus,
+              checkInSource: 'ADMIN',
+              attendanceWeight: newStatus === 'ATTENDED' ? getAttendanceWeight(booking.sessionType) : 1.0,
+            }
+          : b
+      )
+    );
+
+    // 2. Persistencia en background sin bloquear la interfaz
+    const capRef = doc(db, 'class_capacity', `cap_${selectedScheduleId}_${selectedDateStr}`);
+    Promise.all([
+      updateDoc(doc(db, 'bookings', booking.id), {
         status: newStatus,
         checkInSource: 'ADMIN',
         attendanceWeight: newStatus === 'ATTENDED' ? getAttendanceWeight(booking.sessionType) : 1.0,
-      });
-
-      // Sincronizar class_capacity
-      const capRef = doc(db, 'class_capacity', `cap_${selectedScheduleId}_${selectedDateStr}`);
-      await setDoc(
+      }),
+      setDoc(
         capRef,
         {
           scheduleId: selectedScheduleId,
@@ -352,47 +387,74 @@ export const AttendanceAdminPage: React.FC = () => {
           updatedAt: serverTimestamp(),
         },
         { merge: true }
-      );
-
-      await fetchClassBookings();
-    } catch (err: unknown) {
+      ),
+    ]).catch((err) => {
+      console.error('Error persistiendo cambio de asistencia:', err);
+      setBookings(prevBookings);
       setMessage({
-        text: err instanceof Error ? err.message : 'Error al actualizar asistencia.',
+        text: err instanceof Error ? err.message : 'Error al sincronizar asistencia con la base de datos.',
         type: 'error',
       });
-    } finally {
-      setActionLoading(null);
-    }
+    });
   };
 
-  // ACCIÓN 3: Cambiar modalidad de sesión (Participante / Observador / Graduación)
+  // ACCIÓN 3: Cambiar modalidad de sesión (Participante / Observador / Graduación optimista 0 ms)
   const handleChangeSessionType = async (booking: BookingDomainModel, newType: SessionType) => {
-    setActionLoading(booking.id);
-    try {
-      const weight = getAttendanceWeight(newType);
-      await updateDoc(doc(db, 'bookings', booking.id), {
-        sessionType: newType,
-        attendanceWeight: weight,
-      });
-      await fetchClassBookings();
-    } catch (err: unknown) {
+    const weight = getAttendanceWeight(newType);
+    const prevBookings = bookings;
+
+    // 1. Actualización optimista inmediata
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === booking.id ? { ...b, sessionType: newType, attendanceWeight: weight } : b
+      )
+    );
+
+    // 2. Persistencia en background
+    updateDoc(doc(db, 'bookings', booking.id), {
+      sessionType: newType,
+      attendanceWeight: weight,
+    }).catch((err) => {
       console.error('Error cambiando tipo de sesión:', err);
-    } finally {
-      setActionLoading(null);
-    }
+      setBookings(prevBookings);
+    });
   };
 
-  // ACCIÓN 4: Añadir alumno manualmente fuera de lista (Walk-in / Asistencia directa)
+  // ACCIÓN 4: Añadir alumno manualmente fuera de lista (Walk-in optimista 0 ms)
   const executeAddStudentManual = async (targetStudent: StudentDirectoryItem, sessionType: SessionType) => {
     if (!activeSchedule) return;
-    setActionLoading(`add_${targetStudent.uid}`);
     setMessage(null);
 
-    try {
-      const bookingId = `bk_${targetStudent.uid}_${activeSchedule.id}_${selectedDateStr}`;
-      const weight = getAttendanceWeight(sessionType);
+    const bookingId = `bk_${targetStudent.uid}_${activeSchedule.id}_${selectedDateStr}`;
+    const weight = getAttendanceWeight(sessionType);
+    const prevBookings = bookings;
 
-      await setDoc(doc(db, 'bookings', bookingId), {
+    // 1. Actualización optimista inmediata (0 ms)
+    const newBooking: BookingDomainModel = {
+      id: bookingId,
+      uid: targetStudent.uid,
+      scheduleId: activeSchedule.id,
+      date: selectedDateStr,
+      status: 'ATTENDED',
+      sessionType: sessionType,
+      attendanceWeight: weight,
+      checkInSource: 'ADMIN',
+      createdAt: new Date().toISOString(),
+    };
+
+    setBookings((prev) => [...prev.filter((b) => b.id !== bookingId), newBooking]);
+    setAddModalOpen(false);
+    setAddSearchTerm('');
+    setFrozenObserverTarget(null);
+    setMessage({
+      text: `${targetStudent.alias} añadido como asistente presente (${sessionType === 'OBSERVER' ? 'Observador' : 'Participante'}).`,
+      type: 'success',
+    });
+
+    // 2. Persistencia en background
+    const capRef = doc(db, 'class_capacity', `cap_${activeSchedule.id}_${selectedDateStr}`);
+    Promise.all([
+      setDoc(doc(db, 'bookings', bookingId), {
         uid: targetStudent.uid,
         scheduleId: activeSchedule.id,
         date: selectedDateStr,
@@ -401,11 +463,8 @@ export const AttendanceAdminPage: React.FC = () => {
         attendanceWeight: weight,
         checkInSource: 'ADMIN',
         createdAt: serverTimestamp(),
-      });
-
-      // Incrementar contador class_capacity
-      const capRef = doc(db, 'class_capacity', `cap_${activeSchedule.id}_${selectedDateStr}`);
-      await setDoc(
+      }),
+      setDoc(
         capRef,
         {
           scheduleId: activeSchedule.id,
@@ -414,24 +473,15 @@ export const AttendanceAdminPage: React.FC = () => {
           updatedAt: serverTimestamp(),
         },
         { merge: true }
-      );
-
+      ),
+    ]).catch((err) => {
+      console.error('Error persistiendo alta manual de asistencia:', err);
+      setBookings(prevBookings);
       setMessage({
-        text: `${targetStudent.alias} añadido como asistente presente (${sessionType === 'OBSERVER' ? 'Observador' : 'Participante'}).`,
-        type: 'success',
-      });
-      setAddModalOpen(false);
-      setAddSearchTerm('');
-      setFrozenObserverTarget(null);
-      await fetchClassBookings();
-    } catch (err: unknown) {
-      setMessage({
-        text: err instanceof Error ? err.message : 'No se pudo añadir al alumno.',
+        text: err instanceof Error ? err.message : 'No se pudo añadir al alumno en la base de datos.',
         type: 'error',
       });
-    } finally {
-      setActionLoading(null);
-    }
+    });
   };
 
   const handleAddStudentManual = async (targetStudent: StudentDirectoryItem) => {
@@ -443,22 +493,28 @@ export const AttendanceAdminPage: React.FC = () => {
     await executeAddStudentManual(targetStudent, addSessionType);
   };
 
-  // ACCIÓN 5: Eliminar o cancelar reserva (Radix Dialog)
+  // ACCIÓN 5: Eliminar o cancelar reserva (Radix Dialog con respuesta instantánea)
   const handleRemoveBooking = (booking: BookingDomainModel) => {
     setBookingToRemove(booking);
   };
 
   const handleConfirmRemoveBooking = async () => {
     if (!bookingToRemove) return;
-    setActionLoading(bookingToRemove.id);
-    try {
-      await updateDoc(doc(db, 'bookings', bookingToRemove.id), {
+    const toRemove = bookingToRemove;
+    const prevBookings = bookings;
+
+    // 1. Actualización optimista inmediata (0 ms)
+    setBookings((prev) => prev.filter((b) => b.id !== toRemove.id));
+    setBookingToRemove(null);
+
+    // 2. Persistencia en background
+    const capRef = doc(db, 'class_capacity', `cap_${selectedScheduleId}_${selectedDateStr}`);
+    Promise.all([
+      updateDoc(doc(db, 'bookings', toRemove.id), {
         status: 'CANCELLED',
         cancelledAt: serverTimestamp(),
-      });
-
-      const capRef = doc(db, 'class_capacity', `cap_${selectedScheduleId}_${selectedDateStr}`);
-      await setDoc(
+      }),
+      setDoc(
         capRef,
         {
           scheduleId: selectedScheduleId,
@@ -467,15 +523,11 @@ export const AttendanceAdminPage: React.FC = () => {
           updatedAt: serverTimestamp(),
         },
         { merge: true }
-      );
-
-      setBookingToRemove(null);
-      await fetchClassBookings();
-    } catch (err: unknown) {
-      console.error('Error eliminando reserva:', err);
-    } finally {
-      setActionLoading(null);
-    }
+      ),
+    ]).catch((err) => {
+      console.error('Error eliminando reserva en base de datos:', err);
+      setBookings(prevBookings);
+    });
   };
 
   // Cargar datos para el informe mensual y graduaciones
