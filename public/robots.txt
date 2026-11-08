@@ -18,3 +18,4 @@ Disallow: /api/*
 
 # Mapa del sitio oficial
 Sitemap: https://247studio.netlify.app/sitemap.xml
+
