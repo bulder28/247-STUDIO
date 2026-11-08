@@ -8,7 +8,9 @@ import {
   CheckCircle2,
   ChevronRight,
   Flame,
+  MapPin,
   QrCode,
+  ShieldCheck,
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -308,6 +310,64 @@ export const HomePage: React.FC = () => {
 
       {activeTab === 'academia' ? (
         <>
+          {/* Pase de Clase de Prueba Activo estilo Madrid Deportes */}
+          {userData.accountStatus === 'TRIAL' && (
+            <div className="rounded-3xl border-2 border-brand-accent/30 bg-gradient-to-br from-white via-amber-50/40 to-white p-5 sm:p-7 shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-brand-accent/5 rounded-full blur-3xl pointer-events-none" />
+              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 relative z-10">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-accent/15 text-brand-accent text-xs font-headline font-bold uppercase tracking-wider">
+                    <span>🥋</span> Pase de Clase de Prueba Activo
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-headline uppercase text-slate-900 tracking-tight">
+                    ¡Bienvenido a 247Studio, {userData.alias}!
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-600">
+                    Tu plaza para la sesión de prueba está confirmada. Ya puedes usar tu pase QR en recepción.
+                  </p>
+                </div>
+
+                <Button
+                  onClick={() => setShowQrModal(true)}
+                  className="cta-button py-3 px-5 text-xs sm:text-sm shadow-md shrink-0 cursor-pointer"
+                >
+                  <QrCode className="w-4 h-4 mr-2" />
+                  <span>Ver Pase QR para Kiosco</span>
+                </Button>
+              </div>
+
+              {/* Fila informativa */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-200/80 relative z-10 text-xs text-slate-700">
+                <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/80 border border-slate-200/60 shadow-xs">
+                  <Calendar className="w-4 h-4 text-brand-accent shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-slate-900 block">Horario Reservado:</span>
+                    <span className="text-slate-700">{userData.trialScheduleDetails || 'Consulta la parrilla de horarios'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/80 border border-slate-200/60 shadow-xs">
+                  <MapPin className="w-4 h-4 text-brand-accent shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-slate-900 block">Sede Pinto (Madrid):</span>
+                    <span className="text-slate-700">c/ Sisones 2, Nave 30 (28320 Pinto)</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-white/80 border border-slate-200/60 shadow-xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-slate-900 block">Ficha en Recepción:</span>
+                    <span className="text-[11px] text-slate-600 leading-snug block">
+                      Al llegar a la nave, Mario o David completarán tu ficha definitiva de alumno (DNI y seguro deportivo).
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ======================================================== */}
           {/* 2. BENTO GRID: PRÓXIMAS CLASES & RADAR DE SOCIO           */}
           {/* ======================================================== */}

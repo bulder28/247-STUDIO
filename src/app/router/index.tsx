@@ -157,8 +157,8 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // Ruta /registro eliminada: redirige a la raíz /
-  { path: '/registro', element: <Navigate to="/" replace /> },
+  // Ruta /registro redirige al flujo de reserva y activación de prueba estilo Madrid Deportes
+  { path: '/registro', element: <Navigate to="/reserva-prueba" replace /> },
 
   // App privada del Alumno (AppLayout con bottom-nav móvil)
   {

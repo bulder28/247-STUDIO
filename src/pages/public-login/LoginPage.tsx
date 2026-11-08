@@ -428,10 +428,10 @@ export const LoginPage: React.FC = () => {
           </form>
 
           <div className="mt-8 pt-4 border-t border-brand-text/10 space-y-2 text-center text-xs">
-            <p>
-              ¿Aún no eres alumno?{' '}
-              <Link to="/reserva-prueba" className="font-bold text-brand-accent hover:underline">
-                Reserva tu clase de prueba gratuita
+            <p className="text-xs text-brand-text/80">
+              ¿No tienes cuenta todavía?{' '}
+              <Link to="/reserva-prueba" className="font-bold text-brand-accent hover:underline block sm:inline mt-0.5">
+                Reserva tu clase de prueba y activa tu acceso →
               </Link>
             </p>
             <p>

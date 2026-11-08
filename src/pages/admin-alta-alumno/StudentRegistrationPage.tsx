@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import {
   AlertCircle,
   ArrowLeft,
@@ -96,7 +96,23 @@ export const StudentRegistrationPage: React.FC = () => {
         throw new Error('Para atletas menores de 16 años es obligatorio registrar el tutor legal (nombre y teléfono).');
       }
 
-      const uid = `usr_${Date.now()}`;
+      // Resolver UID existente (por ejemplo si ya se registró para clase de prueba en la web)
+      let uid = searchParams.get('uid') || locationState.uid || '';
+      if (!uid && formData.contactEmail?.trim()) {
+        try {
+          const cleanEmail = formData.contactEmail.trim().toLowerCase();
+          const qEmail = query(collection(db, 'users'), where('authEmail', '==', cleanEmail));
+          const snapEmail = await getDocs(qEmail);
+          if (!snapEmail.empty) {
+            uid = snapEmail.docs[0].id;
+          }
+        } catch (searchErr) {
+          console.warn('Aviso buscando UID de usuario previo por email:', searchErr);
+        }
+      }
+      if (!uid) {
+        uid = `usr_${Date.now()}`;
+      }
       const adminUid = adminAuthUser?.uid || 'admin_presencial';
 
       // 1. Guardar documento maestro en users/{uid}

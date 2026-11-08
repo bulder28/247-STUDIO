@@ -5,7 +5,7 @@
 
 export type Role = 'student' | 'admin' | 'kiosk';
 
-export type AccountStatus = 'PENDING' | 'ACTIVE' | 'PAUSED' | 'FROZEN' | 'SUSPENDED' | 'INACTIVE';
+export type AccountStatus = 'PENDING' | 'ACTIVE' | 'PAUSED' | 'FROZEN' | 'SUSPENDED' | 'INACTIVE' | 'TRIAL';
 
 export type BeltSystem = 'ADULT' | 'KIDS';
 
@@ -87,6 +87,9 @@ export interface UserDomainModel {
   waiverSignatureSvg?: string;
   waiverSignedByUid?: string;
   photoUrl?: string;
+  trialScheduleId?: string;
+  trialScheduleDetails?: string;
+  trialStatus?: 'CONFIRMED' | 'ATTENDED' | 'CANCELLED';
   permissions: string[];
   retentionRiskCache?: RetentionRisk;
   createdAt: string;
