@@ -145,6 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
+        setLoading(true);
         setUser(firebaseUser);
         if (firebaseUser) {
           setProfileMissing(null);
