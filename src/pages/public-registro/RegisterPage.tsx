@@ -13,13 +13,6 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { auth, db } from '@/shared/api/firebase';
 import { isLegalMinor } from '@/shared/domain/minor';
 
-function isMobileDevice(): boolean {
-  if (typeof window === 'undefined') return false;
-  const ua = (navigator.userAgent || '').toLowerCase();
-  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  return /android|iphone|ipad|ipod|mobile/i.test(ua) || (isTouch && window.innerWidth <= 768);
-}
-
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, role, profileMissing, loading: authLoading, refreshProfile } = useAuth();
@@ -71,21 +64,22 @@ export const RegisterPage: React.FC = () => {
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      if (isMobileDevice()) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
+      
       try {
         await signInWithPopup(auth, provider);
-      } catch (popupErr) {
+      } catch (popupErr: unknown) {
         const code = (popupErr as { code?: string })?.code;
-        if (code === 'auth/popup-blocked' || code === 'auth/internal-error') {
+        if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
           await signInWithRedirect(auth, provider);
+          return;
+        }
+        if (code === 'auth/popup-closed-by-user') {
+          setLoading(false);
           return;
         }
         throw popupErr;
       }
-    } catch (err) {
+    } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
       if (code === 'auth/unauthorized-domain') {
         setError(`El dominio "${window.location.hostname}" no está autorizado en Firebase Authentication.`);

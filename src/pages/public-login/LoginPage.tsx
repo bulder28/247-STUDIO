@@ -78,7 +78,8 @@ export const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [emailSubmitting, setEmailSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Estado para modal de recuperación de contraseña
@@ -180,7 +181,7 @@ export const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSubmitting(true);
+    setEmailSubmitting(true);
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -193,63 +194,67 @@ export const LoginPage: React.FC = () => {
       console.error(err);
       setError('Credenciales no válidas o error de conexión. Verifica tu email y contraseña.');
     } finally {
-      setSubmitting(false);
+      setEmailSubmitting(false);
     }
   };
 
-  const handleGoogleSignIn = async (useRedirectFallback = false) => {
+  const handleGoogleSignIn = async (forceRedirect = false) => {
     setError(null);
-    setSubmitting(true);
+    setGoogleSubmitting(true);
 
-    try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
 
-      // En dispositivos móviles (smartphones/tablets iOS y Android):
-      // signInWithRedirect es el método nativo oficial recomendado por Google porque
-      // los navegadores móviles (Safari/Chrome/PWA) bloquean ventanas emergentes o cortan postMessage.
-      if (useRedirectFallback || isMobileDevice()) {
+    // 1. Si el usuario solicita explícitamente redirección completa
+    if (forceRedirect) {
+      try {
         await signInWithRedirect(auth, provider);
+      } catch (redirErr) {
+        console.error('Error en signInWithRedirect:', redirErr);
+        setError('No se pudo redirigir con Google. Inténtalo de nuevo.');
+        setGoogleSubmitting(false);
+      }
+      return;
+    }
+
+    // 2. Intentar popup primero (funciona de forma fluida tanto en escritorio como en móviles Safari/Chrome)
+    try {
+      const userCredential = await signInWithPopup(auth, provider);
+      const tokenResult = await userCredential.user.getIdTokenResult(true).catch(() => null);
+      const userRole = (tokenResult?.claims?.role as Role) || 'student';
+
+      const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
+      navigate(destination, { replace: true });
+    } catch (popupErr: unknown) {
+      const fbErr = popupErr as { code?: string; message?: string };
+      console.warn('Aviso en popup de Google:', fbErr?.code, fbErr?.message);
+
+      // Si el navegador bloqueó la ventana emergente, cambiamos limpiamente a redirección
+      if (fbErr?.code === 'auth/popup-blocked' || fbErr?.code === 'auth/cancelled-popup-request') {
+        try {
+          await signInWithRedirect(auth, provider);
+        } catch (redirErr) {
+          setError('Ventana emergente bloqueada. Toca abajo para entrar por redirección.');
+          setGoogleSubmitting(false);
+        }
         return;
       }
 
-      // En ordenadores de escritorio (pantallas no táctiles / desktop):
-      // Probamos primero signInWithPopup para no recargar la página.
-      try {
-        const userCredential = await signInWithPopup(auth, provider);
-        const tokenResult = await userCredential.user.getIdTokenResult(true).catch(() => null);
-        const userRole = (tokenResult?.claims?.role as Role) || 'student';
+      // Si el usuario cerró voluntariamente la ventana de Google, simplemente cancelamos sin error alarmante
+      if (fbErr?.code === 'auth/popup-closed-by-user') {
+        setGoogleSubmitting(false);
+        return;
+      }
 
-        const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, false);
-        navigate(destination, { replace: true });
-      } catch (popupErr: unknown) {
-        const fbErr = popupErr as { code?: string; message?: string };
-        if (
-          fbErr?.code === 'auth/popup-blocked' ||
-          fbErr?.code === 'auth/cancelled-popup-request' ||
-          fbErr?.code === 'auth/popup-closed-by-user' ||
-          fbErr?.code === 'auth/internal-error'
-        ) {
-          console.warn('Popup no disponible en este entorno, cambiando a redirección completa...');
-          await signInWithRedirect(auth, provider);
-          return;
-        }
-        throw popupErr;
-      }
-    } catch (err: unknown) {
-      console.error('Error en autenticación Google:', err);
-      const firebaseError = err as { code?: string; message?: string };
-      if (firebaseError?.code === 'auth/unauthorized-domain') {
+      if (fbErr?.code === 'auth/unauthorized-domain') {
         const currentDomain = typeof window !== 'undefined' ? window.location.hostname : '247studio.netlify.app';
-        setError(`El dominio "${currentDomain}" debe agregarse a "Dominios autorizados" en la consola de Firebase Authentication.`);
-      } else if (firebaseError?.code === 'auth/operation-not-allowed') {
+        setError(`El dominio "${currentDomain}" debe agregarse a "Dominios autorizados" en Firebase.`);
+      } else if (fbErr?.code === 'auth/operation-not-allowed') {
         setError('El proveedor Google no está habilitado en Authentication de Firebase.');
-      } else if (firebaseError?.code === 'auth/popup-closed-by-user') {
-        setError('Acceso cancelado: se cerró la ventana de Google antes de finalizar.');
       } else {
-        setError(`No se pudo completar el acceso con Google (${firebaseError?.code || firebaseError?.message || 'error de conexión'}). Puedes usar tu contraseña o el acceso directo.`);
+        setError(`No se pudo completar el acceso con Google (${fbErr?.code || fbErr?.message || 'error de conexión'}).`);
       }
-      setSubmitting(false);
+      setGoogleSubmitting(false);
     }
   };
 
@@ -357,7 +362,7 @@ export const LoginPage: React.FC = () => {
           <button
             type="button"
             onClick={() => handleGoogleSignIn(false)}
-            disabled={submitting}
+            disabled={googleSubmitting || emailSubmitting}
             className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl border border-brand-text/20 bg-white py-3 text-sm font-bold text-brand-text hover:bg-brand-text/5 transition disabled:opacity-50 shadow-sm cursor-pointer"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
@@ -366,7 +371,7 @@ export const LoginPage: React.FC = () => {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
             </svg>
-            {submitting ? 'Conectando con Google…' : 'Continuar con Google'}
+            {googleSubmitting ? 'Conectando con Google…' : 'Continuar con Google'}
           </button>
 
           {/* Opción secundaria si el navegador móvil tiene bloqueo estricto */}
@@ -374,7 +379,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleGoogleSignIn(true)}
-              disabled={submitting}
+              disabled={googleSubmitting || emailSubmitting}
               className="text-[11px] text-brand-text/60 hover:text-brand-text hover:underline font-bold cursor-pointer block w-full"
             >
               ¿Tu móvil bloquea ventanas emergentes? Toca aquí para entrar por redirección completa
@@ -441,10 +446,10 @@ export const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={emailSubmitting || googleSubmitting}
               className="cta-button w-full py-3.5 text-base mt-2"
             >
-              {submitting ? 'Verificando…' : 'Entrar a mi Panel'}
+              {emailSubmitting ? 'Verificando…' : 'Entrar a mi Panel'}
             </button>
           </form>
 
