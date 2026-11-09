@@ -33,6 +33,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
+import { getLiveDocs } from '@/shared/api/liveReads';
 import { triggerPromotionConfetti } from '@/shared/utils/confetti';
 import { generateGraduationDiplomaPdf } from '@/shared/utils/diplomaGenerator';
 import { downloadAttendanceSheetPdf } from '@/shared/utils/attendanceSheetGenerator';
@@ -140,8 +141,8 @@ export const AttendanceAdminPage: React.FC = () => {
     const fetchStudents = async () => {
       try {
         const [uSnap, kSnap] = await Promise.all([
-          getDocs(collection(db, 'users')),
-          getDocs(collection(db, 'kiosk_members')),
+          getLiveDocs('users', collection(db, 'users')),
+          getLiveDocs('kiosk_members', collection(db, 'kiosk_members')),
         ]);
         const map: Record<string, StudentDirectoryItem> = {};
         uSnap.forEach((d) => {
@@ -206,7 +207,7 @@ export const AttendanceAdminPage: React.FC = () => {
   useEffect(() => {
     const fetchSchedules = async () => {
       try {
-        const sSnap = await getDocs(query(collection(db, 'schedules'), where('active', '==', true)));
+        const sSnap = await getLiveDocs('schedules:active', query(collection(db, 'schedules'), where('active', '==', true)));
         const list: ScheduleDomainModel[] = [];
         sSnap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) }));
         const effectiveList = list.length > 0 ? list : DEFAULT_OFFICIAL_SCHEDULES;

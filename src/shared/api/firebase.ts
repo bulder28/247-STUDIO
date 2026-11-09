@@ -3,6 +3,7 @@ import { connectAuthEmulator, getAuth } from 'firebase/auth';
 import {
   connectFirestoreEmulator,
   getFirestore,
+  initializeFirestore,
 } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -16,7 +17,16 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Auto-detecta si la conexión en streaming de Firestore está bloqueada (antivirus, proxies, extensiones)
+// y cambia sola a long-polling, evitando el "client is offline" que dejaba la app esperando.
+function createDb() {
+  try {
+    return initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+  } catch {
+    return getFirestore(app);
+  }
+}
+export const db = createDb();
 
 // Conexión a Emuladores locales si VITE_USE_EMULATORS es true
 if (import.meta.env.VITE_USE_EMULATORS === 'true') {

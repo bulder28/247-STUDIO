@@ -16,7 +16,7 @@ import {
   ScheduleExceptionDomainModel,
   BookingDomainModel,
 } from '@/shared/domain/types';
-import { DEFAULT_OFFICIAL_SCHEDULES } from '@/shared/domain/schedule';
+import { DEFAULT_OFFICIAL_SCHEDULES, getMadridTimeComponents } from '@/shared/domain/schedule';
 
 export interface ScheduleDataResult {
   schedules: ScheduleDomainModel[];
@@ -38,7 +38,9 @@ export function useScheduleData(uid?: string) {
       const bQuery = uid
         ? query(collection(db, 'bookings'), where('uid', '==', uid))
         : null;
-      const capQuery = collection(db, 'class_capacity');
+      // Solo aforos de los últimos 7 días en adelante: la colección crece cada día y no hace falta leerla entera
+      const capSince = getMadridTimeComponents(new Date(Date.now() - 7 * 86400000)).dateStr;
+      const capQuery = query(collection(db, 'class_capacity'), where('date', '>=', capSince));
 
       const [schedSnap, excSnap, bSnap, capSnap] = await Promise.all([
         getDocs(schedQuery),

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { prefetchRoutes } from '@/app/router/prefetch';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   CalendarDays,
@@ -28,6 +29,10 @@ export const AdminLayout: React.FC = () => {
   const { logout, role } = useAuth();
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    prefetchRoutes('admin');
+  }, []);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<'EXPANDED' | 'MINI' | 'CLOSED'>(() => {

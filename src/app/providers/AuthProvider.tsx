@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/shared/api/firebase';
+import { resetLiveReads } from '@/shared/api/liveReads';
 import { Role, UserDomainModel } from '@/shared/domain/types';
 
 interface AuthContextType {
@@ -147,6 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         setLoading(true);
         setUser(firebaseUser);
+        resetLiveReads();
         if (firebaseUser) {
           setProfileMissing(null);
           await fetchProfile(firebaseUser);
@@ -183,6 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       console.warn('Error en signOut:', e);
     } finally {
+      resetLiveReads();
       setUser(null);
       setRole(null);
       setUserData(null);

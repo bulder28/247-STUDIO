@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { ChevronRight, QrCode } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
+import { getLiveDocs } from '@/shared/api/liveReads';
+import { useScheduleData } from '@/shared/hooks/useScheduleQueries';
 import { derivePaymentStatus } from '@/shared/domain/payment-status';
 import {
   DEFAULT_OFFICIAL_SCHEDULES,
@@ -39,11 +41,15 @@ function formatClassDay(dateStr: string, todayStr: string): string {
 export const HomePage: React.FC = () => {
   const { user, userData } = useAuth();
   const [derivedStatus, setDerivedStatus] = useState<DerivedPaymentStatus>('GRACE');
-  const [schedules, setSchedules] = useState<ScheduleDomainModel[]>([]);
-  const [exceptions, setExceptions] = useState<ScheduleExceptionDomainModel[]>([]);
-  const [bookings, setBookings] = useState<BookingDomainModel[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(true);
   const [showQrModal, setShowQrModal] = useState(false);
-  const [loading, setLoading] = useState(true);
+
+  // Mismos datos (y misma caché) que la pestaña "Clases": al saltar entre ambas no se vuelve a descargar nada
+  const { data: scheduleData, isLoading: scheduleLoading } = useScheduleData(user?.uid);
+  const schedules: ScheduleDomainModel[] = scheduleData?.schedules ?? DEFAULT_OFFICIAL_SCHEDULES;
+  const exceptions: ScheduleExceptionDomainModel[] = scheduleData?.exceptions ?? [];
+  const bookings: BookingDomainModel[] = scheduleData?.myBookings ?? [];
+  const loading = scheduleLoading || paymentsLoading;
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -54,82 +60,39 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
+    if (!user) return;
 
-    const fetchAllData = async () => {
+    const loadPayments = async () => {
       try {
-        if (!user) return;
-
-        // 1. Obtener pagos del alumno para calcular estado derivado
-        const paymentsSnap = await getDocs(
+        const paymentsSnap = await getLiveDocs(
+          `payments:${user.uid}`,
           query(collection(db, 'payments'), where('uid', '==', user.uid))
         );
         const paymentsList: any[] = [];
-        paymentsSnap.forEach((doc) => paymentsList.push({ id: doc.id, ...doc.data() }));
-
+        paymentsSnap.forEach((d) => paymentsList.push({ id: d.id, ...d.data() }));
         if (isMounted) {
-          const status = derivePaymentStatus({
-            billingType: 'MONTHLY',
-            payments: paymentsList,
-            bookings: [],
-            freezes: [],
-            now: new Date(),
-          });
-          setDerivedStatus(status);
-        }
-
-        // 2. Horarios oficiales de Firestore (con fallback)
-        try {
-          const schedSnap = await getDocs(collection(db, 'schedules'));
-          const schedList: ScheduleDomainModel[] = [];
-          schedSnap.forEach((doc) => {
-            const data = doc.data() as ScheduleDomainModel;
-            schedList.push({ ...data, id: doc.id });
-          });
-          if (isMounted) {
-            setSchedules(schedList.length > 0 ? schedList : DEFAULT_OFFICIAL_SCHEDULES);
-          }
-        } catch {
-          if (isMounted) setSchedules(DEFAULT_OFFICIAL_SCHEDULES);
-        }
-
-        // 3. Excepciones de horario activas
-        try {
-          const excSnap = await getDocs(collection(db, 'schedule_exceptions'));
-          const excList: ScheduleExceptionDomainModel[] = [];
-          excSnap.forEach((doc) => {
-            excList.push({ id: doc.id, ...(doc.data() as Omit<ScheduleExceptionDomainModel, 'id'>) });
-          });
-          if (isMounted) setExceptions(excList);
-        } catch {
-          // Ignorar si la colección no existe aún
-        }
-
-        // 4. Reservas del usuario
-        try {
-          const bookingsSnap = await getDocs(
-            query(collection(db, 'bookings'), where('uid', '==', user.uid))
+          setDerivedStatus(
+            derivePaymentStatus({
+              billingType: 'MONTHLY',
+              payments: paymentsList,
+              bookings: [],
+              freezes: [],
+              now: new Date(),
+            })
           );
-          const bookingsList: BookingDomainModel[] = [];
-          bookingsSnap.forEach((doc) => {
-            bookingsList.push({ id: doc.id, ...(doc.data() as Omit<BookingDomainModel, 'id'>) });
-          });
-          if (isMounted) setBookings(bookingsList);
-        } catch {
-          // Ignorar si falla lectura
         }
       } catch (err) {
-        console.error('Error fetching home dashboard data:', err);
+        console.error('Error leyendo pagos del alumno:', err);
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) setPaymentsLoading(false);
       }
     };
 
-    fetchAllData();
-
+    loadPayments();
     return () => {
       isMounted = false;
     };
-  }, [user, userData]);
+  }, [user]);
 
   if (loading || !userData) {
     return (

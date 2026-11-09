@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   collection,
   doc,
-  getDocs,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
+import { getLiveDocs } from '@/shared/api/liveReads';
 import { calculateVatBreakdown } from '@/shared/domain/money';
 import { getMadridYearMonth } from '@/shared/domain/payment-status';
 import { downloadReceiptPdf } from '@/shared/utils/receiptGenerator';
@@ -79,9 +79,9 @@ export const CajaPage: React.FC = () => {
   const fetchCajaData = async () => {
     try {
       const [paySnap, uSnap, frSnap] = await Promise.all([
-        getDocs(collection(db, 'payments')),
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'freezeRequests')),
+        getLiveDocs('payments', collection(db, 'payments')),
+        getLiveDocs('users', collection(db, 'users')),
+        getLiveDocs('freezeRequests', collection(db, 'freezeRequests')),
       ]);
 
       const pList: PaymentDomainModel[] = [];

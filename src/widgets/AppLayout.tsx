@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { prefetchRoutes } from '@/app/router/prefetch';
 import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
 import {
   Activity,
@@ -62,6 +63,10 @@ export const AppLayout: React.FC = () => {
   const { userData, role, logout } = useAuth();
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    prefetchRoutes('student');
+  }, []);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [todayBookingSummary, setTodayBookingSummary] = useState<string | undefined>(undefined);

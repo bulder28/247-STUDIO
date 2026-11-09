@@ -33,6 +33,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { auth, db } from '@/shared/api/firebase';
+import { getLiveDocs, invalidateLiveDocs } from '@/shared/api/liveReads';
 import { deriveRetentionRisk } from '@/shared/domain/attendance';
 import { calculateExactAge, isLegalMinor } from '@/shared/domain/minor';
 import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
@@ -191,10 +192,10 @@ export const PersonalPage: React.FC = () => {
       const minDateStr = sixtyDaysAgo.toISOString().slice(0, 10);
 
       const [usersSnap, leadsSnap, bookingsSnap, paymentsSnap] = await Promise.all([
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'leads')),
+        getLiveDocs('users', collection(db, 'users')),
+        getLiveDocs('leads', collection(db, 'leads')),
         getDocs(query(collection(db, 'bookings'), where('date', '>=', minDateStr))),
-        getDocs(collection(db, 'payments')),
+        getLiveDocs('payments', collection(db, 'payments')),
       ]);
 
       const uList: UserDomainModel[] = [];
@@ -691,6 +692,7 @@ export const PersonalPage: React.FC = () => {
           }),
         });
         const data = await res.json().catch(() => ({}));
+        invalidateLiveDocs(['users', 'kiosk_members']);
         if (!res.ok || !data?.uid) {
           throw new Error(data?.error || `Error ${res.status} al crear la cuenta.`);
         }

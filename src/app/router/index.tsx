@@ -92,8 +92,8 @@ const LazyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <RootErrorBoundary>
     <Suspense
       fallback={
-        <div className="min-h-screen bg-studio-navy flex items-center justify-center">
-          <div className="w-8 h-8 border-3 border-studio-red border-t-transparent rounded-full animate-spin" />
+        <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-label="Cargando">
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-studio-red border-t-transparent" />
         </div>
       }
     >

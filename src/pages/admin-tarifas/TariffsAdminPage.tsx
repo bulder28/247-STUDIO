@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   collection,
   doc,
-  getDocs,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
@@ -13,6 +12,7 @@ import {
   Users,
 } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
+import { getLiveDocs } from '@/shared/api/liveReads';
 import { calculateVatBreakdown } from '@/shared/domain/money';
 import {
   BillingType,
@@ -110,8 +110,8 @@ export const TariffsAdminPage: React.FC = () => {
   const fetchTariffsAndUsers = async () => {
     try {
       const [tariffSnap, userSnap] = await Promise.all([
-        getDocs(collection(db, 'tariffs')),
-        getDocs(collection(db, 'users')),
+        getLiveDocs('tariffs', collection(db, 'tariffs')),
+        getLiveDocs('users', collection(db, 'users')),
       ]);
 
       const tList: TariffDomainModel[] = [];

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   collection,
   doc,
-  getDocs,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -18,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
+import { getLiveDocs } from '@/shared/api/liveReads';
 import { Button } from '@/shared/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
@@ -62,7 +62,7 @@ export const LeadsAdminPage: React.FC = () => {
 
   const fetchLeads = async () => {
     try {
-      const snap = await getDocs(collection(db, 'leads'));
+      const snap = await getLiveDocs('leads', collection(db, 'leads'));
       const list: LeadModel[] = [];
       snap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<LeadModel, 'id'>) }));
       list.sort((a, b) => {

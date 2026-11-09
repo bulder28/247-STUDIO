@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   collection,
   doc,
-  getDocs,
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { auth, db } from '@/shared/api/firebase';
+import { getLiveDocs, invalidateLiveDocs } from '@/shared/api/liveReads';
 import { Role } from '@/shared/domain/types';
 
 interface StaffUser {
@@ -70,7 +70,7 @@ export const RolesAdminPage: React.FC = () => {
       // 1. Carga inmediata y resiliente desde Firestore (siempre disponible)
       let firestoreUsers: StaffUser[] = [];
       try {
-        const snap = await getDocs(collection(db, 'users'));
+        const snap = await getLiveDocs('users', collection(db, 'users'));
         firestoreUsers = snap.docs.map((d) => {
           const data = d.data();
           const permissions: string[] = Array.isArray(data.permissions) ? data.permissions : [];
@@ -109,6 +109,7 @@ export const RolesAdminPage: React.FC = () => {
 
           if (res.ok) {
             const data = await res.json();
+            invalidateLiveDocs(['users', 'kiosk_members']);
             if (Array.isArray(data.users) && data.users.length > 0) {
               const netlifyUsers: StaffUser[] = data.users;
               const map = new Map<string, StaffUser>();
@@ -201,6 +202,7 @@ export const RolesAdminPage: React.FC = () => {
 
         if (!res.ok) {
           const errJson = await res.json().catch(() => ({}));
+          invalidateLiveDocs(['users', 'kiosk_members']);
           console.warn('Aviso sincronizando claim en Auth:', errJson.error || res.status);
         }
       }
@@ -239,6 +241,7 @@ export const RolesAdminPage: React.FC = () => {
       });
 
       const data = await res.json();
+      invalidateLiveDocs(['users', 'kiosk_members']);
       if (!res.ok) {
         throw new Error(data.error || `HTTP ${res.status}`);
       }

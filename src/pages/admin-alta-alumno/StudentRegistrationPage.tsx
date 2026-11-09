@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
+import { invalidateLiveDocs } from '@/shared/api/liveReads';
 import { calculateExactAge, isLegalMinor } from '@/shared/domain/minor';
 import { Belt, BeltSystem, PricingTier } from '@/shared/domain/types';
 
@@ -125,6 +126,7 @@ export const StudentRegistrationPage: React.FC = () => {
               emergencyContactPhone: formData.emergencyContactPhone,
             }),
           });
+          invalidateLiveDocs(['users', 'kiosk_members']);
 
           if (res.ok) {
             const data = await res.json();

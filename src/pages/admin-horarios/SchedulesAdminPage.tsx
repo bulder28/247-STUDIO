@@ -3,7 +3,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -35,6 +34,7 @@ import {
 import { motion } from 'framer-motion';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
+import { getLiveDocs } from '@/shared/api/liveReads';
 import {
   calculateScheduleDurationMinutes,
   calculateWeeklyStats,
@@ -185,14 +185,14 @@ export const SchedulesAdminPage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const sSnap = await getDocs(collection(db, 'schedules'));
+      const sSnap = await getLiveDocs('schedules', collection(db, 'schedules'));
       const sList: ScheduleDomainModel[] = [];
       sSnap.forEach((d) => sList.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) }));
 
       // Si la colección está vacía, usar el horario oficial como base visible
       setSchedules(sList.length > 0 ? sList : DEFAULT_OFFICIAL_SCHEDULES);
 
-      const eSnap = await getDocs(collection(db, 'scheduleExceptions'));
+      const eSnap = await getLiveDocs('scheduleExceptions', collection(db, 'scheduleExceptions'));
       const eList: ScheduleExceptionDomainModel[] = [];
       eSnap.forEach((d) => eList.push({ id: d.id, ...(d.data() as Omit<ScheduleExceptionDomainModel, 'id'>) }));
       setExceptions(eList);
