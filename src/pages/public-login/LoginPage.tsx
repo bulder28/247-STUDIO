@@ -1,12 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  getRedirectResult,
-  GoogleAuthProvider,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  signInWithPopup,
-  signInWithRedirect,
 } from 'firebase/auth';
 import { CheckCircle2, KeyRound, Mail, X } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
@@ -65,12 +61,6 @@ export function isMobileDevice(): boolean {
   return isMobileUA || (isTouch && window.innerWidth <= 768);
 }
 
-export function isInAppBrowser(): boolean {
-  if (typeof window === 'undefined') return false;
-  const ua = (navigator.userAgent || navigator.vendor || '').toLowerCase();
-  return /fban|fbav|instagram|whatsapp|line|micromessenger/i.test(ua);
-}
-
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -79,7 +69,6 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailSubmitting, setEmailSubmitting] = useState(false);
-  const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Estado para modal de recuperación de contraseña
@@ -88,57 +77,9 @@ export const LoginPage: React.FC = () => {
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
-  const [copiedInApp, setCopiedInApp] = useState(false);
 
   const searchParams = new URLSearchParams(location.search);
   const redirectParam = searchParams.get('redirect');
-
-  // Procesar resultado de redirección de Google al volver en móvil
-  useEffect(() => {
-    let isMounted = true;
-    const processRedirect = async () => {
-      try {
-        // En móviles esperamos la resolución del token sin cancelarlo prematuramente
-        const redirectPromise = getRedirectResult(auth).catch((err) => {
-          console.warn('getRedirectResult notice:', err);
-          return null;
-        });
-        const timeoutRedirect = new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000));
-        const result = await Promise.race([redirectPromise, timeoutRedirect]);
-
-        if (result && result.user && isMounted) {
-          const tokenResult = await result.user.getIdTokenResult(true).catch(() => null);
-          const userRole = (tokenResult?.claims?.role as Role) || 'student';
-          const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
-          navigate(destination, { replace: true });
-          return;
-        }
-
-        // Si getRedirectResult es null, comprobar si auth.currentUser ya está activo en memoria o local storage
-        const currentFirebaseUser = auth.currentUser;
-        if (currentFirebaseUser && isMounted) {
-          const tokenResult = await currentFirebaseUser.getIdTokenResult(true).catch(() => null);
-          const userRole = (tokenResult?.claims?.role as Role) || 'student';
-          const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
-          navigate(destination, { replace: true });
-        }
-      } catch (err: unknown) {
-        if (!isMounted) return;
-        console.error('Error procesando signInWithRedirect de Google:', err);
-        const firebaseError = err as { code?: string; message?: string };
-        if (firebaseError?.code === 'auth/unauthorized-domain') {
-          const currentDomain = typeof window !== 'undefined' ? window.location.hostname : '247studio.netlify.app';
-          setError(`El dominio "${currentDomain}" debe agregarse a "Dominios autorizados" en Firebase.`);
-        } else if (firebaseError?.code) {
-          setError(`Error en autenticación Google (${firebaseError.code}).`);
-        }
-      }
-    };
-    processRedirect();
-    return () => {
-      isMounted = false;
-    };
-  }, [redirectParam, navigate]);
 
   // Guarda: Si el usuario ya está autenticado, redirigir automáticamente
   useEffect(() => {
@@ -195,66 +136,6 @@ export const LoginPage: React.FC = () => {
       setError('Credenciales no válidas o error de conexión. Verifica tu email y contraseña.');
     } finally {
       setEmailSubmitting(false);
-    }
-  };
-
-  const handleGoogleSignIn = async (forceRedirect = false) => {
-    setError(null);
-    setGoogleSubmitting(true);
-
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-
-    // 1. Si el usuario solicita explícitamente redirección completa
-    if (forceRedirect) {
-      try {
-        await signInWithRedirect(auth, provider);
-      } catch (redirErr) {
-        console.error('Error en signInWithRedirect:', redirErr);
-        setError('No se pudo redirigir con Google. Inténtalo de nuevo.');
-        setGoogleSubmitting(false);
-      }
-      return;
-    }
-
-    // 2. Intentar popup primero (funciona de forma fluida tanto en escritorio como en móviles Safari/Chrome)
-    try {
-      const userCredential = await signInWithPopup(auth, provider);
-      const tokenResult = await userCredential.user.getIdTokenResult(true).catch(() => null);
-      const userRole = (tokenResult?.claims?.role as Role) || 'student';
-
-      const destination = getSafeRedirect(redirectParam, userRole) || getDefaultHomeByRole(userRole, isMobileDevice());
-      navigate(destination, { replace: true });
-    } catch (popupErr: unknown) {
-      const fbErr = popupErr as { code?: string; message?: string };
-      console.warn('Aviso en popup de Google:', fbErr?.code, fbErr?.message);
-
-      // Si el navegador bloqueó la ventana emergente, cambiamos limpiamente a redirección
-      if (fbErr?.code === 'auth/popup-blocked' || fbErr?.code === 'auth/cancelled-popup-request') {
-        try {
-          await signInWithRedirect(auth, provider);
-        } catch (redirErr) {
-          setError('Ventana emergente bloqueada. Toca abajo para entrar por redirección.');
-          setGoogleSubmitting(false);
-        }
-        return;
-      }
-
-      // Si el usuario cerró voluntariamente la ventana de Google, simplemente cancelamos sin error alarmante
-      if (fbErr?.code === 'auth/popup-closed-by-user') {
-        setGoogleSubmitting(false);
-        return;
-      }
-
-      if (fbErr?.code === 'auth/unauthorized-domain') {
-        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : '247studio.netlify.app';
-        setError(`El dominio "${currentDomain}" debe agregarse a "Dominios autorizados" en Firebase.`);
-      } else if (fbErr?.code === 'auth/operation-not-allowed') {
-        setError('El proveedor Google no está habilitado en Authentication de Firebase.');
-      } else {
-        setError(`No se pudo completar el acceso con Google (${fbErr?.code || fbErr?.message || 'error de conexión'}).`);
-      }
-      setGoogleSubmitting(false);
     }
   };
 
@@ -332,67 +213,7 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {isInAppBrowser() && (
-            <div className="mt-4 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex flex-col gap-2">
-              <div className="flex items-start gap-2.5">
-                <span className="text-base shrink-0">💡</span>
-                <div className="space-y-0.5">
-                  <p className="font-bold">Navegador integrado detectado (WhatsApp / Instagram)</p>
-                  <p className="text-[11px] text-amber-800">
-                    Google bloquea accesos directos dentro de redes sociales por seguridad. Toca los <strong>3 puntos (⋮)</strong> y elige <strong>"Abrir en Chrome"</strong> o <strong>"Abrir en Safari"</strong>.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                    navigator.clipboard.writeText(window.location.href);
-                    setCopiedInApp(true);
-                    setTimeout(() => setCopiedInApp(false), 3000);
-                  }
-                }}
-                className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition cursor-pointer text-center"
-              >
-                {copiedInApp ? '¡Enlace copiado! Pégalo en Chrome o Safari' : 'Copiar enlace para abrir en Chrome / Safari'}
-              </button>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => handleGoogleSignIn(false)}
-            disabled={googleSubmitting || emailSubmitting}
-            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl border border-brand-text/20 bg-white py-3 text-sm font-bold text-brand-text hover:bg-brand-text/5 transition disabled:opacity-50 shadow-sm cursor-pointer"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-            </svg>
-            {googleSubmitting ? 'Conectando con Google…' : 'Continuar con Google'}
-          </button>
-
-          {/* Opción secundaria si el navegador móvil tiene bloqueo estricto */}
-          <div className="text-center mt-2.5">
-            <button
-              type="button"
-              onClick={() => handleGoogleSignIn(true)}
-              disabled={googleSubmitting || emailSubmitting}
-              className="text-[11px] text-brand-text/60 hover:text-brand-text hover:underline font-bold cursor-pointer block w-full"
-            >
-              ¿Tu móvil bloquea ventanas emergentes? Toca aquí para entrar por redirección completa
-            </button>
-          </div>
-
-          <div className="my-6 flex items-center gap-3">
-            <span className="h-px flex-1 bg-brand-text/15" />
-            <span className="text-[11px] font-headline uppercase tracking-wider text-brand-text/50">o con tu email</span>
-            <span className="h-px flex-1 bg-brand-text/15" />
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
               <label htmlFor="login-email" className="mb-1.5 block text-xs font-headline font-bold uppercase tracking-wider text-brand-text">
                 Correo electrónico
@@ -446,7 +267,7 @@ export const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              disabled={emailSubmitting || googleSubmitting}
+              disabled={emailSubmitting}
               className="cta-button w-full py-3.5 text-base mt-2"
             >
               {emailSubmitting ? 'Verificando…' : 'Entrar a mi Panel'}
