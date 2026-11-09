@@ -1,298 +1,152 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { AlertTriangle, ArrowRight } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  Calendar,
+  Lock,
+  MessageCircle,
+  ShieldCheck,
+} from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { auth, db } from '@/shared/api/firebase';
-import { isLegalMinor } from '@/shared/domain/minor';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, role, profileMissing, loading: authLoading } = useAuth();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    alias: '',
-    phone: '',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    birthDate: '',
-  });
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [minorBlocked, setMinorBlocked] = useState(false);
-
-  // Si ya tiene ficha activa, redirigir a su zona
+  // Si ya tiene cuenta y ficha activa en la academia, redirigir a su área de alumno o admin
   useEffect(() => {
     if (!user || authLoading || profileMissing !== false) return;
     navigate(role && role !== 'student' ? '/login' : '/app/home', { replace: true });
   }, [user, authLoading, profileMissing, role, navigate]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-    if (e.target.name === 'birthDate') {
-      setError(null);
-      setMinorBlocked(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Las contraseñas no coinciden.');
-      return;
-    }
-
-    if (!formData.birthDate) {
-      setError('Por favor indica tu fecha de nacimiento.');
-      return;
-    }
-
-    // Validación de edad en Madrid con función de dominio puro
-    const now = new Date();
-    if (isLegalMinor(formData.birthDate, now)) {
-      setMinorBlocked(true);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // 1. Crear usuario en Firebase Auth con Email y Contraseña
-      const cred = await createUserWithEmailAndPassword(auth, formData.email.trim(), formData.password);
-      const uid = cred.user.uid;
-      const accountEmail = formData.email.trim().toLowerCase();
-
-      // 2. Crear documento de perfil en Firestore según reglas estrictas (PENDING, isMinor=false, stripes=0)
-      await setDoc(doc(db, 'users', uid), {
-        uid,
-        authEmail: accountEmail,
-        contactEmail: accountEmail,
-        alias: formData.alias.trim(),
-        phone: formData.phone.trim(),
-        emergencyContactName: formData.emergencyContactName.trim() || null,
-        emergencyContactPhone: formData.emergencyContactPhone.trim() || null,
-        birthDate: formData.birthDate,
-        isMinor: false,
-        beltSystem: 'ADULT',
-        belt: 'WHITE',
-        stripes: 0,
-        beltDate: new Date().toISOString().split('T')[0],
-        pricingTier: 'STD',
-        activeTariffId: 'tariff_default',
-        accountStatus: 'PENDING',
-        permissions: ['student'],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      navigate('/app/home');
-    } catch (err: unknown) {
-      console.error(err);
-      const fbErr = err as { code?: string; message?: string };
-      if (fbErr?.code === 'auth/email-already-in-use') {
-        setError('Este correo electrónico ya está registrado. Inicia sesión o recupera tu contraseña.');
-      } else if (fbErr?.code === 'auth/weak-password') {
-        setError('La contraseña debe tener al menos 6 caracteres.');
-      } else if (fbErr?.code === 'auth/invalid-email') {
-        setError('El formato del correo electrónico no es válido.');
-      } else {
-        setError(fbErr?.message || 'Error durante el registro. Inténtalo de nuevo.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (minorBlocked) {
-    return (
-      <div className="min-h-screen bg-studio-navy flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-studio-navy-light/95 border border-studio-red/40 rounded-3xl p-8 shadow-2xl text-center">
-          <div className="w-16 h-16 bg-studio-red/20 text-studio-red rounded-2xl flex items-center justify-center mx-auto mb-4 border border-studio-red/30">
-            <AlertTriangle className="w-8 h-8" />
-          </div>
-          <h2 className="text-xl font-black uppercase text-white mb-2 tracking-wide">
-            Registro Tutelado Requerido
-          </h2>
-          <p className="text-xs text-studio-cream/80 leading-relaxed mb-6">
-            Por imperativo legal (LOPDGDD) y normas de seguridad deportiva de 247Studio, los atletas menores de 16
-            años no pueden auto-registrarse de forma autónoma.
-          </p>
-          <div className="p-4 bg-studio-navy rounded-2xl border border-white/5 text-left mb-6 space-y-2">
-            <p className="text-xs text-studio-cream font-bold">¿Cómo inscribirse?</p>
-            <p className="text-xs text-studio-cream/70">
-              El alta definitiva la formaliza el administrador presencialmente junto al tutor legal en el gimnasio.
-            </p>
-          </div>
-          <button
-            onClick={() => navigate('/reserva-prueba')}
-            className="w-full py-3.5 px-4 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 flex items-center justify-center gap-2"
-          >
-            <span>Reservar Clase de Prueba Infantil</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-studio-navy flex flex-col justify-center items-center p-4 py-10">
-      <div className="w-full max-w-xl bg-studio-navy-light/90 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
-        <div className="text-center mb-6">
-          <img src="/logo.svg" alt="247Studio" className="w-12 h-12 mx-auto mb-2 rounded-2xl shadow-lg" />
-          <h1 className="text-xl font-black uppercase tracking-wider text-white">Registro de Alumno</h1>
-          <p className="text-xs text-studio-cream/70">Mayores de 16 años (247Studio BJJ)</p>
+    <div className="min-h-screen bg-studio-navy flex flex-col justify-center items-center p-4 py-12 relative overflow-hidden">
+      {/* Fondo decorativo con marca */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none">
+        <img src="/herobackground.webp" alt="" className="w-full h-full object-cover filter grayscale" />
+      </div>
+
+      <div className="w-full max-w-xl bg-studio-navy-light/95 border border-white/10 rounded-3xl p-6 sm:p-10 shadow-2xl backdrop-blur-md relative z-10">
+        {/* Cabecera */}
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-block mb-3">
+            <img src="/logo.webp" alt="247Studio" className="w-14 h-14 mx-auto object-contain brightness-110 drop-shadow-md" />
+          </Link>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-studio-red/15 border border-studio-red/30 text-studio-red text-[11px] font-bold uppercase tracking-wider mb-2">
+            <Lock className="w-3.5 h-3.5" />
+            <span>Acceso Privado para Alumnos</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">
+            Altas en 247 Studio
+          </h1>
+          <p className="text-xs text-studio-cream/70 mt-1 max-w-md mx-auto">
+            El acceso a la app y al tatami está reservado exclusivamente a los atletas dados de alta en la academia.
+          </p>
         </div>
 
-        {error && (
-          <div className="mb-6 p-3 bg-studio-red/15 border border-studio-red/40 rounded-xl text-xs text-studio-red font-bold">
-            {error}
+        {user && profileMissing && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-bold text-white text-sm">Ficha de Alumno no activa</p>
+              <p className="text-amber-200/90 leading-relaxed">
+                Has iniciado sesión con <strong>{user.email}</strong>, pero tu cuenta todavía no cuenta con una ficha deportiva activa en 247 Studio.
+              </p>
+              <p className="text-[11px] text-amber-300">
+                Para activar tu acceso a la app, acércate a la recepción o habla con Mario o David para formalizar tu alta.
+              </p>
+            </div>
           </div>
         )}
 
-
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
-                Alias en el Tatami *
-              </label>
-              <input
-                type="text"
-                name="alias"
-                required
-                placeholder="Nombre o apodo deportivo"
-                value={formData.alias}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
-                Fecha de Nacimiento *
-              </label>
-              <input
-                type="date"
-                name="birthDate"
-                required
-                value={formData.birthDate}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
-              />
+        {/* Explicación de política de academia */}
+        <div className="p-4 sm:p-5 bg-studio-navy/80 rounded-2xl border border-white/10 space-y-3 mb-6">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="w-5 h-5 text-studio-red shrink-0 mt-0.5" />
+            <div className="text-xs leading-relaxed text-studio-cream/90 space-y-1">
+              <p className="font-bold text-white text-sm">
+                Proceso Oficial de Incorporación
+              </p>
+              <p>
+                Por seguridad deportiva, control de aforo y respeto al tatami, <strong>nadie puede registrarse por libre en internet</strong>. Toda alta requiere pasar previamente por la academia, formalizar la ficha deportiva y contratar la cuota correspondiente con los directores (Mario o David).
+              </p>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
-                Correo Electrónico *
-              </label>
-              <input
-                type="email"
-                name="email"
-                required
-                placeholder="tu@email.com"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
-              />
+        {/* 3 Pasos para ser alumno */}
+        <div className="space-y-3 mb-8">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-studio-cream/60">
+            ¿Cómo empezar a entrenar con nosotros?
+          </p>
+
+          <div className="grid grid-cols-1 gap-2.5">
+            <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-studio-red/20 text-studio-red flex items-center justify-center font-bold text-xs shrink-0">
+                1
+              </div>
+              <div className="text-xs">
+                <p className="font-bold text-white">Reserva tu Clase de Prueba Gratuita</p>
+                <p className="text-studio-cream/70 text-[11px] mt-0.5">
+                  Ven a conocer las instalaciones, el tatami y a los profesores sin ningún coste ni compromiso.
+                </p>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
-                Teléfono Móvil *
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                required
-                placeholder="+34 600 000 000"
-                value={formData.phone}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
-              />
+            <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-studio-red/20 text-studio-red flex items-center justify-center font-bold text-xs shrink-0">
+                2
+              </div>
+              <div className="text-xs">
+                <p className="font-bold text-white">Alta y Ficha Deportiva en Recepción</p>
+                <p className="text-studio-cream/70 text-[11px] mt-0.5">
+                  Tras tu clase, formalizamos tu matrícula, tu cuota y tu seguro deportivo presencialmente en la academia.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="p-3 bg-studio-navy/60 rounded-xl border border-white/5 space-y-3">
-            <span className="text-[11px] font-bold text-studio-cream uppercase tracking-wider block">
-              Contacto de Emergencia
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <input
-                type="text"
-                name="emergencyContactName"
-                required
-                placeholder="Nombre del contacto"
-                value={formData.emergencyContactName}
-                onChange={handleChange}
-                className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-lg text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
-              />
-              <input
-                type="tel"
-                name="emergencyContactPhone"
-                required
-                placeholder="Teléfono de emergencia"
-                value={formData.emergencyContactPhone}
-                onChange={handleChange}
-                className="w-full px-3 py-2 bg-studio-navy border border-white/10 rounded-lg text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
-              />
+            <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-studio-red/20 text-studio-red flex items-center justify-center font-bold text-xs shrink-0">
+                3
+              </div>
+              <div className="text-xs">
+                <p className="font-bold text-white">Activación Inmediata de tu App</p>
+                <p className="text-studio-cream/70 text-[11px] mt-0.5">
+                  Recibes al momento tu enlace de activación por WhatsApp para fijar tu clave y entrar a la app con tu carnet QR.
+                </p>
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
-                Contraseña *
-              </label>
-              <input
-                type="password"
-                name="password"
-                required
-                placeholder="Mínimo 6 caracteres"
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-studio-cream mb-1">
-                Confirmar Contraseña *
-              </label>
-              <input
-                type="password"
-                name="confirmPassword"
-                required
-                placeholder="Repite la contraseña"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-studio-navy border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-studio-red"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 px-4 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 disabled:opacity-50 mt-4"
+        {/* Botones de acción */}
+        <div className="space-y-3">
+          <Link
+            to="/reserva-prueba"
+            className="w-full py-4 px-6 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 flex items-center justify-center gap-2 cursor-pointer text-center"
           >
-            {loading ? 'Creando cuenta...' : 'Completar Registro'}
-          </button>
-        </form>
+            <Calendar className="w-4 h-4" />
+            <span>Reservar Mi Clase de Prueba Gratuita</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
 
-        <div className="mt-6 text-center text-xs text-studio-cream/70">
-          ¿Ya tienes cuenta activa?{' '}
-          <Link to="/login" className="text-studio-red hover:underline font-bold">
-            Inicia Sesión
+          <a
+            href="https://wa.me/34677528185?text=Hola%2C%20quiero%20informaci%C3%B3n%20para%20darme%20de%20alta%20en%20247Studio."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 text-center"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>Hablar con Recepción por WhatsApp</span>
+          </a>
+        </div>
+
+        {/* Acceso para quienes ya son alumnos */}
+        <div className="mt-8 pt-6 border-t border-white/10 text-center text-xs text-studio-cream/70">
+          ¿Ya eres alumno oficial dado de alta en la academia?{' '}
+          <Link to="/login" className="text-studio-red hover:underline font-bold block sm:inline mt-1 sm:mt-0">
+            Inicia Sesión con tu Email y Contraseña →
           </Link>
         </div>
       </div>

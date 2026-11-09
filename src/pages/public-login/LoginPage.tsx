@@ -274,20 +274,17 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
 
-          <div className="mt-8 pt-4 border-t border-brand-text/10 space-y-2 text-center text-xs">
+          <div className="mt-8 pt-4 border-t border-brand-text/10 space-y-2.5 text-center text-xs">
             <p className="text-xs text-brand-text/80">
-              ¿Quieres probar una clase gratis?{' '}
+              ¿Aún no entrenas en 247 Studio?{' '}
               <Link to="/reserva-prueba" className="font-bold text-brand-accent hover:underline block sm:inline mt-0.5">
-                Reserva tu clase de prueba →
+                Reserva tu clase de prueba gratis →
               </Link>
             </p>
-            <p className="text-xs text-brand-text/80">
-              ¿Nuevo alumno?{' '}
-              <Link to="/registro" className="font-bold text-slate-800 hover:underline block sm:inline mt-0.5">
-                Crear cuenta de alumno →
-              </Link>
+            <p className="text-[11px] text-brand-text/60">
+              Las altas de nuevos socios y el acceso a la app se formalizan exclusivamente en la recepción de la academia.
             </p>
-            <p>
+            <p className="pt-1">
               <Link to="/" className="text-brand-text/60 hover:text-brand-text">
                 ← Volver a la portada principal
               </Link>

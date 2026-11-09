@@ -251,15 +251,16 @@ export const TrialClassPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Botones de acción */}
+          {/* Información sobre el alta de socio */}
           <div className="space-y-2.5">
-            <Link
-              to="/registro"
-              className="cta-button w-full text-center flex items-center justify-center gap-2 py-3.5"
-            >
-              <ArrowRight className="w-4 h-4" />
-              <span>¿Quieres darte de alta como socio ahora? → Registro</span>
-            </Link>
+            <div className="p-4 rounded-2xl bg-brand-text/5 border border-brand-text/10 text-center space-y-1.5">
+              <p className="text-xs font-bold uppercase tracking-wider text-brand-text">
+                🥋 ¿Cómo hacerte socio tras tu clase de prueba?
+              </p>
+              <p className="text-[11px] text-brand-text/75 leading-relaxed">
+                El alta oficial, la ficha deportiva y la cuota se formalizan directamente en la recepción con Mario o David. En ese momento se activa tu acceso a la app con tu carnet y pase QR digital.
+              </p>
+            </div>
 
             <a
               href="https://maps.google.com/?q=calle+sisones+2+nave+30+pinto+madrid"
