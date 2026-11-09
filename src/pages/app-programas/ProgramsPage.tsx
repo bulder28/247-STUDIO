@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { CheckCircle2, CreditCard, PauseCircle, Send } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
+import { getLiveDocs, invalidateLiveDocs } from '@/shared/api/liveReads';
 import { calculateVatBreakdown } from '@/shared/domain/money';
 import { getMadridYearMonth } from '@/shared/domain/payment-status';
 import { PaymentDomainModel, PaymentMethod, TariffDomainModel } from '@/shared/domain/types';
@@ -32,15 +33,14 @@ export const ProgramsPage: React.FC = () => {
   const fetchPaymentsAndTariff = async () => {
     if (!user || !userData) return;
     try {
-      if (userData.activeTariffId) {
-        const tariffSnap = await getDoc(doc(db, 'tariffs', userData.activeTariffId));
-        if (tariffSnap.exists()) {
-          setTariff({ id: tariffSnap.id, ...(tariffSnap.data() as Omit<TariffDomainModel, 'id'>) });
-        }
-      }
-
       const payQuery = query(collection(db, 'payments'), where('uid', '==', user.uid));
-      const paySnap = await getDocs(payQuery);
+      const [tariffSnap, paySnap] = await Promise.all([
+        userData.activeTariffId ? getDoc(doc(db, 'tariffs', userData.activeTariffId)) : Promise.resolve(null),
+        getLiveDocs(`payments:${user.uid}`, payQuery),
+      ]);
+      if (tariffSnap && tariffSnap.exists()) {
+        setTariff({ id: tariffSnap.id, ...(tariffSnap.data() as Omit<TariffDomainModel, 'id'>) });
+      }
       const list: PaymentDomainModel[] = [];
       paySnap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<PaymentDomainModel, 'id'>) }));
       list.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
@@ -74,6 +74,7 @@ export const ProgramsPage: React.FC = () => {
       });
 
       setPaymentSuccess(true);
+      invalidateLiveDocs([`payments:${user.uid}`]);
       await fetchPaymentsAndTariff();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al registrar la notificación de abono');

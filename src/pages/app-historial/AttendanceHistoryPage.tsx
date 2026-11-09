@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import {
   Activity,
   BarChart3,
@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
+import { getLiveDocs } from '@/shared/api/liveReads';
+import { useScheduleData } from '@/shared/hooks/useScheduleQueries';
 import { BookingDomainModel, ScheduleDomainModel } from '@/shared/domain/types';
 import { DEFAULT_OFFICIAL_SCHEDULES } from '@/shared/domain/schedule';
 import {
@@ -47,77 +49,40 @@ export const AttendanceHistoryPage: React.FC = () => {
   const [sessionSearchTerm, setSessionSearchTerm] = useState('');
 
   // Estados de datos
-  const [userBookings, setUserBookings] = useState<BookingDomainModel[]>([]);
+  // Horarios y reservas propias: misma caché que Hoy y Clases (no se vuelven a descargar)
+  const { data: scheduleData, isLoading: scheduleLoading } = useScheduleData(user?.uid);
+  const schedules: ScheduleDomainModel[] = scheduleData?.schedules ?? DEFAULT_OFFICIAL_SCHEDULES;
+  const userBookings: BookingDomainModel[] = scheduleData?.myBookings ?? [];
   const [allAcademyBookings, setAllAcademyBookings] = useState<BookingDomainModel[]>([]);
-  const [schedules, setSchedules] = useState<ScheduleDomainModel[]>(DEFAULT_OFFICIAL_SCHEDULES);
-  const [loading, setLoading] = useState(true);
+  const [academyLoading, setAcademyLoading] = useState(isAdmin);
+  const loading = scheduleLoading || academyLoading;
 
   // Sub-pestaña para vista móvil de historial personal
   const [mobileTab, setMobileTab] = useState<'mapa' | 'curva' | 'meses' | 'sesiones'>('mapa');
   const [mobileMonthIdx, setMobileMonthIdx] = useState<number>(new Date().getMonth());
 
+  // Solo para administradores: reservas de toda la academia (año anterior y actual), una sola escucha compartida
   useEffect(() => {
+    if (!isAdmin) {
+      setAcademyLoading(false);
+      return;
+    }
     let isMounted = true;
-
-    const loadData = async () => {
-      try {
-        setLoading(true);
-
-        // 1. Cargar horarios oficiales de Firestore o fallback
-        try {
-          const schedQuery = query(collection(db, 'schedules'), where('active', '==', true));
-          const schedSnap = await getDocs(schedQuery);
-          const sList: ScheduleDomainModel[] = [];
-          schedSnap.forEach((d) =>
-            sList.push({ id: d.id, ...(d.data() as Omit<ScheduleDomainModel, 'id'>) })
-          );
-          if (isMounted && sList.length > 0) {
-            setSchedules(sList);
-          }
-        } catch (e) {
-          console.warn('Aviso cargando horarios en historial:', e);
-        }
-
-        // 2. Cargar reservas personales del usuario
-        if (user) {
-          try {
-            const myQuery = query(collection(db, 'bookings'), where('uid', '==', user.uid));
-            const mySnap = await getDocs(myQuery);
-            const myB: BookingDomainModel[] = [];
-            mySnap.forEach((d) =>
-              myB.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) })
-            );
-            if (isMounted) setUserBookings(myB);
-          } catch (e) {
-            console.warn('Aviso cargando reservas personales:', e);
-          }
-        }
-
-        // 3. Si es Administrador, cargar reservas de toda la academia
-        if (isAdmin) {
-          try {
-            const allSnap = await getDocs(collection(db, 'bookings'));
-            const allB: BookingDomainModel[] = [];
-            allSnap.forEach((d) =>
-              allB.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) })
-            );
-            if (isMounted) setAllAcademyBookings(allB);
-          } catch (e) {
-            console.warn('Aviso cargando reservas globales:', e);
-          }
-        }
-      } catch (err) {
-        console.error('Error general cargando historial:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    loadData();
+    const since = `${new Date().getFullYear() - 1}-01-01`;
+    getLiveDocs(`bookings:academy:${since}`, query(collection(db, 'bookings'), where('date', '>=', since)))
+      .then((snap) => {
+        const list: BookingDomainModel[] = [];
+        snap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) }));
+        if (isMounted) setAllAcademyBookings(list);
+      })
+      .catch((e) => console.warn('Aviso cargando reservas globales:', e))
+      .finally(() => {
+        if (isMounted) setAcademyLoading(false);
+      });
     return () => {
       isMounted = false;
     };
-  }, [user, isAdmin]);
+  }, [isAdmin]);
 
   // =========================================================================
   // CÁLCULO DE MÉTRICAS DINÁMICAS DE ACADEMIA (PARA ADMINISTRADORES)

@@ -24,7 +24,8 @@ export function prefetchRoutes(group: 'student' | 'admin'): void {
   const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
   if (conn?.saveData) return;
 
-  const loaders = group === 'student' ? STUDENT : ADMIN;
+  // El admin también entra a la vista de alumno: se precarga todo
+  const loaders = group === 'student' ? STUDENT : [...ADMIN, ...STUDENT];
   const run = () => {
     loaders.forEach((load, i) => setTimeout(() => load().catch(() => undefined), i * 250));
   };
