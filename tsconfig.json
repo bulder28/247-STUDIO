@@ -1,29 +1,35 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
-    "target": "ES2020",
+    /* Entorno y Estándares */
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
 
-    /* Bundler mode */
+    /* Modo Bundler (Vite / Webpack / Rollup) */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": false,
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting */
+    /* Linting y Seguridad de Tipos Estricta */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true,
 
-    /* Aliases */
-    "baseUrl": ".",
+    /* Alias de Rutas */
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],
