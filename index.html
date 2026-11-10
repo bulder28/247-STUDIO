@@ -1,16 +1,35 @@
 <!doctype html>
-<html lang="es" class="h-full bg-brand-background text-brand-text">
+<html lang="es" class="h-full bg-brand-background text-brand-text scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#F8F9FA" />
+    
+    <!-- Color de barra de estado adaptativo (Modo Claro / Oscuro) -->
+    <meta name="theme-color" content="#F8F9FA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0A0F1D" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- Directivas de Indexación y Robots -->
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Preconexiones Críticas (Acelera handshake TLS con Firebase y Google APIs) -->
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin />
+    <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
+    <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
 
     <!-- SEO Meta Tags Principales -->
     <title>247 STUDIO | BJJ, Grappling, MMA & Lucha en Pinto (Madrid)</title>
     <meta name="description" content="Academia oficial de Brazilian Jiu-Jitsu, Grappling No-Gi, MMA y Lucha Olímpica en Pinto, Madrid Sur. Clases para niños y adultos. Reserva tu clase de prueba gratuita sin compromiso." />
-    <meta name="keywords" content="BJJ Pinto, Brazilian Jiu-Jitsu Madrid Sur, Grappling Pinto, MMA Madrid, Lucha Olimpica, Artes Marciales Pinto, Clases BJJ ninos, Tatami 247, 247 Studio" />
     <meta name="author" content="247 STUDIO" />
     <link rel="canonical" href="https://247studio.netlify.app/" />
+
+    <!-- Geolocalización Meta Tags (SEO Local Madrid Sur) -->
+    <meta name="geo.region" content="ES-MD" />
+    <meta name="geo.placename" content="Pinto, Madrid" />
+    <meta name="geo.position" content="40.2415;-3.6998" />
+    <meta name="ICBM" content="40.2415, -3.6998" />
 
     <!-- Open Graph / Redes Sociales (WhatsApp, Facebook, Instagram, LinkedIn) -->
     <meta property="og:type" content="website" />
@@ -20,6 +39,7 @@
     <meta property="og:title" content="247 STUDIO | Unlimited Grappling & BJJ Pinto" />
     <meta property="og:description" content="Academia de BJJ, Grappling No-Gi, MMA y Lucha en Pinto, Madrid Sur. Clases infantiles y adultos. Reserva tu primera clase gratis." />
     <meta property="og:image" content="https://247studio.netlify.app/og-image.webp" />
+    <meta property="og:image:secure_url" content="https://247studio.netlify.app/og-image.webp" />
     <meta property="og:image:type" content="image/webp" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -31,28 +51,39 @@
     <meta name="twitter:title" content="247 STUDIO | Unlimited Grappling & BJJ Pinto" />
     <meta name="twitter:description" content="Academia de BJJ, Grappling No-Gi, MMA y Lucha en Pinto, Madrid Sur. Reserva tu clase de prueba gratuita." />
     <meta name="twitter:image" content="https://247studio.netlify.app/og-image.webp" />
+    <meta name="twitter:image:alt" content="247 STUDIO - Academia de Brazilian Jiu-Jitsu y Grappling en Pinto" />
 
-    <!-- Iconos y Manifiesto PWA -->
+    <!-- Configuración PWA y Soporte Nativo iOS / Kiosco Tablet -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="247 STUDIO" />
+
+    <!-- Iconos y Manifiesto PWA (Nota: iOS requiere PNG en apple-touch-icon, si no tienes apple-touch-icon.png usa favicon-32x32.png o exporta tu logo a PNG 180x180) -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="shortcut icon" href="/favicon-32x32.png" />
-    <link rel="apple-touch-icon" href="/logo.webp" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon-32x32.png" />
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- Datos Estructurados JSON-LD (Schema.org para Google Business & Maps) -->
+    <!-- Datos Estructurados JSON-LD (Schema.org enriquecido para SEO Local y Catálogo) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": ["SportsClub", "ExerciseGym", "LocalBusiness"],
+      "@id": "https://247studio.netlify.app/#organization",
       "name": "247 STUDIO - Unlimited Grappling & BJJ",
+      "alternateName": "247 STUDIO BJJ Pinto",
       "image": "https://247studio.netlify.app/og-image.webp",
       "logo": "https://247studio.netlify.app/logo.webp",
-      "url": "https://247studio.netlify.app",
+      "url": "https://247studio.netlify.app/",
       "telephone": "+34677528185",
       "priceRange": "€€",
-      "description": "Academia oficial de Brazilian Jiu-Jitsu (BJJ), Grappling No-Gi, MMA y Lucha Olímpica en Pinto, Madrid Sur. Clases dirigidas para todas las edades y niveles.",
+      "currenciesAccepted": "EUR",
+      "paymentAccepted": "Cash, Bizum",
+      "description": "Academia oficial de Brazilian Jiu-Jitsu (BJJ), Grappling No-Gi, MMA y Lucha Olímpica en Pinto, Madrid Sur. Clases dirigidas para niños y adultos de todos los niveles.",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "c/ Sisones 2, Nave 30",
+        "streetAddress": "Calle Sisones 2, Nave 30",
         "addressLocality": "Pinto",
         "addressRegion": "Madrid",
         "postalCode": "28320",
@@ -63,6 +94,16 @@
         "latitude": 40.2415,
         "longitude": -3.6998
       },
+      "hasMap": "https://www.google.com/maps/search/?api=1&query=40.2415,-3.6998",
+      "areaServed": [
+        { "@type": "City", "name": "Pinto" },
+        { "@type": "City", "name": "Valdemoro" },
+        { "@type": "City", "name": "Getafe" },
+        { "@type": "City", "name": "Parla" },
+        { "@type": "City", "name": "Fuenlabrada" },
+        { "@type": "City", "name": "Ciempozuelos" },
+        { "@type": "City", "name": "San Martín de la Vega" }
+      ],
       "openingHoursSpecification": [
         {
           "@type": "OpeningHoursSpecification",
@@ -71,6 +112,40 @@
           "closes": "22:00"
         }
       ],
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Disciplinas y Clases de Artes Marciales",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Brazilian Jiu-Jitsu (BJJ Gi)"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Grappling No-Gi"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Artes Marciales Mixtas (MMA) y Lucha Olímpica"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "BJJ Infantil (Kids)"
+            }
+          }
+        ]
+      },
       "sameAs": [
         "https://instagram.com/_247studio",
         "https://www.247studiobjj.com"
@@ -79,7 +154,7 @@
     </script>
 
     <style>
-      /* Desactivar badge, drawer y preview bar de Netlify */
+      /* Ocultar instantáneamente cualquier elemento inyectado por Netlify Deploy Previews */
       netlify-drawer,
       [data-netlify-deploy-id],
       #netlify-drawer,
@@ -89,55 +164,80 @@
       iframe[name*="netlify"],
       iframe[src*="netlify"],
       div[data-netlify-identity-menu],
-      .netlify-badge,
-      a[href*="netlify.com"][target="_blank"],
-      div[style*="netlify"] {
+      .netlify-badge {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
         opacity: 0 !important;
-        max-height: 0 !important;
-        max-width: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        position: absolute !important;
+        z-index: -9999 !important;
       }
     </style>
+
     <script>
-      (function() {
-        const removeNetlifyDrawer = function() {
-          const targets = document.querySelectorAll('netlify-drawer, [data-netlify-deploy-id], #netlify-drawer, .netlify-drawer, iframe[src*="netlify"]');
-          targets.forEach(function(el) {
+      (function () {
+        var SELECTORS = 'netlify-drawer, [data-netlify-deploy-id], #netlify-drawer, .netlify-drawer, iframe[src*="netlify"]';
+        var removeNetlifyElements = function () {
+          var targets = document.querySelectorAll(SELECTORS);
+          for (var i = 0; i < targets.length; i++) {
             try {
-              el.remove();
-            } catch(e) {
-              el.style.display = 'none';
+              targets[i].remove();
+            } catch (e) {
+              targets[i].style.display = 'none';
+            }
+          }
+        };
+
+        removeNetlifyElements();
+
+        if (typeof MutationObserver !== 'undefined') {
+          var observer = new MutationObserver(function (mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+              if (mutations[i].addedNodes.length > 0) {
+                removeNetlifyElements();
+                break;
+              }
             }
           });
-        };
-        removeNetlifyDrawer();
-        if (typeof MutationObserver !== 'undefined') {
-          var observer = new MutationObserver(removeNetlifyDrawer);
           observer.observe(document.documentElement, { childList: true, subtree: true });
+
+          // Desconectar observer tras 8s para no penalizar el rendimiento de React en runtime
+          window.addEventListener('load', function () {
+            removeNetlifyElements();
+            setTimeout(function () {
+              observer.disconnect();
+            }, 8000);
+          }, { once: true });
         }
-        window.addEventListener('DOMContentLoaded', removeNetlifyDrawer);
-        window.addEventListener('load', removeNetlifyDrawer);
       })();
     </script>
   </head>
   <body class="h-full antialiased font-sans bg-brand-background text-brand-text selection:bg-brand-accent selection:text-white">
-    <!-- Contenido Pre-renderizado Semántico para Rastreadores de Google / Redes Sociales (Reemplazado al montar React) -->
-    <div id="root" class="h-full">
-      <noscript>
-        <header style="padding: 24px; text-align: center; background: #0a0f1d; color: #ffffff;">
-          <h1 style="font-size: 28px; margin: 0; text-transform: uppercase;">247 STUDIO — UNLIMITED GRAPPLING</h1>
-          <p style="color: #fbbf24; margin-top: 8px;">Academia de Brazilian Jiu-Jitsu, Grappling, MMA y Lucha en Pinto (Madrid)</p>
-        </header>
-        <main style="max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6;">
-          <h2>Bienvenido al Tatami Oficial de 247 STUDIO</h2>
-          <p>Ofrecemos clases dirigidas para niños, jóvenes y adultos en modalidades Gi, No-Gi (Grappling), Artes Marciales Mixtas (MMA) y Lucha Olímpica.</p>
-          <p><strong>Ubicación:</strong> Calle Sisones 2, Nave 30, 28320 Pinto (Madrid Sur).</p>
-          <p><a href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." style="display: inline-block; padding: 12px 24px; background: #fbbf24; color: #0a0f1d; font-weight: bold; border-radius: 8px; text-decoration: none;">Reservar Clase de Prueba por WhatsApp</a></p>
-        </main>
-      </noscript>
-    </div>
+    <!-- Contenedor Principal de React -->
+    <div id="root" class="h-full"></div>
+
+    <!-- Contenido Semántico Accesible para Usuarios sin JS y Bots Básicos (Fuera de #root para evitar conflictos de hidratación) -->
+    <noscript>
+      <header style="padding: 24px; text-align: center; background: #0a0f1d; color: #ffffff; font-family: system-ui, -apple-system, sans-serif;">
+        <h1 style="font-size: 28px; margin: 0; text-transform: uppercase; letter-spacing: 1px;">247 STUDIO — UNLIMITED GRAPPLING</h1>
+        <p style="color: #fbbf24; margin-top: 8px; font-weight: 600;">Academia de Brazilian Jiu-Jitsu, Grappling, MMA y Lucha en Pinto (Madrid)</p>
+      </header>
+      <main style="max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif; color: #111827;">
+        <h2>Bienvenido al Tatami Oficial de 247 STUDIO</h2>
+        <p>Ofrecemos clases dirigidas para niños, jóvenes y adultos en modalidades Gi, No-Gi (Grappling), Artes Marciales Mixtas (MMA) y Lucha Olímpica en el sur de Madrid.</p>
+        <p><strong>Dirección:</strong> Calle Sisones 2, Nave 30, 28320 Pinto (Madrid).</p>
+        <p><strong>Horario:</strong> Lunes a Viernes de 09:30 a 22:00.</p>
+        <p><strong>Teléfono / WhatsApp:</strong> <a href="tel:+34677528185" style="color: #0a0f1d; font-weight: bold;">+34 677 52 81 85</a></p>
+        <p style="margin-top: 24px;">
+          <a href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." style="display: inline-block; padding: 12px 24px; background: #fbbf24; color: #0a0f1d; font-weight: bold; border-radius: 8px; text-decoration: none;">
+            Reservar Clase de Prueba por WhatsApp
+          </a>
+        </p>
+      </main>
+    </noscript>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
