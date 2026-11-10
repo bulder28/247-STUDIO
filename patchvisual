@@ -1,0 +1,391 @@
+diff --git a/index.html b/index.html
+index e61632c..993b68a 100644
+--- a/index.html
++++ b/index.html
+@@ -5,7 +5,7 @@
+     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+     
+     <!-- Color de barra de estado adaptativo (Modo Claro / Oscuro) -->
+-    <meta name="theme-color" content="#F8F9FA" media="(prefers-color-scheme: light)" />
++    <meta name="theme-color" content="#F5F2E6" media="(prefers-color-scheme: light)" />
+     <meta name="theme-color" content="#0A0F1D" media="(prefers-color-scheme: dark)" />
+     <meta name="color-scheme" content="light dark" />
+ 
+diff --git a/src/app/index.css b/src/app/index.css
+index 58283f3..58143a6 100644
+--- a/src/app/index.css
++++ b/src/app/index.css
+@@ -17,7 +17,7 @@ body {
+   margin: 0;
+   padding: 0;
+   min-height: 100vh;
+-  background-color: #DDD6B8;
++  background-color: #F5F2E6;
+   color: #1A1D2E;
+   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+   -webkit-font-smoothing: antialiased;
+@@ -27,14 +27,14 @@ body {
+   /* Titulares oficiales 247Studio: Oswald Athletic Condensed */
+   .font-headline {
+     font-family: Oswald, system-ui, sans-serif;
+-    font-weight: 900;
+-    letter-spacing: -0.02em;
++    font-weight: 700;
++    letter-spacing: -0.01em;
+   }
+ 
+   .font-display {
+     font-family: Oswald, 'Archivo Variable', Impact, system-ui, sans-serif;
+-    font-weight: 900;
+-    letter-spacing: -0.02em;
++    font-weight: 700;
++    letter-spacing: -0.01em;
+   }
+ 
+   .num {
+@@ -77,53 +77,14 @@ body {
+   animation: belt-in 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+ }
+ 
+-/* Animación exclusiva STUDIO 247: brillo dorado dinámico y halo de energía */
+-@keyframes studio-shimmer {
+-  0% {
+-    background-position: -200% center;
+-  }
+-  100% {
+-    background-position: 200% center;
+-  }
+-}
+-
+-@keyframes studio-pulse-glow {
+-  0%, 100% {
+-    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.45));
+-    transform: scale(1);
+-  }
+-  50% {
+-    filter: drop-shadow(0 0 24px rgba(251, 191, 36, 0.85));
+-    transform: scale(1.015);
+-  }
+-}
+-
+-.animate-studio-title {
+-  display: inline-block;
+-  background: linear-gradient(
+-    90deg,
+-    #ffffff 0%,
+-    #fef08a 20%,
+-    #f59e0b 40%,
+-    #fbbf24 60%,
+-    #fef08a 80%,
+-    #ffffff 100%
+-  );
+-  background-size: 200% auto;
+-  -webkit-background-clip: text;
+-  -webkit-text-fill-color: transparent;
+-  animation: studio-shimmer 3.5s ease-in-out infinite, studio-pulse-glow 3s ease-in-out infinite;
+-}
+-
+ @media (prefers-reduced-motion: reduce) {
+   .belt-enter { animation: none; }
+-  .animate-studio-title { animation: none; }
+   html { scroll-behavior: auto; }
+ }
+ 
+ /* Scrollbar */
+ ::-webkit-scrollbar { width: 6px; height: 6px; }
+-::-webkit-scrollbar-track { background: #DDD6B8; }
++::-webkit-scrollbar-track { background: #F5F2E6; }
+ ::-webkit-scrollbar-thumb { background: #1A1D2E; border-radius: 3px; }
+ ::-webkit-scrollbar-thumb:hover { background: #E11D2E; }
+ 
+diff --git a/src/pages/admin-caja/CajaPage.tsx b/src/pages/admin-caja/CajaPage.tsx
+index 17f2359..60d4d05 100644
+--- a/src/pages/admin-caja/CajaPage.tsx
++++ b/src/pages/admin-caja/CajaPage.tsx
+@@ -475,7 +475,7 @@ export const CajaPage: React.FC = () => {
+           </span>
+         </div>
+ 
+-        <div className="bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 border border-amber-200 rounded-3xl p-4 sm:p-5 shadow-card hover:shadow-card-hover transition-all">
++        <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-5 shadow-card hover:shadow-card-hover transition-all">
+           <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 block mb-1">
+             Abonos Pendientes de Validar
+           </span>
+diff --git a/src/pages/admin-login/AdminLoginPage.tsx b/src/pages/admin-login/AdminLoginPage.tsx
+index 42c0d90..e9c9ff9 100644
+--- a/src/pages/admin-login/AdminLoginPage.tsx
++++ b/src/pages/admin-login/AdminLoginPage.tsx
+@@ -237,7 +237,7 @@ export const AdminLoginPage: React.FC = () => {
+           <button
+             type="submit"
+             disabled={submitting}
+-            className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-amber-500/20 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-2"
++            className="w-full py-3 px-4 bg-studio-red hover:bg-studio-red-dark text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-2"
+           >
+             {submitting ? (
+               <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+diff --git a/src/pages/app-horario/SchedulePage.tsx b/src/pages/app-horario/SchedulePage.tsx
+index 86b372c..cfc2551 100644
+--- a/src/pages/app-horario/SchedulePage.tsx
++++ b/src/pages/app-horario/SchedulePage.tsx
+@@ -991,7 +991,7 @@ export const SchedulePage: React.FC = () => {
+                   className="w-6 h-6 sm:w-7 sm:h-7 object-contain brightness-110 filter drop-shadow animate-pulse"
+                 />
+               </div>
+-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight uppercase font-headline animate-studio-title leading-none">
++              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight uppercase font-headline leading-none">
+                 STUDIO 247
+               </h1>
+             </div>
+diff --git a/src/pages/kiosk-checkin/KioskCheckinPage.tsx b/src/pages/kiosk-checkin/KioskCheckinPage.tsx
+index 70659d8..295b117 100644
+--- a/src/pages/kiosk-checkin/KioskCheckinPage.tsx
++++ b/src/pages/kiosk-checkin/KioskCheckinPage.tsx
+@@ -517,7 +517,7 @@ export const KioskCheckinPage: React.FC = () => {
+   };
+ 
+   return (
+-    <div className="min-h-screen bg-[#F8F9FA] text-slate-900 flex flex-col justify-between p-4 sm:p-8 select-none font-sans antialiased">
++    <div className="min-h-screen bg-studio-cream-light text-slate-900 flex flex-col justify-between p-4 sm:p-8 select-none font-sans antialiased">
+       {/* ======================================================== */}
+       {/* 1. CABECERA KIOSCO - ESTILO MATGOAT LIMPIO               */}
+       {/* ======================================================== */}
+diff --git a/src/pages/staff-login/StaffLoginPage.tsx b/src/pages/staff-login/StaffLoginPage.tsx
+index 4f8a495..1e92e38 100644
+--- a/src/pages/staff-login/StaffLoginPage.tsx
++++ b/src/pages/staff-login/StaffLoginPage.tsx
+@@ -177,7 +177,7 @@ export const StaffLoginPage: React.FC = () => {
+             <button
+               type="submit"
+               disabled={submitting}
+-              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer mt-2"
++              className="w-full py-3.5 bg-studio-red hover:bg-studio-red-dark text-white font-black text-xs uppercase tracking-wider rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer mt-2"
+             >
+               {submitting ? (
+                 <>
+diff --git a/src/shared/ui/badge.tsx b/src/shared/ui/badge.tsx
+index cc448c4..2c1a876 100644
+--- a/src/shared/ui/badge.tsx
++++ b/src/shared/ui/badge.tsx
+@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
+ import { cn } from '@/shared/lib/utils';
+ 
+ const badgeVariants = cva(
+-  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider transition-colors focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2',
++  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider transition-colors focus:outline-none focus:ring-2 focus:ring-studio-navy focus:ring-offset-2',
+   {
+     variants: {
+       variant: {
+@@ -14,8 +14,8 @@ const badgeVariants = cva(
+         success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+         warning: 'border-amber-200 bg-amber-50 text-amber-800',
+         info: 'border-blue-200 bg-blue-50 text-blue-800',
+-        gold: 'border-amber-400 bg-gradient-to-r from-amber-200 to-yellow-400 text-amber-950 shadow-xs font-black',
+-        iconBlack: 'border-slate-800 bg-slate-950 text-amber-400 shadow-xs font-black',
++        gold: 'border-amber-300 bg-amber-100 text-amber-900 font-black',
++        iconBlack: 'border-studio-navy bg-studio-navy text-studio-cream font-black',
+         bjjBlue: 'border-blue-300 bg-blue-600 text-white',
+         bjjPurple: 'border-purple-300 bg-purple-600 text-white',
+         bjjBrown: 'border-amber-800 bg-amber-900 text-white',
+diff --git a/src/shared/ui/button.tsx b/src/shared/ui/button.tsx
+index a20153f..2f47b85 100644
+--- a/src/shared/ui/button.tsx
++++ b/src/shared/ui/button.tsx
+@@ -4,18 +4,18 @@ import { cva, type VariantProps } from 'class-variance-authority';
+ import { cn } from '@/shared/lib/utils';
+ 
+ const buttonVariants = cva(
+-  'inline-flex items-center justify-center whitespace-nowrap rounded-xl text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 select-none active:scale-[0.98]',
++  'inline-flex items-center justify-center whitespace-nowrap rounded-xl text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-navy disabled:pointer-events-none disabled:opacity-50 select-none active:scale-[0.98]',
+   {
+     variants: {
+       variant: {
+-        default: 'bg-slate-900 text-slate-50 hover:bg-slate-900/90 shadow-sm',
++        default: 'bg-slate-900 text-slate-50 hover:bg-studio-navy-light shadow-sm',
+         destructive: 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm',
+-        outline: 'border border-slate-200 bg-white hover:bg-slate-100 text-slate-900 shadow-2xs',
+-        secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200 shadow-2xs',
++        outline: 'border border-slate-200 bg-white hover:bg-slate-100 text-slate-900 shadow-subtle',
++        secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200 shadow-subtle',
+         ghost: 'hover:bg-slate-100 text-slate-700 hover:text-slate-900',
+         link: 'text-slate-900 underline-offset-4 hover:underline',
+         studio: 'bg-studio-red hover:bg-studio-red-dark text-white font-black uppercase tracking-wider shadow-sm shadow-studio-red/20',
+-        gold: 'bg-amber-400 hover:bg-amber-500 text-slate-950 font-black uppercase tracking-wider shadow-sm',
++        gold: 'bg-amber-100 hover:bg-amber-200 text-amber-900 font-black uppercase tracking-wider',
+       },
+       size: {
+         default: 'h-9 px-4 py-2',
+diff --git a/src/shared/ui/card.tsx b/src/shared/ui/card.tsx
+index 1e6be1e..152635e 100644
+--- a/src/shared/ui/card.tsx
++++ b/src/shared/ui/card.tsx
+@@ -6,7 +6,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
+     <div
+       ref={ref}
+       className={cn(
+-        'rounded-2xl border border-slate-200/80 bg-white text-slate-950 shadow-sm transition-all',
++        'rounded-2xl border border-slate-200 bg-white text-studio-navy shadow-card transition-shadow',
+         className
+       )}
+       {...props}
+diff --git a/src/widgets/AdminLayout.tsx b/src/widgets/AdminLayout.tsx
+index 56f0062..0d452a1 100644
+--- a/src/widgets/AdminLayout.tsx
++++ b/src/widgets/AdminLayout.tsx
+@@ -92,7 +92,7 @@ export const AdminLayout: React.FC = () => {
+   const activeLink = links.find((l) => location.pathname.startsWith(l.to));
+ 
+   return (
+-    <div className="h-[100dvh] md:min-h-screen md:h-auto overflow-hidden md:overflow-visible bg-[#F8F9FA] flex flex-col md:flex-row font-sans text-slate-900 antialiased selection:bg-brand-accent selection:text-white">
++    <div className="h-[100dvh] md:min-h-screen md:h-auto overflow-hidden md:overflow-visible bg-studio-cream-light flex flex-col md:flex-row font-sans text-slate-900 antialiased selection:bg-brand-accent selection:text-white">
+       {/* ======================================================== */}
+       {/* 1. HEADER MÓVIL (< 768px) COMPACTO                       */}
+       {/* ======================================================== */}
+@@ -130,7 +130,7 @@ export const AdminLayout: React.FC = () => {
+       {/* 2. LAUNCHER MÓVIL A PANTALLA COMPLETA (< 768px)          */}
+       {/* ======================================================== */}
+       {mobileMenuOpen && (
+-        <div className="fixed inset-0 z-50 md:hidden bg-[#F8F9FA] flex flex-col justify-between p-4 h-[100dvh] overflow-hidden animate-in fade-in duration-150">
++        <div className="fixed inset-0 z-50 md:hidden bg-studio-cream-light flex flex-col justify-between p-4 h-[100dvh] overflow-hidden animate-in fade-in duration-150">
+           {/* Cabecera */}
+           <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 shrink-0">
+             <div className="flex items-center gap-2">
+diff --git a/src/widgets/AppLayout.tsx b/src/widgets/AppLayout.tsx
+index 8254d1e..3cb4d2d 100644
+--- a/src/widgets/AppLayout.tsx
++++ b/src/widgets/AppLayout.tsx
+@@ -198,7 +198,7 @@ export const AppLayout: React.FC = () => {
+   const isClosed = sidebarMode === 'CLOSED';
+ 
+   return (
+-    <div className="h-[100dvh] md:min-h-screen md:h-auto overflow-hidden md:overflow-visible bg-[#F8F9FA] flex flex-col md:flex-row text-slate-900 font-sans antialiased">
++    <div className="h-[100dvh] md:min-h-screen md:h-auto overflow-hidden md:overflow-visible bg-studio-cream-light flex flex-col md:flex-row text-slate-900 font-sans antialiased">
+       {/* ======================================================== */}
+       {/* 1. BARRA LATERAL (SIDEBAR) MINIMIZABLE Y CERRABLE         */}
+       {/* ======================================================== */}
+@@ -206,7 +206,7 @@ export const AppLayout: React.FC = () => {
+         <aside
+           className={`hidden md:flex ${
+             isMini ? 'md:w-[72px]' : 'md:w-64'
+-          } bg-white border-r border-slate-200/80 flex-col justify-between shrink-0 h-screen sticky top-0 shadow-subtle z-20 transition-all duration-200`}
++          } bg-white border-r border-slate-200 flex-col justify-between shrink-0 h-screen sticky top-0 z-20 transition-all duration-200`}
+         >
+           <div className={`flex-1 flex flex-col overflow-y-auto ${isMini ? 'px-2 py-4' : 'px-4 py-5'}`}>
+             {/* Cabecera del Sidebar con controles de Minimizar / Cerrar */}
+@@ -309,7 +309,7 @@ export const AppLayout: React.FC = () => {
+                           }`}
+                         >
+                           <div className={`flex items-center ${isMini ? 'justify-center' : 'gap-2.5'}`}>
+-                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
++                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-studio-cream' : 'text-slate-400'}`} />
+                             {!isMini && <span>{item.label}</span>}
+                           </div>
+                           {!isMini && item.badge && (
+@@ -344,7 +344,7 @@ export const AppLayout: React.FC = () => {
+                 isMini ? 'justify-center p-2.5' : 'gap-2 px-3 py-2'
+               } text-xs font-medium text-slate-500 hover:text-slate-900 transition rounded-lg hover:bg-slate-100`}
+             >
+-              <QuestionIcon className="w-4 h-4 text-amber-500 shrink-0" />
++              <QuestionIcon className="w-4 h-4 text-slate-400 shrink-0" />
+               {!isMini && <span>¿Necesitas ayuda?</span>}
+             </a>
+ 
+@@ -367,7 +367,7 @@ export const AppLayout: React.FC = () => {
+       {/* ======================================================== */}
+       <div className="flex-1 flex flex-col min-w-0 min-h-0">
+         {/* Barra superior estilo Linear / Apple con control de Sidebar y acciones */}
+-        <header className="shrink-0 sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200/70 px-3.5 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shadow-subtle">
++        <header className="shrink-0 sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-3.5 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shadow-subtle">
+           <div className="flex items-center gap-2.5">
+             {/* Botón Menú Móvil (< 768px) */}
+             <button
+@@ -468,7 +468,7 @@ export const AppLayout: React.FC = () => {
+                   <div className="relative">
+                     <Avatar className="w-8 h-8 border border-slate-200 ring-2 ring-white shadow-xs">
+                       {userData?.photoUrl && <AvatarImage src={userData.photoUrl} alt={userData?.alias || ''} />}
+-                      <AvatarFallback className="bg-slate-900 text-amber-400 font-black text-[11px]">
++                      <AvatarFallback className="bg-studio-navy text-studio-cream font-black text-[11px]">
+                         {userData?.alias?.slice(0, 2).toUpperCase() || '24'}
+                       </AvatarFallback>
+                     </Avatar>
+@@ -608,7 +608,7 @@ export const AppLayout: React.FC = () => {
+       {/* 4. LAUNCHER MÓVIL A PANTALLA COMPLETA: CADA PESTAÑA ABRE SU PÁGINA */}
+       {/* ======================================================== */}
+       {mobileDrawerOpen && (
+-        <div className="fixed inset-0 z-50 md:hidden bg-[#F8F9FA] flex flex-col justify-between p-4 h-[100dvh] overflow-hidden animate-in fade-in duration-150">
++        <div className="fixed inset-0 z-50 md:hidden bg-studio-cream-light flex flex-col justify-between p-4 h-[100dvh] overflow-hidden animate-in fade-in duration-150">
+           {/* Cabecera compacta */}
+           <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 shrink-0">
+             <div className="flex items-center gap-2">
+@@ -618,7 +618,7 @@ export const AppLayout: React.FC = () => {
+                   247Studio
+                 </span>
+                 <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block">
+-                  Navegación Móvil Directa
++                  Menú
+                 </span>
+               </div>
+             </div>
+@@ -657,7 +657,7 @@ export const AppLayout: React.FC = () => {
+                         }`}
+                       >
+                         <div className="flex items-center gap-2 truncate">
+-                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-brand-accent'}`} />
++                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-studio-cream' : 'text-brand-accent'}`} />
+                           <span className="truncate">{item.label}</span>
+                         </div>
+                         {item.badge && (
+@@ -683,7 +683,7 @@ export const AppLayout: React.FC = () => {
+               }}
+               className="py-2.5 text-xs font-bold text-white bg-slate-900 flex items-center justify-center gap-1.5 rounded-xl transition cursor-pointer"
+             >
+-              <QrCode className="w-4 h-4 text-amber-400" />
++              <QrCode className="w-4 h-4 text-studio-cream" />
+               <span>Mi Pase QR</span>
+             </button>
+ 
+diff --git a/tailwind.config.js b/tailwind.config.js
+index dd6ca43..a4d846b 100644
+--- a/tailwind.config.js
++++ b/tailwind.config.js
+@@ -4,6 +4,20 @@ export default {
+   theme: {
+     extend: {
+       colors: {
++        // Neutrales cálidos: sustituyen al gris azulado de Tailwind en TODA la app (clases slate-*)
++        slate: {
++          50: '#FAF8F1',
++          100: '#F3EFE2',
++          200: '#E6E0CB',
++          300: '#D3CCB2',
++          400: '#9A9888',
++          500: '#6C6B60',
++          600: '#54534B',
++          700: '#3D3E4A',
++          800: '#252B44',
++          900: '#1A1D2E',
++          950: '#111320',
++        },
+         // Paleta oficial 247Studio extraída de www.247studiobjj.com
+         brand: {
+           background: '#DDD6B8', // Lienzo Tatami / Arena cálida oficial
+@@ -21,6 +35,8 @@ export default {
+           'red-dark': '#B91C1C',
+           cream: '#DDD6B8',
+           'cream-light': '#F5F2E6',
++          line: '#E6E0CB',
++          muted: '#6C6B60',
+           white: '#FFFFFF',
+           status: {
+             ok: '#10B981',
+@@ -37,8 +53,8 @@ export default {
+       },
+       boxShadow: {
+         'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02)',
+-        'card': '0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02)',
+-        'card-hover': '0 14px 34px -4px rgba(15, 23, 42, 0.08), 0 6px 14px -2px rgba(15, 23, 42, 0.04)',
++        'card': '0 2px 10px -2px rgba(26, 29, 46, 0.06), 0 1px 3px -1px rgba(26, 29, 46, 0.04)',
++        'card-hover': '0 10px 24px -6px rgba(26, 29, 46, 0.12), 0 4px 10px -2px rgba(26, 29, 46, 0.05)',
+         'modal': '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
+         'glow-red': '0 0 25px -4px rgba(225, 29, 46, 0.35)',
+         'glow-gold': '0 0 25px -4px rgba(245, 158, 11, 0.35)',
