@@ -34,13 +34,22 @@ service cloud.firestore {
     }
 
     function isStudent() {
-      return hasRole('student') || (!isAdmin() && !isCoach() && !isKiosk() && isAuthenticated());
+      return isAuthenticated() && (
+        hasRole('student') || (!isAdmin() && !isCoach() && !isKiosk())
+      );
     }
 
     function isValidEmail(email) {
       return email is string &&
         email.size() <= 120 &&
         email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isValidPhone(phone) {
+      return phone is string &&
+        phone.size() >= 6 &&
+        phone.size() <= 25 &&
+        phone.matches('^[0-9+() -]+$');
     }
 
     function isValidHttpsUrl(url) {
@@ -54,14 +63,20 @@ service cloud.firestore {
       );
     }
 
+    // Blindado contra inyección XSS (<script>, onload, onerror, javascript:)
     function isValidSvgSignature(svg) {
       return svg is string &&
         svg.size() <= 8192 &&
-        svg.matches('^<svg[\\s\\S]*');
+        svg.matches('^<svg[\\s\\S]*</svg>\\s*$') &&
+        !svg.matches('(?i)[\\s\\S]*(<script|onload|onerror|onclick|onmouseover|javascript:|<iframe|<object)[\\s\\S]*');
     }
 
     function isValidPeriodFormat(period) {
       return period is string && period.matches('^\\d{4}-(0[1-9]|1[0-2])$');
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches('^\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$');
     }
 
     // Calcula si una fecha YYYY-MM coincide con el mes actual o mes anterior de request.time
@@ -77,15 +92,16 @@ service cloud.firestore {
       return period == curPeriod || period == prevPeriod;
     }
 
-    // Valida que el usuario tenga al menos 16 años cumplidos respecto a request.time
+    // Valida >= 16 años protegiendo el caso borde del 29 de febrero (años bisiestos)
     function isAtLeast16YearsOld(birthDateStr) {
-      return birthDateStr is string &&
-        birthDateStr.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
-        request.time >= timestamp.date(
-          int(birthDateStr.split('-')[0]) + 16,
-          int(birthDateStr.split('-')[1]),
-          int(birthDateStr.split('-')[2])
-        );
+      let parts = birthDateStr.split('-');
+      let y = int(parts[0]);
+      let m = int(parts[1]);
+      let d = int(parts[2]);
+      let safeDay = (m == 2 && d == 29) ? 28 : d;
+
+      return isValidDateString(birthDateStr) &&
+        request.time >= timestamp.date(y + 16, m, safeDay);
     }
 
     // Denegación por defecto
@@ -97,34 +113,42 @@ service cloud.firestore {
     // COLECCIÓN: users
     // =========================================================================
     match /users/{userId} {
-      // Lectura: el propio usuario, el tutor asignado (guardianUid) o el admin (Coach consulta directorio kiosk_members)
+      // Lectura: el propio usuario, el tutor asignado (guardianUid seguro con .get) o el admin
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
         isAdmin() ||
-        (resource.data.guardianUid == request.auth.uid)
+        resource.data.get('guardianUid', '') == request.auth.uid
       );
 
-      // Auto-registro de alumnos (Prohibido < 16 años)
+      // Auto-registro de alumnos (Prohibido < 16 años y blindado contra inyección de campos)
       allow create: if isUser(userId) &&
-        request.resource.data.authEmail == request.auth.token.email &&
-        request.resource.data.accountStatus == 'PENDING' &&
-        request.resource.data.isMinor == false &&
-        request.resource.data.stripes == 0 &&
-        request.resource.data.createdAt == request.time &&
-        request.resource.data.updatedAt == request.time &&
-        isAtLeast16YearsOld(request.resource.data.birthDate) &&
         request.resource.data.keys().hasAll([
           'authEmail', 'contactEmail', 'alias', 'phone', 'birthDate',
           'isMinor', 'beltSystem', 'belt', 'stripes', 'pricingTier',
           'activeTariffId', 'accountStatus', 'permissions', 'createdAt', 'updatedAt'
         ]) &&
-        !('paymentStatusCache' in request.resource.data) &&
-        !('retentionRiskCache' in request.resource.data) &&
-        !('role' in request.resource.data);
+        request.resource.data.keys().hasOnly([
+          'authEmail', 'contactEmail', 'alias', 'phone', 'birthDate',
+          'isMinor', 'beltSystem', 'belt', 'stripes', 'pricingTier',
+          'activeTariffId', 'accountStatus', 'permissions', 'createdAt', 'updatedAt',
+          'emergencyContactName', 'emergencyContactPhone', 'photoUrl'
+        ]) &&
+        request.resource.data.authEmail == request.auth.token.email &&
+        isValidEmail(request.resource.data.contactEmail) &&
+        isValidPhone(request.resource.data.phone) &&
+        request.resource.data.alias is string && request.resource.data.alias.size() >= 2 && request.resource.data.alias.size() <= 60 &&
+        request.resource.data.accountStatus == 'PENDING' &&
+        request.resource.data.isMinor == false &&
+        request.resource.data.belt == 'WHITE' &&
+        request.resource.data.stripes == 0 &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        isAtLeast16YearsOld(request.resource.data.birthDate) &&
+        (!('photoUrl' in request.resource.data) || isValidPhotoUrl(request.resource.data.photoUrl));
 
       // Edición de usuario (Alumno)
+      // Nota: affectedKeys().hasOnly() ya garantiza la inmutabilidad del resto de campos
       allow update: if isUser(userId) &&
-        // El alumno solo puede modificar este set restringido de campos
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'contactEmail', 'phone', 'emergencyContactName', 'emergencyContactPhone',
           'alias', 'photoUrl', 'medicalNotes', 'medicalConsentAt',
@@ -132,38 +156,28 @@ service cloud.firestore {
           'waiverSignatureSvg', 'waiverSignedByUid', 'updatedAt'
         ]) &&
         request.resource.data.updatedAt == request.time &&
-        // photoUrl opcional pero con HTTPS estricto o base64 optimizado (< 70KB)
+        isValidEmail(request.resource.data.contactEmail) &&
+        isValidPhone(request.resource.data.phone) &&
         (!('photoUrl' in request.resource.data) || isValidPhotoUrl(request.resource.data.photoUrl)) &&
         // Reglas de consentimiento médico y notas (RGPD Art. 9)
         (
-          // Si edita medicalNotes, el consentimiento previo no debe ser nulo o se debe otorgar ahora
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['medicalNotes']) ||
-          (resource.data.medicalConsentAt != null || request.resource.data.medicalConsentAt == request.time)
+          (resource.data.get('medicalConsentAt', null) != null || request.resource.data.medicalConsentAt == request.time)
         ) &&
         (
-          // medicalConsentAt solo puede pasar de null a request.time
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['medicalConsentAt']) ||
-          (resource.data.medicalConsentAt == null && request.resource.data.medicalConsentAt == request.time)
+          (resource.data.get('medicalConsentAt', null) == null && request.resource.data.medicalConsentAt == request.time)
         ) &&
         (
-          // Firma de waiver por primera vez (no modificable una vez firmado)
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['waiverSignedAt']) ||
-          (!('waiverSignedAt' in resource.data) || resource.data.waiverSignedAt == null)
-        ) &&
-        (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['waiverSignatureSvg']) ||
-          isValidSvgSignature(request.resource.data.waiverSignatureSvg)
-        ) &&
-        // Inmutabilidad de campos sensibles para el alumno
-        request.resource.data.authEmail == resource.data.authEmail &&
-        request.resource.data.birthDate == resource.data.birthDate &&
-        request.resource.data.isMinor == resource.data.isMinor &&
-        request.resource.data.beltSystem == resource.data.beltSystem &&
-        request.resource.data.belt == resource.data.belt &&
-        request.resource.data.stripes == resource.data.stripes &&
-        request.resource.data.pricingTier == resource.data.pricingTier &&
-        request.resource.data.activeTariffId == resource.data.activeTariffId &&
-        request.resource.data.accountStatus == resource.data.accountStatus;
+          // Firma de waiver por primera vez (inmutable una vez firmado) y firmada por el propio usuario
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['waiverSignedAt', 'waiverSignatureSvg', 'waiverSignedByUid']) ||
+          (
+            resource.data.get('waiverSignedAt', null) == null &&
+            request.resource.data.waiverSignedAt == request.time &&
+            request.resource.data.waiverSignedByUid == request.auth.uid &&
+            isValidSvgSignature(request.resource.data.waiverSignatureSvg)
+          )
+        );
 
       // El Admin tiene control completo de create y update
       allow create, update: if isAdmin();
@@ -174,13 +188,18 @@ service cloud.firestore {
     // COLECCIÓN: payments
     // =========================================================================
     match /payments/{paymentId} {
-      // Lectura: propio alumno o admin
       allow read: if isAuthenticated() && (
         resource.data.uid == request.auth.uid || isAdmin()
       );
 
-      // Notificación de pago por parte del alumno
+      // Notificación de pago por parte del alumno (con control estricto de keys)
       allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasAll([
+          'uid', 'status', 'method', 'period', 'billingType', 'createdAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'status', 'method', 'period', 'billingType', 'bookingId', 'tariffId', 'notes', 'createdAt'
+        ]) &&
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.status == 'PENDING_APPROVAL' &&
         request.resource.data.method in ['BIZUM', 'CASH'] &&
@@ -188,15 +207,7 @@ service cloud.firestore {
         isAllowedPaymentPeriod(request.resource.data.period) &&
         request.resource.data.createdAt == request.time &&
         request.resource.data.billingType in ['MONTHLY', 'PASS', 'DROP_IN'] &&
-        // Si es DROP_IN exige bookingId
-        (request.resource.data.billingType != 'DROP_IN' || ('bookingId' in request.resource.data && request.resource.data.bookingId is string)) &&
-        // El alumno no puede auto-asignar importes ni validaciones
-        !('amountCents' in request.resource.data) &&
-        !('baseCents' in request.resource.data) &&
-        !('vatCents' in request.resource.data) &&
-        !('sessionsIncluded' in request.resource.data) &&
-        !('validatedBy' in request.resource.data) &&
-        !('validatedAt' in request.resource.data);
+        (request.resource.data.billingType != 'DROP_IN' || ('bookingId' in request.resource.data && request.resource.data.bookingId is string));
 
       // Actualización: Exclusiva del Admin (Aprobación / Rechazo)
       // Invariante de auditoría: Nadie puede modificar un pago que ya esté en status APPROVED
@@ -210,16 +221,13 @@ service cloud.firestore {
         request.resource.data.validatedBy == request.auth.uid &&
         request.resource.data.validatedAt == request.time &&
         (
-          // Si se aprueba, importes válidos requeridos
           request.resource.data.status == 'REJECTED' ||
           (
             request.resource.data.amountCents is int && request.resource.data.amountCents > 0 &&
             request.resource.data.baseCents is int && request.resource.data.baseCents >= 0 &&
             request.resource.data.vatCents is int && request.resource.data.vatCents >= 0 &&
             request.resource.data.baseCents + request.resource.data.vatCents == request.resource.data.amountCents &&
-            // Modalidad PASS exige sessionsIncluded positivo
             (resource.data.billingType != 'PASS' || (request.resource.data.sessionsIncluded is int && request.resource.data.sessionsIncluded > 0)) &&
-            // Modalidad MONTHLY prohíbe sessionsIncluded
             (resource.data.billingType != 'MONTHLY' || !('sessionsIncluded' in request.resource.data) || request.resource.data.sessionsIncluded == 0)
           )
         );
@@ -237,9 +245,15 @@ service cloud.firestore {
 
       // Creación por el alumno
       allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasAll(['uid', 'scheduleId', 'date', 'status', 'checkInSource', 'createdAt']) &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'scheduleId', 'date', 'status', 'checkInSource', 'sessionType', 'createdAt', 'updatedAt'
+        ]) &&
         request.resource.data.uid == request.auth.uid &&
+        request.resource.data.scheduleId is string &&
+        isValidDateString(request.resource.data.date) &&
         request.resource.data.status in ['BOOKED', 'WAITLISTED'] &&
-        request.resource.data.checkInSource in ['APP'] &&
+        request.resource.data.checkInSource == 'APP' &&
         request.resource.data.createdAt == request.time;
 
       // Cancelación por el alumno
@@ -247,29 +261,39 @@ service cloud.firestore {
         resource.data.uid == request.auth.uid &&
         resource.data.status in ['BOOKED', 'WAITLISTED'] &&
         request.resource.data.status == 'CANCELLED' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt', 'updatedAt']) &&
         request.resource.data.cancelledAt == request.time;
 
       // Kiosco Tablet: Puede crear o actualizar asistencia ATTENDED
       allow create: if isKiosk() &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'scheduleId', 'date', 'status', 'sessionType', 'attendanceWeight', 'checkInSource', 'attendedAt', 'createdAt', 'updatedAt'
+        ]) &&
+        request.resource.data.uid is string &&
+        request.resource.data.scheduleId is string &&
+        isValidDateString(request.resource.data.date) &&
         request.resource.data.status == 'ATTENDED' &&
         request.resource.data.checkInSource == 'TABLET' &&
         request.resource.data.attendanceWeight in [0.5, 1.0, 3.0] &&
         request.resource.data.createdAt == request.time;
 
       allow update: if isKiosk() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'sessionType', 'attendanceWeight', 'checkInSource']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'sessionType', 'attendanceWeight', 'checkInSource', 'attendedAt', 'updatedAt'
+        ]) &&
         request.resource.data.status == 'ATTENDED' &&
         request.resource.data.checkInSource == 'TABLET' &&
         request.resource.data.attendanceWeight in [0.5, 1.0, 3.0];
 
       // Admin total
       allow create, delete: if isAdmin();
+
       // Marcado de asistencia en tatami por Admin o Coach
       allow update: if isAdmin() || (
         isCoach() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'attendedAt', 'updatedAt']) &&
-        request.resource.data.status in ['ATTENDED', 'NO_SHOW']
+        request.resource.data.status in ['ATTENDED', 'NO_SHOW'] &&
+        request.resource.data.updatedAt == request.time
       );
     }
 
@@ -277,7 +301,6 @@ service cloud.firestore {
     // COLECCIÓN: schedules
     // =========================================================================
     match /schedules/{scheduleId} {
-      // Lectura pública si está activa; si está inactiva solo autenticados/admin
       allow read: if resource.data.active == true || isAuthenticated();
       allow write: if isAdmin();
     }
@@ -294,13 +317,19 @@ service cloud.firestore {
     // COLECCIÓN: leads (Captación pública de clases de prueba)
     // =========================================================================
     match /leads/{leadId} {
-      // Creación pública protegida por honeypot
-      allow create: if request.resource.data.honeypot == '' &&
+      // Creación pública protegida por honeypot y lista cerrada de campos
+      allow create: if request.resource.data.keys().hasAll([
+          'honeypot', 'status', 'name', 'email', 'phone', 'scheduleId', 'createdAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'honeypot', 'status', 'name', 'email', 'phone', 'scheduleId', 'notes', 'source', 'createdAt'
+        ]) &&
+        request.resource.data.honeypot == '' &&
         request.resource.data.status == 'NEW' &&
-        request.resource.data.name is string && request.resource.data.name.size() <= 100 &&
+        request.resource.data.name is string && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 100 &&
         isValidEmail(request.resource.data.email) &&
-        request.resource.data.phone is string && request.resource.data.phone.size() <= 25 &&
-        request.resource.data.scheduleId is string &&
+        isValidPhone(request.resource.data.phone) &&
+        request.resource.data.scheduleId is string && request.resource.data.scheduleId.size() <= 100 &&
         request.resource.data.createdAt == request.time;
 
       allow read, update, delete: if isAdmin();
@@ -313,7 +342,6 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         resource.data.uid == request.auth.uid || isAdmin()
       );
-      // Solo el admin crea y cierra freezes. No retroactivo por defecto.
       allow create: if isAdmin() &&
         request.resource.data.startDate >= request.time &&
         request.resource.data.reason in ['INJURY', 'OTHER'] &&
@@ -321,7 +349,7 @@ service cloud.firestore {
         request.resource.data.createdBy == request.auth.uid;
 
       allow update: if isAdmin() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['endDate', 'openEnded']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['endDate', 'openEnded', 'updatedAt']);
 
       allow delete: if false;
     }
@@ -330,7 +358,7 @@ service cloud.firestore {
     // COLECCIÓN: scheduleExceptions
     // =========================================================================
     match /scheduleExceptions/{exceptionId} {
-      allow read: if true; // Lectura pública para visualización en parrilla horaria
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -346,13 +374,13 @@ service cloud.firestore {
     // COLECCIÓN: kiosk_members (Directorio público seguro para recepción)
     // =========================================================================
     match /kiosk_members/{memberId} {
-      // Legible por el kiosco, admin, coach y alumnos (sin datos médicos ni privados)
-      allow read: if isKiosk() || isAdmin() || isCoach() || isStudent();
+      // isAuthenticated() engloba a admin, coach, kiosk y student
+      allow read: if isAuthenticated();
       allow create, delete: if isAdmin();
-      // El alumno autenticado puede actualizar su propia foto y marca de tiempo
       allow update: if isAdmin() || (
         isUser(memberId) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoUrl', 'updatedAt']) &&
+        request.resource.data.updatedAt == request.time &&
         (!('photoUrl' in request.resource.data) || isValidPhotoUrl(request.resource.data.photoUrl))
       );
     }
@@ -373,11 +401,22 @@ service cloud.firestore {
         resource.data.uid == request.auth.uid || isAdmin()
       );
       allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasAll(['uid', 'reason', 'startDate', 'status', 'createdAt']) &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'reason', 'notes', 'startDate', 'endDate', 'openEnded', 'status', 'createdAt'
+        ]) &&
         request.resource.data.uid == request.auth.uid &&
+        request.resource.data.reason in ['INJURY', 'OTHER'] &&
         request.resource.data.status == 'PENDING_ADMIN' &&
         request.resource.data.createdAt == request.time;
+
       allow update: if isAdmin() &&
+        resource.data.status == 'PENDING_ADMIN' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'resolvedAt', 'resolvedBy', 'adminNotes'
+        ]) &&
         request.resource.data.status in ['APPROVED', 'REJECTED'];
+
       allow delete: if false;
     }
 
@@ -386,11 +425,11 @@ service cloud.firestore {
     // =========================================================================
     match /class_capacity/{capacityId} {
       allow read: if isAuthenticated();
-      // Solo staff autorizado (Admin, Coach o Tablet Kiosco) puede ajustar el aforo
+      // Nota: Si el alumno reserva desde la app sin Cloud Function intermedia, necesitaría permiso aquí.
+      // Si se gestiona vía Backend/Admin SDK o solo lo consolida Staff/Kiosco, esta regla es óptima.
       allow create, update: if (isAdmin() || isCoach() || isKiosk()) &&
         request.resource.data.scheduleId is string &&
-        request.resource.data.date is string &&
-        request.resource.data.date.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+        isValidDateString(request.resource.data.date) &&
         request.resource.data.bookedCount is int &&
         request.resource.data.bookedCount >= 0 &&
         (!('waitlistCount' in request.resource.data) || (request.resource.data.waitlistCount is int && request.resource.data.waitlistCount >= 0)) &&
