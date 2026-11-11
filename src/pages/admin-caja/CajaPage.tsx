@@ -11,19 +11,19 @@ import {
 } from 'firebase/firestore';
 import {
   Banknote,
+  CalendarDays,
   Check,
-  Clock,
   Download,
   MessageCircle,
+  Minus,
   PauseCircle,
-  PlusCircle,
+  Plus,
   Receipt,
   Smartphone,
   X,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
-import { getLiveDocs } from '@/shared/api/liveReads';
 import {
   buildChargePayments,
   buildPeriodOptions,
@@ -53,6 +53,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog';
+import { KpiCard } from '@/shared/ui/kpi-card';
+import { PageHeader } from '@/shared/ui/page-header';
+import { SectionCard } from '@/shared/ui/section-card';
+
+const eur = (cents: number) =>
+  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(cents / 100);
+
+const BILLING_LABEL: Record<string, string> = {
+  MONTHLY: 'Cuota mensual',
+  PASS: 'Bono de sesiones',
+  DROP_IN: 'Clase suelta',
+};
+
+const fieldCls =
+  'w-full min-h-12 rounded-xl border border-studio-navy/15 bg-white px-3.5 text-base font-medium text-studio-navy placeholder:text-slate-500 focus:border-studio-red focus:outline-none focus:ring-2 focus:ring-studio-red/20';
+const labelCls = 'mb-1.5 block text-sm font-semibold text-studio-navy';
 
 interface FreezeRequest {
   id: string;
@@ -94,7 +110,7 @@ export const CajaPage: React.FC = () => {
   const [posMonths, setPosMonths] = useState<number>(1);
   const [posMethod, setPosMethod] = useState<PaymentMethod>('CASH');
   const [posAutoDownloadReceipt, setPosAutoDownloadReceipt] = useState<boolean>(true);
-  const [mobileSection, setMobileSection] = useState<'resumen' | 'cobros' | 'sinpagar' | 'pausas'>('resumen');
+  const [activeView, setActiveView] = useState<'unpaid' | 'payments'>('unpaid');
   const [unpaidTariffFilter, setUnpaidTariffFilter] = useState<string>('ALL');
 
   const fetchCajaData = async () => {
@@ -481,13 +497,12 @@ export const CajaPage: React.FC = () => {
       console.error('Error rejecting freeze:', err);
     }
   };
-
-  // Filtrado por periodo
+  // Period filtering
   const periodPayments = payments.filter((p) => p.period === filterPeriod);
   const approvedPayments = periodPayments.filter((p) => p.status === 'APPROVED');
   const pendingPayments = periodPayments.filter((p) => p.status === 'PENDING_APPROVAL');
 
-  // Cálculos agregados de caja
+  // Aggregates
   const totalRecaudadoCents = approvedPayments.reduce((acc, p) => acc + (p.amountCents || 0), 0);
   const totalBaseCents = approvedPayments.reduce((acc, p) => acc + (p.baseCents || 0), 0);
   const totalVatCents = approvedPayments.reduce((acc, p) => acc + (p.vatCents || 0), 0);
@@ -512,262 +527,213 @@ export const CajaPage: React.FC = () => {
   const paidTariffKeys = Object.keys(periodSummary.paidByTariff).sort(
     (a, b) => periodSummary.paidByTariff[b] - periodSummary.paidByTariff[a]
   );
+  const paidPercent = periodSummary.total > 0 ? Math.round((periodSummary.paid / periodSummary.total) * 100) : 0;
+  const periodLabel = filterPeriodOptions.find((o) => o.value === filterPeriod)?.label ?? filterPeriod;
 
   const pendingFreezeRequests = freezeRequests.filter((f) => f.status === 'PENDING_ADMIN');
 
+  const visiblePayments = periodPayments.filter(
+    (p) =>
+      (statusFilter === 'ALL' || p.status === statusFilter) &&
+      (methodFilter === 'ALL' || p.method === methodFilter)
+  );
+
+  const showPendingPayments = () => {
+    setStatusFilter('PENDING_APPROVAL');
+    setActiveView('payments');
+  };
+
   return (
-    <div className="space-y-3 md:space-y-6 pb-2 md:pb-12 animate-in fade-in duration-200">
-      {/* Cabecera */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
-        <div>
-          <h1 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Seguimiento Mensual y Caja
-          </h1>
-          <p className="hidden sm:block text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Arqueo diario, TPV mostrador, validación 1-click de Bizum/Metálico y exportación contable con IVA 21%.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          {/* Selector de periodo */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200/80 rounded-2xl px-3 py-1.5 shadow-subtle">
-            <Clock className="w-4 h-4 text-slate-400" />
-            <select
-              aria-label="Mes a consultar"
-              value={filterPeriod}
-              onChange={(e) => setFilterPeriod(e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
+    <div className="space-y-5 pb-8">
+      <PageHeader
+        title="Caja"
+        description={
+          <>
+            Cobros de <span className="font-bold capitalize text-studio-navy">{periodLabel}</span>
+          </>
+        }
+        actions={
+          <>
+            <div className="flex min-h-12 items-center gap-2 rounded-xl border border-studio-navy/15 bg-white px-3.5">
+              <CalendarDays className="h-5 w-5 text-slate-500" aria-hidden="true" />
+              <select
+                aria-label="Mes a consultar"
+                value={filterPeriod}
+                onChange={(e) => setFilterPeriod(e.target.value)}
+                className="min-h-11 cursor-pointer bg-transparent text-base font-semibold capitalize text-studio-navy focus:outline-none"
+              >
+                {filterPeriodOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => exportPaymentsToGestoriaCsv(periodPayments, users, filterPeriod)}
+              title="Exportar CSV con base e IVA 21 % para la gestoría"
+              className="flex min-h-12 cursor-pointer items-center gap-2 rounded-xl border border-studio-navy/15 bg-white px-4 text-sm font-semibold text-studio-navy transition-colors hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-navy"
             >
-              {filterPeriodOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Exportar CSV Gestoría */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => exportPaymentsToGestoriaCsv(periodPayments, users, filterPeriod)}
-            className="shadow-2xs"
-            title="Exportar archivo CSV con Base e IVA 21% listo para la Gestoría contable"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-600 mr-1.5" />
-            <span>CSV Gestoría</span>
-          </Button>
-
-          {/* Botón Cobro Directo TPV / PushPress POS */}
-          <Button
-            type="button"
-            variant="studio"
-            size="sm"
-            onClick={handleOpenPosModal}
-            className="shadow-card"
-          >
-            <PlusCircle className="w-4 h-4 mr-1.5" />
-            <span>Registrar cobro</span>
-          </Button>
-        </div>
-      </div>
+              <Download className="h-5 w-5" aria-hidden="true" />
+              <span>CSV gestoría</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenPosModal}
+              className="flex min-h-12 cursor-pointer items-center gap-2 rounded-xl bg-studio-red px-5 text-base font-bold text-white shadow-sm transition-colors hover:bg-studio-red-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-navy focus-visible:ring-offset-2 active:scale-[0.98]"
+            >
+              <Plus className="h-5 w-5" aria-hidden="true" />
+              <span>Registrar cobro</span>
+            </button>
+          </>
+        }
+      />
 
       {loadError && (
-        <p role="alert" className="text-sm font-semibold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3">
+        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">
           {loadError}
         </p>
       )}
 
-      {/* Selector de sub-pestañas móvil sin scroll vertical */}
-      <div className="md:hidden grid grid-cols-4 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
-        <button
-          type="button"
-          onClick={() => setMobileSection('resumen')}
-          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
-            mobileSection === 'resumen' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-          }`}
-        >
-          📊 Resumen
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileSection('cobros')}
-          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
-            mobileSection === 'cobros' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-          }`}
-        >
-          💳 Cobros ({periodPayments.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileSection('sinpagar')}
-          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
-            mobileSection === 'sinpagar' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-          }`}
-        >
-          Sin pagar ({allUnpaidCount})
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileSection('pausas')}
-          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
-            mobileSection === 'pausas' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-          }`}
-        >
-          ❄️ Pausas ({pendingFreezeRequests.length})
-        </button>
-      </div>
-
-      {/* KPI Cards de Caja */}
-      <div
-        className={`${
-          mobileSection === 'resumen' ? 'grid' : 'hidden md:grid'
-        } grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4`}
-      >
-        <div className="bg-gradient-to-br from-white via-white to-slate-50/50 border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-card hover:shadow-card-hover transition-all">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-            Total Recaudado (IVA Inc.)
-          </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
-            {(totalRecaudadoCents / 100).toFixed(2)} €
-          </div>
-          <span className="text-[11px] text-emerald-700 font-semibold block mt-1">
-            {approvedPayments.length} cuotas liquidadas
-          </span>
+      {/* Month figures */}
+      <section aria-label={`Resumen de ${periodLabel}`} className="overflow-hidden rounded-2xl bg-studio-navy text-white">
+        <div className="grid grid-cols-2 gap-1 p-2 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+          <KpiCard
+            featured
+            className="col-span-2 md:col-span-1"
+            label="Cobrado"
+            value={eur(totalRecaudadoCents)}
+            hint="IVA incluido"
+          />
+          <KpiCard label="Pagos" value={approvedPayments.length} hint="aprobados" />
+          <KpiCard
+            label="Por aprobar"
+            value={pendingPayments.length}
+            tone={pendingPayments.length > 0 ? 'warning' : 'neutral'}
+            hint={pendingPayments.length > 0 ? 'Toca para revisarlos' : 'Todo al día'}
+            onClick={pendingPayments.length > 0 ? showPendingPayments : undefined}
+          />
+          <KpiCard
+            label="Sin pagar"
+            value={allUnpaidCount}
+            tone={allUnpaidCount > 0 ? 'danger' : 'success'}
+            hint={`${periodSummary.paid} de ${periodSummary.total} han pagado`}
+            onClick={() => setActiveView('unpaid')}
+          />
         </div>
-
-        <div className="bg-gradient-to-br from-white via-white to-slate-50/50 border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-card hover:shadow-card-hover transition-all">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-            Base Imponible Neta
-          </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
-            {(totalBaseCents / 100).toFixed(2)} €
-          </div>
-          <span className="text-[11px] text-slate-500 font-medium block mt-1">
-            IVA repercutido (21%): {(totalVatCents / 100).toFixed(2)} €
-          </span>
-        </div>
-
-        <div className="bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 border border-amber-200 rounded-3xl p-4 sm:p-5 shadow-card hover:shadow-card-hover transition-all">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 block mb-1">
-            Abonos Pendientes de Validar
-          </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-amber-800 font-mono tracking-tight">
-            {pendingPayments.length}
-          </div>
-          <span className="text-[11px] text-amber-700/80 font-medium block mt-1">
-            Requiere cotejo con Bizum o Metálico
-          </span>
-        </div>
-      </div>
-
-      {/* Arqueo de Canales: Efectivo en Cajón vs Bizum / Banco */}
-      <div
-        className={`${
-          mobileSection === 'resumen' ? 'grid' : 'hidden md:grid'
-        } grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4`}
-      >
-        <div className="bg-gradient-to-br from-emerald-50/60 via-white to-emerald-50/30 border border-emerald-200/80 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shadow-subtle">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/10 px-5 py-3.5 md:grid-cols-4">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">
-              💵 Metálico en Cajón de Recepción
-            </span>
-            <div className="text-xl sm:text-2xl font-black text-emerald-950 font-mono mt-0.5">
-              {(totalCashCents / 100).toFixed(2)} €
-            </div>
-            <span className="text-[11px] text-emerald-700 font-medium">
-              Dinero físico en caja para cuadre al cierre
-            </span>
+            <dt className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/65">
+              <Banknote className="h-4 w-4" aria-hidden="true" /> Efectivo en cajón
+            </dt>
+            <dd className="mt-0.5 text-lg font-bold tabular-nums">{eur(totalCashCents)}</dd>
           </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30 border border-blue-200/80 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shadow-subtle">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-blue-800 block">
-              📱 Ingresos Directos Bizum / Cuenta
-            </span>
-            <div className="text-xl sm:text-2xl font-black text-blue-950 font-mono mt-0.5">
-              {(totalBizumCents / 100).toFixed(2)} €
-            </div>
-            <span className="text-[11px] text-blue-700 font-medium">
-              Transferencias electrónicas verificadas
-            </span>
+            <dt className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/65">
+              <Smartphone className="h-4 w-4" aria-hidden="true" /> Bizum y cuenta
+            </dt>
+            <dd className="mt-0.5 text-lg font-bold tabular-nums">{eur(totalBizumCents)}</dd>
           </div>
-        </div>
-      </div>
-
-      {/* Solicitudes de Suspensión Temporal (Freeze) Pendientes */}
-      {(pendingFreezeRequests.length > 0 || mobileSection === 'pausas') && (
-        <div
-          className={`${
-            mobileSection === 'pausas' ? 'block' : pendingFreezeRequests.length > 0 ? 'hidden md:block' : 'hidden'
-          } bg-white border border-amber-200 rounded-2xl p-5 shadow-sm space-y-3`}
-        >
-          <div className="flex items-center gap-2 text-amber-800 pb-2 border-b border-amber-100">
-            <PauseCircle className="w-5 h-5 text-amber-600" />
-            <h3 className="font-extrabold text-sm uppercase tracking-wide">
-              Solicitudes de Pausa / Freeze ({pendingFreezeRequests.length})
-            </h3>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wider text-white/65">Base imponible</dt>
+            <dd className="mt-0.5 text-lg font-bold tabular-nums">{eur(totalBaseCents)}</dd>
           </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wider text-white/65">IVA 21 %</dt>
+            <dd className="mt-0.5 text-lg font-bold tabular-nums">{eur(totalVatCents)}</dd>
+          </div>
+        </dl>
+      </section>
 
-          {pendingFreezeRequests.length === 0 ? (
-            <p className="text-xs text-slate-500">No hay solicitudes de pausa pendientes en este momento.</p>
-          ) : (
-            <div className="space-y-2">
-              {pendingFreezeRequests.map((req) => (
-                <div
-                  key={req.id}
-                  className="p-3.5 bg-amber-50/50 rounded-xl border border-amber-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                >
-                  <div>
-                    <span className="font-extrabold text-slate-900 block">{req.alias}</span>
-                    <span className="text-slate-600 block text-[11px] mt-0.5">
-                      Motivo: {req.reason === 'INJURY' ? 'Lesión deportiva' : 'Laboral / viaje'} • {req.notes || 'Sin notas adicionales'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleApproveFreeze(req)}
-                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <Check className="w-3.5 h-3.5" /> Aprobar Freeze
-                    </button>
-                    <button
-                      onClick={() => handleRejectFreeze(req)}
-                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-lg font-bold text-xs transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" /> Rechazar
-                    </button>
-                  </div>
+      {/* Pending freeze requests */}
+      {pendingFreezeRequests.length > 0 && (
+        <section className="space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-5">
+          <div className="flex items-center gap-2 text-amber-900">
+            <PauseCircle className="h-5 w-5" aria-hidden="true" />
+            <h2 className="text-lg font-bold">Solicitudes de pausa ({pendingFreezeRequests.length})</h2>
+          </div>
+          <ul className="space-y-2">
+            {pendingFreezeRequests.map((req) => (
+              <li
+                key={req.id}
+                className="flex flex-col justify-between gap-3 rounded-xl bg-white p-4 sm:flex-row sm:items-center"
+              >
+                <div className="min-w-0">
+                  <span className="block font-bold text-studio-navy">{req.alias}</span>
+                  <span className="mt-0.5 block text-sm text-slate-600">
+                    Motivo: {req.reason === 'INJURY' ? 'Lesión deportiva' : 'Laboral / viaje'} · {req.notes || 'Sin notas adicionales'}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleApproveFreeze(req)}
+                    className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-700"
+                  >
+                    <Check className="h-4 w-4" aria-hidden="true" /> Aprobar pausa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRejectFreeze(req)}
+                    className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-4 text-sm font-bold text-rose-800 hover:bg-rose-100"
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" /> Rechazar
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      {/* Alumnos sin pagar del periodo */}
-      <div
-        className={`${
-          mobileSection === 'sinpagar' ? 'block' : 'hidden md:block'
-        } bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm`}
-      >
-        <div className="p-5 border-b border-slate-200/80 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">
-                Alumnos sin pagar {filterPeriod}
-              </h2>
-              <p className="text-sm text-slate-700 mt-0.5">
-                <strong className="tabular-nums">
-                  {periodSummary.paid} de {periodSummary.total}
-                </strong>{' '}
-                alumnos han pagado {filterPeriod}.
-              </p>
-            </div>
-            <div>
+      {/* Work surface switcher */}
+      <div role="tablist" aria-label="Vista de caja" className="grid grid-cols-2 gap-1 rounded-2xl bg-studio-navy/10 p-1 sm:max-w-md">
+        {(
+          [
+            { id: 'unpaid', label: 'Sin pagar', count: allUnpaidCount },
+            { id: 'payments', label: 'Pagos del mes', count: periodPayments.length },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeView === tab.id}
+            onClick={() => setActiveView(tab.id)}
+            className={`flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl text-base font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-navy ${
+              activeView === tab.id ? 'bg-white text-studio-navy shadow-sm' : 'text-studio-navy/70 hover:text-studio-navy'
+            }`}
+          >
+            {tab.label}
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-bold tabular-nums ${
+                activeView === tab.id && tab.id === 'unpaid' && tab.count > 0
+                  ? 'bg-studio-red text-white'
+                  : 'bg-studio-navy/10 text-studio-navy'
+              }`}
+            >
+              {tab.count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Unpaid students */}
+      {activeView === 'unpaid' && (
+        <SectionCard
+          flush
+          title={<span>Pendientes de cobrar en {periodLabel}</span>}
+          description={
+            <>
+              <strong className="tabular-nums text-studio-navy">
+                {periodSummary.paid} de {periodSummary.total}
+              </strong>{' '}
+              alumnos han pagado {periodLabel}.
+            </>
+          }
+          actions={
+            <>
               <label htmlFor="unpaid-tariff" className="sr-only">
                 Filtrar por tarifa
               </label>
@@ -775,7 +741,7 @@ export const CajaPage: React.FC = () => {
                 id="unpaid-tariff"
                 value={unpaidTariffFilter}
                 onChange={(e) => setUnpaidTariffFilter(e.target.value)}
-                className="min-h-11 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer"
+                className="min-h-12 cursor-pointer rounded-xl border border-studio-navy/15 bg-white px-3.5 text-sm font-semibold text-studio-navy focus:outline-none focus:ring-2 focus:ring-studio-navy/30"
               >
                 <option value="ALL">Todas las tarifas</option>
                 {activeTariffs.map((t) => (
@@ -785,601 +751,607 @@ export const CajaPage: React.FC = () => {
                 ))}
                 <option value={NO_TARIFF}>Sin tarifa</option>
               </select>
+            </>
+          }
+        >
+          <div className="space-y-3 border-b border-studio-navy/10 px-5 py-3.5">
+            <div
+              role="progressbar"
+              aria-label="Alumnos que han pagado"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={paidPercent}
+              className="h-2 overflow-hidden rounded-full bg-studio-navy/10"
+            >
+              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${paidPercent}%` }} />
             </div>
+            {paidTariffKeys.length > 0 && (
+              <ul className="flex flex-wrap gap-2" aria-label={`Alumnos que han pagado ${periodLabel}, por tarifa`}>
+                {paidTariffKeys.map((key) => (
+                  <li key={key} className="rounded-full bg-studio-navy/5 px-3 py-1 text-xs font-semibold text-studio-navy">
+                    {tariffName(key)}: <span className="tabular-nums">{periodSummary.paidByTariff[key]}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          {paidTariffKeys.length > 0 && (
-            <ul className="flex flex-wrap gap-2" aria-label={`Alumnos que han pagado ${filterPeriod}, por tarifa`}>
-              {paidTariffKeys.map((key) => (
-                <li
-                  key={key}
-                  className="px-2.5 py-1 rounded-full bg-slate-100 text-xs font-semibold text-slate-800"
-                >
-                  {tariffName(key)}: <span className="tabular-nums">{periodSummary.paidByTariff[key]}</span>
-                </li>
-              ))}
+          {unpaidRows.length === 0 ? (
+            <div className="px-5 py-14 text-center">
+              <p className="text-base font-bold text-studio-navy">
+                {allUnpaidCount === 0
+                  ? periodSummary.total === 0
+                    ? 'Todavía no hay alumnos activos'
+                    : `Todos los alumnos activos han pagado ${periodLabel}`
+                  : 'Ningún alumno sin pagar con esta tarifa'}
+              </p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-slate-600">
+                {allUnpaidCount === 0
+                  ? periodSummary.total === 0
+                    ? 'Da de alta a un alumno desde Alta de alumno para que aparezca aquí.'
+                    : 'Cambia de mes arriba para revisar otros periodos.'
+                  : 'Elige otra tarifa en el filtro para ver al resto.'}
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-studio-navy/10">
+              {unpaidRows.map(({ user: stu, lastPaidPeriod, tariffKey }) => {
+                const fullName = [stu.firstName, stu.lastName].filter(Boolean).join(' ') || stu.alias;
+                const initials = fullName
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .map((w) => w.charAt(0).toUpperCase())
+                  .join('');
+                return (
+                  <li key={stu.uid} className="flex items-center gap-4 px-5 py-3.5">
+                    {stu.photoUrl ? (
+                      <img src={stu.photoUrl} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-studio-navy text-sm font-bold text-white"
+                      >
+                        {initials}
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-base font-bold text-studio-navy">{fullName}</span>
+                        {stu.isFoundingMember && (
+                          <span className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-900">
+                            Socio fundador
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-700">{stu.phone || 'Sin teléfono'}</p>
+                      <p className="text-sm text-slate-600">
+                        {lastPaidPeriod
+                          ? `Último pago: ${lastPaidPeriod} (${tariffName(tariffKey)})`
+                          : 'Sin pagos registrados'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleChargeStudent(stu.uid)}
+                      aria-label={`Cobrar a ${fullName}`}
+                      className="flex min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-studio-red px-5 text-base font-bold text-white transition-colors hover:bg-studio-red-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-navy focus-visible:ring-offset-2 active:scale-[0.98]"
+                    >
+                      <Banknote className="h-5 w-5" aria-hidden="true" />
+                      Cobrar
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
-        </div>
+        </SectionCard>
+      )}
 
-        {unpaidRows.length === 0 ? (
-          <div className="py-12 px-5 text-center">
-            <p className="text-sm font-bold text-slate-900">
-              {allUnpaidCount === 0
-                ? periodSummary.total === 0
-                  ? 'Todavía no hay alumnos activos'
-                  : `Todos los alumnos activos han pagado ${filterPeriod}`
-                : 'Ningún alumno sin pagar con esta tarifa'}
-            </p>
-            <p className="text-sm text-slate-600 mt-1 max-w-md mx-auto">
-              {allUnpaidCount === 0
-                ? periodSummary.total === 0
-                  ? 'Da de alta a un alumno desde Alta de alumno para que aparezca aquí.'
-                  : 'Cambia de mes arriba para revisar otros periodos.'
-                : 'Elige otra tarifa en el filtro para ver al resto.'}
-            </p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {unpaidRows.map(({ user: stu, lastPaidPeriod, tariffKey }) => {
-              const fullName = [stu.firstName, stu.lastName].filter(Boolean).join(' ') || stu.alias;
-              const initials = fullName
-                .split(/\s+/)
-                .slice(0, 2)
-                .map((w) => w.charAt(0).toUpperCase())
-                .join('');
-              return (
-                <li key={stu.uid} className="flex items-center gap-3 px-5 py-3">
-                  {stu.photoUrl ? (
-                    <img src={stu.photoUrl} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="w-10 h-10 rounded-full bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center shrink-0"
-                    >
-                      {initials}
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-extrabold text-sm text-slate-900 truncate">{fullName}</span>
-                      {stu.isFoundingMember && (
-                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold uppercase">
-                          Socio fundador
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-700">{stu.phone || 'Sin teléfono'}</p>
-                    <p className="text-xs text-slate-600">
-                      {lastPaidPeriod
-                        ? `Último pago: ${lastPaidPeriod} (${tariffName(tariffKey)})`
-                        : 'Sin pagos registrados'}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="studio"
-                    size="sm"
-                    className="min-h-11 shrink-0"
-                    onClick={() => handleChargeStudent(stu.uid)}
-                    aria-label={`Cobrar a ${fullName}`}
-                  >
-                    Cobrar
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      {/* Tabla de Cobros y Liquidaciones */}
-      <div
-        className={`${
-          mobileSection === 'cobros' ? 'block' : 'hidden md:block'
-        } bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm`}
-      >
-        <div className="p-5 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">
-            Órdenes de Pago del Periodo {filterPeriod}
-          </h2>
-
-          <div className="flex items-center gap-2">
-            <select
-              value={methodFilter}
-              onChange={(e) => setMethodFilter(e.target.value as any)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
-            >
-              <option value="ALL">Todos los Métodos</option>
-              <option value="CASH">Metálico</option>
-              <option value="BIZUM">Bizum</option>
-            </select>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
-            >
-              <option value="ALL">Todos los Estados</option>
-              <option value="PENDING_APPROVAL">En Revisión (Pendientes)</option>
-              <option value="APPROVED">Aprobados</option>
-              <option value="REJECTED">Rechazados</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200/80">
-              <tr>
-                <th className="py-3.5 px-5">Alumno</th>
-                <th className="py-3.5 px-4">Método</th>
-                <th className="py-3.5 px-4">Modalidad</th>
-                <th className="py-3.5 px-4">Total / Base / IVA</th>
-                <th className="py-3.5 px-4">Estado</th>
-                <th className="py-3.5 px-5 text-right">Validación & Recibos</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {periodPayments
-                .filter(
-                  (p) =>
-                    (statusFilter === 'ALL' || p.status === statusFilter) &&
-                    (methodFilter === 'ALL' || p.method === methodFilter)
-                )
-                .map((pay) => {
-                  const student = users.find((u) => u.uid === pay.uid);
-                  return (
-                    <tr key={pay.id} className="hover:bg-slate-50/70 transition">
-                      <td className="py-4 px-5">
-                        <span className="font-extrabold text-sm text-slate-900 block">
-                          {student?.alias || pay.uid}
-                        </span>
-                        <span className="text-[11px] text-slate-500">{student?.phone || 'Sin teléfono'}</span>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded font-bold text-[10px] uppercase ${
-                            pay.method === 'BIZUM'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}
-                        >
-                          {pay.method}
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-4 font-semibold text-slate-700 uppercase text-[11px]">
-                        {pay.billingType}
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <div className="font-extrabold text-slate-900 font-mono text-sm">
-                          {pay.amountCents ? `${(pay.amountCents / 100).toFixed(2)} €` : '65,00 € (Est.)'}
-                        </div>
-                        {pay.baseCents !== undefined && pay.vatCents !== undefined && (
-                          <div className="text-[10px] text-slate-500 font-mono">
-                            Base: {(pay.baseCents / 100).toFixed(2)} € • IVA: {(pay.vatCents / 100).toFixed(2)} €
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-block ${
-                            pay.status === 'APPROVED'
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                              : pay.status === 'PENDING_APPROVAL'
-                              ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                              : 'bg-rose-50 text-rose-800 border border-rose-200'
-                          }`}
-                        >
-                          {pay.status === 'APPROVED'
-                            ? 'Aprobado'
-                            : pay.status === 'PENDING_APPROVAL'
-                            ? 'Pendiente'
-                            : 'Rechazado'}
-                        </span>
-                      </td>
-
-                      <td className="py-4 px-5 text-right">
-                        {pay.status === 'PENDING_APPROVAL' ? (
-                          <div className="flex items-center justify-end gap-1.5">
-                            {student?.phone && (
-                              <button
-                                type="button"
-                                onClick={() => handleSendWhatsAppReminder(pay)}
-                                className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition cursor-pointer"
-                                title="Enviar recordatorio amistoso de pago por WhatsApp"
-                              >
-                                <MessageCircle className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleApprovePayment(pay)}
-                              disabled={actionLoading === pay.id}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition shadow-sm flex items-center gap-1 cursor-pointer"
-                            >
-                              <Check className="w-3.5 h-3.5" /> Aprobar
-                            </button>
-                            <button
-                              onClick={() => handleOpenRejectModal(pay)}
-                              disabled={actionLoading === pay.id}
-                              className="px-2 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-bold text-xs transition cursor-pointer"
-                              title="Rechazar pago"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="text-[11px] text-emerald-600 font-bold">Validado</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const payDate = (pay as any).createdAt || (pay as any).paidAt;
-                                downloadReceiptPdf({
-                                  receiptNumber: `REC-${pay.id.substring(0, 8).toUpperCase()}`,
-                                  dateStr: payDate
-                                    ? new Date(payDate.toDate ? payDate.toDate() : payDate).toLocaleDateString('es-ES')
-                                    : 'Hoy',
-                                  timeStr: '19:30',
-                                  studentAlias: student?.alias || 'Atleta 247',
-                                  concept: pay.concept || `Cuota Mensual BJJ (${pay.period})`,
-                                  amountEur: (pay.amountCents || 6500) / 100,
-                                  paymentMethod: (pay.method as any) || 'CASH',
-                                  staffName: posStaffLabel,
-                                });
-                              }}
-                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition flex items-center gap-1 border border-slate-200 cursor-pointer"
-                              title="Descargar Justificante Oficial (PDF)"
-                            >
-                              <Download className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Recibo PDF</span>
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-          {periodPayments.length === 0 && (
-            <div className="py-12 px-5 text-center">
-              <p className="text-sm font-bold text-slate-900">No hay cobros en {filterPeriod}</p>
-              <p className="text-sm text-slate-600 mt-1 max-w-md mx-auto">
+      {/* Payments of the period */}
+      {activeView === 'payments' && (
+        <SectionCard
+          flush
+          title={<span>Pagos de {periodLabel}</span>}
+          actions={
+            <>
+              <select
+                aria-label="Filtrar por método"
+                value={methodFilter}
+                onChange={(e) => setMethodFilter(e.target.value as 'ALL' | PaymentMethod)}
+                className="min-h-12 cursor-pointer rounded-xl border border-studio-navy/15 bg-white px-3.5 text-sm font-semibold text-studio-navy focus:outline-none focus:ring-2 focus:ring-studio-navy/30"
+              >
+                <option value="ALL">Todos los métodos</option>
+                <option value="CASH">Metálico</option>
+                <option value="BIZUM">Bizum</option>
+              </select>
+              <select
+                aria-label="Filtrar por estado"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as 'ALL' | PaymentStatus)}
+                className="min-h-12 cursor-pointer rounded-xl border border-studio-navy/15 bg-white px-3.5 text-sm font-semibold text-studio-navy focus:outline-none focus:ring-2 focus:ring-studio-navy/30"
+              >
+                <option value="ALL">Todos los estados</option>
+                <option value="PENDING_APPROVAL">Pendientes de aprobar</option>
+                <option value="APPROVED">Aprobados</option>
+                <option value="REJECTED">Rechazados</option>
+              </select>
+            </>
+          }
+        >
+          {periodPayments.length === 0 ? (
+            <div className="px-5 py-14 text-center">
+              <p className="text-base font-bold text-studio-navy">No hay cobros en {periodLabel}</p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-slate-600">
                 Cuando registres un cobro o un alumno avise de su pago, aparecerá aquí. Cambia de mes arriba para ver otros periodos.
               </p>
-              <Button type="button" variant="studio" size="sm" onClick={handleOpenPosModal} className="mt-4">
-                <PlusCircle className="w-4 h-4 mr-1.5" />
-                <span>Registrar cobro</span>
-              </Button>
+              <button
+                type="button"
+                onClick={handleOpenPosModal}
+                className="mx-auto mt-5 flex min-h-12 cursor-pointer items-center gap-2 rounded-xl bg-studio-red px-5 font-bold text-white hover:bg-studio-red-dark"
+              >
+                <Plus className="h-5 w-5" aria-hidden="true" />
+                Registrar cobro
+              </button>
             </div>
-          )}
-        </div>
-      </div>
+          ) : visiblePayments.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm font-semibold text-slate-600">
+              Ningún pago coincide con los filtros elegidos.
+            </p>
+          ) : (
+            <ul className="divide-y divide-studio-navy/10">
+              {visiblePayments.map((pay) => {
+                const student = users.find((u) => u.uid === pay.uid);
+                return (
+                  <li key={pay.id} className="flex flex-wrap items-center gap-x-5 gap-y-3 px-5 py-4">
+                    <div className="min-w-0 flex-1 basis-52">
+                      <span className="block truncate text-base font-bold text-studio-navy">
+                        {student?.alias || pay.uid}
+                      </span>
+                      <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-slate-600">
+                        <span>{BILLING_LABEL[pay.billingType] ?? pay.billingType}</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="inline-flex items-center gap-1">
+                          {pay.method === 'BIZUM' ? (
+                            <Smartphone className="h-3.5 w-3.5" aria-hidden="true" />
+                          ) : (
+                            <Banknote className="h-3.5 w-3.5" aria-hidden="true" />
+                          )}
+                          {pay.method === 'BIZUM' ? 'Bizum' : 'Metálico'}
+                        </span>
+                        <span aria-hidden="true">·</span>
+                        <span>{student?.phone || 'Sin teléfono'}</span>
+                      </span>
+                    </div>
 
-      {/* Counter charge modal (Radix Dialog) */}
+                    <div className="text-right">
+                      <div className="font-headline text-2xl font-bold leading-none tabular-nums text-studio-navy">
+                        {pay.amountCents ? eur(pay.amountCents) : '65,00 € (est.)'}
+                      </div>
+                      {pay.baseCents !== undefined && pay.vatCents !== undefined && (
+                        <div className="mt-1 text-xs tabular-nums text-slate-600">
+                          Base {eur(pay.baseCents)} · IVA {eur(pay.vatCents)}
+                        </div>
+                      )}
+                    </div>
+
+                    <span
+                      className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${
+                        pay.status === 'APPROVED'
+                          ? 'bg-emerald-100 text-emerald-900'
+                          : pay.status === 'PENDING_APPROVAL'
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'bg-rose-100 text-rose-900'
+                      }`}
+                    >
+                      {pay.status === 'APPROVED' ? 'Aprobado' : pay.status === 'PENDING_APPROVAL' ? 'Pendiente' : 'Rechazado'}
+                    </span>
+
+                    {pay.status === 'PENDING_APPROVAL' ? (
+                      <div className="flex items-center gap-2">
+                        {student?.phone && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendWhatsAppReminder(pay)}
+                            className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                            title="Enviar recordatorio de pago por WhatsApp"
+                            aria-label="Enviar recordatorio de pago por WhatsApp"
+                          >
+                            <MessageCircle className="h-5 w-5" aria-hidden="true" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleApprovePayment(pay)}
+                          disabled={actionLoading === pay.id}
+                          className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          <Check className="h-4 w-4" aria-hidden="true" /> Aprobar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenRejectModal(pay)}
+                          disabled={actionLoading === pay.id}
+                          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                          title="Rechazar pago"
+                          aria-label="Rechazar pago"
+                        >
+                          <X className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const payDate = (pay as any).createdAt || (pay as any).paidAt;
+                          downloadReceiptPdf({
+                            receiptNumber: `REC-${pay.id.substring(0, 8).toUpperCase()}`,
+                            dateStr: payDate
+                              ? new Date(payDate.toDate ? payDate.toDate() : payDate).toLocaleDateString('es-ES')
+                              : 'Hoy',
+                            timeStr: '19:30',
+                            studentAlias: student?.alias || 'Atleta 247',
+                            concept: pay.concept || `Cuota Mensual BJJ (${pay.period})`,
+                            amountEur: (pay.amountCents || 6500) / 100,
+                            paymentMethod: (pay.method as any) || 'CASH',
+                            staffName: posStaffLabel,
+                          });
+                        }}
+                        className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-studio-navy/15 bg-white px-4 text-sm font-semibold text-studio-navy hover:bg-studio-navy/5"
+                        title="Descargar justificante (PDF)"
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        Recibo PDF
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </SectionCard>
+      )}
+
+      {/* Charge modal */}
       <Dialog open={showPosModal} onOpenChange={setShowPosModal}>
-        <DialogContent className="max-w-xl max-h-[92vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-brand-accent" />
-              <DialogTitle>Registrar cobro</DialogTitle>
+        <DialogContent className="max-h-[92dvh] max-w-xl gap-0 overflow-y-auto p-0 sm:rounded-2xl">
+          <DialogHeader className="bg-studio-navy px-6 py-5 pr-14 text-left">
+            <div className="flex items-center gap-2.5">
+              <Receipt className="h-6 w-6 text-white" aria-hidden="true" />
+              <DialogTitle className="font-headline text-2xl uppercase tracking-tight text-white">
+                Registrar cobro
+              </DialogTitle>
             </div>
-            <DialogDescription>
+            <DialogDescription className="text-sm text-white/75">
               Elige alumno, tarifa y mes. El cobro queda aprobado al instante.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreatePosCharge} noValidate className="space-y-4 pt-1">
-            {/* Student or walk-in */}
-            <div>
-              <label htmlFor="pos-student" className="block text-xs font-bold text-slate-700 mb-1">
-                Alumno
-              </label>
-              <select
-                id="pos-student"
-                value={posStudentUid}
-                onChange={(e) => setPosStudentUid(e.target.value)}
-                className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
-              >
-                <option value="">Cliente sin ficha (visita o esporádico)</option>
-                {studentOptions.map((u) => (
-                  <option key={u.uid} value={u.uid}>
-                    {u.alias} ({u.contactEmail || u.authEmail || u.phone || 'Sin contacto'})
-                  </option>
-                ))}
-              </select>
-              {!posStudentUid && (
-                <input
-                  type="text"
-                  aria-label="Nombre del cliente"
-                  placeholder="Nombre del cliente"
-                  value={posCustomAlias}
-                  onChange={(e) => setPosCustomAlias(e.target.value)}
-                  className="w-full mt-2 min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-brand-accent"
-                />
-              )}
-              {posStudent?.isFoundingMember && (
-                <p className="mt-1.5 text-xs font-semibold text-amber-800">
-                  Socio fundador: se aplica un 10 % de descuento.
-                </p>
-              )}
-            </div>
+          <form onSubmit={handleCreatePosCharge} noValidate>
+            <div className="space-y-5 px-6 py-5">
+              {/* Student or walk-in */}
+              <div>
+                <label htmlFor="pos-student" className={labelCls}>
+                  Alumno
+                </label>
+                <select
+                  id="pos-student"
+                  value={posStudentUid}
+                  onChange={(e) => setPosStudentUid(e.target.value)}
+                  className={fieldCls}
+                >
+                  <option value="">Cliente sin ficha (visita o esporádico)</option>
+                  {studentOptions.map((u) => (
+                    <option key={u.uid} value={u.uid}>
+                      {u.alias} ({u.contactEmail || u.authEmail || u.phone || 'Sin contacto'})
+                    </option>
+                  ))}
+                </select>
+                {!posStudentUid && (
+                  <input
+                    type="text"
+                    aria-label="Nombre del cliente"
+                    placeholder="Nombre del cliente"
+                    value={posCustomAlias}
+                    onChange={(e) => setPosCustomAlias(e.target.value)}
+                    className={`${fieldCls} mt-2`}
+                  />
+                )}
+                {posStudent?.isFoundingMember && (
+                  <p className="mt-1.5 text-sm font-semibold text-amber-800">
+                    Socio fundador: se aplica un 10 % de descuento.
+                  </p>
+                )}
+              </div>
 
-            {/* Tariff */}
-            <div>
-              <label htmlFor="pos-tariff" className="block text-xs font-bold text-slate-700 mb-1">
-                Tarifa
-              </label>
-              <select
-                id="pos-tariff"
-                value={posTariffId}
-                onChange={(e) => handleSelectPosTariff(e.target.value)}
-                className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
-              >
-                <option value="">Concepto manual (sin tarifa)</option>
-                {activeTariffs.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({(t.priceCents / 100).toFixed(2)} €)
-                  </option>
-                ))}
-              </select>
-              {activeTariffs.length === 0 && (
-                <p className="mt-1.5 text-xs text-slate-700">
-                  No hay tarifas activas.{' '}
-                  <Link to="/admin/tarifas" className="font-bold text-brand-accent underline underline-offset-2">
-                    Crea o activa una en Tarifas
-                  </Link>{' '}
-                  o registra el cobro con un concepto manual.
-                </p>
-              )}
-            </div>
+              {/* Tariff */}
+              <div>
+                <label htmlFor="pos-tariff" className={labelCls}>
+                  Tarifa
+                </label>
+                <select
+                  id="pos-tariff"
+                  value={posTariffId}
+                  onChange={(e) => handleSelectPosTariff(e.target.value)}
+                  className={fieldCls}
+                >
+                  <option value="">Concepto manual (sin tarifa)</option>
+                  {activeTariffs.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({eur(t.priceCents)})
+                    </option>
+                  ))}
+                </select>
+                {activeTariffs.length === 0 && (
+                  <p className="mt-1.5 text-sm text-slate-700">
+                    No hay tarifas activas.{' '}
+                    <Link to="/admin/tarifas" className="font-bold text-studio-red underline underline-offset-2">
+                      Crea o activa una en Tarifas
+                    </Link>{' '}
+                    o registra el cobro con un concepto manual.
+                  </p>
+                )}
+              </div>
 
-            {!posTariff && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {!posTariff && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="pos-concept" className={labelCls}>
+                      Concepto
+                    </label>
+                    <input
+                      id="pos-concept"
+                      type="text"
+                      required
+                      aria-invalid={posFieldErrors.concept ? true : undefined}
+                      aria-describedby={posFieldErrors.concept ? 'pos-concept-error' : undefined}
+                      placeholder="Ej. Kimono oficial"
+                      value={posManualConcept}
+                      onChange={(e) => setPosManualConcept(e.target.value)}
+                      className={fieldCls}
+                    />
+                    {posFieldErrors.concept && (
+                      <p id="pos-concept-error" role="alert" className="mt-1 text-sm font-semibold text-rose-800">
+                        {posFieldErrors.concept}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="pos-billing" className={labelCls}>
+                      Tipo de cobro
+                    </label>
+                    <select
+                      id="pos-billing"
+                      value={posManualBillingType}
+                      onChange={(e) => setPosManualBillingType(e.target.value as BillingType)}
+                      className={fieldCls}
+                    >
+                      <option value="MONTHLY">Cuota mensual</option>
+                      <option value="PASS">Bono de sesiones</option>
+                      <option value="DROP_IN">Clase suelta / otro</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Amount, period, months */}
+              <div className={`grid grid-cols-1 gap-3 ${posBillingType === 'MONTHLY' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
                 <div>
-                  <label htmlFor="pos-concept" className="block text-xs font-bold text-slate-700 mb-1">
-                    Concepto
+                  <label htmlFor="pos-amount" className={labelCls}>
+                    Importe (€, IVA incl.)
                   </label>
                   <input
-                    id="pos-concept"
-                    type="text"
+                    id="pos-amount"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0.01"
                     required
-                    aria-invalid={posFieldErrors.concept ? true : undefined}
-                    aria-describedby={posFieldErrors.concept ? 'pos-concept-error' : undefined}
-                    placeholder="Ej. Kimono oficial"
-                    value={posManualConcept}
-                    onChange={(e) => setPosManualConcept(e.target.value)}
-                    className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-brand-accent"
+                    aria-invalid={posFieldErrors.amount ? true : undefined}
+                    aria-describedby={posFieldErrors.amount ? 'pos-amount-error' : undefined}
+                    value={posAmountEur}
+                    onChange={(e) => setPosAmountEur(e.target.value)}
+                    className={`${fieldCls} font-bold tabular-nums`}
                   />
-                  {posFieldErrors.concept && (
-                    <p id="pos-concept-error" role="alert" className="mt-1 text-xs font-semibold text-rose-800">
-                      {posFieldErrors.concept}
+                  {posFieldErrors.amount && (
+                    <p id="pos-amount-error" role="alert" className="mt-1 text-sm font-semibold text-rose-800">
+                      {posFieldErrors.amount}
                     </p>
                   )}
                 </div>
                 <div>
-                  <label htmlFor="pos-billing" className="block text-xs font-bold text-slate-700 mb-1">
-                    Tipo de cobro
+                  <label htmlFor="pos-period" className={labelCls}>
+                    Mes que se paga
                   </label>
                   <select
-                    id="pos-billing"
-                    value={posManualBillingType}
-                    onChange={(e) => setPosManualBillingType(e.target.value as BillingType)}
-                    className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
+                    id="pos-period"
+                    value={posPeriod}
+                    onChange={(e) => setPosPeriod(e.target.value)}
+                    className={`${fieldCls} capitalize`}
                   >
-                    <option value="MONTHLY">Cuota mensual</option>
-                    <option value="PASS">Bono de sesiones</option>
-                    <option value="DROP_IN">Clase suelta / otro</option>
+                    {posPeriodOptions.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
-              </div>
-            )}
-
-            {/* Amount, period, months */}
-            <div
-              className={`grid grid-cols-1 gap-3 ${
-                posBillingType === 'MONTHLY' ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)]' : 'sm:grid-cols-2'
-              }`}
-            >
-              <div>
-                <label htmlFor="pos-amount" className="block text-xs font-bold text-slate-700 mb-1">
-                  Importe (€, IVA incl.)
-                </label>
-                <input
-                  id="pos-amount"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  aria-invalid={posFieldErrors.amount ? true : undefined}
-                  aria-describedby={posFieldErrors.amount ? 'pos-amount-error' : undefined}
-                  value={posAmountEur}
-                  onChange={(e) => setPosAmountEur(e.target.value)}
-                  className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 tabular-nums focus:outline-none focus:border-brand-accent"
-                />
-                {posFieldErrors.amount && (
-                  <p id="pos-amount-error" role="alert" className="mt-1 text-xs font-semibold text-rose-800">
-                    {posFieldErrors.amount}
-                  </p>
+                {posBillingType === 'MONTHLY' && (
+                  <div>
+                    <label htmlFor="pos-months" className={labelCls}>
+                      Meses a pagar
+                    </label>
+                    <div className="flex items-stretch gap-1.5">
+                      <button
+                        type="button"
+                        aria-label="Un mes menos"
+                        onClick={() => setPosMonths((m) => Math.max(1, m - 1))}
+                        disabled={posMonths <= 1}
+                        className="flex min-h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-studio-navy/15 bg-white text-studio-navy hover:bg-studio-navy/5 disabled:opacity-40"
+                      >
+                        <Minus className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                      <input
+                        id="pos-months"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={MAX_PREPAYMENT_MONTHS}
+                        step={1}
+                        required
+                        value={posMonths}
+                        onChange={(e) =>
+                          setPosMonths(Math.min(MAX_PREPAYMENT_MONTHS, Math.max(1, parseInt(e.target.value, 10) || 1)))
+                        }
+                        className={`${fieldCls} min-w-0 px-1 text-center font-bold tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none`}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Un mes más"
+                        onClick={() => setPosMonths((m) => Math.min(MAX_PREPAYMENT_MONTHS, m + 1))}
+                        disabled={posMonths >= MAX_PREPAYMENT_MONTHS}
+                        className="flex min-h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-studio-navy/15 bg-white text-studio-navy hover:bg-studio-navy/5 disabled:opacity-40"
+                      >
+                        <Plus className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
-              <div>
-                <label htmlFor="pos-period" className="block text-xs font-bold text-slate-700 mb-1">
-                  Mes que se paga
-                </label>
-                <select
-                  id="pos-period"
-                  value={posPeriod}
-                  onChange={(e) => setPosPeriod(e.target.value)}
-                  className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
-                >
-                  {posPeriodOptions.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
+
+              {/* Payment method */}
+              <fieldset>
+                <legend className={labelCls}>Método de cobro</legend>
+                <div role="radiogroup" className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { id: 'CASH', label: 'Metálico', Icon: Banknote },
+                      { id: 'BIZUM', label: 'Bizum', Icon: Smartphone },
+                    ] as const
+                  ).map(({ id, label, Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="radio"
+                      aria-checked={posMethod === id}
+                      onClick={() => setPosMethod(id)}
+                      className={`flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 text-base font-bold transition-colors ${
+                        posMethod === id
+                          ? 'border-studio-navy bg-studio-navy text-white'
+                          : 'border-studio-navy/15 bg-white text-studio-navy hover:bg-studio-navy/5'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" aria-hidden="true" /> {label}
+                    </button>
                   ))}
-                </select>
-              </div>
-              {posBillingType === 'MONTHLY' && (
-                <div>
-                  <label htmlFor="pos-months" className="block text-xs font-bold text-slate-700 mb-1">
-                    Meses a pagar
-                  </label>
-                  <input
-                    id="pos-months"
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={MAX_PREPAYMENT_MONTHS}
-                    step={1}
-                    required
-                    value={posMonths}
-                    onChange={(e) =>
-                      setPosMonths(Math.min(MAX_PREPAYMENT_MONTHS, Math.max(1, parseInt(e.target.value, 10) || 1)))
-                    }
-                    className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 tabular-nums focus:outline-none focus:border-brand-accent"
-                  />
                 </div>
+              </fieldset>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="autoReceipt"
+                  checked={posAutoDownloadReceipt}
+                  onChange={(e) => setPosAutoDownloadReceipt(e.target.checked)}
+                  className="h-5 w-5 cursor-pointer rounded accent-studio-red"
+                />
+                <label htmlFor="autoReceipt" className="cursor-pointer text-sm font-medium text-slate-800">
+                  Descargar el recibo en PDF al confirmar
+                </label>
+              </div>
+
+              {posError && (
+                <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800">
+                  {posError}
+                </p>
               )}
             </div>
 
-            {/* Payment method */}
-            <fieldset>
-              <legend className="block text-xs font-bold text-slate-700 mb-1">Método de cobro</legend>
-              <div role="radiogroup" className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={posMethod === 'CASH'}
-                  onClick={() => setPosMethod('CASH')}
-                  className={`min-h-11 py-2 px-3 rounded-xl border text-sm font-bold transition cursor-pointer flex items-center justify-center gap-2 ${
-                    posMethod === 'CASH'
-                      ? 'bg-emerald-50 border-emerald-400 text-emerald-900'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <Banknote className="w-4 h-4" aria-hidden="true" /> Metálico
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={posMethod === 'BIZUM'}
-                  onClick={() => setPosMethod('BIZUM')}
-                  className={`min-h-11 py-2 px-3 rounded-xl border text-sm font-bold transition cursor-pointer flex items-center justify-center gap-2 ${
-                    posMethod === 'BIZUM'
-                      ? 'bg-blue-50 border-blue-400 text-blue-900'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <Smartphone className="w-4 h-4" aria-hidden="true" /> Bizum
-                </button>
-              </div>
-            </fieldset>
-
-            {/* Summary */}
-            {posCharge && (
-              <dl className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 text-sm space-y-1" aria-live="polite">
-                {posCharge.discountPerMonthCents > 0 && (
-                  <>
+            {/* Summary and actions */}
+            <div className="sticky bottom-0 border-t border-studio-navy/10 bg-brand-sand-light px-6 py-4">
+              {posCharge && (
+                <dl className="mb-3 space-y-1 text-sm" aria-live="polite">
+                  {posCharge.discountPerMonthCents > 0 && (
+                    <>
+                      <div className="flex justify-between text-slate-700">
+                        <dt>Precio de tarifa</dt>
+                        <dd className="tabular-nums">{eur(posCharge.perMonthCents + posCharge.discountPerMonthCents)}</dd>
+                      </div>
+                      <div className="flex justify-between font-semibold text-amber-800">
+                        <dt>Descuento socio fundador (10 %)</dt>
+                        <dd className="tabular-nums">-{eur(posCharge.discountPerMonthCents)}</dd>
+                      </div>
+                    </>
+                  )}
+                  {posCharge.payments.length > 1 && (
                     <div className="flex justify-between text-slate-700">
-                      <dt>Precio de tarifa</dt>
-                      <dd className="tabular-nums">
-                        {((posCharge.perMonthCents + posCharge.discountPerMonthCents) / 100).toFixed(2)} €
-                      </dd>
+                      <dt>
+                        {posCharge.payments.length} meses ({posCharge.payments[0].period} a{' '}
+                        {posCharge.payments[posCharge.payments.length - 1].period})
+                      </dt>
+                      <dd className="tabular-nums">{eur(posCharge.perMonthCents)} / mes</dd>
                     </div>
-                    <div className="flex justify-between text-amber-800 font-semibold">
-                      <dt>Descuento socio fundador (10 %)</dt>
-                      <dd className="tabular-nums">-{(posCharge.discountPerMonthCents / 100).toFixed(2)} €</dd>
-                    </div>
-                  </>
-                )}
-                {posCharge.payments.length > 1 && (
-                  <div className="flex justify-between text-slate-700">
-                    <dt>
-                      {posCharge.payments.length} meses ({posCharge.payments[0].period} a{' '}
-                      {posCharge.payments[posCharge.payments.length - 1].period})
-                    </dt>
-                    <dd className="tabular-nums">{(posCharge.perMonthCents / 100).toFixed(2)} € / mes</dd>
+                  )}
+                  <div className="flex items-baseline justify-between pt-1 text-studio-navy">
+                    <dt className="text-base font-bold">Total a cobrar</dt>
+                    <dd className="font-headline text-3xl font-bold tabular-nums">{eur(posCharge.totalCents)}</dd>
                   </div>
-                )}
-                <div className="flex justify-between text-slate-900 font-black text-base pt-1 border-t border-slate-200">
-                  <dt>Total a cobrar</dt>
-                  <dd className="tabular-nums">{(posCharge.totalCents / 100).toFixed(2)} €</dd>
-                </div>
-              </dl>
-            )}
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="autoReceipt"
-                checked={posAutoDownloadReceipt}
-                onChange={(e) => setPosAutoDownloadReceipt(e.target.checked)}
-                className="w-4 h-4 rounded text-brand-accent focus:ring-brand-accent cursor-pointer"
-              />
-              <label htmlFor="autoReceipt" className="text-sm font-medium text-slate-700 cursor-pointer">
-                Descargar el recibo en PDF al confirmar
-              </label>
+                </dl>
+              )}
+              <DialogFooter className="gap-2 sm:gap-2 sm:space-x-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="min-h-12"
+                  onClick={() => setShowPosModal(false)}
+                  disabled={actionLoading === 'pos_charge'}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={actionLoading === 'pos_charge'}
+                  className="min-h-12 bg-studio-red px-6 text-base font-bold text-white hover:bg-studio-red-dark"
+                >
+                  {actionLoading === 'pos_charge'
+                    ? 'Registrando...'
+                    : posCharge
+                    ? `Cobrar ${eur(posCharge.totalCents)}`
+                    : 'Confirmar cobro'}
+                </Button>
+              </DialogFooter>
             </div>
-
-            {posError && (
-              <p role="alert" className="text-sm font-semibold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3">
-                {posError}
-              </p>
-            )}
-
-            <DialogFooter className="pt-3 border-t border-slate-100 gap-2 sm:gap-0">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowPosModal(false)}
-                disabled={actionLoading === 'pos_charge'}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                variant="default"
-                disabled={actionLoading === 'pos_charge'}
-                className="bg-brand-accent hover:bg-brand-accent/90 text-white font-black"
-              >
-                {actionLoading === 'pos_charge' ? 'Registrando...' : 'Confirmar cobro'}
-              </Button>
-            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Modal Radix Dialog: Confirmación de Rechazo de Pago */}
+      {/* Reject payment dialog */}
       <Dialog open={!!rejectingPayment} onOpenChange={(open) => !open && setRejectingPayment(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Rechazar Notificación de Pago</DialogTitle>
+            <DialogTitle>Rechazar notificación de pago</DialogTitle>
             <DialogDescription>
-              Indica el motivo por el cual no se valida este abono (el alumno verá este motivo en su panel de cuotas).
+              Indica el motivo por el que no se valida este pago (el alumno verá este motivo en su panel de cuotas).
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 pt-2">
             <input
               type="text"
+              aria-label="Motivo del rechazo"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
+              className={fieldCls}
               placeholder="Ej. Transferencia o Bizum no reflejado en cuenta bancaria"
             />
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
+          <DialogFooter className="gap-2 border-t border-slate-100 pt-3 sm:gap-0">
             <Button
               type="button"
               variant="outline"
+              className="min-h-11"
               onClick={() => setRejectingPayment(null)}
               disabled={actionLoading === rejectingPayment?.id}
             >
@@ -1388,26 +1360,27 @@ export const CajaPage: React.FC = () => {
             <Button
               type="button"
               variant="destructive"
+              className="min-h-11"
               onClick={handleConfirmReject}
               disabled={actionLoading === rejectingPayment?.id || !rejectReason.trim()}
             >
-              {actionLoading === rejectingPayment?.id ? 'Procesando...' : 'Confirmar Rechazo'}
+              {actionLoading === rejectingPayment?.id ? 'Procesando...' : 'Confirmar rechazo'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal Radix Dialog: Teléfono No Registrado (sustituye alert) */}
+      {/* Missing phone dialog */}
       <Dialog open={!!phoneAlertStudent} onOpenChange={(open) => !open && setPhoneAlertStudent(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Teléfono No Registrado</DialogTitle>
+            <DialogTitle>Teléfono no registrado</DialogTitle>
             <DialogDescription>
-              <strong className="text-slate-900">{phoneAlertStudent}</strong> no tiene un número de teléfono registrado en su ficha de usuario. No es posible abrir la conversación de WhatsApp.
+              <strong className="text-slate-900">{phoneAlertStudent}</strong> no tiene un número de teléfono en su ficha. No es posible abrir la conversación de WhatsApp.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="pt-2">
-            <Button type="button" variant="default" onClick={() => setPhoneAlertStudent(null)}>
+            <Button type="button" variant="default" className="min-h-11" onClick={() => setPhoneAlertStudent(null)}>
               Entendido
             </Button>
           </DialogFooter>

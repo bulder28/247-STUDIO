@@ -32,7 +32,7 @@ Rediseñar (skill `impeccable`): estructura y navegación del admin, Caja, Alta 
 
 ## Tareas
 - [x] R1 Eliminar funciones no pedidas (rutas, páginas, menús, prefetch, widgets, módulos de dominio usados solo por ellas, tests y enlaces de la landing). Ruta: delegada (disparador de escritor).
-- [ ] R2 Rediseñar estructura/navegación del admin y la Caja. Ruta: delegada.
+- [x] R2 Rediseñar estructura/navegación del admin y la Caja. Ruta: delegada.
 - [ ] R3 Rediseñar el Alta. Ruta: delegada.
 - [ ] R4 Rediseñar Alumnos (PersonalPage). Ruta: delegada.
 
@@ -46,5 +46,9 @@ Rediseñar (skill `impeccable`): estructura y navegación del admin, Caja, Alta 
 - R1 hecha (escritor delegado). Eliminado: Leads, reserva de prueba, Fotos y vídeos, Preguntas frecuentes, Progreso (página de historial), radar, cartas FIFA, ELO, historial de combates, métricas de asistencia, Kokoro (widget, dominio, cliente Gemini y función Netlify `kokoro-ai`), QR de prueba exprés del kiosco y la conversión de leads en Alta y Alumnos. Los enlaces a la reserva de prueba ahora abren WhatsApp. El Foro se restauró intacto (sin diferencias respecto a `main`). Cinturones y graduaciones se mantienen. `npm test`: 13 archivos pasan (re-ejecutado por el orquestador). `npm run build`: pasa (escritor).
 - Pendiente: colecciones `leads` y `media` sin uso en la app (sus reglas siguen en `firestore.rules`); `GEMINI_API_KEY` ya no se usa en Netlify; imports sin usar de `getLiveDocs` en Caja y Alumnos; el tipo `FighterStats` y el campo `stats` siguen en los usuarios.
 
+- R1 commit: c083618.
+- R2 hecha (escritor delegado, skill `impeccable`). Dirección visual "Tatami de noche": menú lateral azul marino con un único acento rojo, fondo arena y superficies blancas, cifras grandes en Oswald, objetivos táctiles de 44 px o más. Menú reordenado por uso diario ("Día a día": Caja, Alta, Alumnos, Asistencia; "Gestión": Horarios, Tarifas, Equipo). Caja: banda de KPIs del mes, pestaña "Sin pagar" por defecto con botón "Cobrar", modal de cobro con total fijo y botón "Cobrar X €". Componentes compartidos `page-header`, `kpi-card`, `section-card`. Contexto de diseño en `PRODUCT.md` y `DESIGN.md` (español). `npm test`: 13 archivos pasan (re-ejecutado por el orquestador). `npm run build`: limpio (escritor). Capturas en `docs/capturas/rediseno/`, revisadas por el orquestador.
+- Pendiente de R2: los diálogos de rechazo de pago y aviso por teléfono solo recibieron botones más grandes; la X de cierre del diálogo se ve poco sobre la cabecera azul.
+
 ## Siguiente paso
-R2, cuando estén revisadas las transcripciones `medium`.
+R3 (Alta).
