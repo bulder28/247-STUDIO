@@ -26,6 +26,7 @@ import { db } from '@/shared/api/firebase';
 import { getLiveDocs } from '@/shared/api/liveReads';
 import {
   buildChargePayments,
+  buildPeriodOptions,
   buildUnpaidRows,
   MAX_PREPAYMENT_MONTHS,
   NO_TARIFF,
@@ -82,6 +83,7 @@ export const CajaPage: React.FC = () => {
   const [tariffs, setTariffs] = useState<TariffDomainModel[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [posError, setPosError] = useState<string | null>(null);
+  const [posFieldErrors, setPosFieldErrors] = useState<{ concept?: string; amount?: string }>({});
   const [posStudentUid, setPosStudentUid] = useState<string>('');
   const [posCustomAlias, setPosCustomAlias] = useState<string>('');
   const [posTariffId, setPosTariffId] = useState<string>(''); // '' = manual concept
@@ -244,6 +246,22 @@ export const CajaPage: React.FC = () => {
         .sort((a, b) => (a.alias || '').localeCompare(b.alias || '', 'es')),
     [users]
   );
+  // Period choices: 6 months back to 12 months ahead of the current Madrid month.
+  const periodOptions = useMemo(() => buildPeriodOptions(getMadridYearMonth(new Date()), 6, 12), []);
+  const filterPeriodOptions = useMemo(
+    () =>
+      periodOptions.some((o) => o.value === filterPeriod)
+        ? periodOptions
+        : buildPeriodOptions(filterPeriod, 0, 0).concat(periodOptions),
+    [periodOptions, filterPeriod]
+  );
+  const posPeriodOptions = useMemo(
+    () =>
+      periodOptions.some((o) => o.value === posPeriod)
+        ? periodOptions
+        : buildPeriodOptions(posPeriod, 0, 0).concat(periodOptions),
+    [periodOptions, posPeriod]
+  );
   const posTariff = activeTariffs.find((t) => t.id === posTariffId) ?? null;
   const posStudent = users.find((u) => u.uid === posStudentUid);
   const posBillingType: BillingType = posTariff ? posTariff.billingType : posManualBillingType;
@@ -275,6 +293,7 @@ export const CajaPage: React.FC = () => {
 
   const handleOpenPosModal = () => {
     setPosError(null);
+    setPosFieldErrors({});
     setPosStudentUid('');
     setPosCustomAlias('');
     setPosTariffId('');
@@ -304,7 +323,20 @@ export const CajaPage: React.FC = () => {
 
   const handleCreatePosCharge = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !posCharge) return;
+    if (!user) return;
+
+    const fieldErrors: { concept?: string; amount?: string } = {};
+    if (!posTariff && !posManualConcept.trim()) fieldErrors.concept = 'Indica el concepto del cobro.';
+    const amountValue = parseFloat(posAmountEur);
+    if (!Number.isFinite(amountValue) || amountValue <= 0) fieldErrors.amount = 'Introduce un importe mayor que 0.';
+    setPosFieldErrors(fieldErrors);
+    if (fieldErrors.concept || fieldErrors.amount) {
+      const firstId = fieldErrors.concept ? 'pos-concept' : 'pos-amount';
+      document.getElementById(firstId)?.focus();
+      return;
+    }
+    if (!posCharge) return;
+
     setActionLoading('pos_charge');
     setPosError(null);
 
@@ -500,12 +532,18 @@ export const CajaPage: React.FC = () => {
           {/* Selector de periodo */}
           <div className="flex items-center gap-2 bg-white border border-slate-200/80 rounded-2xl px-3 py-1.5 shadow-subtle">
             <Clock className="w-4 h-4 text-slate-400" />
-            <input
-              type="month"
+            <select
+              aria-label="Mes a consultar"
               value={filterPeriod}
               onChange={(e) => setFilterPeriod(e.target.value)}
               className="bg-transparent text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
-            />
+            >
+              {filterPeriodOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Exportar CSV Gestoría */}
@@ -1025,7 +1063,7 @@ export const CajaPage: React.FC = () => {
 
       {/* Counter charge modal (Radix Dialog) */}
       <Dialog open={showPosModal} onOpenChange={setShowPosModal}>
-        <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
+        <DialogContent className="max-w-xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <Receipt className="w-5 h-5 text-brand-accent" />
@@ -1036,7 +1074,7 @@ export const CajaPage: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreatePosCharge} className="space-y-4 pt-1">
+          <form onSubmit={handleCreatePosCharge} noValidate className="space-y-4 pt-1">
             {/* Student or walk-in */}
             <div>
               <label htmlFor="pos-student" className="block text-xs font-bold text-slate-700 mb-1">
@@ -1111,11 +1149,18 @@ export const CajaPage: React.FC = () => {
                     id="pos-concept"
                     type="text"
                     required
+                    aria-invalid={posFieldErrors.concept ? true : undefined}
+                    aria-describedby={posFieldErrors.concept ? 'pos-concept-error' : undefined}
                     placeholder="Ej. Kimono oficial"
                     value={posManualConcept}
                     onChange={(e) => setPosManualConcept(e.target.value)}
                     className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-brand-accent"
                   />
+                  {posFieldErrors.concept && (
+                    <p id="pos-concept-error" role="alert" className="mt-1 text-xs font-semibold text-rose-800">
+                      {posFieldErrors.concept}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="pos-billing" className="block text-xs font-bold text-slate-700 mb-1">
@@ -1136,7 +1181,11 @@ export const CajaPage: React.FC = () => {
             )}
 
             {/* Amount, period, months */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div
+              className={`grid grid-cols-1 gap-3 ${
+                posBillingType === 'MONTHLY' ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)]' : 'sm:grid-cols-2'
+              }`}
+            >
               <div>
                 <label htmlFor="pos-amount" className="block text-xs font-bold text-slate-700 mb-1">
                   Importe (€, IVA incl.)
@@ -1148,23 +1197,34 @@ export const CajaPage: React.FC = () => {
                   step="0.01"
                   min="0.01"
                   required
+                  aria-invalid={posFieldErrors.amount ? true : undefined}
+                  aria-describedby={posFieldErrors.amount ? 'pos-amount-error' : undefined}
                   value={posAmountEur}
                   onChange={(e) => setPosAmountEur(e.target.value)}
                   className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 tabular-nums focus:outline-none focus:border-brand-accent"
                 />
+                {posFieldErrors.amount && (
+                  <p id="pos-amount-error" role="alert" className="mt-1 text-xs font-semibold text-rose-800">
+                    {posFieldErrors.amount}
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="pos-period" className="block text-xs font-bold text-slate-700 mb-1">
                   Mes que se paga
                 </label>
-                <input
+                <select
                   id="pos-period"
-                  type="month"
-                  required
                   value={posPeriod}
                   onChange={(e) => setPosPeriod(e.target.value)}
                   className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
-                />
+                >
+                  {posPeriodOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               {posBillingType === 'MONTHLY' && (
                 <div>
@@ -1286,7 +1346,7 @@ export const CajaPage: React.FC = () => {
               <Button
                 type="submit"
                 variant="default"
-                disabled={actionLoading === 'pos_charge' || !posCharge}
+                disabled={actionLoading === 'pos_charge'}
                 className="bg-brand-accent hover:bg-brand-accent/90 text-white font-black"
               >
                 {actionLoading === 'pos_charge' ? 'Registrando...' : 'Confirmar cobro'}

@@ -15,7 +15,13 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { invalidateLiveDocs } from '@/shared/api/liveReads';
 import { calculateExactAge, isLegalMinor } from '@/shared/domain/minor';
-import { buildEnrollmentPayload, splitFullName, validateEnrollment } from '@/shared/domain/enrollment';
+import {
+  buildEnrollmentPayload,
+  ENROLLMENT_FIELD_ORDER,
+  EnrollmentField,
+  splitFullName,
+  validateEnrollmentFields,
+} from '@/shared/domain/enrollment';
 import { Belt, BeltSystem } from '@/shared/domain/types';
 import { compressImageToCanvas } from '@/shared/utils/imageCompressor';
 
@@ -96,6 +102,18 @@ export const StudentRegistrationPage: React.FC = () => {
   const [mobileStep, setMobileStep] = useState<1 | 2>(1);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoSource, setPhotoSource] = useState<File | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<EnrollmentField, string>>>({});
+
+  const fieldA11y = (field: EnrollmentField) => ({
+    'aria-invalid': fieldErrors[field] ? (true as const) : undefined,
+    'aria-describedby': fieldErrors[field] ? `enroll-${field}-error` : undefined,
+  });
+  const renderFieldError = (field: EnrollmentField) =>
+    fieldErrors[field] ? (
+      <p id={`enroll-${field}-error`} role="alert" className="mt-1 text-xs font-semibold text-rose-800">
+        {fieldErrors[field]}
+      </p>
+    ) : null;
 
   const now = new Date();
   const isMinor = formData.birthDate ? isLegalMinor(formData.birthDate, now) : false;
@@ -105,6 +123,12 @@ export const StudentRegistrationPage: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[name as EnrollmentField]) return prev;
+      const next = { ...prev };
+      delete next[name as EnrollmentField];
+      return next;
+    });
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,11 +178,20 @@ export const StudentRegistrationPage: React.FC = () => {
     e.preventDefault();
     setError(null);
     setPhotoWarning(null);
+
+    const errors = validateEnrollmentFields(formData, isMinor);
+    setFieldErrors(errors);
+    const firstInvalid = ENROLLMENT_FIELD_ORDER.find((f) => errors[f]);
+    if (firstInvalid) {
+      // All validated fields live in step 1 on mobile; make sure it is visible before focusing.
+      setMobileStep(1);
+      setTimeout(() => document.getElementById(`enroll-${firstInvalid}`)?.focus(), 0);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const validationError = validateEnrollment(formData, isMinor);
-      if (validationError) throw new Error(validationError);
       const payload = buildEnrollmentPayload(formData, isMinor);
 
       // 1. Official enrollment in Firebase Auth + Firestore through the Netlify function
@@ -386,7 +419,7 @@ export const StudentRegistrationPage: React.FC = () => {
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-3 md:space-y-6">
+        <form onSubmit={handleSubmit} noValidate className="space-y-3 md:space-y-6">
           {/* Selector de pasos móvil sin scroll vertical */}
           <div className="md:hidden grid grid-cols-2 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
             <button
@@ -437,7 +470,9 @@ export const StudentRegistrationPage: React.FC = () => {
                   onChange={handleChange}
                   placeholder="Ej: Marcos"
                   className={INPUT_CLASS}
+                  {...fieldA11y('firstName')}
                 />
+                {renderFieldError('firstName')}
               </div>
 
               <div>
@@ -454,7 +489,9 @@ export const StudentRegistrationPage: React.FC = () => {
                   onChange={handleChange}
                   placeholder="Ej: Silva Pérez"
                   className={INPUT_CLASS}
+                  {...fieldA11y('lastName')}
                 />
+                {renderFieldError('lastName')}
               </div>
 
               <div>
@@ -472,7 +509,9 @@ export const StudentRegistrationPage: React.FC = () => {
                   onChange={handleChange}
                   placeholder="+34 600 000 000"
                   className={INPUT_CLASS}
+                  {...fieldA11y('phone')}
                 />
+                {renderFieldError('phone')}
               </div>
 
               <div>
@@ -487,7 +526,9 @@ export const StudentRegistrationPage: React.FC = () => {
                   value={formData.birthDate}
                   onChange={handleChange}
                   className={INPUT_CLASS}
+                  {...fieldA11y('birthDate')}
                 />
+                {renderFieldError('birthDate')}
                 {age !== null && (
                   <span className="text-[11px] font-semibold mt-1 block text-slate-500" aria-live="polite">
                     Edad: <strong className="text-slate-900 font-bold">{age} años</strong> ·{' '}
@@ -511,7 +552,9 @@ export const StudentRegistrationPage: React.FC = () => {
                   onChange={handleChange}
                   placeholder="alumno@ejemplo.com"
                   className={INPUT_CLASS}
+                  {...fieldA11y('contactEmail')}
                 />
+                {renderFieldError('contactEmail')}
               </div>
             </div>
           </div>
@@ -593,7 +636,9 @@ export const StudentRegistrationPage: React.FC = () => {
                     onChange={handleChange}
                     placeholder="Nombre y apellidos del padre/madre"
                     className={GUARDIAN_INPUT_CLASS}
+                    {...fieldA11y('guardianName')}
                   />
+                  {renderFieldError('guardianName')}
                 </div>
 
                 <div>
@@ -610,7 +655,9 @@ export const StudentRegistrationPage: React.FC = () => {
                     onChange={handleChange}
                     placeholder="+34 600 000 000"
                     className={GUARDIAN_INPUT_CLASS}
+                    {...fieldA11y('guardianPhone')}
                   />
+                  {renderFieldError('guardianPhone')}
                 </div>
 
                 <div>

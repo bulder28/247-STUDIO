@@ -42,23 +42,58 @@ export interface EnrollmentFormInput {
   guardianUid: string;
 }
 
-/** Returns a Spanish user-facing error message, or null when the form is valid. */
-export function validateEnrollment(input: EnrollmentFormInput, isMinor: boolean): string | null {
-  if (!input.firstName.trim()) return 'El nombre del alumno es obligatorio.';
-  if (!input.lastName.trim()) return 'Los apellidos del alumno son obligatorios.';
+export type EnrollmentField =
+  | 'firstName'
+  | 'lastName'
+  | 'phone'
+  | 'birthDate'
+  | 'contactEmail'
+  | 'guardianName'
+  | 'guardianPhone';
+
+/** Display/DOM order of the validated fields (used to focus the first invalid one). */
+export const ENROLLMENT_FIELD_ORDER: EnrollmentField[] = [
+  'firstName',
+  'lastName',
+  'phone',
+  'birthDate',
+  'contactEmail',
+  'guardianName',
+  'guardianPhone',
+];
+
+/** Per-field Spanish error messages. Empty object when the form is valid. */
+export function validateEnrollmentFields(
+  input: EnrollmentFormInput,
+  isMinor: boolean
+): Partial<Record<EnrollmentField, string>> {
+  const errors: Partial<Record<EnrollmentField, string>> = {};
+  if (!input.firstName.trim()) errors.firstName = 'El nombre del alumno es obligatorio.';
+  if (!input.lastName.trim()) errors.lastName = 'Los apellidos del alumno son obligatorios.';
   if (!isValidMobilePhone(input.phone)) {
-    return 'El teléfono móvil es obligatorio (mínimo 9 dígitos).';
+    errors.phone = 'El teléfono móvil es obligatorio (mínimo 9 dígitos).';
   }
-  if (!input.birthDate) return 'La fecha de nacimiento es obligatoria.';
+  if (!input.birthDate) errors.birthDate = 'La fecha de nacimiento es obligatoria.';
+  const email = (input.contactEmail || '').trim();
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+    errors.contactEmail = 'Introduce un correo electrónico válido o déjalo vacío.';
+  }
   if (isMinor) {
-    if (!input.guardianName.trim() || !input.guardianPhone.trim()) {
-      return 'Para atletas menores de 14 años es obligatorio registrar el tutor legal (nombre y teléfono).';
-    }
-    if (!isValidMobilePhone(input.guardianPhone)) {
-      return 'El teléfono del tutor debe tener al menos 9 dígitos.';
+    if (!input.guardianName.trim()) errors.guardianName = 'El nombre del tutor legal es obligatorio.';
+    if (!input.guardianPhone.trim()) {
+      errors.guardianPhone = 'El teléfono del tutor legal es obligatorio.';
+    } else if (!isValidMobilePhone(input.guardianPhone)) {
+      errors.guardianPhone = 'El teléfono del tutor debe tener al menos 9 dígitos.';
     }
   }
-  return null;
+  return errors;
+}
+
+/** Returns the first Spanish user-facing error message, or null when the form is valid. */
+export function validateEnrollment(input: EnrollmentFormInput, isMinor: boolean): string | null {
+  const errors = validateEnrollmentFields(input, isMinor);
+  const first = ENROLLMENT_FIELD_ORDER.find((f) => errors[f]);
+  return first ? errors[first]! : null;
 }
 
 /**

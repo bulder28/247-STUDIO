@@ -42,6 +42,34 @@ export function buildPrepaymentPeriods(startPeriod: string, months: number): str
   return periods;
 }
 
+export interface PeriodOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * Selectable YYYY-MM periods from `back` months before `current` to `ahead` months after it,
+ * labeled in Spanish and capitalized (e.g. "Noviembre 2026").
+ */
+export function buildPeriodOptions(current: string, back: number, ahead: number): PeriodOption[] {
+  const match = PERIOD_REGEX.exec(current);
+  if (!match) {
+    throw new Error(`Invalid period: ${current}. Expected YYYY-MM.`);
+  }
+  const baseIndex = parseInt(match[1], 10) * 12 + (parseInt(match[2], 10) - 1);
+  const formatter = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const options: PeriodOption[] = [];
+  for (let offset = -back; offset <= ahead; offset++) {
+    const total = baseIndex + offset;
+    const year = Math.floor(total / 12);
+    const month = (total % 12) + 1;
+    const raw = formatter.format(new Date(Date.UTC(year, month - 1, 1)));
+    const label = raw.charAt(0).toUpperCase() + raw.slice(1);
+    options.push({ value: `${year}-${String(month).padStart(2, '0')}`, label: label.replace(/ de /, ' ') });
+  }
+  return options;
+}
+
 /**
  * Active students without an APPROVED payment for the given period.
  */

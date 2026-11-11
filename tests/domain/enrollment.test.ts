@@ -6,6 +6,7 @@ import {
   isValidMobilePhone,
   splitFullName,
   validateEnrollment,
+  validateEnrollmentFields,
 } from '../../src/shared/domain/enrollment';
 
 const base: EnrollmentFormInput = {
@@ -50,6 +51,17 @@ describe('enrollment helpers', () => {
     expect(validateEnrollment({ ...base, lastName: '' }, false)).toMatch(/apellidos/);
     expect(validateEnrollment({ ...base, phone: '123' }, false)).toMatch(/teléfono/);
     expect(validateEnrollment({ ...base, birthDate: '' }, false)).toMatch(/nacimiento/);
+  });
+
+  it('reports one message per invalid field', () => {
+    const errors = validateEnrollmentFields(
+      { ...base, firstName: '', phone: '1', contactEmail: 'nope', guardianName: '', guardianPhone: '' },
+      true
+    );
+    expect(Object.keys(errors).sort()).toEqual(
+      ['contactEmail', 'firstName', 'guardianName', 'guardianPhone', 'phone'].sort()
+    );
+    expect(validateEnrollmentFields(base, false)).toEqual({});
   });
 
   it('requires guardian name and phone for minors only', () => {

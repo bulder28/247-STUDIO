@@ -8,6 +8,7 @@ import {
   summarizePeriodPayments,
   buildPrepaymentPeriods,
   findUnpaidStudents,
+  buildPeriodOptions,
 } from '../../src/shared/domain/billing';
 import type { PaymentDomainModel, UserDomainModel } from '../../src/shared/domain/types';
 
@@ -16,6 +17,26 @@ const user = (uid: string, over: Partial<UserDomainModel> = {}): UserDomainModel
 
 const pay = (uid: string, period: string, status: PaymentDomainModel['status']): PaymentDomainModel =>
   ({ id: `${uid}-${period}-${status}`, uid, period, status }) as PaymentDomainModel;
+
+describe('buildPeriodOptions', () => {
+  it('spans back..ahead months with capitalized Spanish labels', () => {
+    const options = buildPeriodOptions('2026-11', 6, 12);
+    expect(options).toHaveLength(19);
+    expect(options[0]).toEqual({ value: '2026-05', label: 'Mayo 2026' });
+    expect(options[6]).toEqual({ value: '2026-11', label: 'Noviembre 2026' });
+    expect(options[18]).toEqual({ value: '2027-11', label: 'Noviembre 2027' });
+  });
+
+  it('rolls over year boundaries in both directions', () => {
+    const options = buildPeriodOptions('2027-01', 2, 1);
+    expect(options.map((o) => o.value)).toEqual(['2026-11', '2026-12', '2027-01', '2027-02']);
+    expect(options[1].label).toBe('Diciembre 2026');
+  });
+
+  it('rejects an invalid current period', () => {
+    expect(() => buildPeriodOptions('2026-13', 1, 1)).toThrow();
+  });
+});
 
 describe('applyFoundingDiscount', () => {
   it('returns the full amount for non founding members', () => {
