@@ -1,0 +1,267 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-11T22:55:48.110Z",
+  "title": "Design System: 247 STUDIO",
+  "extensions": {
+    "colorMeta": {
+      "accent-red": {
+        "role": "primary",
+        "displayName": "Rojo de rango",
+        "canonical": "#E11D2E",
+        "tonalRamp": [
+          "#3D0509",
+          "#6B0A14",
+          "#9A101D",
+          "#B91C1C",
+          "#E11D2E",
+          "#F0535F",
+          "#F7969D",
+          "#FCDADD"
+        ]
+      },
+      "rail-navy-deep": {
+        "role": "neutral",
+        "displayName": "Azul marino de carril",
+        "canonical": "#111320",
+        "tonalRamp": [
+          "#08090F",
+          "#111320",
+          "#1A1D2E",
+          "#252B44",
+          "#3A4263",
+          "#5E688F",
+          "#98A0BF",
+          "#D5D9E8"
+        ]
+      },
+      "canvas-sand-light": {
+        "role": "neutral",
+        "displayName": "Arena clara",
+        "canonical": "#F4F0E1",
+        "tonalRamp": [
+          "#4A452F",
+          "#6E6746",
+          "#948B62",
+          "#B8AE82",
+          "#DDD6B8",
+          "#E9E3CB",
+          "#F4F0E1",
+          "#FBF9F1"
+        ]
+      },
+      "status-ok": {
+        "role": "neutral",
+        "displayName": "Esmeralda",
+        "canonical": "#10B981",
+        "tonalRamp": [
+          "#022C22",
+          "#064E3B",
+          "#065F46",
+          "#047857",
+          "#10B981",
+          "#6EE7B7",
+          "#A7F3D0",
+          "#ECFDF5"
+        ]
+      },
+      "status-pending": {
+        "role": "neutral",
+        "displayName": "Ámbar",
+        "canonical": "#F59E0B",
+        "tonalRamp": [
+          "#451A03",
+          "#78350F",
+          "#92400E",
+          "#B45309",
+          "#F59E0B",
+          "#FCD34D",
+          "#FDE68A",
+          "#FFFBEB"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Titular",
+        "purpose": "Titular de página en mayúsculas (Oswald)."
+      },
+      "kpi": {
+        "displayName": "Cifra clave",
+        "purpose": "Cifras sobre panel azul marino, tabulares."
+      },
+      "title": {
+        "displayName": "Título de bloque",
+        "purpose": "Título de SectionCard."
+      },
+      "body": {
+        "displayName": "Cuerpo",
+        "purpose": "Texto de interfaz."
+      },
+      "label": {
+        "displayName": "Etiqueta",
+        "purpose": "Etiquetas en mayúsculas, mínimo 12 px."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sutil",
+        "value": "0 1px 2px 0 rgba(0,0,0,0.05)",
+        "purpose": "Solo en botones de acción (shadow-sm)."
+      },
+      {
+        "name": "modal",
+        "value": "0 25px 50px -12px rgba(0,0,0,0.25)",
+        "purpose": "Única superficie elevada: diálogos."
+      }
+    ],
+    "motion": [
+      {
+        "name": "transicion-estado",
+        "value": "150ms ease (transition-colors)",
+        "purpose": "Hover y foco de controles."
+      },
+      {
+        "name": "pulsacion",
+        "value": "scale(0.98)",
+        "purpose": "Retroalimentación táctil al pulsar botones de acción."
+      },
+      {
+        "name": "ancho-carril",
+        "value": "200ms (transition-[width])",
+        "purpose": "Expandir o minimizar el carril."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón primario",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción principal de la pantalla; rojo de rango, una por vista.",
+      "html": "<button class=\"ds-btn-primary\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>Nuevo cobro</button>",
+      "css": ".ds-btn-primary{font-family: Inter, system-ui, sans-serif;display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 20px;border:0;border-radius:12px;background:#E11D2E;color:#fff;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 1px 2px 0 rgba(0,0,0,0.05);transition:background-color .15s,transform .15s}.ds-btn-primary:hover{background:#B91C1C}.ds-btn-primary:focus-visible{outline:2px solid #1A1D2E;outline-offset:2px}.ds-btn-primary:active{transform:scale(0.98)}"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Acción de apoyo sobre el lienzo arena: blanco con borde azul marino tenue.",
+      "html": "<button class=\"ds-btn-secondary\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/></svg>Exportar</button>",
+      "css": ".ds-btn-secondary{font-family: Inter, system-ui, sans-serif;display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 16px;border:1px solid rgba(26,29,46,0.15);border-radius:12px;background:#fff;color:#1A1D2E;font-size:14px;font-weight:600;cursor:pointer;transition:background-color .15s}.ds-btn-secondary:hover{background:rgba(255,255,255,0.6)}.ds-btn-secondary:focus-visible{outline:2px solid #1A1D2E;outline-offset:2px}"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo blanco de 44 px con borde fino y halo de foco azul marino.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Buscar alumno\" />",
+      "css": ".ds-input{font-family: Inter, system-ui, sans-serif;box-sizing:border-box;width:260px;height:44px;padding:8px 14px;border:1px solid #E2E8F0;border-radius:12px;background:#fff;color:#0F172A;font-size:14px;transition:border-color .15s,box-shadow .15s}.ds-input::placeholder{color:#94A3B8}.ds-input:hover{border-color:#CBD5E1}.ds-input:focus-visible{outline:none;border-color:#1E293B;box-shadow:0 0 0 2px rgba(15,23,42,0.1)}"
+    },
+    {
+      "name": "Carril de navegación",
+      "kind": "nav",
+      "refersTo": "rail-item",
+      "description": "Ítems del carril azul marino; el activo se rellena de rojo.",
+      "html": "<nav class=\"ds-rail\"><a class=\"ds-rail-item ds-rail-item-active\" href=\"#\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><line x1=\"2\" x2=\"22\" y1=\"10\" y2=\"10\"/></svg><span>Caja y cobros</span></a><a class=\"ds-rail-item\" href=\"#\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/></svg><span>Alumnos y cinturones</span></a></nav>",
+      "css": ".ds-rail{font-family: Inter, system-ui, sans-serif;display:flex;flex-direction:column;gap:4px;width:240px;padding:12px;background:#111320;border-radius:16px}.ds-rail-item{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 14px;border-radius:12px;color:rgba(255,255,255,0.75);font-size:14px;font-weight:600;text-decoration:none;transition:background-color .15s,color .15s}.ds-rail-item:hover{background:rgba(255,255,255,0.1);color:#fff}.ds-rail-item:focus-visible{outline:2px solid rgba(255,255,255,0.7);outline-offset:0}.ds-rail-item-active,.ds-rail-item-active:hover{background:#E11D2E;color:#fff}"
+    },
+    {
+      "name": "Insignia de estado",
+      "kind": "chip",
+      "refersTo": "badge-status",
+      "description": "Píldora de estado con matiz suave: ok, pendiente, información.",
+      "html": "<span class=\"ds-badge ds-badge-ok\">Pagado</span> <span class=\"ds-badge ds-badge-warn\">Pendiente</span> <span class=\"ds-badge ds-badge-info\">Gracia</span>",
+      "css": ".ds-badge{font-family: Inter, system-ui, sans-serif;display:inline-flex;align-items:center;padding:2px 10px;border:1px solid;border-radius:9999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}.ds-badge-ok{background:#ECFDF5;border-color:#A7F3D0;color:#065F46}.ds-badge-warn{background:#FFFBEB;border-color:#FDE68A;color:#92400E}.ds-badge-info{background:#EFF6FF;border-color:#BFDBFE;color:#1E40AF}"
+    },
+    {
+      "name": "Bloque de trabajo",
+      "kind": "card",
+      "refersTo": "section-card",
+      "description": "Superficie blanca con borde azul marino tenue y cabecera opcional; sin sombra.",
+      "html": "<section class=\"ds-section\"><div class=\"ds-section-head\"><div><h2 class=\"ds-section-title\">Pagos del mes</h2><p class=\"ds-section-desc\">12 de 48 han pagado</p></div></div><div class=\"ds-section-body\">Contenido del bloque de trabajo.</div></section>",
+      "css": ".ds-section{font-family: Inter, system-ui, sans-serif;width:340px;overflow:hidden;border:1px solid rgba(26,29,46,0.1);border-radius:16px;background:#fff;color:#1A1D2E}.ds-section-head{padding:16px 20px;border-bottom:1px solid rgba(26,29,46,0.1)}.ds-section-title{margin:0;font-size:18px;font-weight:700;line-height:1.25}.ds-section-desc{margin:2px 0 0;font-size:14px;color:#475569}.ds-section-body{padding:20px;font-size:14px}"
+    },
+    {
+      "name": "Panel de cifras",
+      "kind": "custom",
+      "refersTo": "kpi-card",
+      "description": "Panel azul marino con cifras Oswald tabulares; la pulsable actúa como acceso directo.",
+      "html": "<section class=\"ds-kpi-panel\"><div class=\"ds-kpi\"><span class=\"ds-kpi-label\">Cobrado</span><span class=\"ds-kpi-value ds-kpi-featured\">1.240 €</span><span class=\"ds-kpi-hint\">IVA incluido</span></div><button class=\"ds-kpi ds-kpi-btn\" type=\"button\"><span class=\"ds-kpi-label\">Por aprobar</span><span class=\"ds-kpi-value ds-kpi-warn\">3</span><span class=\"ds-kpi-hint\">Toca para revisarlos</span></button></section>",
+      "css": ".ds-kpi-panel{font-family: Inter, system-ui, sans-serif;display:flex;gap:4px;padding:8px;border-radius:16px;background:#1A1D2E;color:#fff}.ds-kpi{display:block;min-width:140px;padding:14px 16px;border:0;border-radius:12px;background:transparent;color:inherit;text-align:left;font-family:inherit}.ds-kpi-label{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,0.7)}.ds-kpi-value{display:block;margin-top:6px;font-family:Oswald,system-ui,sans-serif;font-size:36px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;color:#fff}.ds-kpi-featured{font-size:48px}.ds-kpi-warn{color:#FCD34D}.ds-kpi-hint{display:block;margin-top:8px;font-size:12px;font-weight:500;color:rgba(255,255,255,0.65)}.ds-kpi-btn{min-height:44px;cursor:pointer;transition:background-color .15s}.ds-kpi-btn:hover{background:rgba(255,255,255,0.1)}.ds-kpi-btn:focus-visible{outline:2px solid rgba(255,255,255,0.7)}"
+    },
+    {
+      "name": "Cabecera de página",
+      "kind": "custom",
+      "refersTo": "headline",
+      "description": "Titular Oswald en mayúsculas con descripción y acciones a la derecha.",
+      "html": "<header class=\"ds-page-header\"><div><h1 class=\"ds-page-title\">Caja y cobros</h1><p class=\"ds-page-desc\">Cobros de <strong>noviembre</strong></p></div><button class=\"ds-page-action\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>Nuevo cobro</button></header>",
+      "css": ".ds-page-header{font-family: Inter, system-ui, sans-serif;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:20px;background:#F4F0E1;border-radius:16px}.ds-page-title{margin:0;font-family:Oswald,system-ui,sans-serif;font-size:36px;font-weight:900;line-height:1;letter-spacing:-0.02em;text-transform:uppercase;color:#1A1D2E}.ds-page-desc{margin:6px 0 0;font-size:14px;font-weight:500;color:#475569}.ds-page-action{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 20px;border:0;border-radius:12px;background:#E11D2E;color:#fff;font:700 16px Inter,system-ui,sans-serif;cursor:pointer;transition:background-color .15s}.ds-page-action:hover{background:#B91C1C}.ds-page-action:focus-visible{outline:2px solid #1A1D2E;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Tatami de noche",
+    "overview": "El panel es una herramienta de recepción usada de pie, con una mano y a menudo en una tablet: contraste alto, objetivos táctiles generosos y una sola señal clara de acción. Un carril azul marino profundo ancla la navegación; sobre un lienzo arena cálido, las superficies blancas alojan el trabajo y los paneles azul marino alojan las cifras. El rojo es la única voz de acento.\n\nLa densidad es media y calmada: pocas cosas por pantalla, bien separadas, con jerarquía dada por el tamaño de las cifras (Oswald) y no por la decoración.",
+    "keyCharacteristics": [
+      "Carril azul marino + acento rojo único + lienzo arena + superficies blancas.",
+      "Cifras grandes en Oswald con numerales tabulares.",
+      "Objetivos táctiles de al menos 44 px.",
+      "Plano: una sola elevación por superficie (borde o sombra, no ambos).",
+      "Iconos lucide, sin emojis; sin degradados decorativos."
+    ],
+    "rules": [
+      {
+        "name": "La Regla de la Voz Única",
+        "body": "El rojo es la única voz de acento: acción principal y elemento activo. No se usa como decoración ni como segundo color de marca.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla del Estado",
+        "body": "Esmeralda, ámbar, azul y rosa significan solo estado (ok, pendiente, información, error); nunca adornan.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla de la Cifra Tabular",
+        "body": "Todo importe, contador o cifra comparable usa tabular-nums para que las columnas no bailen.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla de los 12 px",
+        "body": "Ninguna etiqueta de interfaz baja de 12 px.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla de una Sola Elevación",
+        "body": "Una superficie usa borde o sombra, nunca ambos. La sombra solo aparece en diálogos y como respuesta a estado.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do usar el rojo solo para la acción principal y el elemento activo.",
+      "Do mantener objetivos táctiles de al menos 44 px y foco visible en todo control.",
+      "Do poner las cifras clave en Oswald con tabular-nums sobre panel azul marino.",
+      "Do usar iconos de lucide con aria-hidden cuando acompañen texto.",
+      "Do componer páginas con PageHeader, KpiCard y SectionCard."
+    ],
+    "donts": [
+      "Don't usar emojis como iconos.",
+      "Don't usar degradados decorativos.",
+      "Don't combinar borde y sombra en una misma superficie.",
+      "Don't usar etiquetas por debajo de 12 px.",
+      "Don't usar color de estado como decoración."
+    ]
+  }
+}
