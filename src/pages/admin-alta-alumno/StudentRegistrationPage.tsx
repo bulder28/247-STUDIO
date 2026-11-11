@@ -164,16 +164,6 @@ export const StudentRegistrationPage: React.FC = () => {
     }
   };
 
-  const markLeadConverted = async () => {
-    const effectiveLeadId = searchParams.get('leadId') || locationState.leadId;
-    if (!effectiveLeadId) return;
-    try {
-      await updateDoc(doc(db, 'leads', effectiveLeadId), { status: 'CONVERTED' });
-    } catch (leadErr) {
-      console.warn('No se pudo actualizar el estado del lead:', leadErr);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -216,7 +206,6 @@ export const StudentRegistrationPage: React.FC = () => {
             const data = await res.json();
             setCreatedLink(data.resetLink || null);
             await savePhoto(data.uid);
-            await markLeadConverted();
             setSuccessUid(data.uid);
             return;
           }
@@ -307,7 +296,6 @@ export const StudentRegistrationPage: React.FC = () => {
       });
 
       await savePhoto(uid);
-      await markLeadConverted();
       setSuccessUid(uid);
     } catch (err: any) {
       console.error('Error registrando alumno:', err);

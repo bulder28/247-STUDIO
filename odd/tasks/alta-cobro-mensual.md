@@ -1,68 +1,58 @@
-# Feature: Enrollment and monthly payment (alta + cobro mensual)
+# Funcionalidad: Alta de alumnos y cobro mensual
 
-## Objective
-Let staff enroll a new student correctly and register monthly payments, assigning the tariff at payment time, as described in the client's voice notes (2026-11-11).
+## Objetivo
+Permitir que el personal dé de alta correctamente a un alumno nuevo y registre los pagos mensuales, asignando la tarifa en el momento del pago, tal como describe el cliente en sus audios (2026-11-11).
 
-## Problem
-- Enrollment assigns a tariff up front, uses a single name field, has no photo, and treats minors as under 16.
-- Caja has no tariff per payment, allows card payments, cannot register prepayment for several months, and falls back to demo data when collections are empty.
-- There is no list of active students who have not paid the current month.
+## Problema
+- El alta asignaba una tarifa desde el inicio, usaba un único campo de nombre, no tenía foto y consideraba menores a los de menos de 16 años.
+- La Caja no guardaba tarifa por pago, permitía pagos con tarjeta, no podía registrar pagos adelantados de varios meses y mostraba datos de ejemplo cuando las colecciones estaban vacías.
+- No existía una lista de alumnos activos sin pagar el mes en curso.
 
-## Why
-Client's main need: "at the start of the month a new person arrives, I need to enroll them and charge them", and to stop losing track of who has not paid (~150 students).
+## Por qué
+Necesidad principal del cliente: "a primeros de mes llega una persona nueva, tengo que darla de alta y cobrarle", y dejar de perder el control de quién no ha pagado (unos 150 alumnos).
 
-## Scope (authorized)
-- Domain: minor threshold, payment methods, founding-member discount, prepayment periods, unpaid-students query.
-- Enrollment page (`/admin/alta-alumno`) and `netlify/functions/admin-create-user.mjs`.
-- Caja page (`/admin/caja`) and `firestore.rules` for `payments`/`users` fields touched.
-- Out of scope (later / low priority): unpaid reminders after 7/15 days, temporary leave requests, digital consent signatures, emergency contact in student profile, bookings. Features not mentioned by the client are low priority; nothing is deleted without explicit approval.
+## Alcance (autorizado)
+- Dominio: umbral de minoría de edad, métodos de pago, descuento de socio fundador, periodos de pago adelantado y consulta de alumnos sin pagar.
+- Página de alta (`/admin/alta-alumno`) y `netlify/functions/admin-create-user.mjs`.
+- Página de Caja (`/admin/caja`) y `firestore.rules` para los campos de `payments`/`users` afectados.
+- Fuera de alcance (más adelante / baja prioridad): avisos de impago a los 7/15 días, bajas temporales, firma digital de consentimientos, contacto de emergencia en el perfil del alumno y reservas. Las funciones no mencionadas por el cliente son de baja prioridad; no se elimina nada sin aprobación explícita.
 
-## Decisions
-- Minor = under 14 (client: "por abajo de 14", matches Spain's digital consent age of 14). 14-year-olds enroll as adults.
-- Founding member ("socio fundador") is a boolean flag on the student with a 10% discount on every charge; the existing SF tariff tier is left untouched.
-- Prepayment of N months creates N payment docs, one per period, so existing period-based status logic keeps working.
-- Payment methods: CASH ("Metálico") and BIZUM only.
+## Decisiones
+- Menor = menos de 14 años (cliente: "por abajo de 14", coincide con la edad de consentimiento digital en España). Los de 14 años se dan de alta como adultos.
+- El socio fundador es un indicador booleano en el alumno con un 10 % de descuento en todos los cobros; la tarifa SF existente no se toca.
+- Un pago adelantado de N meses crea N documentos de pago, uno por periodo, para que la lógica de estado mensual siga funcionando.
+- Métodos de pago: solo Metálico (CASH) y Bizum (BIZUM).
 
-## Configuration
-- TDD: off (no project/session TDD configuration found). Runner: Vitest (`npm test`).
-- Checks per task: `npm test`, `npm run build`.
-- RDD: off (decided by default). Delivery strategy: ask-on-risk.
-- Branch: `feat/alta-cobro-mensual`. Do not stage unrelated working-tree changes (AGENTS.md, skills-lock.json, verificar-fichas.mjs, audio/transcript files).
+## Configuración
+- TDD: desactivado (sin configuración en el proyecto ni en la sesión). Ejecutor: Vitest (`npm test`).
+- Comprobaciones por tarea: `npm test` y `npm run build`.
+- RDD: desactivado (por defecto). Estrategia de entrega: ask-on-risk.
+- Rama: `feat/alta-cobro-mensual`. No incluir cambios ajenos del árbol de trabajo (AGENTS.md, skills-lock.json, verificar-fichas.mjs, audios/transcripciones).
+- Toda la documentación se escribe en español (regla del usuario).
 
-## Tasks
-- [x] T1 Domain: minor threshold < 14 (minor.ts, firestore.rules, tests); PaymentMethod = CASH | BIZUM; `firstName`, `lastName`, guardian fields and `isFoundingMember` on UserDomainModel; `tariffId` on PaymentDomainModel; pure helpers `applyFoundingDiscount`, `buildPrepaymentPeriods`, `findUnpaidStudents` with Vitest tests. Route: delegated (writer trigger, 2+ files).
-- [x] T2 Enrollment: first name + surnames, required mobile phone, birth date, optional email, photo capture/upload, guardian block for under-14, founding-member checkbox; no tariff at enrollment. Route: delegated.
-- [x] T3 Caja: remove demo-data fallback and CARD; tariff picked from Firestore tariffs in the charge modal and stored as `tariffId`; period chosen in the form; founding-member 10% discount; prepay N months; rules allowlists updated. Route: delegated.
-- [x] T4 Caja "unpaid this month" view: active students without an approved payment for the selected period, filterable by tariff. Route: delegated.
+## Tareas
+- [x] T1 Dominio: menores < 14 (minor.ts, firestore.rules, tests); PaymentMethod = CASH | BIZUM; `firstName`, `lastName`, campos de tutor e `isFoundingMember` en UserDomainModel; `tariffId` en PaymentDomainModel; funciones puras `applyFoundingDiscount`, `buildPrepaymentPeriods` y `findUnpaidStudents` con tests de Vitest. Ruta: delegada (disparador de escritor, 2+ archivos).
+- [x] T2 Alta: nombre + apellidos, móvil obligatorio, fecha de nacimiento, email opcional, foto (captura/subida), bloque de tutor para menores de 14, casilla de socio fundador; sin tarifa en el alta. Ruta: delegada.
+- [x] T3 Caja: sin datos de ejemplo ni tarjeta; tarifa elegida desde Firestore en el cobro y guardada como `tariffId`; periodo elegido en el formulario; 10 % de descuento a socios fundadores; pago adelantado de N meses; listas permitidas de las reglas actualizadas. Ruta: delegada.
+- [x] T4 Vista "alumnos sin pagar" en Caja: alumnos activos sin pago aprobado en el periodo elegido, filtrable por tarifa. Ruta: delegada.
 
-## Acceptance criteria
-- Enrollment saves full name, surnames, phone, birth date, optional email and photo; minors under 14 require guardian name and phone; no tariff is set at enrollment.
-- A charge records method (cash/Bizum), tariff, period and automatic date; founding members get 10% off; prepaying N months creates N period payments.
-- Staff can see who has not paid the selected month and filter by tariff.
-- `npm test` and `npm run build` pass.
+## Criterios de aceptación
+- El alta guarda nombre, apellidos, teléfono, fecha de nacimiento, email opcional y foto; los menores de 14 requieren nombre y teléfono del tutor; no se asigna tarifa en el alta.
+- Un cobro registra método (metálico/Bizum), tarifa, periodo y fecha automática; los socios fundadores tienen un 10 % de descuento; pagar N meses por adelantado crea N pagos por periodo.
+- El personal puede ver quién no ha pagado el mes elegido y filtrar por tarifa.
+- `npm test` y `npm run build` pasan.
 
-## Progress
-- 2026-11-11: Code mapped (enrollment, caja, tariffs, roles). Branch created. Feature document created.
+## Progreso
+- 2026-11-11: Código mapeado (alta, caja, tarifas, roles). Rama y documento creados.
+- T1 hecha (escritor delegado). `npm test`: 14 archivos / 113 tests pasan (re-ejecutado por el orquestador). `npm run build`: pasa. `npm run test:rules` no se pudo ejecutar al principio porque el emulador no estaba disponible. Se revisó el diff de `firestore.rules`: nueva regla de creación de pagos solo para admin (CASH/BIZUM, APPROVED/PENDING_APPROVAL, lista de campos permitidos); autorregistro desde 14 años. Commit: 9e6f8ba.
+- T2 hecha (escritor delegado, skill `impeccable`). `npm test`: 15 archivos / 120 tests pasan. `npm run build`: pasa. Foto guardada como data URL JPEG comprimida en `photoUrl` (convención existente; el proyecto no usa Firebase Storage). Email opcional: la función crea un acceso interno `alumno_…@247studiobjj.com` sin enlace de contraseña. Los alumnos nuevos reciben `pricingTier: 'STD'` y no tienen `activeTariffId`. Commit: 369340a.
+- T3 hecha (escritor delegado, `impeccable`). Cobros con tarifa desde Firestore, periodo en el modal, 10 % para socios fundadores, pago adelantado de 1 a 12 meses en un único `writeBatch` (un documento por periodo), sin datos de ejemplo, el bono PASS ya no escribe `pricingTier`. Commit: 28ebd4c.
+- T4 hecha (escritor delegado, `impeccable`). Sección "Alumnos sin pagar" en Caja: lista del periodo, filtro por tarifa (+ "Sin tarifa"), recuento de pagados/total, chips por tarifa y botón "Cobrar" con alumno y periodo preseleccionados. `npm test`: 15 archivos / 131 tests. `npm run build`: pasa. Commit: d7b49f6.
+- Tests de reglas con JDK 21 + emulador: 11 pasan y 4 fallan; los mismos 4 fallan en `main` (85d5237), por lo que son previos (autorregistro de adulto, creación de reserva desde el kiosco, creación anónima de lead y el test de inmutabilidad de pagos aprobados).
+- Prueba en navegador contra emuladores: 22 capturas en `docs/capturas/alta-cobro-mensual`. Se observó funcionando el guardado alternativo del alta y el pago adelantado de 3 meses (3 documentos, 10 % de descuento).
+- Correcciones de interfaz 5142547 (selector de mes en español, mensajes de validación propios); auto-login de desarrollo solo con emulador 50fb76f (ausente del build de producción).
+- `npm run build` limpio antes de fusionar en `main`. Publicado en `main` (69b5740 y 96bb44f).
+- Pendientes: `sessionsRemaining` falta en la lista permitida de actualización de pagos (aprobar bonos PASS puede fallar); `handleApprovePayment` sigue estimando importes con precios fijos; quedan textos "Efectivo" en PersonalPage/ProgramsPage y una rama CARD en receiptGenerator; no hay test de reglas para la creación de pagos por admin.
 
-- T1 done (delegated writer). `npm test`: 14 files / 113 tests passed (parent re-ran). `npm run build`: passed (writer). `npm run test:rules`: not run, Firestore emulator unavailable (pending). Risk assessment returned no tier, treated as high; parent reviewed the `firestore.rules` diff: new admin-only payment create rule (CASH/BIZUM, APPROVED/PENDING_APPROVAL, key allowlist), self-registration age now 14+.
-- Follow-ups (not in scope): `sessionsRemaining` missing from the payments admin update allowlist (pre-existing; PASS approval may be denied); no rules test for the admin create rule; "Efectivo" labels remain in PersonalPage/ProgramsPage and a CARD branch in receiptGenerator.
-
-- T1 commit: 9e6f8ba.
-- T2 done (delegated writer, impeccable skill applied). `npm test`: 15 files / 120 tests passed (parent re-ran). `npm run build`: passed (writer). Not run: browser check of the page, Netlify function (pending manual check). Photo stored as compressed JPEG data URL in `photoUrl` (existing project convention; no Firebase Storage in the project). Email optional: the function creates a placeholder login `alumno_…@247studiobjj.com` without a reset link. New students get `pricingTier: 'STD'` and no `activeTariffId`.
-- Follow-up: make `activeTariffId` optional in `UserDomainModel` (T3).
-
-- T2 commit: 369340a.
-- T3 done (delegated writer, impeccable applied). `npm test`: 15 files passed (parent re-ran; writer reported 126 tests). `npm run build`: passed (writer). Not run: browser check, rules tests (emulator unavailable). Charges: tariff from Firestore, period in modal, founding 10% discount, prepay 1-12 months as one writeBatch (one doc per period), no demo fallback, PASS no longer writes pricingTier.
-- Follow-up: `handleApprovePayment` still estimates amounts from hardcoded tiers and does not write `sessionsRemaining`.
-
-- T3 commit: 28ebd4c.
-- T4 done (delegated writer, impeccable applied). Parent re-ran `npm test` (15 files passed; writer reported 131 tests) and `npm run build` (passed). Not run: browser check. "Alumnos sin pagar" section in Caja: per-period unpaid list, tariff filter (+ "Sin tarifa"), paid/total count, per-tariff paid chips, "Cobrar" preselects student and period.
-
-- T4 commit: d7b49f6.
-- Rules tests run with JDK 21 + emulator: 11 passed, 4 failed; the same 4 fail on main (85d5237), pre-existing (self-registration adult, kiosk booking create, anonymous lead create, approved-payment immutability test).
-- Browser check against emulators: 20+ screenshots in docs/capturas/alta-cobro-mensual (untracked). Enrollment fallback write and 3-month prepayment (3 docs, 10% discount) observed working.
-- UI fixes 5142547 (Spanish month select, custom validation messages); dev-only emulator auto-login 50fb76f (absent from dist).
-- `npm run build` clean before merge to main.
-
-## Next step
-Deploy firestore.rules to production (required for admin charges). Then manual browser check of /admin/alta-alumno and /admin/caja; run `npm run test:rules` with the Firestore emulator; deploy firestore.rules together with the app; then the out-of-scope items (unpaid reminders, temporary leave, consents) if the client confirms.
+## Siguiente paso
+Desplegar `firestore.rules` en producción (necesario para los cobros del admin; lo debe ejecutar el usuario: `npx firebase deploy --only firestore:rules --project studio-ff8d1`). Después, prueba manual en la tablet y los puntos fuera de alcance (avisos de impago, bajas temporales, consentimientos) si el cliente los confirma.

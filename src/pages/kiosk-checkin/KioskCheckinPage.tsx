@@ -20,16 +20,13 @@ import {
   Clock,
   Eye,
   Lock,
-  QrCode,
   Search,
   Sparkles,
   Swords,
-  UserPlus,
   Users,
   X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import QRCode from 'qrcode';
 import { db } from '@/shared/api/firebase';
 import { getAttendanceWeight } from '@/shared/domain/attendance';
 import { calculateAthleteXP, calculateGraduationProgress, getNextPromotion } from '@/shared/domain/graduation';
@@ -123,13 +120,6 @@ export const KioskCheckinPage: React.FC = () => {
   const { role } = useAuth();
   const [loadingCheckin, setLoadingCheckin] = useState(false);
 
-  // Estados para Alta Exprés de Prueba en Kiosco
-  const [trialModalOpen, setTrialModalOpen] = useState(false);
-  const [trialQrDataUrl, setTrialQrDataUrl] = useState<string>('');
-  const [trialName, setTrialName] = useState('');
-  const [trialPhone, setTrialPhone] = useState('');
-  const [trialSuccess, setTrialSuccess] = useState(false);
-  const [trialLoading, setTrialLoading] = useState(false);
 
   // Estado para advertencia de cuenta pausada / bloqueada
   const [accountAlert, setAccountAlert] = useState<{ alias: string; status: string } | null>(null);
@@ -164,14 +154,6 @@ export const KioskCheckinPage: React.FC = () => {
       }
     };
     loadKioskDirectory();
-  }, []);
-
-  // Generar QR para el alta de prueba exprés desde el móvil del visitante
-  useEffect(() => {
-    const trialUrl = `${window.location.origin}/reserva-prueba?source=kiosk`;
-    QRCode.toDataURL(trialUrl, { width: 220, margin: 1, color: { dark: '#0F172A', light: '#FFFFFF' } })
-      .then(setTrialQrDataUrl)
-      .catch(console.error);
   }, []);
 
   // Cuenta atrás para auto-cerrar el banner de celebración de check-in
@@ -472,38 +454,6 @@ export const KioskCheckinPage: React.FC = () => {
       console.error('Error confirmando check-in en kiosco:', err);
     } finally {
       setLoadingCheckin(false);
-    }
-  };
-
-  const handleExpressTrialSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!trialName.trim() || !trialPhone.trim()) return;
-    setTrialLoading(true);
-
-    try {
-      const leadId = `lead_kiosk_${Date.now()}`;
-      await setDoc(doc(db, 'leads', leadId), {
-        name: trialName.trim(),
-        email: `prueba_${Date.now()}@247studio.local`,
-        phone: trialPhone.trim(),
-        scheduleId: activeSchedule?.id || 'trial_kiosk',
-        status: 'NEW',
-        source: 'KIOSK',
-        honeypot: '',
-        createdAt: serverTimestamp(),
-      });
-
-      setTrialSuccess(true);
-      setTimeout(() => {
-        setTrialSuccess(false);
-        setTrialModalOpen(false);
-        setTrialName('');
-        setTrialPhone('');
-      }, 2500);
-    } catch (err) {
-      console.error('Error registrando prueba exprés:', err);
-    } finally {
-      setTrialLoading(false);
     }
   };
 
@@ -816,31 +766,7 @@ export const KioskCheckinPage: React.FC = () => {
               )}
             </div>
 
-            {/* Opción 3: Alta Exprés para Clase de Prueba */}
-            <div className="p-5 rounded-3xl bg-white border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-accent block">
-                  ¿Primera vez en 247Studio?
-                </span>
-                <h3 className="text-base font-extrabold text-slate-900 tracking-tight mt-0.5">
-                  Clase de Prueba Exprés
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Escanea el código QR con tu móvil para registrarte y pasar al tatami.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setTrialModalOpen(true)}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition shrink-0 cursor-pointer"
-              >
-                <QrCode className="w-4 h-4 text-brand-accent" />
-                <span>Ver QR de Prueba</span>
-              </button>
-            </div>
-
-            {/* Opción 4: Compañeros en el Tatami Hoy */}
+            {/* Opción 3: Compañeros en el Tatami Hoy */}
             <div className="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
@@ -910,81 +836,6 @@ export const KioskCheckinPage: React.FC = () => {
           >
             Entendido
           </Button>
-        </DialogContent>
-      </Dialog>
-
-      {/* ======================================================== */}
-      {/* 5. MODAL ALTA EXPRÉS DE PRUEBA (RADIX DIALOG)            */}
-      {/* ======================================================== */}
-      <Dialog open={trialModalOpen} onOpenChange={(open) => setTrialModalOpen(open)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader className="text-center items-center">
-            <Badge variant="studio" className="mb-2">
-              Clase de Prueba Gratuita
-            </Badge>
-            <DialogTitle className="text-xl font-extrabold text-slate-900 tracking-tight">
-              Alta Exprés en Recepción
-            </DialogTitle>
-          </DialogHeader>
-
-          {trialSuccess ? (
-            <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2 my-2">
-              <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
-              <h4 className="text-lg font-bold text-slate-900">¡Bienvenido al Tatami!</h4>
-              <p className="text-xs text-slate-600">
-                Tus datos han quedado registrados. Pasa al tatami y habla con el profesor.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4 pt-2">
-              {/* QR para hacerlo en el móvil */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-3">
-                <span className="text-xs font-bold text-slate-700 block">
-                  Escanea con tu cámara móvil para firmar en tu teléfono:
-                </span>
-                {trialQrDataUrl && (
-                  <img
-                    src={trialQrDataUrl}
-                    alt="QR Alta Exprés"
-                    className="w-36 h-36 mx-auto rounded-xl shadow-sm border border-slate-200 p-1 bg-white"
-                  />
-                )}
-                <span className="text-[10px] text-slate-400 block font-mono">
-                  {typeof window !== 'undefined' ? `${window.location.host}/reserva-prueba` : '247studio.com/reserva-prueba'}
-                </span>
-              </div>
-
-              {/* Formulario rápido en tablet si no tiene móvil a mano */}
-              <form onSubmit={handleExpressTrialSubmit} className="space-y-3 pt-2 border-t border-slate-100">
-                <span className="text-xs font-semibold text-slate-700 block">
-                  O introduce tus datos directamente en esta tablet:
-                </span>
-                <Input
-                  type="text"
-                  required
-                  value={trialName}
-                  onChange={(e) => setTrialName(e.target.value)}
-                  placeholder="Nombre y apellidos"
-                />
-                <Input
-                  type="tel"
-                  required
-                  value={trialPhone}
-                  onChange={(e) => setTrialPhone(e.target.value)}
-                  placeholder="Número de teléfono móvil"
-                />
-                <Button
-                  type="submit"
-                  disabled={trialLoading}
-                  variant="studio"
-                  className="w-full"
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  <span>{trialLoading ? 'Registrando...' : 'Entrar a la clase de prueba'}</span>
-                </Button>
-              </form>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
 

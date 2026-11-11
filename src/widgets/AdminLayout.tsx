@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useGlobalShortcuts } from '@/shared/hooks/useGlobalShortcuts';
-import { KokoroAssistant } from '@/widgets/KokoroAssistant';
 
 export const AdminLayout: React.FC = () => {
   const { logout, role } = useAuth();
@@ -82,7 +81,6 @@ export const AdminLayout: React.FC = () => {
     { to: '/admin/caja', label: 'Caja y Pagos', shortLabel: 'Caja', icon: CreditCard, adminOnly: true },
     { to: '/admin/horarios', label: 'Horarios de Tatami', shortLabel: 'Horarios', icon: CalendarDays, adminOnly: false },
     { to: '/admin/tarifas', label: 'Tarifas & MRR', shortLabel: 'Tarifas', icon: Tags, adminOnly: true },
-    { to: '/admin/leads', label: 'Embudo de Leads', shortLabel: 'Leads', icon: Shield, adminOnly: true },
     { to: '/admin/alta-alumno', label: 'Alta de Alumno', shortLabel: 'Alta Socio', icon: UserPlus, adminOnly: true },
     { to: '/admin/roles', label: 'Equipo & Roles', shortLabel: 'Equipo', icon: ShieldCheck, adminOnly: true },
   ];
@@ -522,8 +520,6 @@ export const AdminLayout: React.FC = () => {
         </button>
       </nav>
 
-      {/* Asistente Inteligente KOKORO */}
-      <KokoroAssistant />
     </div>
   );
 };

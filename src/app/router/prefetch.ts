@@ -5,7 +5,6 @@
 const STUDENT = [
   () => import('@/pages/app-home/HomePage'),
   () => import('@/pages/app-horario/SchedulePage'),
-  () => import('@/pages/app-historial/AttendanceHistoryPage'),
   () => import('@/pages/app-programas/ProgramsPage'),
   () => import('@/pages/app-perfil/ProfilePage'),
 ];
@@ -16,7 +15,6 @@ const ADMIN = [
   () => import('@/pages/admin-horarios/SchedulesAdminPage'),
   () => import('@/pages/admin-caja/CajaPage'),
   () => import('@/pages/admin-tarifas/TariffsAdminPage'),
-  () => import('@/pages/admin-leads/LeadsAdminPage'),
 ];
 
 export function prefetchRoutes(group: 'student' | 'admin'): void {

@@ -2,15 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { prefetchRoutes } from '@/app/router/prefetch';
 import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
 import {
-  Activity,
   Bell,
   Calendar,
   ChevronLeft,
   ChevronRight,
   CreditCard,
-  HelpCircle,
   Home,
-  Image,
   LogOut,
   Menu,
   MessageSquare,
@@ -38,7 +35,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/ui/dropdown-menu';
-import { KokoroAssistant } from '@/widgets/KokoroAssistant';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/shared/api/firebase';
@@ -153,13 +149,10 @@ export const AppLayout: React.FC = () => {
     const path = location.pathname;
     if (path.includes('/app/home')) return 'Hoy';
     if (path.includes('/app/horario')) return 'Clases';
-    if (path.includes('/app/progreso')) return 'Progreso';
     if (path.includes('/app/pagos')) return 'Pagos';
     if (path.includes('/app/perfil')) return 'Yo';
     if (path.includes('/app/avisos')) return 'Avisos';
     if (path.includes('/app/foro')) return 'Foro';
-    if (path.includes('/app/faqs')) return 'Preguntas frecuentes';
-    if (path.includes('/app/media')) return 'Fotos y vídeos';
     return 'Mi cuenta';
   };
 
@@ -169,7 +162,6 @@ export const AppLayout: React.FC = () => {
       items: [
         { to: '/app/home', label: 'Hoy', icon: Home, badge: null },
         { to: '/app/horario', label: 'Clases', icon: Calendar, badge: null },
-        { to: '/app/progreso', label: 'Progreso', icon: Activity, badge: null },
         { to: '/app/pagos', label: 'Pagos', icon: CreditCard, badge: null },
         { to: '/app/perfil', label: 'Yo', icon: User, badge: null },
       ],
@@ -179,8 +171,6 @@ export const AppLayout: React.FC = () => {
       items: [
         { to: '/app/avisos', label: 'Avisos', icon: Bell, badge: null },
         { to: '/app/foro', label: 'Foro', icon: MessageSquare, badge: null },
-        { to: '/app/media', label: 'Fotos y vídeos', icon: Image, badge: null },
-        { to: '/app/faqs', label: 'Preguntas frecuentes', icon: HelpCircle, badge: null },
       ],
     },
     ...(role === 'admin' || role === 'coach'
@@ -544,7 +534,7 @@ export const AppLayout: React.FC = () => {
         {/* ======================================================== */}
         <nav
           aria-label="Navegación principal"
-          className="md:hidden shrink-0 bg-white border-t border-slate-200/90 px-1 pt-1 pb-2 grid grid-cols-5 z-30"
+          className="md:hidden shrink-0 bg-white border-t border-slate-200/90 px-1 pt-1 pb-2 grid grid-cols-4 z-30"
         >
           <NavLink
             to="/app/home"
@@ -567,17 +557,6 @@ export const AppLayout: React.FC = () => {
           >
             <Calendar className="w-6 h-6" aria-hidden="true" />
             <span>Clases</span>
-          </NavLink>
-          <NavLink
-            to="/app/progreso"
-            className={({ isActive }) =>
-              `flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl text-xs transition ${
-                isActive ? 'text-studio-navy font-semibold' : 'text-slate-600'
-              }`
-            }
-          >
-            <Activity className="w-6 h-6" aria-hidden="true" />
-            <span>Progreso</span>
           </NavLink>
           <NavLink
             to="/app/pagos"
@@ -714,8 +693,6 @@ export const AppLayout: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Asistente Inteligente KOKORO */}
-      <KokoroAssistant />
     </div>
   );
 };

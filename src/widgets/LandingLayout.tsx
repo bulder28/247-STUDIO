@@ -68,12 +68,12 @@ export const LandingLayout: React.FC = () => {
                 >
                   Acceder
                 </Link>
-                <Link
-                  to="/reserva-prueba"
+                <a
+                  href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." target="_blank" rel="noreferrer"
                   className="cta-button py-2 px-4 text-xs sm:text-sm hidden sm:inline-flex"
                 >
                   Clase de prueba
-                </Link>
+                </a>
               </>
             )}
           </div>
@@ -113,7 +113,7 @@ export const LandingLayout: React.FC = () => {
               Acceso Rápido
             </h4>
             <ul className="space-y-2 text-sm text-brand-background/80">
-              <li><Link to="/reserva-prueba" className="hover:text-white transition-colors">Reserva tu clase gratis</Link></li>
+              <li><a href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." target="_blank" rel="noreferrer" className="hover:text-white transition-colors">Reserva tu clase gratis</a></li>
               <li><Link to="/login" className="hover:text-white transition-colors">Área privada de alumnos</Link></li>
               <li><a href="/#horario" className="hover:text-white transition-colors">Horario semanal</a></li>
               <li><a href="/#programas" className="hover:text-white transition-colors">Programas</a></li>

@@ -122,14 +122,14 @@ export const RegisterPage: React.FC = () => {
 
         {/* Botones de acción */}
         <div className="space-y-3">
-          <Link
-            to="/reserva-prueba"
+          <a
+            href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." target="_blank" rel="noreferrer"
             className="w-full py-4 px-6 bg-studio-red hover:bg-studio-red-dark text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-studio-red/30 flex items-center justify-center gap-2 cursor-pointer text-center"
           >
             <Calendar className="w-4 h-4" />
             <span>Reservar Mi Clase de Prueba Gratuita</span>
             <ArrowRight className="w-4 h-4" />
-          </Link>
+          </a>
 
           <a
             href="https://wa.me/34677528185?text=Hola%2C%20quiero%20informaci%C3%B3n%20para%20darme%20de%20alta%20en%20247Studio."

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/shared/api/firebase';
 import { DEFAULT_OFFICIAL_SCHEDULES } from '@/shared/domain/schedule';
@@ -129,9 +128,9 @@ export const LandingPage: React.FC = () => {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
-              <Link to="/reserva-prueba" className="cta-button text-base px-7 py-3.5 shadow-md">
+              <a href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." target="_blank" rel="noreferrer" className="cta-button text-base px-7 py-3.5 shadow-md">
                 Reserva tu clase de prueba gratis
-              </Link>
+              </a>
               <a
                 href="#horario"
                 className="cta-soft text-base px-6 py-3"
@@ -166,13 +165,13 @@ export const LandingPage: React.FC = () => {
             </p>
             <BeltLadder />
             <div className="mt-6 pt-4 border-t border-brand-text/10 text-center">
-              <Link
-                to="/reserva-prueba"
+              <a
+                href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." target="_blank" rel="noreferrer"
                 className="text-xs font-headline font-bold text-brand-accent hover:underline uppercase tracking-wide inline-flex items-center gap-1"
               >
                 <span>Empieza hoy con tu clase de prueba</span>
                 <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
+              </a>
             </div>
           </div>
         </div>
@@ -225,12 +224,12 @@ export const LandingPage: React.FC = () => {
               Programas y Disciplinas
             </h2>
           </div>
-          <Link
-            to="/reserva-prueba"
+          <a
+            href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." target="_blank" rel="noreferrer"
             className="cta-soft py-2 px-4 self-start sm:self-auto text-xs sm:text-sm"
           >
             Consultar Tarifas y Packs
-          </Link>
+          </a>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -272,13 +271,13 @@ export const LandingPage: React.FC = () => {
                       </span>
                     ))}
                   </div>
-                  <Link
-                    to="/reserva-prueba"
+                  <a
+                    href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." target="_blank" rel="noreferrer"
                     className="text-brand-accent hover:text-brand-accent-dark font-headline text-sm uppercase tracking-wide inline-flex items-center"
                     title={`Reservar ${p.title}`}
                   >
                     Probar <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
+                  </a>
                 </div>
               </div>
             </div>
@@ -300,9 +299,9 @@ export const LandingPage: React.FC = () => {
                 Horario de Clases
               </h2>
             </div>
-            <Link to="/reserva-prueba" className="cta-button py-2.5 px-5 text-sm self-start sm:self-auto">
+            <a href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." target="_blank" rel="noreferrer" className="cta-button py-2.5 px-5 text-sm self-start sm:self-auto">
               Reservar Plaza en Clase
-            </Link>
+            </a>
           </div>
 
           <div className="mt-6">
@@ -345,12 +344,12 @@ export const LandingPage: React.FC = () => {
                           Prof. {s.professor}
                         </td>
                         <td className="py-3.5 px-3 text-right">
-                          <Link
-                            to="/reserva-prueba"
+                          <a
+                            href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." target="_blank" rel="noreferrer"
                             className="text-xs font-headline font-bold text-brand-accent hover:text-brand-accent-dark uppercase tracking-wider inline-flex items-center gap-1"
                           >
                             Probar <ChevronRight className="w-3 h-3" />
-                          </Link>
+                          </a>
                         </td>
                       </tr>
                     ))}
@@ -432,9 +431,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="shrink-0 flex flex-col sm:flex-row gap-3">
-            <Link to="/reserva-prueba" className="cta-button text-base px-8 py-4 shadow-lg text-center">
-              Reservar Clase Gratis
-            </Link>
+            
             <a
               href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba."
               target="_blank"

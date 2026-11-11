@@ -12,9 +12,6 @@ import { RootErrorBoundary, RouteErrorElement } from '@/shared/ui/RootErrorBound
 const LandingPage = lazyWithRetry(() =>
   import('@/pages/public-landing/LandingPage').then((m) => ({ default: m.LandingPage }))
 );
-const TrialClassPage = lazyWithRetry(() =>
-  import('@/pages/public-reserva-prueba/TrialClassPage').then((m) => ({ default: m.TrialClassPage }))
-);
 const LoginPage = lazyWithRetry(() =>
   import('@/pages/public-login/LoginPage').then((m) => ({ default: m.LoginPage }))
 );
@@ -29,9 +26,6 @@ const RegisterPage = lazyWithRetry(() =>
 );
 const HomePage = lazyWithRetry(() =>
   import('@/pages/app-home/HomePage').then((m) => ({ default: m.HomePage }))
-);
-const AttendanceHistoryPage = lazyWithRetry(() =>
-  import('@/pages/app-historial/AttendanceHistoryPage').then((m) => ({ default: m.AttendanceHistoryPage }))
 );
 const SchedulePage = lazyWithRetry(() =>
   import('@/pages/app-horario/SchedulePage').then((m) => ({ default: m.SchedulePage }))
@@ -48,12 +42,6 @@ const AvisosPage = lazyWithRetry(() =>
 const ForoPage = lazyWithRetry(() =>
   import('@/pages/app-foro/ForoPage').then((m) => ({ default: m.ForoPage }))
 );
-const FaqsPage = lazyWithRetry(() =>
-  import('@/pages/app-faqs/FaqsPage').then((m) => ({ default: m.FaqsPage }))
-);
-const MediaPage = lazyWithRetry(() =>
-  import('@/pages/app-media/MediaPage').then((m) => ({ default: m.MediaPage }))
-);
 const PersonalPage = lazyWithRetry(() =>
   import('@/pages/admin-personal/PersonalPage').then((m) => ({ default: m.PersonalPage }))
 );
@@ -65,9 +53,6 @@ const SchedulesAdminPage = lazyWithRetry(() =>
 );
 const TariffsAdminPage = lazyWithRetry(() =>
   import('@/pages/admin-tarifas/TariffsAdminPage').then((m) => ({ default: m.TariffsAdminPage }))
-);
-const LeadsAdminPage = lazyWithRetry(() =>
-  import('@/pages/admin-leads/LeadsAdminPage').then((m) => ({ default: m.LeadsAdminPage }))
 );
 const AttendanceAdminPage = lazyWithRetry(() =>
   import('@/pages/admin-asistencia/AttendanceAdminPage').then((m) => ({ default: m.AttendanceAdminPage }))
@@ -120,14 +105,6 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <LandingPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'reserva-prueba',
-        element: (
-          <LazyRoute>
-            <TrialClassPage />
           </LazyRoute>
         ),
       },
@@ -205,7 +182,7 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Navigate to="/app/home" replace /> },
-      { path: 'historial', element: <Navigate to="/app/progreso" replace /> },
+      { path: 'historial', element: <Navigate to="/app/home" replace /> },
       { path: 'programas', element: <Navigate to="/app/pagos" replace /> },
       {
         path: 'home',
@@ -220,14 +197,6 @@ export const router = createBrowserRouter([
         element: (
           <LazyRoute>
             <SchedulePage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'progreso',
-        element: (
-          <LazyRoute>
-            <AttendanceHistoryPage />
           </LazyRoute>
         ),
       },
@@ -263,27 +232,11 @@ export const router = createBrowserRouter([
           </LazyRoute>
         ),
       },
-      {
-        path: 'faqs',
-        element: (
-          <LazyRoute>
-            <FaqsPage />
-          </LazyRoute>
-        ),
-      },
-      {
-        path: 'media',
-        element: (
-          <LazyRoute>
-            <MediaPage />
-          </LazyRoute>
-        ),
-      },
       { path: 'cronometro', element: <Navigate to="/app/home" replace /> },
       { path: 'peso', element: <Navigate to="/app/home" replace /> },
       { path: 'curriculum', element: <Navigate to="/app/home" replace /> },
-      { path: 'sparring', element: <Navigate to="/app/progreso" replace /> },
-      { path: 'cinturon', element: <Navigate to="/app/progreso" replace /> },
+      { path: 'sparring', element: <Navigate to="/app/home" replace /> },
+      { path: 'cinturon', element: <Navigate to="/app/home" replace /> },
     ],
   },
 
@@ -340,16 +293,6 @@ export const router = createBrowserRouter([
           <ProtectedRoute allowedRoles={['admin']}>
             <LazyRoute>
               <TariffsAdminPage />
-            </LazyRoute>
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'leads',
-        element: (
-          <ProtectedRoute allowedRoles={['admin']}>
-            <LazyRoute>
-              <LeadsAdminPage />
             </LazyRoute>
           </ProtectedRoute>
         ),

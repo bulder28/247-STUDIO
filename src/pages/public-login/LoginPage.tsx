@@ -277,9 +277,9 @@ export const LoginPage: React.FC = () => {
           <div className="mt-8 pt-4 border-t border-brand-text/10 space-y-2.5 text-center text-xs">
             <p className="text-xs text-brand-text/80">
               ¿Aún no entrenas en 247 Studio?{' '}
-              <Link to="/reserva-prueba" className="font-bold text-brand-accent hover:underline block sm:inline mt-0.5">
+              <a href="https://wa.me/34677528185?text=Hola%2C%20quiero%20reservar%20una%20clase%20de%20prueba." target="_blank" rel="noreferrer" className="font-bold text-brand-accent hover:underline block sm:inline mt-0.5">
                 Reserva tu clase de prueba gratis →
-              </Link>
+              </a>
             </p>
             <p className="text-[11px] text-brand-text/60">
               Las altas de nuevos socios y el acceso a la app se formalizan exclusivamente en la recepción de la academia.

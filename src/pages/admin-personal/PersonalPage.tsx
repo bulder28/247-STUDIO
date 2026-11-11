@@ -17,20 +17,13 @@ import {
   Clock,
   CreditCard,
   Download,
-  LayoutGrid,
-  List,
-  Mail,
-  MessageCircle,
   Pause,
-  Phone,
   Play,
   Plus,
   RefreshCw,
   Search,
-  Sparkles,
   User,
   UserMinus,
-  UserPlus,
 } from 'lucide-react';
 import { auth, db } from '@/shared/api/firebase';
 import { getLiveDocs, invalidateLiveDocs } from '@/shared/api/liveReads';
@@ -38,10 +31,8 @@ import { deriveRetentionRisk } from '@/shared/domain/attendance';
 import { calculateExactAge, isLegalMinor } from '@/shared/domain/minor';
 import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
 import {
-  AccountStatus,
   AdultBelt,
   Belt,
-  BeltSystem,
   BookingDomainModel,
   KidsBelt,
   PaymentDomainModel,
@@ -61,8 +52,6 @@ import {
 } from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/input';
 import { exportStudentsToCsv } from '@/shared/utils/csvExporter';
-import { FifaFighterCard } from '@/widgets/FifaFighterCard';
-import { FighterCard } from '@/widgets/FighterCard';
 import { PhotoUploaderModal } from '@/widgets/PhotoUploaderModal';
 
 // --- Constantes y Helpers de Cinturones ---
@@ -96,31 +85,12 @@ const TIER_PRICES: Record<PricingTier, { name: string; price: string }> = {
   FAM: { name: 'Familiar', price: '55 €' },
 };
 
-export interface LeadModel {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  scheduleId?: string;
-  programInterest?: string;
-  source?: string;
-  notes?: string;
-  status: 'NEW' | 'SCHEDULED' | 'ATTENDED' | 'CONVERTED' | 'LOST';
-  createdAt?: any;
-}
-
 export const PersonalPage: React.FC = () => {
   // Estado de datos
   const [users, setUsers] = useState<UserDomainModel[]>([]);
-  const [leads, setLeads] = useState<LeadModel[]>([]);
   const [bookings, setBookings] = useState<BookingDomainModel[]>([]);
   const [payments, setPayments] = useState<PaymentDomainModel[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Modo de visualización: Álbum de Cartas FIFA vs Ficha y Gestión
-  const [displayMode, setDisplayMode] = useState<'CARDS' | 'LIST'>('CARDS');
-  const [cardBeltFilter, setCardBeltFilter] = useState<string>('ALL');
-  const [modalCardUser, setModalCardUser] = useState<UserDomainModel | null>(null);
 
   // Vistas superiores de ciclo de vida
   const [view, setView] = useState<'ACTIVOS' | 'INTERESADOS' | 'BAJAS'>('ACTIVOS');
@@ -128,10 +98,9 @@ export const PersonalPage: React.FC = () => {
 
   // Selección en modo Maestro-Detalle
   const [selectedUser, setSelectedUser] = useState<UserDomainModel | null>(null);
-  const [selectedLead, setSelectedLead] = useState<LeadModel | null>(null);
 
   // Pestañas de la Ficha
-  const [activeTab, setActiveTab] = useState<'resumen' | 'datos' | 'cinturon' | 'pagos' | 'asistencia' | 'carta'>('resumen');
+  const [activeTab, setActiveTab] = useState<'resumen' | 'datos' | 'cinturon' | 'pagos' | 'asistencia'>('resumen');
 
   // Formularios de edición en la ficha
   const [datosForm, setDatosForm] = useState({
@@ -163,7 +132,6 @@ export const PersonalPage: React.FC = () => {
     belt: 'WHITE' as Belt,
     stripes: 0,
     pricingTier: 'STD' as PricingTier,
-    isLeadOnly: false,
     notes: '',
   });
 
@@ -191,9 +159,8 @@ export const PersonalPage: React.FC = () => {
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const minDateStr = sixtyDaysAgo.toISOString().slice(0, 10);
 
-      const [usersRes, leadsRes, bookingsRes, paymentsRes] = await Promise.allSettled([
+      const [usersRes, bookingsRes, paymentsRes] = await Promise.allSettled([
         getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'leads')),
         getDocs(query(collection(db, 'bookings'), where('date', '>=', minDateStr))),
         getDocs(collection(db, 'payments')),
       ]);
@@ -204,12 +171,6 @@ export const PersonalPage: React.FC = () => {
       }
       const effectiveUsers = uList.length > 0 ? uList : SAMPLE_ATHLETES_20;
       setUsers(effectiveUsers);
-
-      const lList: LeadModel[] = [];
-      if (leadsRes.status === 'fulfilled') {
-        leadsRes.value.forEach((d) => lList.push({ id: d.id, ...(d.data() as Omit<LeadModel, 'id'>) }));
-      }
-      setLeads(lList);
 
       const bList: BookingDomainModel[] = [];
       if (bookingsRes.status === 'fulfilled') {
@@ -274,7 +235,6 @@ export const PersonalPage: React.FC = () => {
   // Sincronizar formularios al seleccionar alumno
   const syncFormsWithUser = (user: UserDomainModel) => {
     setSelectedUser(user);
-    setSelectedLead(null);
     setDatosForm({
       alias: user.alias || '',
       contactEmail: user.contactEmail || user.authEmail || '',
@@ -291,22 +251,15 @@ export const PersonalPage: React.FC = () => {
     setTierForm(user.pricingTier || 'STD');
   };
 
-  const handleSelectLead = (lead: LeadModel) => {
-    setSelectedLead(lead);
-    setSelectedUser(null);
-    setActiveTab('resumen');
-  };
-
   // Filtrado en las 3 vistas principales
   const activosList = useMemo(() => {
     return users.filter((u) => u.accountStatus === 'ACTIVE');
   }, [users]);
 
+  // Interesados: cuentas en clase de prueba o con el alta pendiente
   const interesadosList = useMemo(() => {
-    const leadsNotConverted = leads.filter((l) => l.status !== 'CONVERTED');
-    const trialUsers = users.filter((u) => u.accountStatus === 'TRIAL' || u.accountStatus === 'PENDING');
-    return { leads: leadsNotConverted, trialUsers };
-  }, [leads, users]);
+    return users.filter((u) => u.accountStatus === 'TRIAL' || u.accountStatus === 'PENDING');
+  }, [users]);
 
   const bajasList = useMemo(() => {
     return users.filter(
@@ -344,16 +297,8 @@ export const PersonalPage: React.FC = () => {
       });
     }
 
-    // INTERESADOS (Leads + Usuarios en Prueba)
-    const matchedLeads = interesadosList.leads.filter((l) => {
-      if (!term) return true;
-      return (
-        l.name?.toLowerCase().includes(term) ||
-        l.email?.toLowerCase().includes(term) ||
-        l.phone?.includes(term)
-      );
-    });
-    const matchedTrialUsers = interesadosList.trialUsers.filter((u) => {
+    // INTERESADOS (cuentas en prueba / alta pendiente)
+    return interesadosList.filter((u) => {
       if (!term) return true;
       return (
         u.alias?.toLowerCase().includes(term) ||
@@ -361,35 +306,12 @@ export const PersonalPage: React.FC = () => {
         u.phone?.includes(term)
       );
     });
-
-    return { leads: matchedLeads, trialUsers: matchedTrialUsers };
   }, [view, searchTerm, activosList, bajasList, interesadosList]);
-
-  // Lista de atletas para la vista de Álbum de Cartas FIFA FUT
-  const cardAthletes = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    let baseList = activosList;
-    if (view === 'BAJAS') baseList = bajasList;
-    if (view === 'INTERESADOS') baseList = interesadosList.trialUsers;
-
-    return baseList.filter((u) => {
-      if (term) {
-        const matchesTerm =
-          u.alias?.toLowerCase().includes(term) ||
-          u.contactEmail?.toLowerCase().includes(term) ||
-          u.phone?.includes(term);
-        if (!matchesTerm) return false;
-      }
-      if (cardBeltFilter === 'ALL') return true;
-      if (cardBeltFilter === 'KIDS') return u.beltSystem === 'KIDS';
-      return u.belt === cardBeltFilter && u.beltSystem !== 'KIDS';
-    });
-  }, [activosList, bajasList, interesadosList, view, searchTerm, cardBeltFilter]);
 
   // Total de elementos por vista
   const counts = {
     activos: activosList.length,
-    interesados: interesadosList.leads.length + interesadosList.trialUsers.length,
+    interesados: interesadosList.length,
     bajas: bajasList.length,
   };
 
@@ -569,106 +491,14 @@ export const PersonalPage: React.FC = () => {
     }
   };
 
-  // 7. Convertir Lead a Alumno Activo
-  const handleConvertLeadToStudent = async (lead: LeadModel) => {
-    setActionLoading(true);
-    try {
-      const newUid = `usr_${Date.now()}`;
-      const nowIso = new Date().toISOString();
-
-      await setDoc(doc(db, 'users', newUid), {
-        uid: newUid,
-        alias: lead.name,
-        contactEmail: lead.email || '',
-        phone: lead.phone || '',
-        birthDate: '1995-01-01',
-        isMinor: false,
-        beltSystem: 'ADULT',
-        belt: 'WHITE',
-        stripes: 0,
-        beltDate: nowIso.slice(0, 10),
-        pricingTier: 'STD',
-        accountStatus: 'ACTIVE',
-        notes: lead.notes || '',
-        permissions: ['STUDENT'],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      // Crear miembro de kiosco
-      try {
-        await setDoc(doc(db, 'kiosk_members', newUid), {
-          uid: newUid,
-          fullName: lead.name,
-          belt: 'WHITE',
-          stripes: 0,
-          accountStatus: 'ACTIVE',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      } catch {}
-
-      // Marcar lead como CONVERTED
-      await updateDoc(doc(db, 'leads', lead.id), {
-        status: 'CONVERTED',
-        convertedAt: serverTimestamp(),
-      });
-
-      showNotification(`${lead.name} convertido en alumno activo.`);
-      await fetchData();
-      setView('ACTIVOS');
-      const newUserDoc = {
-        uid: newUid,
-        alias: lead.name,
-        contactEmail: lead.email || '',
-        phone: lead.phone || '',
-        birthDate: '1995-01-01',
-        isMinor: false,
-        beltSystem: 'ADULT' as BeltSystem,
-        belt: 'WHITE' as Belt,
-        stripes: 0,
-        beltDate: nowIso.slice(0, 10),
-        pricingTier: 'STD' as PricingTier,
-        activeTariffId: '',
-        authEmail: lead.email || '',
-        emergencyContactName: '',
-        emergencyContactPhone: '',
-        accountStatus: 'ACTIVE' as AccountStatus,
-        permissions: ['STUDENT'],
-        createdAt: nowIso,
-        updatedAt: nowIso,
-      };
-      syncFormsWithUser(newUserDoc);
-    } catch (err) {
-      console.error('Error al convertir lead:', err);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // 8. Crear Nuevo Alumno / Interesado desde el Modal Principal
-  const handleCreateStudentOrLead = async (e: React.FormEvent) => {
+  // 7. Crear Nuevo Alumno desde el Modal Principal
+  const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!altaForm.alias.trim()) return;
 
     setActionLoading(true);
     try {
-      if (altaForm.isLeadOnly) {
-        // Guardar como Lead en el embudo
-        const newLeadRef = doc(collection(db, 'leads'));
-        await setDoc(newLeadRef, {
-          name: altaForm.alias.trim(),
-          email: altaForm.email.trim().toLowerCase(),
-          phone: altaForm.phone.trim(),
-          status: 'NEW',
-          notes: altaForm.notes.trim(),
-          createdAt: serverTimestamp(),
-        });
-        showNotification(`Interesado ${altaForm.alias} registrado.`);
-        setAltaModalOpen(false);
-        await fetchData();
-        setView('INTERESADOS');
-      } else {
+      {
         // Alta oficial: cuenta real en Firebase Auth + ficha con el UID real (función de servidor).
         // Así el alumno puede entrar luego con Google (mismo email) o con contraseña.
         const email = altaForm.email.trim().toLowerCase();
@@ -807,11 +637,7 @@ export const PersonalPage: React.FC = () => {
   }, [selectedUser]);
 
   // Indicador de ciclo de vida del alumno
-  const getLifecycleStage = (user: UserDomainModel | null, lead: LeadModel | null) => {
-    if (lead) {
-      if (lead.status === 'SCHEDULED' || lead.status === 'ATTENDED') return 2; // Prueba
-      return 1; // Interesado
-    }
+  const getLifecycleStage = (user: UserDomainModel | null) => {
     if (user) {
       if (user.accountStatus === 'TRIAL') return 2; // Prueba
       if (user.accountStatus === 'PENDING') return 3; // Alta en proceso
@@ -820,7 +646,7 @@ export const PersonalPage: React.FC = () => {
     return 1;
   };
 
-  const currentStage = getLifecycleStage(selectedUser, selectedLead);
+  const currentStage = getLifecycleStage(selectedUser);
 
   return (
     <div className="space-y-4 pb-12 animate-in fade-in duration-200">
@@ -862,7 +688,6 @@ export const PersonalPage: React.FC = () => {
                 belt: 'WHITE',
                 stripes: 0,
                 pricingTier: 'STD',
-                isLeadOnly: false,
                 notes: '',
               });
               setAltaModalOpen(true);
@@ -891,7 +716,6 @@ export const PersonalPage: React.FC = () => {
             onClick={() => {
               setView('INTERESADOS');
               setSelectedUser(null);
-              setSelectedLead(null);
             }}
             className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
               view === 'INTERESADOS'
@@ -913,7 +737,6 @@ export const PersonalPage: React.FC = () => {
             type="button"
             onClick={() => {
               setView('ACTIVOS');
-              setSelectedLead(null);
               if (activosList.length > 0 && !selectedUser) {
                 syncFormsWithUser(activosList[0]);
               }
@@ -939,7 +762,6 @@ export const PersonalPage: React.FC = () => {
             onClick={() => {
               setView('BAJAS');
               setSelectedUser(null);
-              setSelectedLead(null);
             }}
             className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
               view === 'BAJAS'
@@ -959,34 +781,6 @@ export const PersonalPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          {/* Selector de Modo: Cartas FIFA vs Ficha y Gestión */}
-          <div className="flex items-center bg-slate-200/80 p-0.5 rounded-xl gap-0.5 border border-slate-300/60 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setDisplayMode('CARDS')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
-                displayMode === 'CARDS'
-                  ? 'bg-amber-400 text-slate-950 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5 text-slate-950" />
-              <span>Cartas FIFA ({cardAthletes.length})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setDisplayMode('LIST')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
-                displayMode === 'LIST'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <List className="w-3.5 h-3.5 text-slate-400" />
-              <span>Ficha y Gestión</span>
-            </button>
-          </div>
-
           <div className="relative w-full sm:w-56">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
             <input
@@ -1000,99 +794,7 @@ export const PersonalPage: React.FC = () => {
         </div>
       </div>
 
-      {displayMode === 'CARDS' ? (
-        <div className="space-y-4">
-          {/* Sub-barra de filtros de cinturón para el Álbum de Cartas */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-2 flex-wrap shadow-2xs">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2 shrink-0">
-                Cinturón:
-              </span>
-              {[
-                { id: 'ALL', label: 'Todos' },
-                { id: 'WHITE', label: '⚪ Blanco' },
-                { id: 'BLUE', label: '🔵 Azul' },
-                { id: 'PURPLE', label: '🟣 Morado' },
-                { id: 'BROWN', label: '🟤 Marrón' },
-                { id: 'BLACK', label: '⚫ Negro' },
-                { id: 'KIDS', label: '🥋 Kids' },
-              ].map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => setCardBeltFilter(b.id)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer shrink-0 ${
-                    cardBeltFilter === b.id
-                      ? 'bg-slate-900 text-white font-black shadow-2xs'
-                      : 'bg-slate-100 text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {b.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="text-xs font-mono font-bold text-slate-500 px-2">
-              Mostrando <strong className="text-slate-900">{cardAthletes.length}</strong> cartas de atletas
-            </div>
-          </div>
-
-          {/* Grid de Cartas FIFA Ultimate Team */}
-          {cardAthletes.length === 0 ? (
-            <div className="p-12 text-center bg-white border border-slate-200/80 rounded-2xl">
-              <Sparkles className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm font-bold text-slate-800">No se encontraron cartas con los filtros seleccionados.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchTerm('');
-                  setCardBeltFilter('ALL');
-                }}
-                className="mt-3 text-xs font-bold text-brand-accent hover:underline cursor-pointer"
-              >
-                Restablecer filtros
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {cardAthletes.map((athlete) => (
-                <div
-                  key={athlete.uid}
-                  className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-subtle hover:shadow-md transition-all flex flex-col items-center justify-between gap-3 group hover:border-slate-400"
-                >
-                  <div
-                    onClick={() => setModalCardUser(athlete)}
-                    className="w-full flex justify-center cursor-pointer transition-transform duration-200 group-hover:scale-[1.03]"
-                    title={`Ver cromo completo de ${athlete.alias}`}
-                  >
-                    <FifaFighterCard athlete={athlete} size="sm" />
-                  </div>
-
-                  <div className="w-full flex items-center justify-between gap-1.5 pt-2 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => setModalCardUser(athlete)}
-                      className="flex-1 py-1.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 rounded-xl text-[11px] font-black uppercase tracking-wider transition cursor-pointer text-center"
-                    >
-                      Cromo FUT
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        syncFormsWithUser(athlete);
-                        setDisplayMode('LIST');
-                      }}
-                      className="flex-1 py-1.5 px-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-black uppercase tracking-wider transition cursor-pointer text-center"
-                    >
-                      Ver Ficha
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
+      {(
         /* ======================================================== */
         /* 2. CONTENEDOR MAESTRO-DETALLE (DOS COLUMNAS)             */
         /* ======================================================== */
@@ -1103,7 +805,7 @@ export const PersonalPage: React.FC = () => {
         {/* ------------------------------------------------------ */}
         <div
           className={`${
-            (selectedUser || selectedLead) ? 'hidden lg:block' : 'block'
+            selectedUser ? 'hidden lg:block' : 'block'
           } lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl shadow-subtle overflow-hidden flex flex-col h-[700px]`}
         >
           <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -1122,35 +824,9 @@ export const PersonalPage: React.FC = () => {
                 <span>Cargando tatami...</span>
               </div>
             ) : view === 'INTERESADOS' ? (
-              // Vista Interesados: Leads + Trial Users
+              // Vista Interesados: cuentas en prueba o con alta pendiente
               <div>
-                {(filteredVisibleItems as any).leads?.map((lead: LeadModel) => (
-                  <button
-                    key={lead.id}
-                    type="button"
-                    onClick={() => handleSelectLead(lead)}
-                    className={`w-full text-left p-3.5 flex items-center justify-between transition cursor-pointer ${
-                      selectedLead?.id === lead.id
-                        ? 'bg-amber-50/80 border-l-4 border-amber-500'
-                        : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 truncate">
-                      <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs shrink-0">
-                        {lead.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="truncate">
-                        <div className="font-bold text-xs text-slate-900 truncate">{lead.name}</div>
-                        <div className="text-[11px] text-slate-400 truncate">{lead.phone || lead.email}</div>
-                      </div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-800">
-                      {lead.status === 'SCHEDULED' ? 'Prueba agendada' : 'Lead'}
-                    </span>
-                  </button>
-                ))}
-
-                {(filteredVisibleItems as any).trialUsers?.map((u: UserDomainModel) => (
+                {(filteredVisibleItems as UserDomainModel[]).map((u) => (
                   <button
                     key={u.uid}
                     type="button"
@@ -1179,12 +855,11 @@ export const PersonalPage: React.FC = () => {
                   </button>
                 ))}
 
-                {(filteredVisibleItems as any).leads?.length === 0 &&
-                  (filteredVisibleItems as any).trialUsers?.length === 0 && (
-                    <div className="p-8 text-center text-xs text-slate-400">
-                      No hay prospectos o pruebas pendientes.
-                    </div>
-                  )}
+                {(filteredVisibleItems as UserDomainModel[]).length === 0 && (
+                  <div className="p-8 text-center text-xs text-slate-400">
+                    No hay pruebas ni altas pendientes.
+                  </div>
+                )}
               </div>
             ) : (
               // Vista Alumnos (Activos o Bajas)
@@ -1265,119 +940,10 @@ export const PersonalPage: React.FC = () => {
         {/* ------------------------------------------------------ */}
         <div
           className={`${
-            (!selectedUser && !selectedLead) ? 'hidden lg:block' : 'block'
+            !selectedUser ? 'hidden lg:block' : 'block'
           } lg:col-span-8 bg-white border border-slate-200/80 rounded-2xl shadow-subtle flex flex-col min-h-[700px] overflow-hidden`}
         >
-          {selectedLead ? (
-            // ====================================================
-            // DETALLE DE LEAD / INTERESADO
-            // ====================================================
-            <div className="p-5 sm:p-6 space-y-6">
-              {/* Botón Volver en móvil */}
-              <button
-                type="button"
-                onClick={() => setSelectedLead(null)}
-                className="lg:hidden flex items-center gap-1 text-xs font-bold text-slate-600 mb-2"
-              >
-                <ArrowLeft className="w-4 h-4" /> Volver a la lista
-              </button>
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-900 font-black text-lg flex items-center justify-center">
-                    {selectedLead.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-black text-slate-900 font-headline uppercase">
-                      {selectedLead.name}
-                    </h2>
-                    <p className="text-xs text-slate-500">
-                      Prospecto interesado en el tatami • {selectedLead.status}
-                    </p>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={() => handleConvertLeadToStudent(selectedLead)}
-                  disabled={actionLoading}
-                  className="bg-studio-red hover:bg-studio-red/90 text-white font-bold text-xs uppercase"
-                >
-                  <UserPlus className="w-4 h-4 mr-1.5" /> Convertir en Alumno Activo
-                </Button>
-              </div>
-
-              {/* Barra de Etapa */}
-              <div className="bg-slate-50 border border-slate-200/70 p-4 rounded-xl">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">
-                  Ciclo de Vida
-                </p>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600">
-                    <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px]">1</span>
-                    <span>Interesado</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">2</span>
-                    <span>Clase Prueba</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">3</span>
-                    <span>Alta Socio</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">4</span>
-                    <span>Activo Tatami</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Datos de contacto */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                    Teléfono
-                  </span>
-                  <div className="flex items-center gap-2 font-mono text-sm font-bold text-slate-900">
-                    <Phone className="w-4 h-4 text-slate-500" />
-                    <span>{selectedLead.phone || 'No indicado'}</span>
-                  </div>
-                  {selectedLead.phone && (
-                    <a
-                      href={`https://wa.me/${selectedLead.phone.replace(/\D/g, '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-emerald-600 font-bold mt-2 hover:underline"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" /> Abrir WhatsApp
-                    </a>
-                  )}
-                </div>
-
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                    Email
-                  </span>
-                  <div className="flex items-center gap-2 text-sm font-bold text-slate-900 truncate">
-                    <Mail className="w-4 h-4 text-slate-500 shrink-0" />
-                    <span className="truncate">{selectedLead.email || 'No indicado'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Notas del lead */}
-              <div>
-                <span className="text-xs font-bold text-slate-700 block mb-1">
-                  Notas de seguimiento
-                </span>
-                <p className="text-xs text-slate-600 p-3 bg-slate-50 rounded-xl border border-slate-200/60 min-h-[80px]">
-                  {selectedLead.notes || 'Sin observaciones registradas.'}
-                </p>
-              </div>
-            </div>
-          ) : selectedUser ? (
+          {selectedUser ? (
             // ====================================================
             // DETALLE DE ALUMNO (MAESTRO-DETALLE COMPLETO)
             // ====================================================
@@ -1557,18 +1123,6 @@ export const PersonalPage: React.FC = () => {
                   }`}
                 >
                   Asistencia
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('carta')}
-                  className={`py-3 px-3 text-xs font-black uppercase tracking-wider border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
-                    activeTab === 'carta'
-                      ? 'border-amber-500 text-amber-700 font-black'
-                      : 'border-transparent text-slate-400 hover:text-slate-700'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Carta FIFA</span>
                 </button>
               </div>
 
@@ -2014,12 +1568,6 @@ export const PersonalPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* ---------------- PESTAÑA 6: CARTA FIFA FUT ---------------- */}
-                {activeTab === 'carta' && (
-                  <div className="py-2">
-                    <FighterCard user={selectedUser} />
-                  </div>
-                )}
               </div>
             </div>
           ) : (
@@ -2038,37 +1586,6 @@ export const PersonalPage: React.FC = () => {
       </div>
       )}
 
-      {/* Modal Cromo FIFA FUT (Vista previa interactiva) */}
-      <Dialog open={!!modalCardUser} onOpenChange={(open) => !open && setModalCardUser(null)}>
-        <DialogContent className="max-w-2xl bg-white rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
-          {modalCardUser && (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                <div>
-                  <DialogTitle className="text-xl font-black uppercase text-slate-900 font-headline">
-                    Carta Oficial — {modalCardUser.alias}
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-slate-500">
-                    Cromo coleccionable FIFA Ultimate Team y radar de habilidades.
-                  </DialogDescription>
-                </div>
-                <Button
-                  onClick={() => {
-                    syncFormsWithUser(modalCardUser);
-                    setModalCardUser(null);
-                    setDisplayMode('LIST');
-                  }}
-                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
-                >
-                  Abrir Ficha de Alumno
-                </Button>
-              </div>
-              <FighterCard user={modalCardUser} />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* ======================================================== */}
       {/* 3. MODALES DE ACCIÓN RÁPIDA (RADIX DIALOG)              */}
       {/* ======================================================== */}
@@ -2078,37 +1595,14 @@ export const PersonalPage: React.FC = () => {
         <DialogContent className="max-w-lg bg-white rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-black uppercase text-slate-900 font-headline">
-              {altaForm.isLeadOnly ? 'Registrar Interesado' : 'Dar de alta Alumno'}
+              Dar de alta Alumno
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              {altaForm.isLeadOnly
-                ? 'Añadir un nuevo contacto interesado al embudo de prospectos.'
-                : 'Registrar un nuevo atleta activo con acceso a tatami y clases.'}
+              Registrar un nuevo atleta activo con acceso a tatami y clases.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreateStudentOrLead} className="space-y-3.5 mt-2">
-            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setAltaForm({ ...altaForm, isLeadOnly: false })}
-                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
-                  !altaForm.isLeadOnly ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
-                }`}
-              >
-                Alumno Activo
-              </button>
-              <button
-                type="button"
-                onClick={() => setAltaForm({ ...altaForm, isLeadOnly: true })}
-                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer ${
-                  altaForm.isLeadOnly ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
-                }`}
-              >
-                Sólo Interesado (Lead)
-              </button>
-            </div>
-
+          <form onSubmit={handleCreateStudent} className="space-y-3.5 mt-2">
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Nombre completo / Alias *</label>
               <Input
@@ -2144,7 +1638,7 @@ export const PersonalPage: React.FC = () => {
               </div>
             </div>
 
-            {!altaForm.isLeadOnly && (
+            {(
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -2213,7 +1707,7 @@ export const PersonalPage: React.FC = () => {
                 disabled={actionLoading}
                 className="bg-studio-red hover:bg-studio-red/90 text-white font-bold text-xs uppercase"
               >
-                {altaForm.isLeadOnly ? 'Registrar Interesado' : 'Completar Alta'}
+                Completar Alta
               </Button>
             </DialogFooter>
           </form>
