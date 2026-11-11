@@ -43,3 +43,86 @@ Este archivo define las reglas de acceso, permisos y directrices técnicas perma
 4. **Resiliencia Offline:**
    * Toda ruta debe mantener carga resiliente con [`lazyWithRetry.ts`](file:///c:/Desktop/247 STUDIO/src/shared/utils/lazyWithRetry.ts) y envolverse en [`RootErrorBoundary.tsx`](file:///c:/Desktop/247 STUDIO/src/shared/ui/RootErrorBoundary.tsx).
 
+---
+
+## 👥 4. Roles de Agentes Especializados
+
+El proyecto cuenta con 5 agentes especializados, cada uno con responsabilidades claras y permisos definidos. Los archivos de definición completos se encuentran en `.agents/roles/`.
+
+### 4.1. 🛡️ Auditor de Cuentas
+- **Archivo:** [`.agents/roles/auditor.md`](.agents/roles/auditor.md)
+- **Responsabilidades:** Autenticación Google OAuth, reglas de Firestore, seguridad de credenciales, rutas protegidas, cabeceras de seguridad.
+- **Archivos clave:** `firestore.rules`, `src/shared/api/firebase.ts`, `src/shared/api/auth.ts`, `.gitignore`, `netlify.toml`.
+- **Prioridad:** Alta — debe validar antes de cualquier cambio en accesos o reglas.
+
+### 4.2. 💰 Contable
+- **Archivo:** [`.agents/roles/contable.md`](.agents/roles/contable.md)
+- **Responsabilidades:** Lógica de pagos, registros de caja, menores de edad, tarifas y suscripciones, reportes financieros.
+- **Archivos clave:** `src/shared/domain/payment.ts`, `src/shared/domain/minorGuardian.ts`, `src/shared/domain/tariff.ts`, `src/pages/admin-box/`.
+- **Prioridad:** Media — coordina con Auditor antes de cambios en accesos a datos financieros.
+
+### 4.3. 📊 Analista de Datos
+- **Archivo:** [`.agents/roles/analista.md`](.agents/roles/analista.md)
+- **Responsabilidades:** Datos de asistencia, sistema ELO, currículo y progreso, puntos Kokoro, insights de rendimiento.
+- **Archivos clave:** `src/shared/domain/attendance.ts`, `src/shared/domain/eloCalculator.ts`, `src/shared/domain/curriculum.ts`, `src/shared/domain/kokoro.ts`.
+- **Prioridad:** Media — proporciona insights para decisiones estratégicas.
+
+### 4.4. 🎨 Gestor de Experiencia UX/UI
+- **Archivo:** [`.agents/roles/ux-ui.md`](.agents/roles/ux-ui.md)
+- **Responsabilidades:** Interfaz de usuario, sistema de diseño (Tailwind CSS), accesibilidad, experiencia móvil, animaciones, PWA para tatami.
+- **Archivos clave:** `src/shared/ui/`, `src/widgets/`, `tailwind.config.js`, `vite.config.ts`.
+- **Prioridad:** Media — mejora continua de la interfaz y accesibilidad.
+
+### 4.5. ⚡ Experto en Desarrollo
+- **Archivo:** [`.agents/roles/dev-expert.md`](.agents/roles/dev-expert.md)
+- **Responsabilidades:** Stack tecnológico, rendimiento del bundle, nuevas funcionalidades, pruebas (vitest), despliegue en Netlify, Firebase backend.
+- **Archivos clave:** `vite.config.ts`, `package.json`, `netlify.toml`, `src/shared/api/`, `src/shared/hooks/`, `scripts/`.
+- **Prioridad:** Alta — responsable de la calidad técnica y el despliegue.
+
+---
+
+## 🔄 5. Reglas de Coordinación entre Agentes
+
+### 5.1. Orden de Validación
+1. **Auditor de Cuentas** valida primero cualquier cambio que afecte autenticación, permisos o reglas de Firestore.
+2. **Contable** trabaja después de que el Auditor valide las reglas de acceso a datos financieros.
+3. **Analista de Datos** coordina con Contable para reportes consolidados y con Experto en Dev para optimización de consultas.
+4. **Gestor UX/UI** coordina con Experto en Dev para implementar mejoras visuales sin afectar rendimiento.
+5. **Experto en Desarrollo** integra todos los cambios y valida la compilación final.
+
+### 5.2. Reglas de Coordinación
+- **Auditor → Contable:** El auditor debe validar que las reglas de Firestore permitan el acceso correcto a datos de pagos antes de que el Contable modifique lógica financiera.
+- **Auditor → Experto en Dev:** Coordinar cambios en configuración de Firebase y despliegue.
+- **Contable → Analista de Datos:** Compartir datos de ingresos para reportes consolidados.
+- **Analista de Datos → Gestor UX/UI:** Proporcionar métricas de uso para mejorar la experiencia del usuario.
+- **Gestor UX/UI → Experto en Dev:** Coordinar implementación de mejoras de rendimiento visual.
+
+### 5.3. Política de Escalación de Conflictos
+1. **Nivel 1 — Coordinación directa:** Los agentes involucrados intentan resolver el conflicto mediante coordinación directa según las reglas de coordinación.
+2. **Nivel 2 — Mediación del Experto en Dev:** Si el conflicto no se resuelve, el Experto en Desarrollo actúa como mediador técnico.
+3. **Nivel 3 — Escalación a los fundadores:** Si el conflicto afecta la arquitectura o requiere decisiones de negocio, se escala a Mario & David (fundadores).
+4. **Regla de oro:** En caso de conflicto entre seguridad y funcionalidad, **la seguridad siempre prevalece** (decisión del Auditor).
+
+---
+
+## 📚 6. Skills Instaladas y Recomendadas
+
+### 6.1. Skills Instaladas
+El proyecto tiene skills instaladas en `.agents/skills/`:
+- **`design-taste-frontend`** — Anti-slop frontend skill de Leonxlnx (~102k estrellas). Da dirección artística, imágenes reales y reglas estrictas de tipografía, espaciado, color y layout para evitar interfaces genéricas. Incluye componentes, backgrounds y referencias visuales.
+- **`impeccable`** — Lenguaje de diseño de Paul Bakaus que mejora la calidad visual del UI generado por IA. Incluye comandos de audit, polish, critique, shape, animate, y más.
+- **`frontend-design`** — Guía de diseño visual para UI distintiva.
+- **`vercel-react-best-practices`** — Optimización de React/Next.js (Vercel).
+- **`web-design-guidelines`** — Pautas de diseño web.
+- **`webapp-testing`** — Testing con Playwright.
+- **`tanstack-query`** — Patrones de optimización, caché y sincronización de TanStack Query v5.
+- **`typescript-advanced-types`** — Tipos genéricos, utility types y patrones avanzados de TypeScript.
+- **`tailwind-design-system`** — Sistema de diseño coherente con Tailwind CSS.
+- **`pwa-development`** — Patrones de caché, service worker y offline para PWA.
+- **`javascript-typescript-jest`** — Patrones de testing aplicables a vitest.
+- **`node`** — Scripts de Firebase Admin y seed usan Node.js.
+- **`better-auth-best-practices`** — Mejores prácticas de autenticación.
+
+### 6.2. Estado
+Todas las skills recomendadas están instaladas. El proyecto cuenta con **13 skills** en total en `.agents/skills/`.
+
