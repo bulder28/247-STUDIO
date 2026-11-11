@@ -4,12 +4,16 @@ import { collection, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, wh
 import {
   AlertCircle,
   ArrowLeft,
+  Banknote,
   Camera,
+  Check,
   CheckCircle2,
-  Shield,
-  User,
-  UserCheck,
+  Copy,
+  KeyRound,
+  MessageCircle,
+  Trash2,
   UserPlus,
+  UserRound,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
@@ -24,6 +28,9 @@ import {
 } from '@/shared/domain/enrollment';
 import { Belt, BeltSystem } from '@/shared/domain/types';
 import { compressImageToCanvas } from '@/shared/utils/imageCompressor';
+import { fieldCls, labelCls } from '@/shared/ui/field-styles';
+import { PageHeader } from '@/shared/ui/page-header';
+import { SectionCard } from '@/shared/ui/section-card';
 
 const KIDS_BELTS: { value: Belt; label: string }[] = [
   { value: 'WHITE', label: 'Blanco' },
@@ -65,12 +72,6 @@ const EMPTY_FORM = {
   guardianUid: '',
 };
 
-const INPUT_CLASS =
-  'w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition';
-const GUARDIAN_INPUT_CLASS =
-  'w-full min-h-11 px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400';
-const LABEL_CLASS = 'block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1';
-
 export const StudentRegistrationPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -99,7 +100,6 @@ export const StudentRegistrationPage: React.FC = () => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [photoWarning, setPhotoWarning] = useState<string | null>(null);
-  const [mobileStep, setMobileStep] = useState<1 | 2>(1);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoSource, setPhotoSource] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<EnrollmentField, string>>>({});
@@ -110,7 +110,7 @@ export const StudentRegistrationPage: React.FC = () => {
   });
   const renderFieldError = (field: EnrollmentField) =>
     fieldErrors[field] ? (
-      <p id={`enroll-${field}-error`} role="alert" className="mt-1 text-xs font-semibold text-rose-800">
+      <p id={`enroll-${field}-error`} role="alert" className="mt-1.5 text-sm font-semibold text-rose-800">
         {fieldErrors[field]}
       </p>
     ) : null;
@@ -173,8 +173,6 @@ export const StudentRegistrationPage: React.FC = () => {
     setFieldErrors(errors);
     const firstInvalid = ENROLLMENT_FIELD_ORDER.find((f) => errors[f]);
     if (firstInvalid) {
-      // All validated fields live in step 1 on mobile; make sure it is visible before focusing.
-      setMobileStep(1);
       setTimeout(() => document.getElementById(`enroll-${firstInvalid}`)?.focus(), 0);
       return;
     }
@@ -305,275 +303,450 @@ export const StudentRegistrationPage: React.FC = () => {
     }
   };
 
+
   const beltOptions = isMinor ? KIDS_BELTS : ADULT_BELTS;
+  const fullName = [formData.firstName, formData.lastName].filter(Boolean).join(' ').trim();
+  const initials = fullName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join('');
+
+  const resetForm = () => {
+    setSuccessUid(null);
+    setFormData(EMPTY_FORM);
+    clearPhoto();
+    setPhotoWarning(null);
+    setCreatedLink(null);
+    setFieldErrors({});
+    setError(null);
+  };
+
+  // Section numbers follow what is actually shown (the guardian block only exists for minors).
+  const sectionNo = {
+    photo: 2,
+    guardian: 3,
+    belt: isMinor ? 4 : 3,
+    founding: isMinor ? 5 : 4,
+  };
+
+  const ageBadge =
+    age !== null ? (
+      <span
+        aria-live="polite"
+        className={`inline-flex min-h-8 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-sm font-bold ${
+          isMinor
+            ? 'border-amber-300 bg-amber-50 text-amber-900'
+            : 'border-emerald-300 bg-emerald-50 text-emerald-900'
+        }`}
+      >
+        <span className="tabular-nums">{age} años</span>
+        <span aria-hidden="true">·</span>
+        {isMinor ? 'Menor < 14' : 'Adulto'}
+      </span>
+    ) : null;
+
+  const secondaryBtn =
+    'inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-studio-navy/15 bg-white px-5 text-base font-semibold text-studio-navy transition-colors hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-navy';
+  const primaryBtn =
+    'inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl bg-studio-red px-6 text-base font-bold text-white shadow-sm transition-colors hover:bg-studio-red-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-navy focus-visible:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
+
+  const sectionTitle = (no: number, label: string) => (
+    <span className="flex items-center gap-3">
+      <span
+        aria-hidden="true"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-studio-navy text-sm font-bold tabular-nums text-white"
+      >
+        {no}
+      </span>
+      {label}
+    </span>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-3 md:space-y-6 pb-2 md:pb-12 animate-in fade-in duration-200">
-      {/* Cabecera compacta */}
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <UserPlus className="w-5 h-5 sm:w-7 sm:h-7 text-brand-accent" />
-            <span>Alta Presencial de Alumno</span>
-          </h1>
-          <p className="hidden sm:block text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Registro de nuevo miembro en recepción (adultos o menores de 14 con tutor legal).
-          </p>
-        </div>
-        <Link
-          to="/admin/personal"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:text-slate-900 transition shrink-0"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Volver</span>
-        </Link>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-5 pb-8">
+      <PageHeader
+        title="Alta de alumno"
+        description="Registro presencial en recepción: adultos y menores de 14 con tutor legal."
+        actions={
+          <Link to="/admin/personal" className={secondaryBtn}>
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            Volver al censo
+          </Link>
+        }
+      />
 
       {error && (
-        <div role="alert" className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-          <span>{error}</span>
-        </div>
+        <p
+          role="alert"
+          className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-800"
+        >
+          <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+          {error}
+        </p>
       )}
 
       {photoWarning && (
-        <div role="alert" className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
-          <span>{photoWarning}</span>
-        </div>
+        <p
+          role="alert"
+          className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900"
+        >
+          <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+          {photoWarning}
+        </p>
       )}
 
       {successUid ? (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl text-center space-y-4">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 mx-auto flex items-center justify-center">
-            <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8" />
-          </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">¡Alumno dado de alta con éxito!</h2>
-          <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-            Se ha creado la ficha y se ha sincronizado con el Kiosco de recepción para que pueda hacer check-in con su nombre o pase QR. La tarifa se asigna al registrar su primer cobro en Caja.
-          </p>
-
-          {createdLink && (
-            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl max-w-lg mx-auto text-left space-y-2">
-              <span className="text-xs font-bold text-slate-800 block">
-                🔑 Enlace oficial de activación y contraseña:
-              </span>
-              <p className="text-[11px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200 break-all select-all">
-                {createdLink}
+        <SectionCard>
+          <div className="mx-auto max-w-xl space-y-6 py-4 text-center">
+            <div className="mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-studio-navy text-3xl font-bold text-white">
+              {photoPreview ? (
+                <img src={photoPreview} alt="" className="h-full w-full object-cover object-top" />
+              ) : (
+                <span aria-hidden="true">{initials || <UserRound className="h-12 w-12" />}</span>
+              )}
+            </div>
+            <div className="space-y-2">
+              <p className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-900">
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                Alta completada
               </p>
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(createdLink);
-                    setCopiedLink(true);
-                    setTimeout(() => setCopiedLink(false), 3000);
-                  }}
-                  className="py-1.5 px-3 bg-brand-accent text-white font-bold text-xs rounded-lg hover:opacity-90 transition cursor-pointer"
-                >
-                  {copiedLink ? '✓ Copiado' : 'Copiar Enlace'}
-                </button>
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`¡Hola! Te damos la bienvenida a 247Studio. Aquí tienes tu enlace oficial para configurar tu contraseña y acceder a tu carnet de alumno: ${createdLink}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="py-1.5 px-3 bg-emerald-600 text-white font-bold text-xs rounded-lg hover:bg-emerald-700 transition"
-                >
-                  Enviar por WhatsApp
-                </a>
-              </div>
+              <h2 className="font-headline text-4xl uppercase leading-none tracking-tight text-studio-navy">
+                {fullName || 'Alumno nuevo'}
+              </h2>
+              <p className="mx-auto max-w-md text-sm text-slate-600">
+                La ficha ya está en el Kiosco de recepción para hacer check-in con su nombre o pase QR. La tarifa se
+                asigna al registrar su primer cobro.
+              </p>
             </div>
-          )}
-          <div className="pt-2 flex justify-center gap-3">
-            <button
-              onClick={() => {
-                setSuccessUid(null);
-                setFormData(EMPTY_FORM);
-                clearPhoto();
-                setPhotoWarning(null);
-                setCreatedLink(null);
-                setMobileStep(1);
-              }}
-              className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer"
-            >
-              Dar de alta a otro alumno
-            </button>
-            <Link
-              to="/admin/personal"
-              className="py-2.5 px-6 bg-brand-accent hover:bg-brand-accent/90 text-white font-bold text-xs rounded-xl transition shadow-sm inline-block"
-            >
-              Ir al Censo de Alumnos →
-            </Link>
-          </div>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} noValidate className="space-y-3 md:space-y-6">
-          {/* Selector de pasos móvil sin scroll vertical */}
-          <div className="md:hidden grid grid-cols-2 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setMobileStep(1)}
-              className={`py-2 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-                mobileStep === 1 ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>1. Datos</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileStep(2)}
-              className={`py-2 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-                mobileStep === 2 ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>2. Graduación</span>
-            </button>
-          </div>
 
-          {/* Bloque 1: Datos Personales */}
-          <div
-            className={`${
-              mobileStep === 1 ? 'block' : 'hidden md:block'
-            } p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 space-y-3 sm:space-y-4 shadow-sm`}
-          >
-            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <User className="w-4 h-4 text-brand-accent" />
-              <span>1. Datos personales</span>
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div>
-                <label htmlFor="enroll-firstName" className={LABEL_CLASS}>
-                  Nombre *
-                </label>
-                <input
-                  id="enroll-firstName"
-                  type="text"
-                  name="firstName"
-                  required
-                  autoComplete="given-name"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  placeholder="Ej: Marcos"
-                  className={INPUT_CLASS}
-                  {...fieldA11y('firstName')}
-                />
-                {renderFieldError('firstName')}
-              </div>
-
-              <div>
-                <label htmlFor="enroll-lastName" className={LABEL_CLASS}>
-                  Apellidos *
-                </label>
-                <input
-                  id="enroll-lastName"
-                  type="text"
-                  name="lastName"
-                  required
-                  autoComplete="family-name"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  placeholder="Ej: Silva Pérez"
-                  className={INPUT_CLASS}
-                  {...fieldA11y('lastName')}
-                />
-                {renderFieldError('lastName')}
-              </div>
-
-              <div>
-                <label htmlFor="enroll-phone" className={LABEL_CLASS}>
-                  Teléfono móvil *
-                </label>
-                <input
-                  id="enroll-phone"
-                  type="tel"
-                  name="phone"
-                  required
-                  inputMode="tel"
-                  autoComplete="tel"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="+34 600 000 000"
-                  className={INPUT_CLASS}
-                  {...fieldA11y('phone')}
-                />
-                {renderFieldError('phone')}
-              </div>
-
-              <div>
-                <label htmlFor="enroll-birthDate" className={LABEL_CLASS}>
-                  Fecha de nacimiento *
-                </label>
-                <input
-                  id="enroll-birthDate"
-                  type="date"
-                  name="birthDate"
-                  required
-                  value={formData.birthDate}
-                  onChange={handleChange}
-                  className={INPUT_CLASS}
-                  {...fieldA11y('birthDate')}
-                />
-                {renderFieldError('birthDate')}
-                {age !== null && (
-                  <span className="text-[11px] font-semibold mt-1 block text-slate-500" aria-live="polite">
-                    Edad: <strong className="text-slate-900 font-bold">{age} años</strong> ·{' '}
-                    <strong className={isMinor ? 'text-amber-700' : 'text-emerald-700'}>
-                      {isMinor ? 'Menor (< 14)' : 'Adulto (≥ 14)'}
-                    </strong>
-                  </span>
-                )}
-              </div>
-
-              <div className="sm:col-span-2">
-                <label htmlFor="enroll-email" className={LABEL_CLASS}>
-                  Correo electrónico (opcional)
-                </label>
-                <input
-                  id="enroll-email"
-                  type="email"
-                  name="contactEmail"
-                  autoComplete="email"
-                  value={formData.contactEmail}
-                  onChange={handleChange}
-                  placeholder="alumno@ejemplo.com"
-                  className={INPUT_CLASS}
-                  {...fieldA11y('contactEmail')}
-                />
-                {renderFieldError('contactEmail')}
-              </div>
-            </div>
-          </div>
-
-          {/* Bloque 2: Foto */}
-          <div
-            className={`${
-              mobileStep === 1 ? 'block' : 'hidden md:block'
-            } p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 space-y-3 shadow-sm`}
-          >
-            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <Camera className="w-4 h-4 text-brand-accent" />
-              <span>Foto del alumno</span>
-            </h2>
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-slate-400">
-                {photoPreview ? (
-                  <img src={photoPreview} alt="Vista previa de la foto del alumno" className="w-full h-full object-cover object-top" />
-                ) : (
-                  <Camera className="w-6 h-6" aria-hidden="true" />
-                )}
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Recomendada para el check-in en el Kiosco. Si falla, el alta se completa igualmente.
+            {createdLink && (
+              <div className="space-y-3 rounded-xl border border-studio-navy/10 bg-brand-sand-light p-4 text-left">
+                <p className="flex items-center gap-2 text-sm font-bold text-studio-navy">
+                  <KeyRound className="h-5 w-5" aria-hidden="true" />
+                  Enlace de activación y contraseña
+                </p>
+                <p className="select-all break-all rounded-lg border border-studio-navy/10 bg-white p-2.5 font-mono text-xs text-slate-700">
+                  {createdLink}
                 </p>
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdLink);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 3000);
+                    }}
+                    className={`${secondaryBtn} min-h-11 px-4 text-sm`}
+                  >
+                    {copiedLink ? (
+                      <Check className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {copiedLink ? 'Copiado' : 'Copiar enlace'}
+                  </button>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`¡Hola! Te damos la bienvenida a 247Studio. Aquí tienes tu enlace oficial para configurar tu contraseña y acceder a tu carnet de alumno: ${createdLink}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${secondaryBtn} min-h-11 px-4 text-sm`}
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                    Enviar por WhatsApp
+                  </a>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col justify-center gap-3 sm:flex-row">
+              <Link to={`/admin/caja?cobrar=${encodeURIComponent(successUid)}`} className={primaryBtn}>
+                <Banknote className="h-5 w-5" aria-hidden="true" />
+                Cobrar primer mes
+              </Link>
+              <button type="button" onClick={resetForm} className={secondaryBtn}>
+                <UserPlus className="h-5 w-5" aria-hidden="true" />
+                Dar de alta a otro
+              </button>
+            </div>
+            <Link
+              to="/admin/personal"
+              className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-studio-navy underline underline-offset-4"
+            >
+              Ir al censo de alumnos
+            </Link>
+          </div>
+        </SectionCard>
+      ) : (
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+            <div className="space-y-5">
+              {/* 1. Personal data */}
+              <SectionCard title={sectionTitle(1, 'Datos personales')} actions={ageBadge}>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="enroll-firstName" className={labelCls}>
+                      Nombre *
+                    </label>
+                    <input
+                      id="enroll-firstName"
+                      type="text"
+                      name="firstName"
+                      required
+                      autoComplete="given-name"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      placeholder="Ej. Marcos"
+                      className={fieldCls}
+                      {...fieldA11y('firstName')}
+                    />
+                    {renderFieldError('firstName')}
+                  </div>
+
+                  <div>
+                    <label htmlFor="enroll-lastName" className={labelCls}>
+                      Apellidos *
+                    </label>
+                    <input
+                      id="enroll-lastName"
+                      type="text"
+                      name="lastName"
+                      required
+                      autoComplete="family-name"
+                      value={formData.lastName}
+                      onChange={handleChange}
+                      placeholder="Ej. Silva Pérez"
+                      className={fieldCls}
+                      {...fieldA11y('lastName')}
+                    />
+                    {renderFieldError('lastName')}
+                  </div>
+
+                  <div>
+                    <label htmlFor="enroll-phone" className={labelCls}>
+                      Teléfono móvil *
+                    </label>
+                    <input
+                      id="enroll-phone"
+                      type="tel"
+                      name="phone"
+                      required
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="+34 600 000 000"
+                      className={fieldCls}
+                      {...fieldA11y('phone')}
+                    />
+                    {renderFieldError('phone')}
+                  </div>
+
+                  <div>
+                    <label htmlFor="enroll-birthDate" className={labelCls}>
+                      Fecha de nacimiento *
+                    </label>
+                    <input
+                      id="enroll-birthDate"
+                      type="date"
+                      name="birthDate"
+                      required
+                      value={formData.birthDate}
+                      onChange={handleChange}
+                      className={`${fieldCls} tabular-nums`}
+                      {...fieldA11y('birthDate')}
+                    />
+                    {renderFieldError('birthDate')}
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label htmlFor="enroll-email" className={labelCls}>
+                      Correo electrónico (opcional)
+                    </label>
+                    <input
+                      id="enroll-email"
+                      type="email"
+                      name="contactEmail"
+                      autoComplete="email"
+                      value={formData.contactEmail}
+                      onChange={handleChange}
+                      placeholder="alumno@ejemplo.com"
+                      className={fieldCls}
+                      {...fieldA11y('contactEmail')}
+                    />
+                    {renderFieldError('contactEmail')}
+                  </div>
+                </div>
+              </SectionCard>
+
+              {/* 3. Legal guardian (under 14) */}
+              {isMinor && (
+                <SectionCard
+                  title={sectionTitle(sectionNo.guardian, 'Tutor legal')}
+                  description="Obligatorio: el alumno es menor de 14 años."
+                >
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="enroll-guardianName" className={labelCls}>
+                        Nombre del tutor *
+                      </label>
+                      <input
+                        id="enroll-guardianName"
+                        type="text"
+                        name="guardianName"
+                        required
+                        value={formData.guardianName}
+                        onChange={handleChange}
+                        placeholder="Nombre y apellidos"
+                        className={fieldCls}
+                        {...fieldA11y('guardianName')}
+                      />
+                      {renderFieldError('guardianName')}
+                    </div>
+
+                    <div>
+                      <label htmlFor="enroll-guardianPhone" className={labelCls}>
+                        Teléfono del tutor *
+                      </label>
+                      <input
+                        id="enroll-guardianPhone"
+                        type="tel"
+                        name="guardianPhone"
+                        required
+                        inputMode="tel"
+                        value={formData.guardianPhone}
+                        onChange={handleChange}
+                        placeholder="+34 600 000 000"
+                        className={fieldCls}
+                        {...fieldA11y('guardianPhone')}
+                      />
+                      {renderFieldError('guardianPhone')}
+                    </div>
+
+                    <div>
+                      <label htmlFor="enroll-guardianDni" className={labelCls}>
+                        DNI / NIE del tutor (opcional)
+                      </label>
+                      <input
+                        id="enroll-guardianDni"
+                        type="text"
+                        name="guardianDni"
+                        value={formData.guardianDni}
+                        onChange={handleChange}
+                        placeholder="12345678Z"
+                        className={fieldCls}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="enroll-guardianEmail" className={labelCls}>
+                        Email del tutor (opcional)
+                      </label>
+                      <input
+                        id="enroll-guardianEmail"
+                        type="email"
+                        name="guardianEmail"
+                        value={formData.guardianEmail}
+                        onChange={handleChange}
+                        placeholder="tutor@ejemplo.com"
+                        className={fieldCls}
+                      />
+                    </div>
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* Belt */}
+              <SectionCard
+                title={sectionTitle(sectionNo.belt, 'Graduación')}
+                description={isMinor ? 'Sistema infantil (Kids BJJ)' : 'Sistema de adultos'}
+              >
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="enroll-belt" className={labelCls}>
+                      Cinturón inicial
+                    </label>
+                    <select id="enroll-belt" name="belt" value={formData.belt} onChange={handleChange} className={fieldCls}>
+                      {beltOptions.map((b) => (
+                        <option key={b.value} value={b.value}>
+                          {b.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="enroll-stripes" className={labelCls}>
+                      Grados (stripes)
+                    </label>
+                    <select
+                      id="enroll-stripes"
+                      name="stripes"
+                      value={formData.stripes}
+                      onChange={handleChange}
+                      className={fieldCls}
+                    >
+                      <option value={0}>0 grados</option>
+                      <option value={1}>1 grado</option>
+                      <option value={2}>2 grados</option>
+                      <option value={3}>3 grados</option>
+                      <option value={4}>4 grados</option>
+                    </select>
+                  </div>
+                </div>
+              </SectionCard>
+
+              {/* Founding member */}
+              <SectionCard title={sectionTitle(sectionNo.founding, 'Socio fundador')}>
+                <label
+                  htmlFor="enroll-founding"
+                  className="flex min-h-14 cursor-pointer items-center gap-4 rounded-xl border border-studio-navy/15 bg-white p-3.5 transition-colors hover:bg-brand-sand-light/60 has-[:checked]:border-studio-navy has-[:checked]:bg-brand-sand-light"
+                >
+                  <input
+                    id="enroll-founding"
+                    type="checkbox"
+                    checked={formData.isFoundingMember}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, isFoundingMember: e.target.checked }))}
+                    className="h-6 w-6 shrink-0 cursor-pointer accent-studio-red"
+                  />
+                  <span>
+                    <span className="block text-base font-bold text-studio-navy">Es socio fundador</span>
+                    <span className="block text-sm text-slate-600">10 % de descuento en todos los cobros</span>
+                  </span>
+                </label>
+              </SectionCard>
+            </div>
+
+            {/* 2. Photo */}
+            <SectionCard title={sectionTitle(sectionNo.photo, 'Foto')} className="lg:sticky lg:top-4">
+              <div className="space-y-4">
+                <div className="mx-auto flex aspect-square w-full max-w-64 items-center justify-center overflow-hidden rounded-2xl bg-studio-navy/5 text-slate-500">
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt="Vista previa de la foto del alumno"
+                      className="h-full w-full object-cover object-top"
+                    />
+                  ) : initials ? (
+                    <span
+                      aria-hidden="true"
+                      className="flex h-full w-full items-center justify-center bg-studio-navy font-headline text-7xl text-white"
+                    >
+                      {initials}
+                    </span>
+                  ) : (
+                    <UserRound className="h-24 w-24" aria-hidden="true" />
+                  )}
+                </div>
+                <p className="text-center text-sm text-slate-600">
+                  Recomendada para el check-in en el Kiosco. Si falla, el alta se completa igualmente.
+                </p>
+                <div className="flex flex-col gap-2">
                   <label
                     htmlFor="enroll-photo"
-                    className="inline-flex items-center justify-center min-h-11 px-4 bg-slate-900 text-white font-bold text-xs rounded-xl cursor-pointer hover:opacity-90 transition focus-within:ring-2 focus-within:ring-brand-accent"
+                    className={`${photoPreview ? secondaryBtn : primaryBtn} focus-within:ring-2 focus-within:ring-studio-navy`}
                   >
+                    <Camera className="h-5 w-5" aria-hidden="true" />
                     {photoPreview ? 'Cambiar foto' : 'Hacer o elegir foto'}
                   </label>
                   <input
@@ -585,198 +758,25 @@ export const StudentRegistrationPage: React.FC = () => {
                     className="sr-only"
                   />
                   {photoPreview && (
-                    <button
-                      type="button"
-                      onClick={clearPhoto}
-                      className="min-h-11 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
-                    >
-                      Quitar
+                    <button type="button" onClick={clearPhoto} className={secondaryBtn}>
+                      <Trash2 className="h-5 w-5" aria-hidden="true" />
+                      Quitar foto
                     </button>
                   )}
                 </div>
               </div>
-            </div>
+            </SectionCard>
           </div>
 
-          {/* Bloque 3: Tutor legal (menores de 14) */}
-          {isMinor && (
-            <div
-              className={`${
-                mobileStep === 1 ? 'block' : 'hidden md:block'
-              } p-4 sm:p-6 rounded-3xl bg-amber-50/70 border border-amber-200 space-y-3 sm:space-y-4 animate-in fade-in duration-200 shadow-sm`}
-            >
-              <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
-                <Shield className="w-4 h-4 text-amber-600" />
-                <span>Tutor legal (menor de 14 años)</span>
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label htmlFor="enroll-guardianName" className={LABEL_CLASS}>
-                    Nombre del tutor *
-                  </label>
-                  <input
-                    id="enroll-guardianName"
-                    type="text"
-                    name="guardianName"
-                    required
-                    value={formData.guardianName}
-                    onChange={handleChange}
-                    placeholder="Nombre y apellidos del padre/madre"
-                    className={GUARDIAN_INPUT_CLASS}
-                    {...fieldA11y('guardianName')}
-                  />
-                  {renderFieldError('guardianName')}
-                </div>
-
-                <div>
-                  <label htmlFor="enroll-guardianPhone" className={LABEL_CLASS}>
-                    Teléfono del tutor *
-                  </label>
-                  <input
-                    id="enroll-guardianPhone"
-                    type="tel"
-                    name="guardianPhone"
-                    required
-                    inputMode="tel"
-                    value={formData.guardianPhone}
-                    onChange={handleChange}
-                    placeholder="+34 600 000 000"
-                    className={GUARDIAN_INPUT_CLASS}
-                    {...fieldA11y('guardianPhone')}
-                  />
-                  {renderFieldError('guardianPhone')}
-                </div>
-
-                <div>
-                  <label htmlFor="enroll-guardianDni" className={LABEL_CLASS}>
-                    DNI / NIE del tutor (opcional)
-                  </label>
-                  <input
-                    id="enroll-guardianDni"
-                    type="text"
-                    name="guardianDni"
-                    value={formData.guardianDni}
-                    onChange={handleChange}
-                    placeholder="12345678Z"
-                    className={GUARDIAN_INPUT_CLASS}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="enroll-guardianEmail" className={LABEL_CLASS}>
-                    Email del tutor (opcional)
-                  </label>
-                  <input
-                    id="enroll-guardianEmail"
-                    type="email"
-                    name="guardianEmail"
-                    value={formData.guardianEmail}
-                    onChange={handleChange}
-                    placeholder="tutor@ejemplo.com"
-                    className={GUARDIAN_INPUT_CLASS}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Bloque 4: Graduación y socio fundador */}
-          <div
-            className={`${
-              mobileStep === 2 ? 'block' : 'hidden md:block'
-            } p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 space-y-3 sm:space-y-4 shadow-sm`}
-          >
-            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-brand-accent" />
-              <span>2. Graduación ({isMinor ? 'Sistema infantil Kids' : 'Sistema adultos'})</span>
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <div>
-                <label htmlFor="enroll-belt" className={LABEL_CLASS}>
-                  Cinturón inicial {isMinor ? '(Kids BJJ)' : '(Adultos)'}
-                </label>
-                <select id="enroll-belt" name="belt" value={formData.belt} onChange={handleChange} className={INPUT_CLASS}>
-                  {beltOptions.map((b) => (
-                    <option key={b.value} value={b.value}>
-                      {b.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="enroll-stripes" className={LABEL_CLASS}>
-                  Grados (stripes)
-                </label>
-                <select id="enroll-stripes" name="stripes" value={formData.stripes} onChange={handleChange} className={INPUT_CLASS}>
-                  <option value={0}>0 grados</option>
-                  <option value={1}>1 grado</option>
-                  <option value={2}>2 grados</option>
-                  <option value={3}>3 grados</option>
-                  <option value={4}>4 grados</option>
-                </select>
-              </div>
-            </div>
-
-            <label
-              htmlFor="enroll-founding"
-              className="flex items-start gap-3 min-h-11 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer"
-            >
-              <input
-                id="enroll-founding"
-                type="checkbox"
-                checked={formData.isFoundingMember}
-                onChange={(e) => setFormData((prev) => ({ ...prev, isFoundingMember: e.target.checked }))}
-                className="mt-0.5 w-5 h-5 accent-brand-accent shrink-0"
-              />
-              <span>
-                <span className="block text-sm font-bold text-slate-900">Socio fundador</span>
-                <span className="block text-xs text-slate-600">10 % de descuento en todos los cobros</span>
-              </span>
-            </label>
-          </div>
-
-          {/* Botones de navegación de paso móvil / Guardar */}
-          <div className="flex items-center justify-between md:justify-end gap-2 pt-1 sm:pt-4">
-            <div className="flex md:hidden gap-1.5">
-              {mobileStep > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setMobileStep(1)}
-                  className="py-2.5 px-3.5 bg-slate-200 text-slate-800 font-bold text-xs rounded-xl cursor-pointer"
-                >
-                  ← Anterior
-                </button>
-              )}
-              {mobileStep < 2 && (
-                <button
-                  type="button"
-                  onClick={() => setMobileStep(2)}
-                  className="py-2.5 px-4 bg-slate-900 text-white font-bold text-xs rounded-xl cursor-pointer"
-                >
-                  Siguiente →
-                </button>
-              )}
-            </div>
-
-            <div className="flex gap-2 ml-auto">
-              <button
-                type="button"
-                onClick={() => navigate('/admin/personal')}
-                className="hidden sm:inline-block py-3 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="py-2.5 sm:py-3 px-5 sm:px-8 bg-brand-accent hover:bg-brand-accent/90 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-brand-accent/25 disabled:opacity-50 cursor-pointer"
-              >
-                {loading ? 'Guardando...' : 'Dar de Alta Alumno'}
-              </button>
-            </div>
+          {/* Action bar, sticky at the bottom of the viewport on tablet */}
+          <div className="sticky bottom-0 z-10 -mx-4 flex items-center justify-end gap-3 border-t border-studio-navy/10 bg-brand-sand-light px-4 py-3 sm:-mx-6 sm:px-6">
+            <button type="button" onClick={() => navigate('/admin/personal')} className={secondaryBtn}>
+              Cancelar
+            </button>
+            <button type="submit" disabled={loading} className={`${primaryBtn} min-w-48`}>
+              <UserPlus className="h-5 w-5" aria-hidden="true" />
+              {loading ? 'Guardando...' : 'Dar de alta'}
+            </button>
           </div>
         </form>
       )}

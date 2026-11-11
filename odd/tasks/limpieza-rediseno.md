@@ -33,8 +33,10 @@ Rediseñar (skill `impeccable`): estructura y navegación del admin, Caja, Alta 
 ## Tareas
 - [x] R1 Eliminar funciones no pedidas (rutas, páginas, menús, prefetch, widgets, módulos de dominio usados solo por ellas, tests y enlaces de la landing). Ruta: delegada (disparador de escritor).
 - [x] R2 Rediseñar estructura/navegación del admin y la Caja. Ruta: delegada.
-- [ ] R3 Rediseñar el Alta. Ruta: delegada.
+- [x] R3 Rediseñar el Alta. Ruta: delegada.
 - [ ] R4 Rediseñar Alumnos (PersonalPage). Ruta: delegada.
+- [ ] R5 Eliminar el IVA de toda la app: Caja (KPIs, modal), Tarifas, recibos PDF, CSV de gestoría y desglose `baseCents`/`vatCents` en pagos nuevos. Motivo: el usuario lo pidió ("nada de IVA por ningún lado") y en el audio de las 09.54 el cliente dice que el IVA "es un dato que yo controlo". Ruta: delegada, después de R3 (comparte CajaPage).
+- [ ] R6 Cinturones por disciplina: modelar las disciplinas con un indicador `hasBelt`. Con cinturón: BJJ (Gi), Grappling (No-Gi, usa el grado de BJJ) y Kids. Sin cinturón: MMA y Lucha (verificado: en una academia de BJJ el grado es universal y el No-Gi usa el cinturón de BJJ; Lucha y MMA no tienen cinturón). En la vista de Alumnos, el filtro por cinturón solo aplica a disciplinas con cinturón; añadir filtro por disciplina. En el Alta, la graduación solo es relevante para alumnos de disciplinas con cinturón. Ruta: delegada. Decisión por defecto, revisable por el cliente.
 
 ## Criterios de aceptación
 - Las funciones eliminadas no son accesibles ni aparecen en la navegación ni en el bundle; no quedan imports muertos.

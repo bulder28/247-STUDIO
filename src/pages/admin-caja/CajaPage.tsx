@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   collection,
   doc,
@@ -53,6 +53,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/ui/dialog';
+import { fieldCls, labelCls } from '@/shared/ui/field-styles';
 import { KpiCard } from '@/shared/ui/kpi-card';
 import { PageHeader } from '@/shared/ui/page-header';
 import { SectionCard } from '@/shared/ui/section-card';
@@ -66,9 +67,6 @@ const BILLING_LABEL: Record<string, string> = {
   DROP_IN: 'Clase suelta',
 };
 
-const fieldCls =
-  'w-full min-h-12 rounded-xl border border-studio-navy/15 bg-white px-3.5 text-base font-medium text-studio-navy placeholder:text-slate-500 focus:border-studio-red focus:outline-none focus:ring-2 focus:ring-studio-red/20';
-const labelCls = 'mb-1.5 block text-sm font-semibold text-studio-navy';
 
 interface FreezeRequest {
   id: string;
@@ -82,6 +80,7 @@ interface FreezeRequest {
 
 export const CajaPage: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [payments, setPayments] = useState<PaymentDomainModel[]>([]);
   const [users, setUsers] = useState<UserDomainModel[]>([]);
   const [freezeRequests, setFreezeRequests] = useState<FreezeRequest[]>([]);
@@ -327,6 +326,20 @@ export const CajaPage: React.FC = () => {
     setPosStudentUid(uid);
     setPosPeriod(filterPeriod);
   };
+
+  // Deep link `/admin/caja?cobrar=<uid>` (used by the enrollment success screen): once the users are
+  // loaded, open the charge modal with that student preselected for the current month, then drop the param.
+  useEffect(() => {
+    const target = searchParams.get('cobrar');
+    if (!target || users.length === 0) return;
+    if (users.some((u) => u.uid === target)) {
+      handleOpenPosModal();
+      setPosStudentUid(target);
+      setPosPeriod(getMadridYearMonth(new Date()));
+    }
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, users]);
 
   const handleSelectPosTariff = (tariffId: string) => {
     setPosTariffId(tariffId);
