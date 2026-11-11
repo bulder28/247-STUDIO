@@ -88,13 +88,14 @@ export default async function handler(req, context) {
     const body = await req.json();
     const {
       email,
+      firstName,
+      lastName,
       alias,
       phone,
       birthDate,
       belt = 'WHITE',
       stripes = 0,
-      pricingTier = 'STD',
-      activeTariffId = 'tariff_default',
+      isFoundingMember = false,
       targetRole = 'student',
       isMinor = false,
       guardianName,
@@ -108,12 +109,21 @@ export default async function handler(req, context) {
       notes,
     } = body;
 
-    const cleanEmail = email?.trim().toLowerCase();
-    const cleanAlias = alias?.trim();
+    const str = (v) => (typeof v === 'string' ? v.trim() : '');
+    const cleanFirstName = str(firstName);
+    const cleanLastName = str(lastName);
+    // Legacy display name: keep `alias` = "first last" so the rest of the app keeps working.
+    const cleanAlias = `${cleanFirstName} ${cleanLastName}`.trim() || str(alias);
+    const providedEmail = str(email).toLowerCase();
+    // Email is optional at enrollment: a placeholder login is used (no reset link is generated for it).
+    const hasRealEmail = providedEmail.length > 0;
+    const cleanEmail = hasRealEmail
+      ? providedEmail
+      : `alumno_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}@247studiobjj.com`;
 
-    if (!cleanEmail || !cleanAlias) {
+    if (!cleanAlias) {
       return new Response(
-        JSON.stringify({ error: 'El email y el alias son campos obligatorios.' }),
+        JSON.stringify({ error: 'El nombre del alumno es obligatorio.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -145,7 +155,7 @@ export default async function handler(req, context) {
     // 6. Generar enlace seguro para que el alumno configure su contraseña
     let resetLink = null;
     try {
-      resetLink = await adminAuth.generatePasswordResetLink(cleanEmail);
+      if (hasRealEmail) resetLink = await adminAuth.generatePasswordResetLink(cleanEmail);
     } catch (linkErr) {
       console.warn('Aviso generando enlace de contraseña:', linkErr.message);
     }
@@ -155,24 +165,27 @@ export default async function handler(req, context) {
     const userDocData = {
       uid,
       authEmail: cleanEmail,
-      contactEmail: cleanEmail,
+      contactEmail: hasRealEmail ? cleanEmail : '',
+      firstName: cleanFirstName || null,
+      lastName: cleanLastName || null,
       alias: cleanAlias,
-      phone: phone?.trim() || '',
-      birthDate: birthDate || '',
+      phone: str(phone),
+      birthDate: str(birthDate),
       isMinor: Boolean(isMinor),
-      guardianName: guardianName?.trim() || null,
-      guardianPhone: guardianPhone?.trim() || null,
-      guardianDni: guardianDni?.trim() || null,
-      guardianEmail: guardianEmail?.trim() || null,
-      guardianUid: guardianUid?.trim() || null,
-      emergencyContactName: emergencyContactName?.trim() || (isMinor ? guardianName?.trim() : null),
-      emergencyContactPhone: emergencyContactPhone?.trim() || (isMinor ? guardianPhone?.trim() : null),
+      guardianName: str(guardianName) || null,
+      guardianPhone: str(guardianPhone) || null,
+      guardianDni: str(guardianDni) || null,
+      guardianEmail: str(guardianEmail) || null,
+      guardianUid: str(guardianUid) || null,
+      isFoundingMember: isFoundingMember === true || isFoundingMember === 'true',
+      emergencyContactName: str(emergencyContactName) || (isMinor ? str(guardianName) || null : null),
+      emergencyContactPhone: str(emergencyContactPhone) || (isMinor ? str(guardianPhone) || null : null),
       beltSystem: isMinor ? 'KIDS' : 'ADULT',
       belt,
       stripes: Number(stripes) || 0,
       beltDate: nowIso.slice(0, 10),
-      pricingTier,
-      activeTariffId,
+      // Required by the user model; no tariff is assigned at enrollment (chosen when the first payment is registered).
+      pricingTier: 'STD',
       accountStatus: 'ACTIVE',
       paymentStatusCache: 'OK',
       notes: notes?.trim() || null,
@@ -204,7 +217,6 @@ export default async function handler(req, context) {
         belt,
         stripes: Number(stripes) || 0,
         accountStatus: 'ACTIVE',
-        pricingTier,
         updatedAt: nowIso,
       },
       { merge: true }

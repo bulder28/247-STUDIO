@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import {
   AlertCircle,
   ArrowLeft,
+  Camera,
   CheckCircle2,
   Shield,
   User,
@@ -14,7 +15,9 @@ import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { invalidateLiveDocs } from '@/shared/api/liveReads';
 import { calculateExactAge, isLegalMinor } from '@/shared/domain/minor';
-import { Belt, BeltSystem, PricingTier } from '@/shared/domain/types';
+import { buildEnrollmentPayload, splitFullName, validateEnrollment } from '@/shared/domain/enrollment';
+import { Belt, BeltSystem } from '@/shared/domain/types';
+import { compressImageToCanvas } from '@/shared/utils/imageCompressor';
 
 const KIDS_BELTS: { value: Belt; label: string }[] = [
   { value: 'WHITE', label: 'Blanco' },
@@ -40,6 +43,28 @@ const ADULT_BELTS: { value: Belt; label: string }[] = [
   { value: 'BLACK', label: 'Negro' },
 ];
 
+const EMPTY_FORM = {
+  firstName: '',
+  lastName: '',
+  contactEmail: '',
+  phone: '',
+  birthDate: '',
+  belt: 'WHITE' as Belt,
+  stripes: 0,
+  isFoundingMember: false,
+  guardianName: '',
+  guardianPhone: '',
+  guardianEmail: '',
+  guardianDni: '',
+  guardianUid: '',
+};
+
+const INPUT_CLASS =
+  'w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition';
+const GUARDIAN_INPUT_CLASS =
+  'w-full min-h-11 px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-amber-400';
+const LABEL_CLASS = 'block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1';
+
 export const StudentRegistrationPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,22 +73,18 @@ export const StudentRegistrationPage: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const locationState = (location.state as Record<string, any>) || {};
 
-  const [formData, setFormData] = useState({
-    alias: searchParams.get('name') || locationState.name || '',
-    contactEmail: searchParams.get('email') || locationState.email || '',
-    phone: searchParams.get('phone') || locationState.phone || '',
-    birthDate: '',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    belt: 'WHITE' as Belt,
-    stripes: 0,
-    pricingTier: 'STD' as PricingTier,
-    activeTariffId: 'tariff_monthly_unlimited',
-    guardianName: '',
-    guardianPhone: '',
-    guardianEmail: '',
-    guardianDni: '',
-    guardianUid: searchParams.get('guardianUid') || locationState.guardianUid || '',
+  const [formData, setFormData] = useState(() => {
+    const prefilled = splitFullName(
+      searchParams.get('name') || locationState.name || searchParams.get('alias') || locationState.alias || ''
+    );
+    return {
+      ...EMPTY_FORM,
+      firstName: searchParams.get('firstName') || locationState.firstName || prefilled.firstName,
+      lastName: searchParams.get('lastName') || locationState.lastName || prefilled.lastName,
+      contactEmail: searchParams.get('email') || locationState.email || '',
+      phone: searchParams.get('phone') || locationState.phone || '',
+      guardianUid: searchParams.get('guardianUid') || locationState.guardianUid || '',
+    };
   });
 
   const [loading, setLoading] = useState(false);
@@ -71,7 +92,10 @@ export const StudentRegistrationPage: React.FC = () => {
   const [createdLink, setCreatedLink] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [mobileStep, setMobileStep] = useState<1 | 2>(1);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoSource, setPhotoSource] = useState<File | null>(null);
 
   const now = new Date();
   const isMinor = formData.birthDate ? isLegalMinor(formData.birthDate, now) : false;
@@ -83,20 +107,61 @@ export const StudentRegistrationPage: React.FC = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoSource(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setPhotoPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearPhoto = () => {
+    setPhotoSource(null);
+    setPhotoPreview(null);
+  };
+
+  /**
+   * Photo is recommended but never blocks the enrollment. Following the project convention
+   * (PhotoUploaderModal / firestore.rules isValidPhotoUrl) the compressed JPEG (<50 KB) is stored
+   * as a data URL in `photoUrl`; no Firebase Storage bucket is configured in this project.
+   */
+  const savePhoto = async (uid: string) => {
+    if (!photoSource) return;
+    try {
+      const compressed = await compressImageToCanvas(photoSource);
+      await updateDoc(doc(db, 'users', uid), { photoUrl: compressed, updatedAt: serverTimestamp() });
+      await setDoc(doc(db, 'kiosk_members', uid), { photoUrl: compressed, updatedAt: serverTimestamp() }, { merge: true });
+    } catch (photoErr) {
+      console.warn('No se pudo guardar la foto del alumno:', photoErr);
+      setPhotoWarning('El alumno se ha dado de alta, pero no se pudo guardar la foto. Puedes añadirla después desde el censo.');
+    }
+  };
+
+  const markLeadConverted = async () => {
+    const effectiveLeadId = searchParams.get('leadId') || locationState.leadId;
+    if (!effectiveLeadId) return;
+    try {
+      await updateDoc(doc(db, 'leads', effectiveLeadId), { status: 'CONVERTED' });
+    } catch (leadErr) {
+      console.warn('No se pudo actualizar el estado del lead:', leadErr);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPhotoWarning(null);
     setLoading(true);
 
     try {
-      if (!formData.alias.trim()) throw new Error('El nombre o alias del alumno es obligatorio.');
-      if (!formData.birthDate) throw new Error('La fecha de nacimiento es obligatoria.');
+      const validationError = validateEnrollment(formData, isMinor);
+      if (validationError) throw new Error(validationError);
+      const payload = buildEnrollmentPayload(formData, isMinor);
 
-      if (isMinor && (!formData.guardianName.trim() || !formData.guardianPhone.trim())) {
-        throw new Error('Para atletas menores de 14 años es obligatorio registrar el tutor legal (nombre y teléfono).');
-      }
-
-      // 1. Alta oficial en Firebase Auth y Firestore mediante Cloud/Netlify Function
+      // 1. Official enrollment in Firebase Auth + Firestore through the Netlify function
       const token = await adminAuthUser?.getIdToken().catch(() => null);
       if (token) {
         try {
@@ -107,23 +172,9 @@ export const StudentRegistrationPage: React.FC = () => {
               Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
-              email: formData.contactEmail,
-              alias: formData.alias,
-              phone: formData.phone,
-              birthDate: formData.birthDate,
-              belt: formData.belt,
-              stripes: Number(formData.stripes),
-              pricingTier: formData.pricingTier,
-              activeTariffId: formData.activeTariffId,
+              ...payload,
+              email: payload.contactEmail,
               targetRole: 'student',
-              isMinor,
-              guardianName: formData.guardianName,
-              guardianPhone: formData.guardianPhone,
-              guardianDni: formData.guardianDni,
-              guardianEmail: formData.guardianEmail,
-              guardianUid: formData.guardianUid,
-              emergencyContactName: formData.emergencyContactName,
-              emergencyContactPhone: formData.emergencyContactPhone,
             }),
           });
           invalidateLiveDocs(['users', 'kiosk_members']);
@@ -131,15 +182,9 @@ export const StudentRegistrationPage: React.FC = () => {
           if (res.ok) {
             const data = await res.json();
             setCreatedLink(data.resetLink || null);
+            await savePhoto(data.uid);
+            await markLeadConverted();
             setSuccessUid(data.uid);
-
-            const effectiveLeadId = searchParams.get('leadId') || locationState.leadId;
-            if (effectiveLeadId) {
-              try {
-                const { updateDoc: updateLeadDoc } = await import('firebase/firestore');
-                await updateLeadDoc(doc(db, 'leads', effectiveLeadId), { status: 'CONVERTED' });
-              } catch {}
-            }
             return;
           }
         } catch (fnErr) {
@@ -147,12 +192,11 @@ export const StudentRegistrationPage: React.FC = () => {
         }
       }
 
-      // Fallback de aprovisionamiento directo en Firestore (modo local / offline)
+      // Direct Firestore fallback (local / offline mode)
       let uid = searchParams.get('uid') || locationState.uid || '';
-      if (!uid && formData.contactEmail?.trim()) {
+      if (!uid && payload.contactEmail) {
         try {
-          const cleanEmail = formData.contactEmail.trim().toLowerCase();
-          const qEmail = query(collection(db, 'users'), where('authEmail', '==', cleanEmail));
+          const qEmail = query(collection(db, 'users'), where('authEmail', '==', payload.contactEmail));
           const snapEmail = await getDocs(qEmail);
           if (!snapEmail.empty) {
             uid = snapEmail.docs[0].id;
@@ -166,32 +210,31 @@ export const StudentRegistrationPage: React.FC = () => {
       }
       const adminUid = adminAuthUser?.uid || 'admin_presencial';
 
-      // 1. Guardar documento maestro en users/{uid}
+      // pricingTier is a required field of the user model; no tariff is assigned at enrollment
+      // (activeTariffId is intentionally not written: the tariff is chosen when the first payment is registered).
       const userPayload: Record<string, any> = {
         uid,
-        authEmail: formData.contactEmail?.trim() || `alumno_${uid}@247studiobjj.com`,
-        contactEmail: formData.contactEmail?.trim() || '',
-        alias: formData.alias.trim(),
-        phone: formData.phone.trim(),
-        emergencyContactName: isMinor
-          ? (formData.guardianName?.trim() || null)
-          : (formData.emergencyContactName?.trim() || null),
-        emergencyContactPhone: isMinor
-          ? (formData.guardianPhone?.trim() || null)
-          : (formData.emergencyContactPhone?.trim() || null),
-        birthDate: formData.birthDate || '',
+        authEmail: payload.contactEmail || `alumno_${uid}@247studiobjj.com`,
+        contactEmail: payload.contactEmail,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        alias: payload.alias,
+        phone: payload.phone,
+        emergencyContactName: isMinor ? payload.guardianName || null : null,
+        emergencyContactPhone: isMinor ? payload.guardianPhone || null : null,
+        birthDate: payload.birthDate,
         isMinor,
-        guardianName: isMinor ? (formData.guardianName?.trim() || null) : null,
-        guardianPhone: isMinor ? (formData.guardianPhone?.trim() || null) : null,
-        guardianDni: isMinor ? (formData.guardianDni?.trim() || null) : null,
-        guardianEmail: isMinor ? (formData.guardianEmail?.trim() || null) : null,
-        guardianUid: isMinor ? (formData.guardianUid?.trim() || null) : null,
+        guardianName: payload.guardianName || null,
+        guardianPhone: payload.guardianPhone || null,
+        guardianDni: payload.guardianDni || null,
+        guardianEmail: payload.guardianEmail || null,
+        guardianUid: payload.guardianUid || null,
+        isFoundingMember: payload.isFoundingMember,
         beltSystem,
-        belt: formData.belt,
-        stripes: Number(formData.stripes),
+        belt: payload.belt,
+        stripes: payload.stripes,
         beltDate: now.toISOString().slice(0, 10),
-        pricingTier: formData.pricingTier,
-        activeTariffId: formData.activeTariffId,
+        pricingTier: 'STD',
         accountStatus: 'ACTIVE',
         paymentStatusCache: 'OK',
         permissions: ['student'],
@@ -212,37 +255,26 @@ export const StudentRegistrationPage: React.FC = () => {
         },
       };
 
-      // Sanitizar payload eliminando claves con valor undefined para cumplir la especificación de Firestore
       const cleanUserPayload = Object.fromEntries(
         Object.entries(userPayload).filter(([_, v]) => v !== undefined)
       );
 
       await setDoc(doc(db, 'users', uid), cleanUserPayload);
 
-      // 2. Guardar proyección pública y segura para Kiosco (sin notas médicas ni teléfonos privados)
+      // Public, safe projection for the Kiosk (no medical notes or private phones)
       await setDoc(doc(db, 'kiosk_members', uid), {
         uid,
-        alias: formData.alias.trim(),
-        belt: formData.belt,
-        stripes: Number(formData.stripes),
+        alias: payload.alias,
+        belt: payload.belt,
+        stripes: payload.stripes,
         beltSystem,
         accountStatus: 'ACTIVE',
-        activeTariffId: formData.activeTariffId,
         photoUrl: '',
         updatedAt: serverTimestamp(),
       });
 
-      // 3. Si procede de un lead del embudo, marcarlo automáticamente como CONVERTED
-      const effectiveLeadId = searchParams.get('leadId') || locationState.leadId;
-      if (effectiveLeadId) {
-        try {
-          const { updateDoc: updateLeadDoc } = await import('firebase/firestore');
-          await updateLeadDoc(doc(db, 'leads', effectiveLeadId), { status: 'CONVERTED' });
-        } catch (leadErr) {
-          console.warn('No se pudo actualizar el estado del lead:', leadErr);
-        }
-      }
-
+      await savePhoto(uid);
+      await markLeadConverted();
       setSuccessUid(uid);
     } catch (err: any) {
       console.error('Error registrando alumno:', err);
@@ -264,7 +296,7 @@ export const StudentRegistrationPage: React.FC = () => {
             <span>Alta Presencial de Alumno</span>
           </h1>
           <p className="hidden sm:block text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Registro de nuevo miembro en recepción (Adultos o Menores con tutor legal según RGPD).
+            Registro de nuevo miembro en recepción (adultos o menores de 14 con tutor legal).
           </p>
         </div>
         <Link
@@ -277,9 +309,16 @@ export const StudentRegistrationPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
+        <div role="alert" className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {photoWarning && (
+        <div role="alert" className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+          <span>{photoWarning}</span>
         </div>
       )}
 
@@ -290,7 +329,7 @@ export const StudentRegistrationPage: React.FC = () => {
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">¡Alumno dado de alta con éxito!</h2>
           <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-            Se ha creado la ficha en la BBDD, asignado su plan y sincronizado con el Kiosco de recepción para que pueda hacer check-in con su nombre o pase QR.
+            Se ha creado la ficha y se ha sincronizado con el Kiosco de recepción para que pueda hacer check-in con su nombre o pase QR. La tarifa se asigna al registrar su primer cobro en Caja.
           </p>
 
           {createdLink && (
@@ -328,23 +367,10 @@ export const StudentRegistrationPage: React.FC = () => {
             <button
               onClick={() => {
                 setSuccessUid(null);
-                setFormData({
-                  alias: '',
-                  contactEmail: '',
-                  phone: '',
-                  birthDate: '',
-                  emergencyContactName: '',
-                  emergencyContactPhone: '',
-                  belt: 'WHITE',
-                  stripes: 0,
-                  pricingTier: 'STD',
-                  activeTariffId: 'tariff_monthly_unlimited',
-                  guardianName: '',
-                  guardianPhone: '',
-                  guardianEmail: '',
-                  guardianDni: '',
-                  guardianUid: '',
-                });
+                setFormData(EMPTY_FORM);
+                clearPhoto();
+                setPhotoWarning(null);
+                setCreatedLink(null);
                 setMobileStep(1);
               }}
               className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer"
@@ -381,7 +407,7 @@ export const StudentRegistrationPage: React.FC = () => {
               }`}
             >
               <UserCheck className="w-3.5 h-3.5" />
-              <span>2. Plan & Rango</span>
+              <span>2. Graduación</span>
             </button>
           </div>
 
@@ -393,39 +419,77 @@ export const StudentRegistrationPage: React.FC = () => {
           >
             <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
               <User className="w-4 h-4 text-brand-accent" />
-              <span>1. Datos del Atleta</span>
+              <span>1. Datos personales</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                  Nombre Completo / Alias *
+                <label htmlFor="enroll-firstName" className={LABEL_CLASS}>
+                  Nombre *
                 </label>
                 <input
+                  id="enroll-firstName"
                   type="text"
-                  name="alias"
+                  name="firstName"
                   required
-                  value={formData.alias}
+                  autoComplete="given-name"
+                  value={formData.firstName}
                   onChange={handleChange}
-                  placeholder="Ej: Marcos Silva"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
+                  placeholder="Ej: Marcos"
+                  className={INPUT_CLASS}
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                  Fecha de Nacimiento *
+                <label htmlFor="enroll-lastName" className={LABEL_CLASS}>
+                  Apellidos *
                 </label>
                 <input
+                  id="enroll-lastName"
+                  type="text"
+                  name="lastName"
+                  required
+                  autoComplete="family-name"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  placeholder="Ej: Silva Pérez"
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="enroll-phone" className={LABEL_CLASS}>
+                  Teléfono móvil *
+                </label>
+                <input
+                  id="enroll-phone"
+                  type="tel"
+                  name="phone"
+                  required
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="+34 600 000 000"
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="enroll-birthDate" className={LABEL_CLASS}>
+                  Fecha de nacimiento *
+                </label>
+                <input
+                  id="enroll-birthDate"
                   type="date"
                   name="birthDate"
                   required
                   value={formData.birthDate}
                   onChange={handleChange}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
+                  className={INPUT_CLASS}
                 />
                 {age !== null && (
-                  <span className="text-[11px] font-semibold mt-1 block text-slate-500">
+                  <span className="text-[11px] font-semibold mt-1 block text-slate-500" aria-live="polite">
                     Edad: <strong className="text-slate-900 font-bold">{age} años</strong> ·{' '}
                     <strong className={isMinor ? 'text-amber-700' : 'text-emerald-700'}>
                       {isMinor ? 'Menor (< 14)' : 'Adulto (≥ 14)'}
@@ -434,37 +498,76 @@ export const StudentRegistrationPage: React.FC = () => {
                 )}
               </div>
 
-              <div>
-                <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                  Teléfono de Contacto
+              <div className="sm:col-span-2">
+                <label htmlFor="enroll-email" className={LABEL_CLASS}>
+                  Correo electrónico (opcional)
                 </label>
                 <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="+34 600 000 000"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                  Correo Electrónico
-                </label>
-                <input
+                  id="enroll-email"
                   type="email"
                   name="contactEmail"
+                  autoComplete="email"
                   value={formData.contactEmail}
                   onChange={handleChange}
                   placeholder="alumno@ejemplo.com"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
+                  className={INPUT_CLASS}
                 />
               </div>
             </div>
           </div>
 
-          {/* Bloque 2: Tutor Legal si es Menor de 16 */}
+          {/* Bloque 2: Foto */}
+          <div
+            className={`${
+              mobileStep === 1 ? 'block' : 'hidden md:block'
+            } p-4 sm:p-6 rounded-3xl bg-white border border-slate-200/80 space-y-3 shadow-sm`}
+          >
+            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+              <Camera className="w-4 h-4 text-brand-accent" />
+              <span>Foto del alumno</span>
+            </h2>
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-slate-400">
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Vista previa de la foto del alumno" className="w-full h-full object-cover object-top" />
+                ) : (
+                  <Camera className="w-6 h-6" aria-hidden="true" />
+                )}
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Recomendada para el check-in en el Kiosco. Si falla, el alta se completa igualmente.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <label
+                    htmlFor="enroll-photo"
+                    className="inline-flex items-center justify-center min-h-11 px-4 bg-slate-900 text-white font-bold text-xs rounded-xl cursor-pointer hover:opacity-90 transition focus-within:ring-2 focus-within:ring-brand-accent"
+                  >
+                    {photoPreview ? 'Cambiar foto' : 'Hacer o elegir foto'}
+                  </label>
+                  <input
+                    id="enroll-photo"
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    onChange={handlePhotoChange}
+                    className="sr-only"
+                  />
+                  {photoPreview && (
+                    <button
+                      type="button"
+                      onClick={clearPhoto}
+                      className="min-h-11 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bloque 3: Tutor legal (menores de 14) */}
           {isMinor && (
             <div
               className={`${
@@ -473,72 +576,77 @@ export const StudentRegistrationPage: React.FC = () => {
             >
               <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
                 <Shield className="w-4 h-4 text-amber-600" />
-                <span>Tutor Legal Responsable (Menor de 16)</span>
+                <span>Tutor legal (menor de 14 años)</span>
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                    Nombre del Tutor *
+                  <label htmlFor="enroll-guardianName" className={LABEL_CLASS}>
+                    Nombre del tutor *
                   </label>
                   <input
+                    id="enroll-guardianName"
                     type="text"
                     name="guardianName"
-                    required={isMinor}
+                    required
                     value={formData.guardianName}
                     onChange={handleChange}
                     placeholder="Nombre y apellidos del padre/madre"
-                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-amber-400"
+                    className={GUARDIAN_INPUT_CLASS}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                    Teléfono del Tutor *
+                  <label htmlFor="enroll-guardianPhone" className={LABEL_CLASS}>
+                    Teléfono del tutor *
                   </label>
                   <input
+                    id="enroll-guardianPhone"
                     type="tel"
                     name="guardianPhone"
-                    required={isMinor}
+                    required
+                    inputMode="tel"
                     value={formData.guardianPhone}
                     onChange={handleChange}
                     placeholder="+34 600 000 000"
-                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-amber-400"
+                    className={GUARDIAN_INPUT_CLASS}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                    DNI / NIE del Tutor
+                  <label htmlFor="enroll-guardianDni" className={LABEL_CLASS}>
+                    DNI / NIE del tutor (opcional)
                   </label>
                   <input
+                    id="enroll-guardianDni"
                     type="text"
                     name="guardianDni"
                     value={formData.guardianDni}
                     onChange={handleChange}
                     placeholder="12345678Z"
-                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-amber-400"
+                    className={GUARDIAN_INPUT_CLASS}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                    Email del Tutor
+                  <label htmlFor="enroll-guardianEmail" className={LABEL_CLASS}>
+                    Email del tutor (opcional)
                   </label>
                   <input
+                    id="enroll-guardianEmail"
                     type="email"
                     name="guardianEmail"
                     value={formData.guardianEmail}
                     onChange={handleChange}
                     placeholder="tutor@ejemplo.com"
-                    className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-amber-400"
+                    className={GUARDIAN_INPUT_CLASS}
                   />
                 </div>
               </div>
             </div>
           )}
 
-          {/* Bloque 3: Cinturón y Tarifa */}
+          {/* Bloque 4: Graduación y socio fundador */}
           <div
             className={`${
               mobileStep === 2 ? 'block' : 'hidden md:block'
@@ -546,20 +654,15 @@ export const StudentRegistrationPage: React.FC = () => {
           >
             <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
               <UserCheck className="w-4 h-4 text-brand-accent" />
-              <span>2. Graduación y Plan ({isMinor ? 'Sistema Infantil Kids' : 'Sistema Adultos'})</span>
+              <span>2. Graduación ({isMinor ? 'Sistema infantil Kids' : 'Sistema adultos'})</span>
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                  Cinturón Inicial {isMinor ? '(Kids BJJ)' : '(Adultos)'}
+                <label htmlFor="enroll-belt" className={LABEL_CLASS}>
+                  Cinturón inicial {isMinor ? '(Kids BJJ)' : '(Adultos)'}
                 </label>
-                <select
-                  name="belt"
-                  value={formData.belt}
-                  onChange={handleChange}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
-                >
+                <select id="enroll-belt" name="belt" value={formData.belt} onChange={handleChange} className={INPUT_CLASS}>
                   {beltOptions.map((b) => (
                     <option key={b.value} value={b.value}>
                       {b.label}
@@ -569,15 +672,10 @@ export const StudentRegistrationPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                  Grados (Stripes)
+                <label htmlFor="enroll-stripes" className={LABEL_CLASS}>
+                  Grados (stripes)
                 </label>
-                <select
-                  name="stripes"
-                  value={formData.stripes}
-                  onChange={handleChange}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
-                >
+                <select id="enroll-stripes" name="stripes" value={formData.stripes} onChange={handleChange} className={INPUT_CLASS}>
                   <option value={0}>0 grados</option>
                   <option value={1}>1 grado</option>
                   <option value={2}>2 grados</option>
@@ -585,23 +683,24 @@ export const StudentRegistrationPage: React.FC = () => {
                   <option value={4}>4 grados</option>
                 </select>
               </div>
-
-              <div>
-                <label className="block text-[11px] sm:text-xs font-bold uppercase text-slate-700 mb-1">
-                  Tarifa / Modalidad
-                </label>
-                <select
-                  name="pricingTier"
-                  value={formData.pricingTier}
-                  onChange={handleChange}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-brand-accent focus:bg-white transition"
-                >
-                  <option value="STD">Estándar (STD)</option>
-                  <option value="SF">Socio Fundador (SF)</option>
-                  <option value="FAM">Familiar (FAM)</option>
-                </select>
-              </div>
             </div>
+
+            <label
+              htmlFor="enroll-founding"
+              className="flex items-start gap-3 min-h-11 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer"
+            >
+              <input
+                id="enroll-founding"
+                type="checkbox"
+                checked={formData.isFoundingMember}
+                onChange={(e) => setFormData((prev) => ({ ...prev, isFoundingMember: e.target.checked }))}
+                className="mt-0.5 w-5 h-5 accent-brand-accent shrink-0"
+              />
+              <span>
+                <span className="block text-sm font-bold text-slate-900">Socio fundador</span>
+                <span className="block text-xs text-slate-600">10 % de descuento en todos los cobros</span>
+              </span>
+            </label>
           </div>
 
           {/* Botones de navegación de paso móvil / Guardar */}
