@@ -58,5 +58,11 @@ Client's main need: "at the start of the month a new person arrives, I need to e
 - T3 commit: 28ebd4c.
 - T4 done (delegated writer, impeccable applied). Parent re-ran `npm test` (15 files passed; writer reported 131 tests) and `npm run build` (passed). Not run: browser check. "Alumnos sin pagar" section in Caja: per-period unpaid list, tariff filter (+ "Sin tarifa"), paid/total count, per-tariff paid chips, "Cobrar" preselects student and period.
 
+- T4 commit: d7b49f6.
+- Rules tests run with JDK 21 + emulator: 11 passed, 4 failed; the same 4 fail on main (85d5237), pre-existing (self-registration adult, kiosk booking create, anonymous lead create, approved-payment immutability test).
+- Browser check against emulators: 20+ screenshots in docs/capturas/alta-cobro-mensual (untracked). Enrollment fallback write and 3-month prepayment (3 docs, 10% discount) observed working.
+- UI fixes 5142547 (Spanish month select, custom validation messages); dev-only emulator auto-login 50fb76f (absent from dist).
+- `npm run build` clean before merge to main.
+
 ## Next step
-Manual browser check of /admin/alta-alumno and /admin/caja; run `npm run test:rules` with the Firestore emulator; deploy firestore.rules together with the app; then the out-of-scope items (unpaid reminders, temporary leave, consents) if the client confirms.
+Deploy firestore.rules to production (required for admin charges). Then manual browser check of /admin/alta-alumno and /admin/caja; run `npm run test:rules` with the Firestore emulator; deploy firestore.rules together with the app; then the out-of-scope items (unpaid reminders, temporary leave, consents) if the client confirms.
