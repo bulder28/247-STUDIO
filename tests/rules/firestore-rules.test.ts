@@ -35,9 +35,9 @@ describe('Pruebas de Reglas de Seguridad (Firestore Emulator)', () => {
     await testEnv.clearFirestore();
   });
 
-  // 1. Auto-registro y Menores de 16
+  // 1. Auto-registro y Menores de 14
   describe('Colección: users (Registro y Edición)', () => {
-    it('deniega auto-registro a usuario menor de 16 años', async () => {
+    it('deniega auto-registro a usuario menor de 14 años', async () => {
       const studentAuth = testEnv.authenticatedContext('student-minor', {
         email: 'minor@example.com',
         role: 'student',
@@ -51,7 +51,7 @@ describe('Pruebas de Reglas de Seguridad (Firestore Emulator)', () => {
           contactEmail: 'minor@example.com',
           alias: 'Kiddo',
           phone: '+34600000000',
-          birthDate: '2015-05-10', // < 16 años
+          birthDate: '2015-05-10', // < 14 años
           isMinor: false,
           beltSystem: 'KIDS',
           belt: 'WHITE',
@@ -66,7 +66,7 @@ describe('Pruebas de Reglas de Seguridad (Firestore Emulator)', () => {
       );
     });
 
-    it('permite auto-registro a usuario mayor o igual a 16 años', async () => {
+    it('permite auto-registro a usuario mayor o igual a 14 años', async () => {
       const studentAuth = testEnv.authenticatedContext('student-adult', {
         email: 'adult@example.com',
         role: 'student',
@@ -80,7 +80,7 @@ describe('Pruebas de Reglas de Seguridad (Firestore Emulator)', () => {
           contactEmail: 'adult@example.com',
           alias: 'Grappler',
           phone: '+34600000000',
-          birthDate: '2000-01-01', // > 16 años
+          birthDate: '2000-01-01', // > 14 años
           isMinor: false,
           beltSystem: 'ADULT',
           belt: 'WHITE',

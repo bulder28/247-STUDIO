@@ -54,7 +54,7 @@ export const PrivacyPage: React.FC = () => {
             3. Protección Especial de Datos de Menores de Edad
           </h2>
           <p>
-            De acuerdo con el Artículo 8 del RGPD y el Artículo 7 de la LOPDGDD, para el tratamiento de datos de deportistas menores de 16 años se exige inexcusablemente el consentimiento expreso del padre, madre o tutor legal acreditado. Los datos del menor y de su tutor se conservan con medidas de seguridad reforzadas y nunca se ceden a terceros con fines publicitarios.
+            De acuerdo con el Artículo 8 del RGPD y el Artículo 7 de la LOPDGDD, para el tratamiento de datos de deportistas menores de 14 años se exige inexcusablemente el consentimiento expreso del padre, madre o tutor legal acreditado. Los datos del menor y de su tutor se conservan con medidas de seguridad reforzadas y nunca se ceden a terceros con fines publicitarios.
           </p>
         </section>
 

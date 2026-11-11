@@ -1,5 +1,8 @@
 import { AthleteCategory } from './types';
 
+/** Under this age a student is a legal minor and needs a guardian (Spain digital consent age). */
+export const MINOR_AGE_THRESHOLD = 14;
+
 /**
  * Calcula la edad exacta de un usuario a partir de su fecha de nacimiento y una fecha de referencia.
  * @param birthDateStr Fecha de nacimiento en formato YYYY-MM-DD
@@ -37,10 +40,10 @@ export function calculateExactAge(birthDateStr: string, now: Date): number {
 
 /**
  * Umbral Legal de Autonomía Digital y Capacidad Contractual (LOPDGDD / España):
- * Menor de 16 años no puede auto-registrarse; requiere tutor y presencialidad.
+ * Menor de 14 años no puede auto-registrarse; requiere tutor y presencialidad.
  */
 export function isLegalMinor(birthDateStr: string, now: Date): boolean {
-  return calculateExactAge(birthDateStr, now) < 16;
+  return calculateExactAge(birthDateStr, now) < MINOR_AGE_THRESHOLD;
 }
 
 /**
@@ -71,13 +74,13 @@ export interface MinorValidationResult {
 
 export function validateMinorOnboarding(params: MinorValidationParams): MinorValidationResult {
   const age = calculateExactAge(params.birthDate, params.now);
-  const isMinor = age < 16;
+  const isMinor = age < MINOR_AGE_THRESHOLD;
   const athleteCategory = age < 18 ? 'KID' : 'ADULT';
   const errors: string[] = [];
 
   if (isMinor) {
     if (!params.guardianTutorName || params.guardianTutorName.trim().length < 3) {
-      errors.push('El nombre completo del tutor legal o progenitor es obligatorio para menores de 16 años.');
+      errors.push('El nombre completo del tutor legal o progenitor es obligatorio para menores de 14 años.');
     }
     if (!params.guardianTutorPhone || params.guardianTutorPhone.trim().length < 9) {
       errors.push('El teléfono de contacto de urgencias del tutor legal es obligatorio.');

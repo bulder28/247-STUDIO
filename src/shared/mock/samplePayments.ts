@@ -27,7 +27,7 @@ export const SAMPLE_PAYMENTS_DEMO: PaymentDomainModel[] = [
     amountCents: 7500,
     baseCents: 6198,
     vatCents: 1302,
-    method: 'CARD',
+    method: 'CASH',
     billingType: 'MONTHLY',
     status: 'APPROVED',
     createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),

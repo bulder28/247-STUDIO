@@ -92,8 +92,8 @@ service cloud.firestore {
       return period == curPeriod || period == prevPeriod;
     }
 
-    // Valida >= 16 años protegiendo el caso borde del 29 de febrero (años bisiestos)
-    function isAtLeast16YearsOld(birthDateStr) {
+    // Valida >= 14 años protegiendo el caso borde del 29 de febrero (años bisiestos)
+    function isAtLeast14YearsOld(birthDateStr) {
       let parts = birthDateStr.split('-');
       let y = int(parts[0]);
       let m = int(parts[1]);
@@ -101,7 +101,7 @@ service cloud.firestore {
       let safeDay = (m == 2 && d == 29) ? 28 : d;
 
       return isValidDateString(birthDateStr) &&
-        request.time >= timestamp.date(y + 16, m, safeDay);
+        request.time >= timestamp.date(y + 14, m, safeDay);
     }
 
     // Denegación por defecto
@@ -120,7 +120,7 @@ service cloud.firestore {
         resource.data.get('guardianUid', '') == request.auth.uid
       );
 
-      // Auto-registro de alumnos (Prohibido < 16 años y blindado contra inyección de campos)
+      // Auto-registro de alumnos (Prohibido < 14 años y blindado contra inyección de campos)
       allow create: if isUser(userId) &&
         request.resource.data.keys().hasAll([
           'authEmail', 'contactEmail', 'alias', 'phone', 'birthDate',
@@ -143,7 +143,7 @@ service cloud.firestore {
         request.resource.data.stripes == 0 &&
         request.resource.data.createdAt == request.time &&
         request.resource.data.updatedAt == request.time &&
-        isAtLeast16YearsOld(request.resource.data.birthDate) &&
+        isAtLeast14YearsOld(request.resource.data.birthDate) &&
         (!('photoUrl' in request.resource.data) || isValidPhotoUrl(request.resource.data.photoUrl));
 
       // Edición de usuario (Alumno)
@@ -209,13 +209,29 @@ service cloud.firestore {
         request.resource.data.billingType in ['MONTHLY', 'PASS', 'DROP_IN'] &&
         (request.resource.data.billingType != 'DROP_IN' || ('bookingId' in request.resource.data && request.resource.data.bookingId is string));
 
+      // Cobro directo en mostrador (TPV) por parte del Admin
+      allow create: if isAdmin() &&
+        request.resource.data.keys().hasAll([
+          'uid', 'status', 'method', 'period', 'billingType', 'createdAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'status', 'method', 'period', 'billingType', 'bookingId', 'tariffId', 'notes',
+          'createdAt', 'paidAt', 'concept', 'amountCents', 'baseCents', 'vatCents', 'discountCents',
+          'sessionsIncluded', 'sessionsRemaining', 'validatedBy', 'validatedAt'
+        ]) &&
+        request.resource.data.method in ['CASH', 'BIZUM'] &&
+        request.resource.data.status in ['APPROVED', 'PENDING_APPROVAL'] &&
+        isValidPeriodFormat(request.resource.data.period) &&
+        request.resource.data.billingType in ['MONTHLY', 'PASS', 'DROP_IN'];
+
       // Actualización: Exclusiva del Admin (Aprobación / Rechazo)
       // Invariante de auditoría: Nadie puede modificar un pago que ya esté en status APPROVED
       allow update: if isAdmin() &&
         resource.data.status != 'APPROVED' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'amountCents', 'baseCents', 'vatCents',
-          'sessionsIncluded', 'validatedBy', 'validatedAt', 'rejectedReason'
+          'sessionsIncluded', 'validatedBy', 'validatedAt', 'rejectedReason',
+          'tariffId', 'discountCents'
         ]) &&
         request.resource.data.status in ['APPROVED', 'REJECTED'] &&
         request.resource.data.validatedBy == request.auth.uid &&

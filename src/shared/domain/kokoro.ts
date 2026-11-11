@@ -463,7 +463,7 @@ export function generateKokoroResponse(
         return {
           intent,
           badge: 'ALTA DE ALUMNOS',
-          text: `Para dar de alta a un alumno nuevo, accede al formulario de Alta. El sistema valida automáticamente la edad: si es menor de 16 años, requerirá los datos del tutor legal y consentimiento RGPD/LOPDGDD. También podrás registrar la firma del pliego de exención en la tablet o en papel físico.`,
+          text: `Para dar de alta a un alumno nuevo, accede al formulario de Alta. El sistema valida automáticamente la edad: si es menor de 14 años, requerirá los datos del tutor legal y consentimiento RGPD/LOPDGDD. También podrás registrar la firma del pliego de exención en la tablet o en papel físico.`,
           action: {
             type: 'NAVIGATE',
             label: 'Formulario de Alta de Alumno',

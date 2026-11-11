@@ -32,7 +32,7 @@ export type PricingTier = 'STD' | 'SF' | 'FAM';
 
 export type BillingType = 'MONTHLY' | 'PASS' | 'DROP_IN';
 
-export type PaymentMethod = 'BIZUM' | 'CASH' | 'CARD';
+export type PaymentMethod = 'CASH' | 'BIZUM';
 
 export type PaymentStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
 
@@ -64,9 +64,16 @@ export interface UserDomainModel {
   authEmail: string;
   contactEmail: string;
   alias: string;
+  firstName?: string;
+  lastName?: string;
   phone: string;
-  emergencyContactName: string;
-  emergencyContactPhone: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianDni?: string;
+  guardianEmail?: string;
+  isFoundingMember?: boolean;
   birthDate: string; // YYYY-MM-DD
   isMinor: boolean;
   guardianUid?: string;
@@ -124,6 +131,8 @@ export interface PaymentDomainModel {
   amountCents?: number;
   baseCents?: number;
   vatCents?: number;
+  tariffId?: string;
+  discountCents?: number;
   validatedBy?: string;
   validatedAt?: string;
   rejectedReason?: string;

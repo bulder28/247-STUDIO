@@ -56,7 +56,7 @@ describe('Dominio Puro: Verificación de Requisitos de Acceso al Tatami (canAtte
     expect(result.allowed).toBe(true);
   });
 
-  it('deniega acceso a menor de 16 si no tiene tutor legal registrado', () => {
+  it('deniega acceso a menor de 14 si no tiene tutor legal registrado', () => {
     const minorWithoutGuardian: UserDomainModel = {
       ...baseAdultUser,
       uid: 'u-minor',

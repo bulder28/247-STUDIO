@@ -380,7 +380,7 @@ export const CajaPage: React.FC = () => {
             Seguimiento Mensual y Caja
           </h1>
           <p className="hidden sm:block text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Arqueo diario, TPV mostrador, validación 1-click de Bizum/Efectivo y exportación contable con IVA 21%.
+            Arqueo diario, TPV mostrador, validación 1-click de Bizum/Metálico y exportación contable con IVA 21%.
           </p>
         </div>
 
@@ -492,7 +492,7 @@ export const CajaPage: React.FC = () => {
             {pendingPayments.length}
           </div>
           <span className="text-[11px] text-amber-700/80 font-medium block mt-1">
-            Requiere cotejo con Bizum o Efectivo
+            Requiere cotejo con Bizum o Metálico
           </span>
         </div>
       </div>
@@ -506,7 +506,7 @@ export const CajaPage: React.FC = () => {
         <div className="bg-gradient-to-br from-emerald-50/60 via-white to-emerald-50/30 border border-emerald-200/80 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shadow-subtle">
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">
-              💵 Efectivo en Cajón de Recepción
+              💵 Metálico en Cajón de Recepción
             </span>
             <div className="text-xl sm:text-2xl font-black text-emerald-950 font-mono mt-0.5">
               {(totalCashCents / 100).toFixed(2)} €
@@ -601,9 +601,8 @@ export const CajaPage: React.FC = () => {
               className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
             >
               <option value="ALL">Todos los Métodos</option>
-              <option value="CASH">Efectivo</option>
+              <option value="CASH">Metálico</option>
               <option value="BIZUM">Bizum</option>
-              <option value="CARD">Tarjeta (TPV)</option>
             </select>
 
             <select
@@ -654,8 +653,6 @@ export const CajaPage: React.FC = () => {
                           className={`px-2 py-0.5 rounded font-bold text-[10px] uppercase ${
                             pay.method === 'BIZUM'
                               ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : pay.method === 'CARD'
-                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
                               : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           }`}
                         >
@@ -741,7 +738,7 @@ export const CajaPage: React.FC = () => {
                                   studentAlias: student?.alias || 'Atleta 247',
                                   concept: pay.concept || `Cuota Mensual BJJ (${pay.period})`,
                                   amountEur: (pay.amountCents || 6500) / 100,
-                                  paymentMethod: (pay.method as any) || 'CARD',
+                                  paymentMethod: (pay.method as any) || 'CASH',
                                   staffName: 'Mario / David',
                                 });
                               }}
@@ -857,7 +854,7 @@ export const CajaPage: React.FC = () => {
               <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
                 Método de Cobro
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setPosMethod('CASH')}
@@ -867,7 +864,7 @@ export const CajaPage: React.FC = () => {
                       : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  💵 Efectivo
+                  💵 Metálico
                 </button>
                 <button
                   type="button"
@@ -879,17 +876,6 @@ export const CajaPage: React.FC = () => {
                   }`}
                 >
                   📱 Bizum
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPosMethod('CARD')}
-                  className={`py-2 px-3 rounded-xl border text-xs font-black uppercase tracking-wider transition cursor-pointer ${
-                    posMethod === 'CARD'
-                      ? 'bg-purple-50 border-purple-300 text-purple-800'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  💳 Tarjeta TPV
                 </button>
               </div>
             </div>

@@ -93,7 +93,7 @@ export const StudentRegistrationPage: React.FC = () => {
       if (!formData.birthDate) throw new Error('La fecha de nacimiento es obligatoria.');
 
       if (isMinor && (!formData.guardianName.trim() || !formData.guardianPhone.trim())) {
-        throw new Error('Para atletas menores de 16 años es obligatorio registrar el tutor legal (nombre y teléfono).');
+        throw new Error('Para atletas menores de 14 años es obligatorio registrar el tutor legal (nombre y teléfono).');
       }
 
       // 1. Alta oficial en Firebase Auth y Firestore mediante Cloud/Netlify Function
@@ -428,7 +428,7 @@ export const StudentRegistrationPage: React.FC = () => {
                   <span className="text-[11px] font-semibold mt-1 block text-slate-500">
                     Edad: <strong className="text-slate-900 font-bold">{age} años</strong> ·{' '}
                     <strong className={isMinor ? 'text-amber-700' : 'text-emerald-700'}>
-                      {isMinor ? 'Menor (< 16)' : 'Adulto (≥ 16)'}
+                      {isMinor ? 'Menor (< 14)' : 'Adulto (≥ 14)'}
                     </strong>
                   </span>
                 )}

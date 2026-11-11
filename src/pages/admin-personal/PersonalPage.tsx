@@ -173,7 +173,7 @@ export const PersonalPage: React.FC = () => {
   const [quickPaymentModalOpen, setQuickPaymentModalOpen] = useState(false);
   const [quickPaymentForm, setQuickPaymentForm] = useState({
     amount: '65',
-    method: 'BIZUM' as 'BIZUM' | 'CASH' | 'CARD',
+    method: 'BIZUM' as 'BIZUM' | 'CASH',
     concept: 'Cuota mensual tatami',
   });
   const [uploaderOpen, setUploaderOpen] = useState(false);
@@ -2316,14 +2316,13 @@ export const PersonalPage: React.FC = () => {
                 onChange={(e) =>
                   setQuickPaymentForm({
                     ...quickPaymentForm,
-                    method: e.target.value as 'BIZUM' | 'CASH' | 'CARD',
+                    method: e.target.value as 'BIZUM' | 'CASH',
                   })
                 }
                 className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none"
               >
                 <option value="BIZUM">Bizum</option>
                 <option value="CASH">Efectivo en recepción</option>
-                <option value="CARD">Tarjeta de crédito</option>
               </select>
             </div>
 

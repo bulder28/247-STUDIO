@@ -3,7 +3,7 @@ import { AppConfigDomainModel, UserDomainModel } from './types';
 /**
  * Determina si un alumno cumple con los requisitos legales y de seguridad para acceder al tatami y marcar ATTENDED.
  * 1. Debe contar con waiver firmado y actualizado a la versión requerida.
- * 2. Si es menor (<16), el waiver y el consentimiento deben haber sido firmados por un tutor (guardianUid).
+ * 2. Si es menor (<14), el waiver y el consentimiento deben haber sido firmados por un tutor (guardianUid).
  */
 export function canAttend(
   user: UserDomainModel,
@@ -18,7 +18,7 @@ export function canAttend(
     return { allowed: false, reason: 'Versión de waiver desactualizada' };
   }
 
-  // 2. Verificación de Menores (<16)
+  // 2. Verificación de Menores (<14)
   if (user.isMinor) {
     if (!user.guardianUid) {
       return { allowed: false, reason: 'Menor sin tutor legal asignado' };

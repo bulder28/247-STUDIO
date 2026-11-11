@@ -132,7 +132,7 @@ describe('Dominio Puro: Cerebro de KOKORO AI', () => {
       const ctx: KokoroContext = { role: 'admin' };
       const res = generateKokoroResponse('STUDENT_ONBOARDING', ctx);
       expect(res.badge).toBe('ALTA DE ALUMNOS');
-      expect(res.text).toContain('menor de 16 años');
+      expect(res.text).toContain('menor de 14 años');
       expect(res.action?.url).toBe('/admin/alta-alumno');
     });
 

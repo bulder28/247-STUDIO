@@ -161,7 +161,7 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // Registro público autónomo para alumnos adultos (>= 16 años según RGPD)
+  // Registro público autónomo para alumnos adultos (>= 14 años según RGPD)
   {
     path: '/registro',
     errorElement: <RouteErrorElement />,
