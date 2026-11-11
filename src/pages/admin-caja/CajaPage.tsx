@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   collection,
   doc,
+  getDocs,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -78,25 +79,33 @@ export const CajaPage: React.FC = () => {
 
   const fetchCajaData = async () => {
     try {
-      const [paySnap, uSnap, frSnap] = await Promise.all([
-        getLiveDocs('payments', collection(db, 'payments')),
-        getLiveDocs('users', collection(db, 'users')),
-        getLiveDocs('freezeRequests', collection(db, 'freezeRequests')),
+      const [payRes, uRes, frRes] = await Promise.allSettled([
+        getDocs(collection(db, 'payments')),
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'freezeRequests')),
       ]);
 
       const pList: PaymentDomainModel[] = [];
-      paySnap.forEach((d) => pList.push({ id: d.id, ...(d.data() as Omit<PaymentDomainModel, 'id'>) }));
+      if (payRes.status === 'fulfilled') {
+        payRes.value.forEach((d) => pList.push({ id: d.id, ...(d.data() as Omit<PaymentDomainModel, 'id'>) }));
+      }
       setPayments(pList.length > 0 ? pList : SAMPLE_PAYMENTS_DEMO);
 
       const uList: UserDomainModel[] = [];
-      uSnap.forEach((d) => uList.push({ uid: d.id, ...(d.data() as Omit<UserDomainModel, 'uid'>) }));
+      if (uRes.status === 'fulfilled') {
+        uRes.value.forEach((d) => uList.push({ uid: d.id, ...(d.data() as Omit<UserDomainModel, 'uid'>) }));
+      }
       setUsers(uList.length > 0 ? uList : SAMPLE_ATHLETES_20);
 
       const frList: FreezeRequest[] = [];
-      frSnap.forEach((d) => frList.push({ id: d.id, ...(d.data() as Omit<FreezeRequest, 'id'>) }));
+      if (frRes.status === 'fulfilled') {
+        frRes.value.forEach((d) => frList.push({ id: d.id, ...(d.data() as Omit<FreezeRequest, 'id'>) }));
+      }
       setFreezeRequests(frList);
     } catch (err) {
       console.error('Error fetching caja data:', err);
+      setPayments((prev) => (prev.length > 0 ? prev : SAMPLE_PAYMENTS_DEMO));
+      setUsers((prev) => (prev.length > 0 ? prev : SAMPLE_ATHLETES_20));
     }
   };
 

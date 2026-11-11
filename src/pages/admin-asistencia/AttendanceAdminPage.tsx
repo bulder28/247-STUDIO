@@ -140,29 +140,14 @@ export const AttendanceAdminPage: React.FC = () => {
 
     const fetchStudents = async () => {
       try {
-        const [uSnap, kSnap] = await Promise.all([
-          getLiveDocs('users', collection(db, 'users')),
-          getLiveDocs('kiosk_members', collection(db, 'kiosk_members')),
+        const [uRes, kRes] = await Promise.allSettled([
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'kiosk_members')),
         ]);
         const map: Record<string, StudentDirectoryItem> = {};
-        uSnap.forEach((d) => {
-          const data = d.data();
-          map[d.id] = {
-            uid: d.id,
-            alias: data.alias || 'Alumno',
-            fullName: data.fullName || data.alias || 'Alumno',
-            belt: data.belt || 'WHITE',
-            stripes: Number(data.stripes || 0),
-            beltSystem: data.beltSystem || 'ADULT',
-            phone: data.phone || '',
-            accountStatus: data.accountStatus || 'ACTIVE',
-            beltDate: data.beltDate || (data.createdAt?.toDate ? data.createdAt.toDate().toISOString().slice(0, 10) : '') || '',
-          };
-        });
 
-        // Complementar con kiosk_members si hay alumnos solo en kiosk
-        kSnap.forEach((d) => {
-          if (!map[d.id]) {
+        if (uRes.status === 'fulfilled') {
+          uRes.value.forEach((d) => {
             const data = d.data();
             map[d.id] = {
               uid: d.id,
@@ -171,12 +156,32 @@ export const AttendanceAdminPage: React.FC = () => {
               belt: data.belt || 'WHITE',
               stripes: Number(data.stripes || 0),
               beltSystem: data.beltSystem || 'ADULT',
-              phone: '',
+              phone: data.phone || '',
               accountStatus: data.accountStatus || 'ACTIVE',
-              beltDate: data.beltDate || '',
+              beltDate: data.beltDate || (data.createdAt?.toDate ? data.createdAt.toDate().toISOString().slice(0, 10) : '') || '',
             };
-          }
-        });
+          });
+        }
+
+        // Complementar con kiosk_members si hay alumnos solo en kiosk
+        if (kRes.status === 'fulfilled') {
+          kRes.value.forEach((d) => {
+            if (!map[d.id]) {
+              const data = d.data();
+              map[d.id] = {
+                uid: d.id,
+                alias: data.alias || 'Alumno',
+                fullName: data.fullName || data.alias || 'Alumno',
+                belt: data.belt || 'WHITE',
+                stripes: Number(data.stripes || 0),
+                beltSystem: data.beltSystem || 'ADULT',
+                phone: '',
+                accountStatus: data.accountStatus || 'ACTIVE',
+                beltDate: data.beltDate || '',
+              };
+            }
+          });
+        }
 
         if (Object.keys(map).length === 0) {
           SAMPLE_ATHLETES_20.forEach((ath) => {

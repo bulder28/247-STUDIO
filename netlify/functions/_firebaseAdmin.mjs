@@ -51,11 +51,6 @@ export function getAdminApp() {
 
       for (const dir of searchDirs) {
         if (!existsSync(dir)) continue;
-        const directKey = resolve(dir, 'studio-ff8d1-firebase-adminsdk-fbsvc-b730cf5be9.json');
-        if (existsSync(directKey)) {
-          credential = cert(JSON.parse(readFileSync(directKey, 'utf8')));
-          break;
-        }
 
         const files = readdirSync(dir);
         const keyFile = files.find(

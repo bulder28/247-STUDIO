@@ -17,7 +17,7 @@ interface Entry {
 }
 
 const entries = new Map<string, Entry>();
-const FIRST_SNAPSHOT_TIMEOUT_MS = 10000;
+const FIRST_SNAPSHOT_TIMEOUT_MS = 6000;
 
 /** Devuelve el último resultado de la consulta; si no existe, abre la escucha y espera datos del servidor. */
 export function getLiveDocs(key: string, q: Query<DocumentData>): Promise<Snap> {
@@ -48,8 +48,9 @@ export function getLiveDocs(key: string, q: Query<DocumentData>): Promise<Snap> 
       q,
       (snap) => {
         if (!settled) {
-          // Un primer resultado "de caché" puede venir vacío: se espera al del servidor
-          if (snap.metadata.fromCache) return;
+          // Solo ignorar si la caché viene completamente vacía
+          const isEmpty = snap.empty === true || (Array.isArray(snap.docs) && snap.docs.length === 0);
+          if (snap.metadata.fromCache && isEmpty) return;
           settled = true;
           if (timer) clearTimeout(timer);
           entry.snap = snap;

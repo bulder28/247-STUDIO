@@ -89,12 +89,14 @@ export const ProgramsPage: React.FC = () => {
 
     try {
       const freezeId = `frz_${user.uid}_${Date.now()}`;
+      const todayStr = new Date().toISOString().slice(0, 10);
       await setDoc(doc(db, 'freezeRequests', freezeId), {
         uid: user.uid,
-        userName: userData?.alias || 'Alumno',
         reason: freezeReason,
-        notes: freezeNotes,
-        status: 'PENDING',
+        notes: freezeNotes.trim(),
+        startDate: todayStr,
+        openEnded: true,
+        status: 'PENDING_ADMIN',
         createdAt: serverTimestamp(),
       });
 
@@ -105,7 +107,7 @@ export const ProgramsPage: React.FC = () => {
         setFreezeNotes('');
       }, 2000);
     } catch (err) {
-      console.error(err);
+      console.error('Error al registrar solicitud de suspensión:', err);
     }
   };
 

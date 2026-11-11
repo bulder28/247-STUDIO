@@ -587,7 +587,6 @@ export const SchedulePage: React.FC = () => {
           date: targetDateStr,
           status,
           sessionType: 'PARTICIPANT',
-          attendanceWeight: 1,
           checkInSource: 'APP',
           createdAt: serverTimestamp(),
         }),
@@ -602,7 +601,11 @@ export const SchedulePage: React.FC = () => {
           },
           { merge: true }
         ),
-      ]).catch((err) => {
+      ])
+        .then(() => {
+          refetchScheduleData();
+        })
+        .catch((err) => {
         console.error('Error persistiendo reserva en segundo plano:', err);
         // Reversión optimista
         setMyBookings((prev) => prev.filter((b) => b.id !== bookingId));
@@ -694,7 +697,11 @@ export const SchedulePage: React.FC = () => {
               },
               { merge: true }
             ),
-      ]).catch((err) => {
+      ])
+        .then(() => {
+          refetchScheduleData();
+        })
+        .catch((err) => {
         console.error('Error persistiendo cancelación en segundo plano:', err);
         // Reversión optimista
         setMyBookings((prev) => [...prev, prevBooking]);

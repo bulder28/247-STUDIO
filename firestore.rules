@@ -247,7 +247,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() &&
         request.resource.data.keys().hasAll(['uid', 'scheduleId', 'date', 'status', 'checkInSource', 'createdAt']) &&
         request.resource.data.keys().hasOnly([
-          'uid', 'scheduleId', 'date', 'status', 'checkInSource', 'sessionType', 'createdAt', 'updatedAt'
+          'uid', 'scheduleId', 'date', 'status', 'checkInSource', 'sessionType', 'attendanceWeight', 'createdAt', 'updatedAt'
         ]) &&
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.scheduleId is string &&
@@ -407,11 +407,11 @@ service cloud.firestore {
         ]) &&
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.reason in ['INJURY', 'OTHER'] &&
-        request.resource.data.status == 'PENDING_ADMIN' &&
+        request.resource.data.status in ['PENDING', 'PENDING_ADMIN'] &&
         request.resource.data.createdAt == request.time;
 
       allow update: if isAdmin() &&
-        resource.data.status == 'PENDING_ADMIN' &&
+        resource.data.status in ['PENDING', 'PENDING_ADMIN'] &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'resolvedAt', 'resolvedBy', 'adminNotes'
         ]) &&
@@ -425,9 +425,8 @@ service cloud.firestore {
     // =========================================================================
     match /class_capacity/{capacityId} {
       allow read: if isAuthenticated();
-      // Nota: Si el alumno reserva desde la app sin Cloud Function intermedia, necesitaría permiso aquí.
-      // Si se gestiona vía Backend/Admin SDK o solo lo consolida Staff/Kiosco, esta regla es óptima.
-      allow create, update: if (isAdmin() || isCoach() || isKiosk()) &&
+      // Permite reserva/cancelación atómica desde app móvil o kiosco
+      allow create, update: if isAuthenticated() &&
         request.resource.data.scheduleId is string &&
         isValidDateString(request.resource.data.date) &&
         request.resource.data.bookedCount is int &&

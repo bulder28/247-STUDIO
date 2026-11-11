@@ -58,7 +58,7 @@ export default defineConfig({
             name: 'Reservar Clase',
             short_name: 'Reservas',
             description: 'Acceso directo a la parrilla de horarios y reservas',
-            url: '/app/home',
+            url: '/app/horario',
             icons: [{ src: '/logo.webp', sizes: '192x192', type: 'image/webp' }],
           },
         ],

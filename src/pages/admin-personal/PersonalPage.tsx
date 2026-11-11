@@ -183,7 +183,7 @@ export const PersonalPage: React.FC = () => {
 
   const now = new Date();
 
-  // Carga optimizada paralela con límite temporal de 60 días para reservas
+  // Carga optimizada y resiliente con límite temporal de 60 días para reservas
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -191,37 +191,46 @@ export const PersonalPage: React.FC = () => {
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       const minDateStr = sixtyDaysAgo.toISOString().slice(0, 10);
 
-      const [usersSnap, leadsSnap, bookingsSnap, paymentsSnap] = await Promise.all([
-        getLiveDocs('users', collection(db, 'users')),
-        getLiveDocs('leads', collection(db, 'leads')),
+      const [usersRes, leadsRes, bookingsRes, paymentsRes] = await Promise.allSettled([
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'leads')),
         getDocs(query(collection(db, 'bookings'), where('date', '>=', minDateStr))),
-        getLiveDocs('payments', collection(db, 'payments')),
+        getDocs(collection(db, 'payments')),
       ]);
 
       const uList: UserDomainModel[] = [];
-      usersSnap.forEach((d) => uList.push({ uid: d.id, ...(d.data() as Omit<UserDomainModel, 'uid'>) }));
+      if (usersRes.status === 'fulfilled') {
+        usersRes.value.forEach((d) => uList.push({ uid: d.id, ...(d.data() as Omit<UserDomainModel, 'uid'>) }));
+      }
       const effectiveUsers = uList.length > 0 ? uList : SAMPLE_ATHLETES_20;
       setUsers(effectiveUsers);
 
       const lList: LeadModel[] = [];
-      leadsSnap.forEach((d) => lList.push({ id: d.id, ...(d.data() as Omit<LeadModel, 'id'>) }));
+      if (leadsRes.status === 'fulfilled') {
+        leadsRes.value.forEach((d) => lList.push({ id: d.id, ...(d.data() as Omit<LeadModel, 'id'>) }));
+      }
       setLeads(lList);
 
       const bList: BookingDomainModel[] = [];
-      bookingsSnap.forEach((d) => bList.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) }));
+      if (bookingsRes.status === 'fulfilled') {
+        bookingsRes.value.forEach((d) => bList.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) }));
+      }
       setBookings(bList);
 
       const pList: PaymentDomainModel[] = [];
-      paymentsSnap.forEach((d) => pList.push({ id: d.id, ...(d.data() as Omit<PaymentDomainModel, 'id'>) }));
+      if (paymentsRes.status === 'fulfilled') {
+        paymentsRes.value.forEach((d) => pList.push({ id: d.id, ...(d.data() as Omit<PaymentDomainModel, 'id'>) }));
+      }
       setPayments(pList);
 
       // Si había un alumno seleccionado, refrescar su referencia
       if (selectedUser) {
-        const refreshed = uList.find((u) => u.uid === selectedUser.uid);
+        const refreshed = effectiveUsers.find((u) => u.uid === selectedUser.uid);
         if (refreshed) syncFormsWithUser(refreshed);
       }
     } catch (err) {
       console.error('Error cargando gestión de alumnos:', err);
+      setUsers((prev) => (prev.length > 0 ? prev : SAMPLE_ATHLETES_20));
     } finally {
       setLoading(false);
     }
