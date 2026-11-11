@@ -23,6 +23,7 @@ Rediseñar (skill `impeccable`): estructura y navegación del admin, Caja, Alta 
 ## Decisiones
 - El código eliminado se puede recuperar desde el historial de git.
 - Las reglas de Firestore de las colecciones eliminadas se mantienen por ahora (quitarlas exige volver a desplegar las reglas); queda como tarea pendiente.
+- 2026-11-12: el usuario aportó `docs/Info Desarrollo APP247.pptx` (documento maestro original, 6 de noviembre, previo a los audios). Especifica con detalle Media, FAQs y una Ficha/Programa del alumno (técnica, fuerza, guardia, etc.) que R1 ya había eliminado por no aparecer en los audios del 11 de noviembre. El usuario confirmó explícitamente **mantener la eliminación**: los audios son más recientes y el cliente dijo sobre la ficha/progreso que "es una pijada, no vamos a entrar de momento". El documento queda solo como referencia histórica; no se restaura nada. Sí valida varias decisiones ya tomadas (indicador visual Pago OK/NOK = badges "Al día"; seguimiento mensual por tarifa y por alumno; horarios; aviso de impago a 7 días; firma de documentos) y confirma que el Foro se mantiene.
 
 ## Configuración
 - TDD: desactivado (sin configuración). Ejecutor de tests: Vitest. Comprobaciones por tarea: `npm test` y `npm run build` (debe compilar limpio; AGENTS.md lo exige antes de `main`).
