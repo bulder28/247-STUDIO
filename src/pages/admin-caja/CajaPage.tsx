@@ -24,7 +24,13 @@ import {
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { getLiveDocs } from '@/shared/api/liveReads';
-import { buildChargePayments, MAX_PREPAYMENT_MONTHS } from '@/shared/domain/billing';
+import {
+  buildChargePayments,
+  buildUnpaidRows,
+  MAX_PREPAYMENT_MONTHS,
+  NO_TARIFF,
+  summarizePeriodPayments,
+} from '@/shared/domain/billing';
 import { calculateVatBreakdown } from '@/shared/domain/money';
 import { getMadridYearMonth } from '@/shared/domain/payment-status';
 import { downloadReceiptPdf } from '@/shared/utils/receiptGenerator';
@@ -86,7 +92,8 @@ export const CajaPage: React.FC = () => {
   const [posMonths, setPosMonths] = useState<number>(1);
   const [posMethod, setPosMethod] = useState<PaymentMethod>('CASH');
   const [posAutoDownloadReceipt, setPosAutoDownloadReceipt] = useState<boolean>(true);
-  const [mobileSection, setMobileSection] = useState<'resumen' | 'cobros' | 'pausas'>('resumen');
+  const [mobileSection, setMobileSection] = useState<'resumen' | 'cobros' | 'sinpagar' | 'pausas'>('resumen');
+  const [unpaidTariffFilter, setUnpaidTariffFilter] = useState<string>('ALL');
 
   const fetchCajaData = async () => {
     try {
@@ -280,6 +287,12 @@ export const CajaPage: React.FC = () => {
     setShowPosModal(true);
   };
 
+  const handleChargeStudent = (uid: string) => {
+    handleOpenPosModal();
+    setPosStudentUid(uid);
+    setPosPeriod(filterPeriod);
+  };
+
   const handleSelectPosTariff = (tariffId: string) => {
     setPosTariffId(tariffId);
     const t = activeTariffs.find((x) => x.id === tariffId);
@@ -453,6 +466,21 @@ export const CajaPage: React.FC = () => {
     .filter((p) => p.method === 'BIZUM')
     .reduce((acc, p) => acc + (p.amountCents || 0), 0);
 
+  // Unpaid students for the selected period
+  const unpaidRows = buildUnpaidRows(
+    users,
+    payments,
+    filterPeriod,
+    unpaidTariffFilter === 'ALL' ? undefined : unpaidTariffFilter
+  );
+  const allUnpaidCount = buildUnpaidRows(users, payments, filterPeriod).length;
+  const periodSummary = summarizePeriodPayments(users, payments, filterPeriod);
+  const tariffName = (key: string) =>
+    key === NO_TARIFF ? 'Sin tarifa' : tariffs.find((t) => t.id === key)?.name ?? 'Tarifa eliminada';
+  const paidTariffKeys = Object.keys(periodSummary.paidByTariff).sort(
+    (a, b) => periodSummary.paidByTariff[b] - periodSummary.paidByTariff[a]
+  );
+
   const pendingFreezeRequests = freezeRequests.filter((f) => f.status === 'PENDING_ADMIN');
 
   return (
@@ -514,7 +542,7 @@ export const CajaPage: React.FC = () => {
       )}
 
       {/* Selector de sub-pestañas móvil sin scroll vertical */}
-      <div className="md:hidden grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
+      <div className="md:hidden grid grid-cols-4 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
         <button
           type="button"
           onClick={() => setMobileSection('resumen')}
@@ -532,6 +560,15 @@ export const CajaPage: React.FC = () => {
           }`}
         >
           💳 Cobros ({periodPayments.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileSection('sinpagar')}
+          className={`py-2 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+            mobileSection === 'sinpagar' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600'
+          }`}
+        >
+          Sin pagar ({allUnpaidCount})
         </button>
         <button
           type="button"
@@ -672,6 +709,131 @@ export const CajaPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Alumnos sin pagar del periodo */}
+      <div
+        className={`${
+          mobileSection === 'sinpagar' ? 'block' : 'hidden md:block'
+        } bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm`}
+      >
+        <div className="p-5 border-b border-slate-200/80 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+                Alumnos sin pagar {filterPeriod}
+              </h2>
+              <p className="text-sm text-slate-700 mt-0.5">
+                <strong className="tabular-nums">
+                  {periodSummary.paid} de {periodSummary.total}
+                </strong>{' '}
+                alumnos han pagado {filterPeriod}.
+              </p>
+            </div>
+            <div>
+              <label htmlFor="unpaid-tariff" className="sr-only">
+                Filtrar por tarifa
+              </label>
+              <select
+                id="unpaid-tariff"
+                value={unpaidTariffFilter}
+                onChange={(e) => setUnpaidTariffFilter(e.target.value)}
+                className="min-h-11 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">Todas las tarifas</option>
+                {activeTariffs.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+                <option value={NO_TARIFF}>Sin tarifa</option>
+              </select>
+            </div>
+          </div>
+
+          {paidTariffKeys.length > 0 && (
+            <ul className="flex flex-wrap gap-2" aria-label={`Alumnos que han pagado ${filterPeriod}, por tarifa`}>
+              {paidTariffKeys.map((key) => (
+                <li
+                  key={key}
+                  className="px-2.5 py-1 rounded-full bg-slate-100 text-xs font-semibold text-slate-800"
+                >
+                  {tariffName(key)}: <span className="tabular-nums">{periodSummary.paidByTariff[key]}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {unpaidRows.length === 0 ? (
+          <div className="py-12 px-5 text-center">
+            <p className="text-sm font-bold text-slate-900">
+              {allUnpaidCount === 0
+                ? periodSummary.total === 0
+                  ? 'Todavía no hay alumnos activos'
+                  : `Todos los alumnos activos han pagado ${filterPeriod}`
+                : 'Ningún alumno sin pagar con esta tarifa'}
+            </p>
+            <p className="text-sm text-slate-600 mt-1 max-w-md mx-auto">
+              {allUnpaidCount === 0
+                ? periodSummary.total === 0
+                  ? 'Da de alta a un alumno desde Alta de alumno para que aparezca aquí.'
+                  : 'Cambia de mes arriba para revisar otros periodos.'
+                : 'Elige otra tarifa en el filtro para ver al resto.'}
+            </p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {unpaidRows.map(({ user: stu, lastPaidPeriod, tariffKey }) => {
+              const fullName = [stu.firstName, stu.lastName].filter(Boolean).join(' ') || stu.alias;
+              const initials = fullName
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((w) => w.charAt(0).toUpperCase())
+                .join('');
+              return (
+                <li key={stu.uid} className="flex items-center gap-3 px-5 py-3">
+                  {stu.photoUrl ? (
+                    <img src={stu.photoUrl} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="w-10 h-10 rounded-full bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center shrink-0"
+                    >
+                      {initials}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-extrabold text-sm text-slate-900 truncate">{fullName}</span>
+                      {stu.isFoundingMember && (
+                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold uppercase">
+                          Socio fundador
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-700">{stu.phone || 'Sin teléfono'}</p>
+                    <p className="text-xs text-slate-600">
+                      {lastPaidPeriod
+                        ? `Último pago: ${lastPaidPeriod} (${tariffName(tariffKey)})`
+                        : 'Sin pagos registrados'}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="studio"
+                    size="sm"
+                    className="min-h-11 shrink-0"
+                    onClick={() => handleChargeStudent(stu.uid)}
+                    aria-label={`Cobrar a ${fullName}`}
+                  >
+                    Cobrar
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
       {/* Tabla de Cobros y Liquidaciones */}
       <div

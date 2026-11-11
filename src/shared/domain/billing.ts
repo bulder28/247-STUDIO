@@ -174,3 +174,77 @@ export function buildChargePayments(input: BuildChargeInput): BuiltCharge {
     discountPerMonthCents: discountCents,
   };
 }
+
+/** Key used to group students whose latest payment carries no tariff. */
+export const NO_TARIFF = '__none__';
+
+function isActiveStudent(u: UserDomainModel): boolean {
+  return u.accountStatus === 'ACTIVE' && (u.permissions ?? []).some((perm) => perm.toLowerCase() === 'student');
+}
+
+/** Latest APPROVED payment (highest period) per student uid. */
+export function latestApprovedPaymentByUid(payments: PaymentDomainModel[]): Map<string, PaymentDomainModel> {
+  const latest = new Map<string, PaymentDomainModel>();
+  for (const p of payments) {
+    if (p.status !== 'APPROVED') continue;
+    const current = latest.get(p.uid);
+    if (!current || p.period > current.period) latest.set(p.uid, p);
+  }
+  return latest;
+}
+
+export interface UnpaidStudentRow {
+  user: UserDomainModel;
+  /** Period of the student's latest APPROVED payment, if any. */
+  lastPaidPeriod?: string;
+  /** Tariff of that payment, or NO_TARIFF. */
+  tariffKey: string;
+}
+
+/**
+ * Active students without an APPROVED payment for `period`, with their last
+ * paid period and tariff (from their latest APPROVED payment). Optionally
+ * filtered by tariff key (a tariff id or NO_TARIFF).
+ */
+export function buildUnpaidRows(
+  users: UserDomainModel[],
+  payments: PaymentDomainModel[],
+  period: string,
+  tariffFilter?: string
+): UnpaidStudentRow[] {
+  const latest = latestApprovedPaymentByUid(payments);
+  return findUnpaidStudents(users, payments, period)
+    .map((user): UnpaidStudentRow => {
+      const last = latest.get(user.uid);
+      return { user, lastPaidPeriod: last?.period, tariffKey: last?.tariffId || NO_TARIFF };
+    })
+    .filter((row) => !tariffFilter || row.tariffKey === tariffFilter);
+}
+
+export interface PeriodPaymentSummary {
+  /** Active students who have paid `period`. */
+  paid: number;
+  /** Active students in total. */
+  total: number;
+  /** Students who paid `period`, grouped by the tariff on that payment (tariff id or NO_TARIFF). */
+  paidByTariff: Record<string, number>;
+}
+
+export function summarizePeriodPayments(
+  users: UserDomainModel[],
+  payments: PaymentDomainModel[],
+  period: string
+): PeriodPaymentSummary {
+  const activeUids = new Set(users.filter(isActiveStudent).map((u) => u.uid));
+  const tariffByUid = new Map<string, string>();
+  for (const p of payments) {
+    if (p.period !== period || p.status !== 'APPROVED' || !activeUids.has(p.uid)) continue;
+    const existing = tariffByUid.get(p.uid);
+    if (existing === undefined || existing === NO_TARIFF) {
+      tariffByUid.set(p.uid, p.tariffId || NO_TARIFF);
+    }
+  }
+  const paidByTariff: Record<string, number> = {};
+  for (const key of tariffByUid.values()) paidByTariff[key] = (paidByTariff[key] ?? 0) + 1;
+  return { paid: tariffByUid.size, total: activeUids.size, paidByTariff };
+}

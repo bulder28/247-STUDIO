@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   applyFoundingDiscount,
   buildChargePayments,
+  buildUnpaidRows,
+  latestApprovedPaymentByUid,
+  NO_TARIFF,
+  summarizePeriodPayments,
   buildPrepaymentPeriods,
   findUnpaidStudents,
 } from '../../src/shared/domain/billing';
@@ -142,5 +146,57 @@ describe('buildChargePayments', () => {
     expect(() => buildChargePayments({ ...base, months: 13 })).toThrow();
     expect(() => buildChargePayments({ ...base, billingType: 'DROP_IN', months: 2 })).toThrow();
     expect(() => buildChargePayments({ ...base, baseAmountCents: 12.5 })).toThrow();
+  });
+});
+
+describe('unpaid view helpers', () => {
+  const p = (uid: string, period: string, tariffId?: string, status: PaymentDomainModel['status'] = 'APPROVED') =>
+    ({ id: `${uid}-${period}`, uid, period, status, tariffId }) as PaymentDomainModel;
+
+  it('findUnpaidStudents excludes frozen and pending accounts', () => {
+    const users = [user('a'), user('b', { accountStatus: 'FROZEN' }), user('c', { accountStatus: 'PENDING' })];
+    expect(findUnpaidStudents(users, [], '2026-11').map((u) => u.uid)).toEqual(['a']);
+  });
+
+  it('latestApprovedPaymentByUid picks the highest approved period', () => {
+    const m = latestApprovedPaymentByUid([
+      p('a', '2026-09', 't1'),
+      p('a', '2026-10', 't2'),
+      p('a', '2026-11', 't3', 'REJECTED'),
+    ]);
+    expect(m.get('a')?.tariffId).toBe('t2');
+  });
+
+  it('buildUnpaidRows reports last period and tariff, and filters by tariff', () => {
+    const users = [user('a'), user('b'), user('c')];
+    const pays = [p('a', '2026-10', 't1'), p('b', '2026-11', 't1'), p('c', '2026-10')];
+    const rows = buildUnpaidRows(users, pays, '2026-11');
+    expect(rows.map((r) => [r.user.uid, r.lastPaidPeriod, r.tariffKey])).toEqual([
+      ['a', '2026-10', 't1'],
+      ['c', '2026-10', NO_TARIFF],
+    ]);
+    expect(buildUnpaidRows(users, pays, '2026-11', 't1').map((r) => r.user.uid)).toEqual(['a']);
+    expect(buildUnpaidRows(users, pays, '2026-11', NO_TARIFF).map((r) => r.user.uid)).toEqual(['c']);
+  });
+
+  it('students with no payment at all fall under NO_TARIFF with no last period', () => {
+    const rows = buildUnpaidRows([user('a')], [], '2026-11');
+    expect(rows[0]).toMatchObject({ lastPaidPeriod: undefined, tariffKey: NO_TARIFF });
+  });
+
+  it('summarizePeriodPayments counts paid students overall and per tariff', () => {
+    const users = [user('a'), user('b'), user('c'), user('d', { accountStatus: 'FROZEN' })];
+    const pays = [
+      p('a', '2026-11', 't1'),
+      p('a', '2026-11', 't1'),
+      p('b', '2026-11', 't2'),
+      p('c', '2026-10', 't1'),
+      p('d', '2026-11', 't1'),
+    ];
+    expect(summarizePeriodPayments(users, pays, '2026-11')).toEqual({
+      paid: 2,
+      total: 3,
+      paidByTariff: { t1: 1, t2: 1 },
+    });
   });
 });

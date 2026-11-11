@@ -33,7 +33,7 @@ Client's main need: "at the start of the month a new person arrives, I need to e
 - [x] T1 Domain: minor threshold < 14 (minor.ts, firestore.rules, tests); PaymentMethod = CASH | BIZUM; `firstName`, `lastName`, guardian fields and `isFoundingMember` on UserDomainModel; `tariffId` on PaymentDomainModel; pure helpers `applyFoundingDiscount`, `buildPrepaymentPeriods`, `findUnpaidStudents` with Vitest tests. Route: delegated (writer trigger, 2+ files).
 - [x] T2 Enrollment: first name + surnames, required mobile phone, birth date, optional email, photo capture/upload, guardian block for under-14, founding-member checkbox; no tariff at enrollment. Route: delegated.
 - [x] T3 Caja: remove demo-data fallback and CARD; tariff picked from Firestore tariffs in the charge modal and stored as `tariffId`; period chosen in the form; founding-member 10% discount; prepay N months; rules allowlists updated. Route: delegated.
-- [ ] T4 Caja "unpaid this month" view: active students without an approved payment for the selected period, filterable by tariff. Route: delegated.
+- [x] T4 Caja "unpaid this month" view: active students without an approved payment for the selected period, filterable by tariff. Route: delegated.
 
 ## Acceptance criteria
 - Enrollment saves full name, surnames, phone, birth date, optional email and photo; minors under 14 require guardian name and phone; no tariff is set at enrollment.
@@ -55,5 +55,8 @@ Client's main need: "at the start of the month a new person arrives, I need to e
 - T3 done (delegated writer, impeccable applied). `npm test`: 15 files passed (parent re-ran; writer reported 126 tests). `npm run build`: passed (writer). Not run: browser check, rules tests (emulator unavailable). Charges: tariff from Firestore, period in modal, founding 10% discount, prepay 1-12 months as one writeBatch (one doc per period), no demo fallback, PASS no longer writes pricingTier.
 - Follow-up: `handleApprovePayment` still estimates amounts from hardcoded tiers and does not write `sessionsRemaining`.
 
+- T3 commit: 28ebd4c.
+- T4 done (delegated writer, impeccable applied). Parent re-ran `npm test` (15 files passed; writer reported 131 tests) and `npm run build` (passed). Not run: browser check. "Alumnos sin pagar" section in Caja: per-period unpaid list, tariff filter (+ "Sin tarifa"), paid/total count, per-tariff paid chips, "Cobrar" preselects student and period.
+
 ## Next step
-T4.
+Manual browser check of /admin/alta-alumno and /admin/caja; run `npm run test:rules` with the Firestore emulator; deploy firestore.rules together with the app; then the out-of-scope items (unpaid reminders, temporary leave, consents) if the client confirms.
