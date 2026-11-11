@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   collection,
   doc,
@@ -6,8 +7,10 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import {
+  Banknote,
   Check,
   Clock,
   Download,
@@ -15,23 +18,25 @@ import {
   PauseCircle,
   PlusCircle,
   Receipt,
+  Smartphone,
   X,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { getLiveDocs } from '@/shared/api/liveReads';
+import { buildChargePayments, MAX_PREPAYMENT_MONTHS } from '@/shared/domain/billing';
 import { calculateVatBreakdown } from '@/shared/domain/money';
 import { getMadridYearMonth } from '@/shared/domain/payment-status';
 import { downloadReceiptPdf } from '@/shared/utils/receiptGenerator';
 import { exportPaymentsToGestoriaCsv } from '@/shared/utils/csvExporter';
 import {
+  BillingType,
   PaymentDomainModel,
   PaymentMethod,
   PaymentStatus,
+  TariffDomainModel,
   UserDomainModel,
 } from '@/shared/domain/types';
-import { SAMPLE_PAYMENTS_DEMO } from '@/shared/mock/samplePayments';
-import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
 import { Button } from '@/shared/ui/button';
 import {
   Dialog,
@@ -66,46 +71,65 @@ export const CajaPage: React.FC = () => {
   const [rejectReason, setRejectReason] = useState<string>('No recibido en cuenta bancaria / Bizum');
   const [phoneAlertStudent, setPhoneAlertStudent] = useState<string | null>(null);
 
-  // PushPress / Mindbody POS State: Cobro Directo en Mostrador / TPV
+  // Counter charge (POS) modal state
   const [showPosModal, setShowPosModal] = useState(false);
+  const [tariffs, setTariffs] = useState<TariffDomainModel[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [posError, setPosError] = useState<string | null>(null);
   const [posStudentUid, setPosStudentUid] = useState<string>('');
   const [posCustomAlias, setPosCustomAlias] = useState<string>('');
-  const [posConcept, setPosConcept] = useState<string>('Cuota BJJ Adultos Ilimitado (75 €)');
-  const [posAmountEur, setPosAmountEur] = useState<number>(75);
+  const [posTariffId, setPosTariffId] = useState<string>(''); // '' = manual concept
+  const [posManualConcept, setPosManualConcept] = useState<string>('');
+  const [posManualBillingType, setPosManualBillingType] = useState<BillingType>('MONTHLY');
+  const [posAmountEur, setPosAmountEur] = useState<string>('');
+  const [posPeriod, setPosPeriod] = useState<string>(getMadridYearMonth(new Date()));
+  const [posMonths, setPosMonths] = useState<number>(1);
   const [posMethod, setPosMethod] = useState<PaymentMethod>('CASH');
-  const [posBillingType, setPosBillingType] = useState<'MONTHLY' | 'PASS' | 'DROP_IN'>('MONTHLY');
   const [posAutoDownloadReceipt, setPosAutoDownloadReceipt] = useState<boolean>(true);
   const [mobileSection, setMobileSection] = useState<'resumen' | 'cobros' | 'pausas'>('resumen');
 
   const fetchCajaData = async () => {
     try {
-      const [payRes, uRes, frRes] = await Promise.allSettled([
+      const [payRes, uRes, frRes, tRes] = await Promise.allSettled([
         getDocs(collection(db, 'payments')),
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'freezeRequests')),
+        getDocs(collection(db, 'tariffs')),
       ]);
+
+      const failed = [payRes, uRes, tRes].some((r) => r.status === 'rejected');
+      setLoadError(
+        failed
+          ? 'No se pudieron cargar todos los datos de caja. Revisa la conexión y vuelve a cargar la página.'
+          : null
+      );
 
       const pList: PaymentDomainModel[] = [];
       if (payRes.status === 'fulfilled') {
         payRes.value.forEach((d) => pList.push({ id: d.id, ...(d.data() as Omit<PaymentDomainModel, 'id'>) }));
       }
-      setPayments(pList.length > 0 ? pList : SAMPLE_PAYMENTS_DEMO);
+      setPayments(pList);
 
       const uList: UserDomainModel[] = [];
       if (uRes.status === 'fulfilled') {
         uRes.value.forEach((d) => uList.push({ uid: d.id, ...(d.data() as Omit<UserDomainModel, 'uid'>) }));
       }
-      setUsers(uList.length > 0 ? uList : SAMPLE_ATHLETES_20);
+      setUsers(uList);
 
       const frList: FreezeRequest[] = [];
       if (frRes.status === 'fulfilled') {
         frRes.value.forEach((d) => frList.push({ id: d.id, ...(d.data() as Omit<FreezeRequest, 'id'>) }));
       }
       setFreezeRequests(frList);
+
+      const tList: TariffDomainModel[] = [];
+      if (tRes.status === 'fulfilled') {
+        tRes.value.forEach((d) => tList.push({ id: d.id, ...(d.data() as Omit<TariffDomainModel, 'id'>) }));
+      }
+      setTariffs(tList);
     } catch (err) {
       console.error('Error fetching caja data:', err);
-      setPayments((prev) => (prev.length > 0 ? prev : SAMPLE_PAYMENTS_DEMO));
-      setUsers((prev) => (prev.length > 0 ? prev : SAMPLE_ATHLETES_20));
+      setLoadError('No se pudieron cargar los datos de caja. Revisa la conexión y vuelve a cargar la página.');
     }
   };
 
@@ -202,78 +226,138 @@ export const CajaPage: React.FC = () => {
     }
   };
 
-  const handleCreatePosCharge = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    setActionLoading('pos_charge');
+  const activeTariffs = useMemo(
+    () => tariffs.filter((t) => t.active).sort((a, b) => a.name.localeCompare(b.name, 'es')),
+    [tariffs]
+  );
+  const studentOptions = useMemo(
+    () =>
+      users
+        .filter((u) => (u.permissions ?? []).some((perm) => perm.toLowerCase() === 'student'))
+        .sort((a, b) => (a.alias || '').localeCompare(b.alias || '', 'es')),
+    [users]
+  );
+  const posTariff = activeTariffs.find((t) => t.id === posTariffId) ?? null;
+  const posStudent = users.find((u) => u.uid === posStudentUid);
+  const posBillingType: BillingType = posTariff ? posTariff.billingType : posManualBillingType;
+  const posConcept = posTariff ? posTariff.name : posManualConcept.trim();
+  const posStaffLabel = user?.displayName || user?.email || 'Mostrador';
 
+  const posCharge = useMemo(() => {
+    const baseAmountCents = Math.round(parseFloat(posAmountEur) * 100);
+    if (!posConcept || !Number.isFinite(baseAmountCents) || baseAmountCents <= 0) return null;
     try {
-      const amountCents = Math.round(Number(posAmountEur) * 100);
-      const vat = calculateVatBreakdown(amountCents, 0.21);
-      const paymentId = `pos_${Date.now()}`;
-      const chosenStudent = users.find((u) => u.uid === posStudentUid);
-      const effectiveAlias = chosenStudent?.alias || posCustomAlias.trim() || 'Atleta Walk-in';
-      const effectiveUid = posStudentUid || `walkin_${Date.now()}`;
-
-      const newPaymentData: Record<string, any> = {
-        uid: effectiveUid,
-        period: filterPeriod,
+      return buildChargePayments({
+        uid: posStudentUid || 'walkin',
+        period: posPeriod,
+        months: posBillingType === 'MONTHLY' ? posMonths : 1,
         method: posMethod,
         billingType: posBillingType,
-        amountCents: vat.totalCents,
-        baseCents: vat.baseCents,
-        vatCents: vat.vatCents,
-        status: 'APPROVED',
         concept: posConcept,
-        createdAt: serverTimestamp(),
-        paidAt: serverTimestamp(),
+        tariffId: posTariff?.id,
+        baseAmountCents,
+        isFoundingMember: !!posStudent?.isFoundingMember,
+        validatedBy: user?.uid ?? '',
+        staffLabel: posStaffLabel,
+        stamp: null,
+      });
+    } catch {
+      return null;
+    }
+  }, [posAmountEur, posConcept, posStudentUid, posPeriod, posMonths, posMethod, posBillingType, posTariff, posStudent, user, posStaffLabel]);
+
+  const handleOpenPosModal = () => {
+    setPosError(null);
+    setPosStudentUid('');
+    setPosCustomAlias('');
+    setPosTariffId('');
+    setPosManualConcept('');
+    setPosManualBillingType('MONTHLY');
+    setPosAmountEur('');
+    setPosPeriod(getMadridYearMonth(new Date()));
+    setPosMonths(1);
+    setPosMethod('CASH');
+    setShowPosModal(true);
+  };
+
+  const handleSelectPosTariff = (tariffId: string) => {
+    setPosTariffId(tariffId);
+    const t = activeTariffs.find((x) => x.id === tariffId);
+    if (t) {
+      setPosAmountEur((t.priceCents / 100).toFixed(2));
+      if (t.billingType !== 'MONTHLY') setPosMonths(1);
+    }
+  };
+
+  const handleCreatePosCharge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !posCharge) return;
+    setActionLoading('pos_charge');
+    setPosError(null);
+
+    try {
+      const effectiveAlias = posStudent?.alias || posCustomAlias.trim() || 'Cliente mostrador';
+      const effectiveUid = posStudentUid || `walkin_${Date.now()}`;
+      const built = buildChargePayments({
+        uid: effectiveUid,
+        period: posPeriod,
+        months: posBillingType === 'MONTHLY' ? posMonths : 1,
+        method: posMethod,
+        billingType: posBillingType,
+        concept: posConcept,
+        tariffId: posTariff?.id,
+        baseAmountCents: Math.round(parseFloat(posAmountEur) * 100),
+        isFoundingMember: !!posStudent?.isFoundingMember,
         validatedBy: user.uid,
-        validatedAt: serverTimestamp(),
-        notes: `Cobro TPV Mostrador por Mario/David`,
-      };
+        staffLabel: posStaffLabel,
+        stamp: serverTimestamp(),
+      });
 
-      if (posBillingType === 'PASS') {
-        newPaymentData.sessionsIncluded = 10;
-        newPaymentData.sessionsRemaining = 10;
-      }
+      // All-or-nothing: every period is written in one atomic batch.
+      const batch = writeBatch(db);
+      const created = built.payments.map((data) => {
+        const ref = doc(collection(db, 'payments'));
+        batch.set(ref, data);
+        return { id: ref.id, data };
+      });
+      await batch.commit();
 
-      await setDoc(doc(db, 'payments', paymentId), newPaymentData);
-
-      // Si es alumno registrado y adquiere Bono PASS, sincronizar saldo en su ficha de usuario
+      // Bono balance is tracked on the payment; mirror it on the student's record only.
       if (posStudentUid && posBillingType === 'PASS') {
         try {
           await updateDoc(doc(db, 'users', posStudentUid), {
-            sessionsRemaining: 10,
-            pricingTier: 'PASS',
+            sessionsRemaining: built.payments[0].sessionsRemaining,
             updatedAt: serverTimestamp(),
           });
-        } catch {
-          // ignore
+        } catch (err) {
+          console.error('Error syncing bono balance:', err);
         }
       }
 
       if (posAutoDownloadReceipt) {
+        const lastPeriod = built.payments[built.payments.length - 1].period;
+        const periodLabel = built.payments.length > 1 ? `${posPeriod} a ${lastPeriod}` : posPeriod;
+        const now = new Date();
         await downloadReceiptPdf({
-          receiptNumber: `REC-POS-${paymentId.slice(-6).toUpperCase()}`,
-          dateStr: new Date().toLocaleDateString('es-ES'),
-          timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          receiptNumber: `REC-POS-${created[0].id.slice(-6).toUpperCase()}`,
+          dateStr: now.toLocaleDateString('es-ES'),
+          timeStr: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           studentAlias: effectiveAlias,
-          concept: `${posConcept} (${filterPeriod})`,
-          amountEur: posAmountEur,
+          concept: `${posConcept} (${periodLabel})`,
+          amountEur: built.totalCents / 100,
           paymentMethod: posMethod,
-          staffName: 'Mario / David (247Studio Staff)',
+          staffName: posStaffLabel,
         });
       }
 
-      setShowPosModal(false);
-      setPosStudentUid('');
-      setPosCustomAlias('');
       setPayments((prev) => [
-        { id: paymentId, ...newPaymentData } as PaymentDomainModel,
+        ...created.map(({ id, data }) => ({ id, ...data }) as unknown as PaymentDomainModel),
         ...prev,
       ]);
+      setShowPosModal(false);
     } catch (err) {
       console.error('Error creating POS charge:', err);
+      setPosError('No se pudo registrar el cobro. No se ha guardado ningún pago; revisa la conexión e inténtalo de nuevo.');
     } finally {
       setActionLoading(null);
     }
@@ -414,14 +498,20 @@ export const CajaPage: React.FC = () => {
             type="button"
             variant="studio"
             size="sm"
-            onClick={() => setShowPosModal(true)}
+            onClick={handleOpenPosModal}
             className="shadow-card"
           >
             <PlusCircle className="w-4 h-4 mr-1.5" />
-            <span>+ Cobro TPV</span>
+            <span>Registrar cobro</span>
           </Button>
         </div>
       </div>
+
+      {loadError && (
+        <p role="alert" className="text-sm font-semibold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3">
+          {loadError}
+        </p>
+      )}
 
       {/* Selector de sub-pestañas móvil sin scroll vertical */}
       <div className="md:hidden grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
@@ -739,7 +829,7 @@ export const CajaPage: React.FC = () => {
                                   concept: pay.concept || `Cuota Mensual BJJ (${pay.period})`,
                                   amountEur: (pay.amountCents || 6500) / 100,
                                   paymentMethod: (pay.method as any) || 'CASH',
-                                  staffName: 'Mario / David',
+                                  staffName: posStaffLabel,
                                 });
                               }}
                               className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition flex items-center gap-1 border border-slate-200 cursor-pointer"
@@ -756,35 +846,48 @@ export const CajaPage: React.FC = () => {
                 })}
             </tbody>
           </table>
+          {periodPayments.length === 0 && (
+            <div className="py-12 px-5 text-center">
+              <p className="text-sm font-bold text-slate-900">No hay cobros en {filterPeriod}</p>
+              <p className="text-sm text-slate-600 mt-1 max-w-md mx-auto">
+                Cuando registres un cobro o un alumno avise de su pago, aparecerá aquí. Cambia de mes arriba para ver otros periodos.
+              </p>
+              <Button type="button" variant="studio" size="sm" onClick={handleOpenPosModal} className="mt-4">
+                <PlusCircle className="w-4 h-4 mr-1.5" />
+                <span>Registrar cobro</span>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* PushPress / Mindbody TPV POS: Modal Cobro Directo en Mostrador (Radix UI Dialog) */}
+      {/* Counter charge modal (Radix Dialog) */}
       <Dialog open={showPosModal} onOpenChange={setShowPosModal}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-2">
               <Receipt className="w-5 h-5 text-brand-accent" />
-              <DialogTitle>Cobro Directo Mostrador / TPV</DialogTitle>
+              <DialogTitle>Registrar cobro</DialogTitle>
             </div>
             <DialogDescription>
-              Registra un cobro presencial en mostrador o datáfono TPV para un alumno o cliente walk-in.
+              Elige alumno, tarifa y mes. El cobro queda aprobado al instante.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreatePosCharge} className="space-y-4 pt-1">
-            {/* Selección Alumno o Walk-In */}
+            {/* Student or walk-in */}
             <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                Alumno o Cliente Walk-In
+              <label htmlFor="pos-student" className="block text-xs font-bold text-slate-700 mb-1">
+                Alumno
               </label>
               <select
+                id="pos-student"
                 value={posStudentUid}
                 onChange={(e) => setPosStudentUid(e.target.value)}
-                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
+                className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
               >
-                <option value="">-- Cliente Walk-In / Nuevo / Esporádico --</option>
-                {users.map((u) => (
+                <option value="">Cliente sin ficha (visita o esporádico)</option>
+                {studentOptions.map((u) => (
                   <option key={u.uid} value={u.uid}>
                     {u.alias} ({u.contactEmail || u.authEmail || u.phone || 'Sin contacto'})
                   </option>
@@ -793,106 +896,221 @@ export const CajaPage: React.FC = () => {
               {!posStudentUid && (
                 <input
                   type="text"
-                  placeholder="Nombre o alias del cliente walk-in..."
+                  aria-label="Nombre del cliente"
+                  placeholder="Nombre del cliente"
                   value={posCustomAlias}
                   onChange={(e) => setPosCustomAlias(e.target.value)}
-                  className="w-full mt-2 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-brand-accent"
+                  className="w-full mt-2 min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-brand-accent"
                 />
+              )}
+              {posStudent?.isFoundingMember && (
+                <p className="mt-1.5 text-xs font-semibold text-amber-800">
+                  Socio fundador: se aplica un 10 % de descuento.
+                </p>
               )}
             </div>
 
-            {/* Concepto y Tipo de Cobro */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Concepto / Producto
-                </label>
-                <select
-                  value={posConcept}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setPosConcept(val);
-                    if (val.includes('75')) { setPosAmountEur(75); setPosBillingType('MONTHLY'); }
-                    else if (val.includes('60')) { setPosAmountEur(60); setPosBillingType('MONTHLY'); }
-                    else if (val.includes('55')) { setPosAmountEur(55); setPosBillingType('MONTHLY'); }
-                    else if (val.includes('110')) { setPosAmountEur(110); setPosBillingType('PASS'); }
-                    else if (val.includes('50')) { setPosAmountEur(50); setPosBillingType('MONTHLY'); }
-                    else if (val.includes('15')) { setPosAmountEur(15); setPosBillingType('DROP_IN'); }
-                    else if (val.includes('95')) { setPosAmountEur(95); setPosBillingType('DROP_IN'); }
-                    else if (val.includes('45')) { setPosAmountEur(45); setPosBillingType('DROP_IN'); }
-                  }}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
-                >
-                  <option value="Cuota BJJ Adultos Ilimitado (75 €)">Cuota Adultos Ilimitado (75 €)</option>
-                  <option value="Cuota Socio Fundador / SF (60 €)">Socio Fundador / Policía (60 €)</option>
-                  <option value="Cuota Familiar / Pareja (55 €)">Tarifa Familiar (55 €)</option>
-                  <option value="Bono 10 Sesiones Tatami Pass (110 €)">Bono 10 Sesiones (110 €)</option>
-                  <option value="Cuota BJJ Kids & Teens (50 €)">Cuota Infantil / Kids (50 €)</option>
-                  <option value="Clase Suelta / Drop-In (15 €)">Clase Suelta / Drop-In (15 €)</option>
-                  <option value="Kimono / Gi Oficial 247Studio (95 €)">Kimono Oficial 247 (95 €)</option>
-                  <option value="Rashguard No-Gi Oficial 247Studio (45 €)">Rashguard No-Gi (45 €)</option>
-                </select>
-              </div>
+            {/* Tariff */}
+            <div>
+              <label htmlFor="pos-tariff" className="block text-xs font-bold text-slate-700 mb-1">
+                Tarifa
+              </label>
+              <select
+                id="pos-tariff"
+                value={posTariffId}
+                onChange={(e) => handleSelectPosTariff(e.target.value)}
+                className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
+              >
+                <option value="">Concepto manual (sin tarifa)</option>
+                {activeTariffs.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({(t.priceCents / 100).toFixed(2)} €)
+                  </option>
+                ))}
+              </select>
+              {activeTariffs.length === 0 && (
+                <p className="mt-1.5 text-xs text-slate-700">
+                  No hay tarifas activas.{' '}
+                  <Link to="/admin/tarifas" className="font-bold text-brand-accent underline underline-offset-2">
+                    Crea o activa una en Tarifas
+                  </Link>{' '}
+                  o registra el cobro con un concepto manual.
+                </p>
+              )}
+            </div>
 
+            {!posTariff && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="pos-concept" className="block text-xs font-bold text-slate-700 mb-1">
+                    Concepto
+                  </label>
+                  <input
+                    id="pos-concept"
+                    type="text"
+                    required
+                    placeholder="Ej. Kimono oficial"
+                    value={posManualConcept}
+                    onChange={(e) => setPosManualConcept(e.target.value)}
+                    className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-brand-accent"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="pos-billing" className="block text-xs font-bold text-slate-700 mb-1">
+                    Tipo de cobro
+                  </label>
+                  <select
+                    id="pos-billing"
+                    value={posManualBillingType}
+                    onChange={(e) => setPosManualBillingType(e.target.value as BillingType)}
+                    className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
+                  >
+                    <option value="MONTHLY">Cuota mensual</option>
+                    <option value="PASS">Bono de sesiones</option>
+                    <option value="DROP_IN">Clase suelta / otro</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Amount, period, months */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                  Importe Final (€ IVA Inc.)
+                <label htmlFor="pos-amount" className="block text-xs font-bold text-slate-700 mb-1">
+                  Importe (€, IVA incl.)
                 </label>
                 <input
+                  id="pos-amount"
                   type="number"
+                  inputMode="decimal"
                   step="0.01"
+                  min="0.01"
                   required
                   value={posAmountEur}
-                  onChange={(e) => setPosAmountEur(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:outline-none"
+                  onChange={(e) => setPosAmountEur(e.target.value)}
+                  className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 tabular-nums focus:outline-none focus:border-brand-accent"
                 />
               </div>
+              <div>
+                <label htmlFor="pos-period" className="block text-xs font-bold text-slate-700 mb-1">
+                  Mes que se paga
+                </label>
+                <input
+                  id="pos-period"
+                  type="month"
+                  required
+                  value={posPeriod}
+                  onChange={(e) => setPosPeriod(e.target.value)}
+                  className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-brand-accent"
+                />
+              </div>
+              {posBillingType === 'MONTHLY' && (
+                <div>
+                  <label htmlFor="pos-months" className="block text-xs font-bold text-slate-700 mb-1">
+                    Meses a pagar
+                  </label>
+                  <input
+                    id="pos-months"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={MAX_PREPAYMENT_MONTHS}
+                    step={1}
+                    required
+                    value={posMonths}
+                    onChange={(e) =>
+                      setPosMonths(Math.min(MAX_PREPAYMENT_MONTHS, Math.max(1, parseInt(e.target.value, 10) || 1)))
+                    }
+                    className="w-full min-h-11 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 tabular-nums focus:outline-none focus:border-brand-accent"
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Método de Pago */}
-            <div>
-              <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
-                Método de Cobro
-              </label>
-              <div className="grid grid-cols-2 gap-2">
+            {/* Payment method */}
+            <fieldset>
+              <legend className="block text-xs font-bold text-slate-700 mb-1">Método de cobro</legend>
+              <div role="radiogroup" className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={posMethod === 'CASH'}
                   onClick={() => setPosMethod('CASH')}
-                  className={`py-2 px-3 rounded-xl border text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                  className={`min-h-11 py-2 px-3 rounded-xl border text-sm font-bold transition cursor-pointer flex items-center justify-center gap-2 ${
                     posMethod === 'CASH'
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      ? 'bg-emerald-50 border-emerald-400 text-emerald-900'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  💵 Metálico
+                  <Banknote className="w-4 h-4" aria-hidden="true" /> Metálico
                 </button>
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={posMethod === 'BIZUM'}
                   onClick={() => setPosMethod('BIZUM')}
-                  className={`py-2 px-3 rounded-xl border text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                  className={`min-h-11 py-2 px-3 rounded-xl border text-sm font-bold transition cursor-pointer flex items-center justify-center gap-2 ${
                     posMethod === 'BIZUM'
-                      ? 'bg-blue-50 border-blue-300 text-blue-800'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      ? 'bg-blue-50 border-blue-400 text-blue-900'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  📱 Bizum
+                  <Smartphone className="w-4 h-4" aria-hidden="true" /> Bizum
                 </button>
               </div>
-            </div>
+            </fieldset>
 
-            {/* Checkbox auto-descargar recibo */}
-            <div className="flex items-center gap-2 pt-1">
+            {/* Summary */}
+            {posCharge && (
+              <dl className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 text-sm space-y-1" aria-live="polite">
+                {posCharge.discountPerMonthCents > 0 && (
+                  <>
+                    <div className="flex justify-between text-slate-700">
+                      <dt>Precio de tarifa</dt>
+                      <dd className="tabular-nums">
+                        {((posCharge.perMonthCents + posCharge.discountPerMonthCents) / 100).toFixed(2)} €
+                      </dd>
+                    </div>
+                    <div className="flex justify-between text-amber-800 font-semibold">
+                      <dt>Descuento socio fundador (10 %)</dt>
+                      <dd className="tabular-nums">-{(posCharge.discountPerMonthCents / 100).toFixed(2)} €</dd>
+                    </div>
+                  </>
+                )}
+                {posCharge.payments.length > 1 && (
+                  <div className="flex justify-between text-slate-700">
+                    <dt>
+                      {posCharge.payments.length} meses ({posCharge.payments[0].period} a{' '}
+                      {posCharge.payments[posCharge.payments.length - 1].period})
+                    </dt>
+                    <dd className="tabular-nums">{(posCharge.perMonthCents / 100).toFixed(2)} € / mes</dd>
+                  </div>
+                )}
+                <div className="flex justify-between text-slate-900 font-black text-base pt-1 border-t border-slate-200">
+                  <dt>Total a cobrar</dt>
+                  <dd className="tabular-nums">{(posCharge.totalCents / 100).toFixed(2)} €</dd>
+                </div>
+              </dl>
+            )}
+
+            <div className="flex items-center gap-2">
               <input
                 type="checkbox"
                 id="autoReceipt"
                 checked={posAutoDownloadReceipt}
                 onChange={(e) => setPosAutoDownloadReceipt(e.target.checked)}
-                className="rounded text-brand-accent focus:ring-brand-accent cursor-pointer"
+                className="w-4 h-4 rounded text-brand-accent focus:ring-brand-accent cursor-pointer"
               />
-              <label htmlFor="autoReceipt" className="text-xs font-medium text-slate-700 cursor-pointer">
-                Descargar justificante oficial en PDF al confirmar el cobro
+              <label htmlFor="autoReceipt" className="text-sm font-medium text-slate-700 cursor-pointer">
+                Descargar el recibo en PDF al confirmar
               </label>
             </div>
+
+            {posError && (
+              <p role="alert" className="text-sm font-semibold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                {posError}
+              </p>
+            )}
 
             <DialogFooter className="pt-3 border-t border-slate-100 gap-2 sm:gap-0">
               <Button
@@ -906,10 +1124,10 @@ export const CajaPage: React.FC = () => {
               <Button
                 type="submit"
                 variant="default"
-                disabled={actionLoading === 'pos_charge'}
-                className="bg-brand-accent hover:bg-brand-accent/90 text-white font-black uppercase tracking-wider"
+                disabled={actionLoading === 'pos_charge' || !posCharge}
+                className="bg-brand-accent hover:bg-brand-accent/90 text-white font-black"
               >
-                {actionLoading === 'pos_charge' ? 'Registrando...' : 'Confirmar Cobro'}
+                {actionLoading === 'pos_charge' ? 'Registrando...' : 'Confirmar cobro'}
               </Button>
             </DialogFooter>
           </form>

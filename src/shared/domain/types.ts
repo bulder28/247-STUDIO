@@ -83,7 +83,7 @@ export interface UserDomainModel {
   beltDate: string; // YYYY-MM-DD
   stats?: FighterStats;
   pricingTier: PricingTier;
-  activeTariffId: string;
+  activeTariffId?: string;
   accountStatus: AccountStatus;
   paymentStatusCache?: DerivedPaymentStatus;
   medicalNotes?: string;
@@ -128,6 +128,7 @@ export interface PaymentDomainModel {
   paidAt?: any;
   bookingId?: string;
   sessionsIncluded?: number;
+  sessionsRemaining?: number;
   amountCents?: number;
   baseCents?: number;
   vatCents?: number;

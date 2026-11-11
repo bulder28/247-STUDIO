@@ -32,7 +32,7 @@ Client's main need: "at the start of the month a new person arrives, I need to e
 ## Tasks
 - [x] T1 Domain: minor threshold < 14 (minor.ts, firestore.rules, tests); PaymentMethod = CASH | BIZUM; `firstName`, `lastName`, guardian fields and `isFoundingMember` on UserDomainModel; `tariffId` on PaymentDomainModel; pure helpers `applyFoundingDiscount`, `buildPrepaymentPeriods`, `findUnpaidStudents` with Vitest tests. Route: delegated (writer trigger, 2+ files).
 - [x] T2 Enrollment: first name + surnames, required mobile phone, birth date, optional email, photo capture/upload, guardian block for under-14, founding-member checkbox; no tariff at enrollment. Route: delegated.
-- [ ] T3 Caja: remove demo-data fallback and CARD; tariff picked from Firestore tariffs in the charge modal and stored as `tariffId`; period chosen in the form; founding-member 10% discount; prepay N months; rules allowlists updated. Route: delegated.
+- [x] T3 Caja: remove demo-data fallback and CARD; tariff picked from Firestore tariffs in the charge modal and stored as `tariffId`; period chosen in the form; founding-member 10% discount; prepay N months; rules allowlists updated. Route: delegated.
 - [ ] T4 Caja "unpaid this month" view: active students without an approved payment for the selected period, filterable by tariff. Route: delegated.
 
 ## Acceptance criteria
@@ -51,5 +51,9 @@ Client's main need: "at the start of the month a new person arrives, I need to e
 - T2 done (delegated writer, impeccable skill applied). `npm test`: 15 files / 120 tests passed (parent re-ran). `npm run build`: passed (writer). Not run: browser check of the page, Netlify function (pending manual check). Photo stored as compressed JPEG data URL in `photoUrl` (existing project convention; no Firebase Storage in the project). Email optional: the function creates a placeholder login `alumno_…@247studiobjj.com` without a reset link. New students get `pricingTier: 'STD'` and no `activeTariffId`.
 - Follow-up: make `activeTariffId` optional in `UserDomainModel` (T3).
 
+- T2 commit: 369340a.
+- T3 done (delegated writer, impeccable applied). `npm test`: 15 files passed (parent re-ran; writer reported 126 tests). `npm run build`: passed (writer). Not run: browser check, rules tests (emulator unavailable). Charges: tariff from Firestore, period in modal, founding 10% discount, prepay 1-12 months as one writeBatch (one doc per period), no demo fallback, PASS no longer writes pricingTier.
+- Follow-up: `handleApprovePayment` still estimates amounts from hardcoded tiers and does not write `sessionsRemaining`.
+
 ## Next step
-T3.
+T4.

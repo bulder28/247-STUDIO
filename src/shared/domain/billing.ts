@@ -1,4 +1,5 @@
-import { PaymentDomainModel, UserDomainModel } from './types';
+import { calculateVatBreakdown } from './money';
+import { BillingType, PaymentDomainModel, PaymentMethod, UserDomainModel } from './types';
 
 /** Discount applied to every charge of a founding member ("socio fundador"). */
 export const FOUNDING_MEMBER_DISCOUNT = 0.1;
@@ -58,4 +59,118 @@ export function findUnpaidStudents(
       (u.permissions ?? []).some((perm) => perm.toLowerCase() === 'student') &&
       !paidUids.has(u.uid)
   );
+}
+
+export const MAX_PREPAYMENT_MONTHS = 12;
+export const PASS_SESSIONS_INCLUDED = 10;
+export const DEFAULT_VAT_RATE = 0.21;
+
+export interface BuildChargeInput {
+  uid: string;
+  /** First period covered by the charge (YYYY-MM). */
+  period: string;
+  /** Number of monthly payments to create. Only MONTHLY charges may exceed 1. */
+  months: number;
+  method: PaymentMethod;
+  billingType: BillingType;
+  concept: string;
+  tariffId?: string;
+  /** Per-month list price (VAT included), before any discount. */
+  baseAmountCents: number;
+  isFoundingMember: boolean;
+  validatedBy: string;
+  /** Who took the payment; shown in notes. */
+  staffLabel: string;
+  /** Value used for createdAt / paidAt / validatedAt (e.g. Firestore serverTimestamp()). */
+  stamp: unknown;
+  vatRate?: number;
+}
+
+export interface ChargePaymentData {
+  uid: string;
+  period: string;
+  method: PaymentMethod;
+  billingType: BillingType;
+  status: 'APPROVED';
+  concept: string;
+  amountCents: number;
+  baseCents: number;
+  vatCents: number;
+  discountCents: number;
+  notes: string;
+  validatedBy: string;
+  createdAt: unknown;
+  paidAt: unknown;
+  validatedAt: unknown;
+  tariffId?: string;
+  sessionsIncluded?: number;
+  sessionsRemaining?: number;
+}
+
+export interface BuiltCharge {
+  payments: ChargePaymentData[];
+  /** Sum of amountCents across all payments. */
+  totalCents: number;
+  /** Final per-month amount after discount. */
+  perMonthCents: number;
+  /** Per-month discount applied. */
+  discountPerMonthCents: number;
+}
+
+/**
+ * Builds the APPROVED payment documents for a counter charge: one per month,
+ * each with the discounted amount, VAT breakdown (VAT included in price) and period.
+ */
+export function buildChargePayments(input: BuildChargeInput): BuiltCharge {
+  const { months, billingType } = input;
+  if (!Number.isInteger(months) || months < 1 || months > MAX_PREPAYMENT_MONTHS) {
+    throw new Error(`Invalid number of months: ${months}. Must be between 1 and ${MAX_PREPAYMENT_MONTHS}.`);
+  }
+  if (billingType !== 'MONTHLY' && months > 1) {
+    throw new Error('Only monthly charges can be prepaid for several months.');
+  }
+  if (!Number.isInteger(input.baseAmountCents) || input.baseAmountCents < 0) {
+    throw new Error(`Invalid amount: ${input.baseAmountCents}. Must be an integer >= 0 (cents).`);
+  }
+
+  const periods = buildPrepaymentPeriods(input.period, months);
+  const { finalCents, discountCents } = applyFoundingDiscount(
+    input.baseAmountCents,
+    input.isFoundingMember
+  );
+  const vat = calculateVatBreakdown(finalCents, input.vatRate ?? DEFAULT_VAT_RATE);
+  const staffNote = `Cobro en mostrador por ${input.staffLabel}`;
+
+  const payments = periods.map((period, i): ChargePaymentData => {
+    const data: ChargePaymentData = {
+      uid: input.uid,
+      period,
+      method: input.method,
+      billingType,
+      status: 'APPROVED',
+      concept: input.concept,
+      amountCents: vat.totalCents,
+      baseCents: vat.baseCents,
+      vatCents: vat.vatCents,
+      discountCents,
+      notes: months > 1 ? `Pago adelantado ${i + 1}/${months} - ${staffNote}` : staffNote,
+      validatedBy: input.validatedBy,
+      createdAt: input.stamp,
+      paidAt: input.stamp,
+      validatedAt: input.stamp,
+    };
+    if (input.tariffId) data.tariffId = input.tariffId;
+    if (billingType === 'PASS') {
+      data.sessionsIncluded = PASS_SESSIONS_INCLUDED;
+      data.sessionsRemaining = PASS_SESSIONS_INCLUDED;
+    }
+    return data;
+  });
+
+  return {
+    payments,
+    totalCents: finalCents * months,
+    perMonthCents: finalCents,
+    discountPerMonthCents: discountCents,
+  };
 }
