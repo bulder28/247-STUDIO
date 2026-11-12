@@ -1,4 +1,3 @@
-import { calculateVatBreakdown } from './money';
 import { BillingType, PaymentDomainModel, PaymentMethod, UserDomainModel } from './types';
 
 /** Discount applied to every charge of a founding member ("socio fundador"). */
@@ -91,7 +90,6 @@ export function findUnpaidStudents(
 
 export const MAX_PREPAYMENT_MONTHS = 12;
 export const PASS_SESSIONS_INCLUDED = 10;
-export const DEFAULT_VAT_RATE = 0.21;
 
 export interface BuildChargeInput {
   uid: string;
@@ -103,7 +101,7 @@ export interface BuildChargeInput {
   billingType: BillingType;
   concept: string;
   tariffId?: string;
-  /** Per-month list price (VAT included), before any discount. */
+  /** Per-month list price, before any discount. */
   baseAmountCents: number;
   isFoundingMember: boolean;
   validatedBy: string;
@@ -111,7 +109,6 @@ export interface BuildChargeInput {
   staffLabel: string;
   /** Value used for createdAt / paidAt / validatedAt (e.g. Firestore serverTimestamp()). */
   stamp: unknown;
-  vatRate?: number;
 }
 
 export interface ChargePaymentData {
@@ -122,8 +119,6 @@ export interface ChargePaymentData {
   status: 'APPROVED';
   concept: string;
   amountCents: number;
-  baseCents: number;
-  vatCents: number;
   discountCents: number;
   notes: string;
   validatedBy: string;
@@ -147,7 +142,8 @@ export interface BuiltCharge {
 
 /**
  * Builds the APPROVED payment documents for a counter charge: one per month,
- * each with the discounted amount, VAT breakdown (VAT included in price) and period.
+ * each with the discounted amount and period. Amounts are stored as plain
+ * totals; no VAT breakdown is computed or saved for new payments.
  */
 export function buildChargePayments(input: BuildChargeInput): BuiltCharge {
   const { months, billingType } = input;
@@ -166,7 +162,6 @@ export function buildChargePayments(input: BuildChargeInput): BuiltCharge {
     input.baseAmountCents,
     input.isFoundingMember
   );
-  const vat = calculateVatBreakdown(finalCents, input.vatRate ?? DEFAULT_VAT_RATE);
   const staffNote = `Cobro en mostrador por ${input.staffLabel}`;
 
   const payments = periods.map((period, i): ChargePaymentData => {
@@ -177,9 +172,7 @@ export function buildChargePayments(input: BuildChargeInput): BuiltCharge {
       billingType,
       status: 'APPROVED',
       concept: input.concept,
-      amountCents: vat.totalCents,
-      baseCents: vat.baseCents,
-      vatCents: vat.vatCents,
+      amountCents: finalCents,
       discountCents,
       notes: months > 1 ? `Pago adelantado ${i + 1}/${months} - ${staffNote}` : staffNote,
       validatedBy: input.validatedBy,

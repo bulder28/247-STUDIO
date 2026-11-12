@@ -56,8 +56,8 @@ export function exportStudentsToCsv(students: UserDomainModel[]) {
 }
 
 /**
- * Exporta el Libro de Ingresos y Facturación para la Gestoría / Asesoría Fiscal
- * con desglose exacto de Base Imponible e IVA repercutido (21%).
+ * Exporta el Libro de Ingresos para la Gestoría / Asesoría Fiscal, con el
+ * importe total de cada cobro (sin desglose de impuestos).
  */
 export function exportPaymentsToGestoriaCsv(
   payments: any[],
@@ -73,10 +73,7 @@ export function exportPaymentsToGestoriaCsv(
     'Teléfono',
     'Concepto',
     'Canal de Pago',
-    'Base Imponible (€)',
-    '% IVA',
-    'Cuota IVA (€)',
-    'Total Factura (€)',
+    'Importe (€)',
     'Estado Liquidación',
   ];
 
@@ -86,8 +83,6 @@ export function exportPaymentsToGestoriaCsv(
   const rows = payments.map((p) => {
     const student = userMap.get(p.uid);
     const amountEur = ((p.amountCents || 0) / 100).toFixed(2);
-    const baseEur = ((p.baseCents || 0) / 100).toFixed(2);
-    const vatEur = ((p.vatCents || 0) / 100).toFixed(2);
     const payDate = p.createdAt || p.paidAt;
     const dateStr = payDate
       ? new Date(payDate.toDate ? payDate.toDate() : payDate).toLocaleDateString('es-ES')
@@ -102,9 +97,6 @@ export function exportPaymentsToGestoriaCsv(
       `"${student?.phone || ''}"`,
       `"Cuota ${p.billingType || 'MENSUAL'} 247Studio"`,
       `"${p.method || 'CASH'}"`,
-      baseEur,
-      '21%',
-      vatEur,
       amountEur,
       `"${p.status === 'APPROVED' ? 'LIQUIDADO' : 'PENDIENTE'}"`,
     ];

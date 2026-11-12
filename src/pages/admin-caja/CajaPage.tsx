@@ -188,6 +188,9 @@ export const CajaPage: React.FC = () => {
         }
       }
 
+      // firestore.rules requires baseCents + vatCents === amountCents on this
+      // update (payments/{id} allow update, APPROVED branch); kept only to
+      // satisfy that invariant, never shown in the UI (see CajaPage KPIs below).
       const vat = calculateVatBreakdown(amountCents, 0.21);
 
       const updateData: Record<string, any> = {
@@ -517,8 +520,6 @@ export const CajaPage: React.FC = () => {
 
   // Aggregates
   const totalRecaudadoCents = approvedPayments.reduce((acc, p) => acc + (p.amountCents || 0), 0);
-  const totalBaseCents = approvedPayments.reduce((acc, p) => acc + (p.baseCents || 0), 0);
-  const totalVatCents = approvedPayments.reduce((acc, p) => acc + (p.vatCents || 0), 0);
   const totalCashCents = approvedPayments
     .filter((p) => p.method === 'CASH')
     .reduce((acc, p) => acc + (p.amountCents || 0), 0);
@@ -585,7 +586,7 @@ export const CajaPage: React.FC = () => {
             <button
               type="button"
               onClick={() => exportPaymentsToGestoriaCsv(periodPayments, users, filterPeriod)}
-              title="Exportar CSV con base e IVA 21 % para la gestoría"
+              title="Exportar CSV de cobros para la gestoría"
               className="flex min-h-12 cursor-pointer items-center gap-2 rounded-xl border border-studio-navy/15 bg-white px-4 text-sm font-semibold text-studio-navy transition-colors hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-navy"
             >
               <Download className="h-5 w-5" aria-hidden="true" />
@@ -617,7 +618,6 @@ export const CajaPage: React.FC = () => {
             className="col-span-2 md:col-span-1"
             label="Cobrado"
             value={eur(totalRecaudadoCents)}
-            hint="IVA incluido"
           />
           <KpiCard label="Pagos" value={approvedPayments.length} hint="aprobados" />
           <KpiCard
@@ -635,7 +635,7 @@ export const CajaPage: React.FC = () => {
             onClick={() => setActiveView('unpaid')}
           />
         </div>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/10 px-5 py-3.5 md:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/10 px-5 py-3.5">
           <div>
             <dt className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/65">
               <Banknote className="h-4 w-4" aria-hidden="true" /> Efectivo en cajón
@@ -647,14 +647,6 @@ export const CajaPage: React.FC = () => {
               <Smartphone className="h-4 w-4" aria-hidden="true" /> Bizum y cuenta
             </dt>
             <dd className="mt-0.5 text-lg font-bold tabular-nums">{eur(totalBizumCents)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs font-semibold uppercase tracking-wider text-white/65">Base imponible</dt>
-            <dd className="mt-0.5 text-lg font-bold tabular-nums">{eur(totalBaseCents)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs font-semibold uppercase tracking-wider text-white/65">IVA 21 %</dt>
-            <dd className="mt-0.5 text-lg font-bold tabular-nums">{eur(totalVatCents)}</dd>
           </div>
         </dl>
       </section>
@@ -940,11 +932,6 @@ export const CajaPage: React.FC = () => {
                       <div className="font-headline text-2xl font-bold leading-none tabular-nums text-studio-navy">
                         {pay.amountCents ? eur(pay.amountCents) : '65,00 € (est.)'}
                       </div>
-                      {pay.baseCents !== undefined && pay.vatCents !== undefined && (
-                        <div className="mt-1 text-xs tabular-nums text-slate-600">
-                          Base {eur(pay.baseCents)} · IVA {eur(pay.vatCents)}
-                        </div>
-                      )}
                     </div>
 
                     <span
@@ -1150,7 +1137,7 @@ export const CajaPage: React.FC = () => {
               <div className={`grid grid-cols-1 gap-3 ${posBillingType === 'MONTHLY' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
                 <div>
                   <label htmlFor="pos-amount" className={labelCls}>
-                    Importe (€, IVA incl.)
+                    Importe (€)
                   </label>
                   <input
                     id="pos-amount"

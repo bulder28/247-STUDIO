@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { db } from '@/shared/api/firebase';
 import { getLiveDocs } from '@/shared/api/liveReads';
-import { calculateVatBreakdown } from '@/shared/domain/money';
 import {
   BillingType,
   PricingTier,
@@ -259,7 +258,7 @@ export const TariffsAdminPage: React.FC = () => {
             Catálogo de Tarifas & MRR
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Gestión de membresías, bonos Pass, precios con IVA 21% y suscripción activa de alumnos.
+            Gestión de membresías, bonos Pass, precios y suscripción activa de alumnos.
           </p>
         </div>
 
@@ -361,7 +360,6 @@ export const TariffsAdminPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {tariffs.map((t) => {
-            const vat = calculateVatBreakdown(t.priceCents, t.vatRate || 0.21);
             const subscribers = getSubscribersForTariff(t);
             const mrrContribution = (subscribers * t.priceCents) / 100;
 
@@ -398,13 +396,6 @@ export const TariffsAdminPage: React.FC = () => {
 
                   <div className="text-2xl font-black text-slate-900 mb-2 font-mono">
                     {(t.priceCents / 100).toFixed(2)} €
-                    <span className="text-xs font-normal text-slate-500 ml-1">IVA Inc.</span>
-                  </div>
-
-                  {/* Desglose contable Base + IVA */}
-                  <div className="text-[11px] bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 space-y-0.5 text-slate-600 mb-4 font-mono">
-                    <div>Base Imponible: {(vat.baseCents / 100).toFixed(2)} €</div>
-                    <div>IVA Repercutido (21%): {(vat.vatCents / 100).toFixed(2)} €</div>
                   </div>
 
                   {/* REA Metrics: Atletas activos y MRR de este plan */}
@@ -532,7 +523,7 @@ export const TariffsAdminPage: React.FC = () => {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                Precio Total (€ IVA Inc.)
+                Precio Total (€)
               </label>
               <Input
                 type="number"

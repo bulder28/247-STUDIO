@@ -111,7 +111,7 @@ describe('buildChargePayments', () => {
     stamp: 'TS',
   };
 
-  it('builds one approved payment with a consistent VAT breakdown', () => {
+  it('builds one approved payment with a plain total amount (no VAT breakdown)', () => {
     const r = buildChargePayments(base);
     expect(r.payments).toHaveLength(1);
     const p = r.payments[0];
@@ -126,7 +126,8 @@ describe('buildChargePayments', () => {
       paidAt: 'TS',
       validatedAt: 'TS',
     });
-    expect(p.baseCents + p.vatCents).toBe(p.amountCents);
+    expect('baseCents' in p).toBe(false);
+    expect('vatCents' in p).toBe(false);
     expect(p.notes).toBe('Cobro en mostrador por Mario');
     expect(r.totalCents).toBe(7500);
   });
@@ -135,7 +136,8 @@ describe('buildChargePayments', () => {
     const r = buildChargePayments({ ...base, isFoundingMember: true });
     expect(r.payments[0].amountCents).toBe(6750);
     expect(r.payments[0].discountCents).toBe(750);
-    expect(r.payments[0].baseCents + r.payments[0].vatCents).toBe(6750);
+    expect('baseCents' in r.payments[0]).toBe(false);
+    expect('vatCents' in r.payments[0]).toBe(false);
   });
 
   it('creates one payment per month for prepayment, rolling over the year', () => {

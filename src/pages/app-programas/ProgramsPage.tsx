@@ -4,7 +4,6 @@ import { CheckCircle2, CreditCard, PauseCircle, Send } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { db } from '@/shared/api/firebase';
 import { getLiveDocs, invalidateLiveDocs } from '@/shared/api/liveReads';
-import { calculateVatBreakdown } from '@/shared/domain/money';
 import { getMadridYearMonth } from '@/shared/domain/payment-status';
 import { PaymentDomainModel, PaymentMethod, TariffDomainModel } from '@/shared/domain/types';
 import { Button } from '@/shared/ui/button';
@@ -111,8 +110,6 @@ export const ProgramsPage: React.FC = () => {
     }
   };
 
-  const vatBreakdown = tariff?.priceCents ? calculateVatBreakdown(tariff.priceCents) : null;
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -180,27 +177,9 @@ export const ProgramsPage: React.FC = () => {
             <span className="text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
               {tariff ? `${(tariff.priceCents / 100).toFixed(2)} €` : '65.00 €'}
             </span>
-            <span className="text-xs text-slate-400 block font-medium">IVA 21% Incluido</span>
+            <span className="text-xs text-slate-400 block font-medium">Importe total</span>
           </div>
         </div>
-
-        {/* Desglose Fiscal Transparente */}
-        {vatBreakdown && (
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200/60">
-            <div>
-              <span className="text-slate-400 block">Base Imponible:</span>
-              <span className="font-bold text-slate-900">{(vatBreakdown.baseCents / 100).toFixed(2)} €</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block">IVA (21%):</span>
-              <span className="font-bold text-slate-900">{(vatBreakdown.vatCents / 100).toFixed(2)} €</span>
-            </div>
-            <div className="col-span-2 sm:col-span-1">
-              <span className="text-slate-400 block">Total Liquidado:</span>
-              <span className="font-bold text-slate-900">{(vatBreakdown.totalCents / 100).toFixed(2)} €</span>
-            </div>
-          </div>
-        )}
 
         <div className="mt-4 pt-3 flex justify-end">
           <button

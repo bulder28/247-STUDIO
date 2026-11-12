@@ -732,8 +732,6 @@ export const PersonalPage: React.FC = () => {
         billingType: 'MONTHLY',
         concept: quickPaymentForm.concept || 'Cuota mensual tatami',
         amountCents: Math.round(amountNum * 100),
-        baseCents: Math.round(amountNum * 100),
-        vatCents: 0,
         paidAt: serverTimestamp(),
         validatedBy: 'Admin Directo',
         validatedAt: nowIso,
