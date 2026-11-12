@@ -44,24 +44,7 @@ export function deriveRetentionRisk(
   const mostRecentAttendedMs = attendedBookings[0];
   const daysSinceLastAttended = Math.floor((nowMs - mostRecentAttendedMs) / MS_PER_DAY);
 
-  // 2. Cálculo de no-shows en los últimos 30 días
-  const last30DaysMs = nowMs - 30 * MS_PER_DAY;
-  const recentBookings = attendanceHistory.filter((b) => {
-    const t = new Date(b.date).getTime();
-    return t >= last30DaysMs && t <= nowMs;
-  });
-
-  const totalRecentActiveBookings = recentBookings.filter(
-    (b) => b.status === 'ATTENDED' || b.status === 'NO_SHOW'
-  );
-
-  let noShowRatio = 0;
-  if (totalRecentActiveBookings.length > 0) {
-    const noShowCount = totalRecentActiveBookings.filter((b) => b.status === 'NO_SHOW').length;
-    noShowRatio = noShowCount / totalRecentActiveBookings.length;
-  }
-
-  // 3. Frecuencia últimas 4 semanas (días 0 a 28) vs 4 anteriores (días 28 a 56)
+  // 2. Frecuencia últimas 4 semanas (días 0 a 28) vs 4 anteriores (días 28 a 56)
   const window1Start = nowMs - 28 * MS_PER_DAY;
   const window2Start = nowMs - 56 * MS_PER_DAY;
 
@@ -76,8 +59,7 @@ export function deriveRetentionRisk(
   // Criterios HIGH
   if (
     daysSinceLastAttended >= 21 ||
-    (attendedPrev4Weeks > 0 && frequencyDropRatio > 0.5) ||
-    noShowRatio > 0.3
+    (attendedPrev4Weeks > 0 && frequencyDropRatio > 0.5)
   ) {
     return 'HIGH';
   }

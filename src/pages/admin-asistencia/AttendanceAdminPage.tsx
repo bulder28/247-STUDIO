@@ -3,27 +3,23 @@ import {
   collection,
   doc,
   getDocs,
-  increment,
+  deleteDoc,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
   where,
-  writeBatch,
 } from 'firebase/firestore';
 import {
   AlertCircle,
   Award,
   Calendar,
-  Check,
-  CheckCheck,
   ChevronLeft,
   ChevronRight,
   Download,
   FileText,
   Plus,
   Printer,
-  RotateCcw,
   Search,
   Sparkles,
   Trash2,
@@ -43,7 +39,6 @@ import { DEFAULT_OFFICIAL_SCHEDULES, getMadridTimeComponents } from '@/shared/do
 import { SAMPLE_ATHLETES_20 } from '@/shared/mock/sampleAthletes';
 import {
   BookingDomainModel,
-  BookingStatus,
   ScheduleDomainModel,
   SessionType,
 } from '@/shared/domain/types';
@@ -251,7 +246,7 @@ export const AttendanceAdminPage: React.FC = () => {
 
   const activeSchedule = schedules.find((s) => s.id === selectedScheduleId);
 
-  // 4. Cargar reservas y asistencias para la clase y fecha activa
+  // 4. Cargar asistencias para la clase y fecha activa
   const fetchClassBookings = async () => {
     if (!selectedScheduleId || !selectedDateStr) {
       setBookings([]);
@@ -267,10 +262,14 @@ export const AttendanceAdminPage: React.FC = () => {
       );
       const snap = await getDocs(q);
       const list: BookingDomainModel[] = [];
-      snap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) }));
+      snap.forEach((d) => {
+        const data = d.data() as Omit<BookingDomainModel, 'id'>;
+        // Attendance list = ATTENDED rows only (legacy reservation-era statuses are ignored)
+        if (data.status === 'ATTENDED') list.push({ id: d.id, ...data });
+      });
       setBookings(list);
     } catch (err) {
-      console.error('Error cargando reservas de clase:', err);
+      console.error('Error cargando asistencias de clase:', err);
     } finally {
       setLoading(false);
     }
@@ -282,129 +281,11 @@ export const AttendanceAdminPage: React.FC = () => {
 
   // Contadores de la sesión
   const attendedBookings = bookings.filter((b) => b.status === 'ATTENDED');
-  const pendingBookings = bookings.filter((b) => b.status === 'BOOKED');
-  const waitlistedBookings = bookings.filter((b) => b.status === 'WAITLISTED');
   const participantCount = attendedBookings.filter((b) => b.sessionType === 'PARTICIPANT').length;
   const observerCount = attendedBookings.filter((b) => b.sessionType === 'OBSERVER').length;
   const graduationCount = attendedBookings.filter((b) => b.sessionType === 'GRADUATION_CLASS').length;
-  const maxCapacity = activeSchedule?.capacity || 26;
 
-  // ACCIÓN 1: "Check in all" - Confirmar todos los pendientes a ATTENDED (Optimista 0 ms)
-  const handleCheckInAll = async () => {
-    if (pendingBookings.length === 0) return;
-    setMessage(null);
-
-    const prevBookings = bookings;
-
-    // 1. Actualización optimista inmediata
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.status === 'BOOKED'
-          ? {
-              ...b,
-              status: 'ATTENDED',
-              checkInSource: 'ADMIN',
-              attendanceWeight: getAttendanceWeight(b.sessionType || 'PARTICIPANT'),
-            }
-          : b
-      )
-    );
-
-    setMessage({
-      text: `¡Confirmados ${pendingBookings.length} alumnos presentes con éxito!`,
-      type: 'success',
-    });
-
-    // 2. Persistencia en background sin bloquear
-    try {
-      const batch = writeBatch(db);
-      for (const booking of pendingBookings) {
-        const student = students[booking.uid];
-        const isFrozen = student?.accountStatus === 'FROZEN' || student?.accountStatus === 'PAUSED';
-        const effectiveType: SessionType = isFrozen ? 'OBSERVER' : (booking.sessionType || 'PARTICIPANT');
-
-        batch.update(doc(db, 'bookings', booking.id), {
-          status: 'ATTENDED',
-          checkInSource: 'ADMIN',
-          sessionType: effectiveType,
-          attendanceWeight: getAttendanceWeight(effectiveType),
-        });
-      }
-
-      const capRef = doc(db, 'class_capacity', `cap_${selectedScheduleId}_${selectedDateStr}`);
-      batch.set(
-        capRef,
-        {
-          scheduleId: selectedScheduleId,
-          date: selectedDateStr,
-          bookedCount: attendedBookings.length + pendingBookings.length,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      await batch.commit();
-    } catch (err: unknown) {
-      console.error('Error persistiendo check-in masivo:', err);
-      setBookings(prevBookings);
-      setMessage({
-        text: err instanceof Error ? err.message : 'Error al confirmar pendientes en la base de datos.',
-        type: 'error',
-      });
-    }
-  };
-
-  // ACCIÓN 2: Cambiar estado individual (Check-in individual o Deshacer con respuesta instantánea 0 ms)
-  const handleToggleAttendance = async (booking: BookingDomainModel) => {
-    setMessage(null);
-
-    const isCurrentlyAttended = booking.status === 'ATTENDED';
-    const newStatus: BookingStatus = isCurrentlyAttended ? 'BOOKED' : 'ATTENDED';
-    const prevBookings = bookings;
-
-    // 1. Actualización optimista inmediata (0 ms)
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === booking.id
-          ? {
-              ...b,
-              status: newStatus,
-              checkInSource: 'ADMIN',
-              attendanceWeight: newStatus === 'ATTENDED' ? getAttendanceWeight(booking.sessionType) : 1.0,
-            }
-          : b
-      )
-    );
-
-    // 2. Persistencia en background sin bloquear la interfaz
-    const capRef = doc(db, 'class_capacity', `cap_${selectedScheduleId}_${selectedDateStr}`);
-    Promise.all([
-      updateDoc(doc(db, 'bookings', booking.id), {
-        status: newStatus,
-        checkInSource: 'ADMIN',
-        attendanceWeight: newStatus === 'ATTENDED' ? getAttendanceWeight(booking.sessionType) : 1.0,
-      }),
-      setDoc(
-        capRef,
-        {
-          scheduleId: selectedScheduleId,
-          date: selectedDateStr,
-          bookedCount: increment(newStatus === 'ATTENDED' ? 1 : -1),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-    ]).catch((err) => {
-      console.error('Error persistiendo cambio de asistencia:', err);
-      setBookings(prevBookings);
-      setMessage({
-        text: err instanceof Error ? err.message : 'Error al sincronizar asistencia con la base de datos.',
-        type: 'error',
-      });
-    });
-  };
-
-  // ACCIÓN 3: Cambiar modalidad de sesión (Participante / Observador / Graduación optimista 0 ms)
+  // ACCIÓN 1: Cambiar modalidad de sesión (Participante / Observador / Graduación optimista 0 ms)
   const handleChangeSessionType = async (booking: BookingDomainModel, newType: SessionType) => {
     const weight = getAttendanceWeight(newType);
     const prevBookings = bookings;
@@ -426,7 +307,7 @@ export const AttendanceAdminPage: React.FC = () => {
     });
   };
 
-  // ACCIÓN 4: Añadir alumno manualmente fuera de lista (Walk-in optimista 0 ms)
+  // ACCIÓN 2: Añadir alumno manualmente fuera de lista (Walk-in optimista 0 ms)
   const executeAddStudentManual = async (targetStudent: StudentDirectoryItem, sessionType: SessionType) => {
     if (!activeSchedule) return;
     setMessage(null);
@@ -458,29 +339,16 @@ export const AttendanceAdminPage: React.FC = () => {
     });
 
     // 2. Persistencia en background
-    const capRef = doc(db, 'class_capacity', `cap_${activeSchedule.id}_${selectedDateStr}`);
-    Promise.all([
-      setDoc(doc(db, 'bookings', bookingId), {
-        uid: targetStudent.uid,
-        scheduleId: activeSchedule.id,
-        date: selectedDateStr,
-        status: 'ATTENDED',
-        sessionType: sessionType,
-        attendanceWeight: weight,
-        checkInSource: 'ADMIN',
-        createdAt: serverTimestamp(),
-      }),
-      setDoc(
-        capRef,
-        {
-          scheduleId: activeSchedule.id,
-          date: selectedDateStr,
-          bookedCount: increment(1),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-    ]).catch((err) => {
+    setDoc(doc(db, 'bookings', bookingId), {
+      uid: targetStudent.uid,
+      scheduleId: activeSchedule.id,
+      date: selectedDateStr,
+      status: 'ATTENDED',
+      sessionType: sessionType,
+      attendanceWeight: weight,
+      checkInSource: 'ADMIN',
+      createdAt: serverTimestamp(),
+    }).catch((err) => {
       console.error('Error persistiendo alta manual de asistencia:', err);
       setBookings(prevBookings);
       setMessage({
@@ -499,7 +367,7 @@ export const AttendanceAdminPage: React.FC = () => {
     await executeAddStudentManual(targetStudent, addSessionType);
   };
 
-  // ACCIÓN 5: Eliminar o cancelar reserva (Radix Dialog con respuesta instantánea)
+  // ACCIÓN 3: Quitar asistencia (Radix Dialog con respuesta instantánea)
   const handleRemoveBooking = (booking: BookingDomainModel) => {
     setBookingToRemove(booking);
   };
@@ -513,25 +381,9 @@ export const AttendanceAdminPage: React.FC = () => {
     setBookings((prev) => prev.filter((b) => b.id !== toRemove.id));
     setBookingToRemove(null);
 
-    // 2. Persistencia en background
-    const capRef = doc(db, 'class_capacity', `cap_${selectedScheduleId}_${selectedDateStr}`);
-    Promise.all([
-      updateDoc(doc(db, 'bookings', toRemove.id), {
-        status: 'CANCELLED',
-        cancelledAt: serverTimestamp(),
-      }),
-      setDoc(
-        capRef,
-        {
-          scheduleId: selectedScheduleId,
-          date: selectedDateStr,
-          bookedCount: increment(-1),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ),
-    ]).catch((err) => {
-      console.error('Error eliminando reserva en base de datos:', err);
+    // 2. Persistencia en background: la asistencia se elimina borrando el registro
+    deleteDoc(doc(db, 'bookings', toRemove.id)).catch((err) => {
+      console.error('Error eliminando asistencia en base de datos:', err);
       setBookings(prevBookings);
     });
   };
@@ -634,7 +486,7 @@ export const AttendanceAdminPage: React.FC = () => {
   // Alumnos filtrados para añadir manualmente
   const filteredStudentsToAdd = Object.values(students).filter((s) => {
     const matchesSearch = s.alias.toLowerCase().includes(addSearchTerm.toLowerCase());
-    const alreadyInClass = bookings.some((b) => b.uid === s.uid && b.status !== 'CANCELLED');
+    const alreadyInClass = bookings.some((b) => b.uid === s.uid);
     return matchesSearch && !alreadyInClass;
   });
 
@@ -932,23 +784,12 @@ export const AttendanceAdminPage: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 mt-1">
-                    Profesor: <strong className="text-slate-900">{activeSchedule.professor}</strong> • Capacidad máxima:{' '}
-                    <strong className="text-slate-900">{maxCapacity} alumnos</strong>
+                    Profesor: <strong className="text-slate-900">{activeSchedule.professor}</strong>
                   </p>
                 </div>
 
                 {/* Acciones principales de la sesión */}
                 <div className="flex flex-wrap items-center gap-2.5">
-                  <button
-                    onClick={handleCheckInAll}
-                    disabled={pendingBookings.length === 0 || actionLoading === 'ALL'}
-                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer"
-                    title="Marca automáticamente todos los alumnos en reserva como presentes"
-                  >
-                    <CheckCheck className="w-4 h-4" />
-                    <span>Check In All ({pendingBookings.length} pendientes)</span>
-                  </button>
-
                   <button
                     onClick={() => setAddModalOpen(true)}
                     className="px-4 py-2.5 bg-brand-accent hover:bg-brand-accent/90 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer"
@@ -969,43 +810,16 @@ export const AttendanceAdminPage: React.FC = () => {
               </div>
 
               {/* Tarjetas de Contadores en Tiempo Real */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-slate-100">
+              <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-slate-100">
                 <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/60">
                   <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Presentes en Tatami
                   </span>
                   <div className="font-mono text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-1">
                     {attendedBookings.length}
-                    <span className="text-xs font-sans text-slate-400 ml-1.5 font-normal">
-                      / {maxCapacity}
-                    </span>
                   </div>
                   <span className="text-[10px] text-slate-500 font-medium block mt-1">
                     {participantCount} part. • {observerCount} obs.{graduationCount > 0 ? ` • ${graduationCount} grad.` : ''}
-                  </span>
-                </div>
-
-                <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/60">
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Reservados Pendientes
-                  </span>
-                  <div className="font-mono text-2xl sm:text-3xl font-extrabold text-amber-600 mt-1">
-                    {pendingBookings.length}
-                  </div>
-                  <span className="text-[10px] text-slate-500 font-medium block mt-1">
-                    Reservaron por app
-                  </span>
-                </div>
-
-                <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/60">
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Lista de Espera
-                  </span>
-                  <div className="font-mono text-2xl sm:text-3xl font-extrabold text-blue-600 mt-1">
-                    {waitlistedBookings.length}
-                  </div>
-                  <span className="text-[10px] text-slate-500 font-medium block mt-1">
-                    En cola por aforo lleno
                   </span>
                 </div>
 
@@ -1041,7 +855,7 @@ export const AttendanceAdminPage: React.FC = () => {
               </div>
             ) : bookings.length === 0 ? (
               <div className="py-12 text-center text-sm text-slate-400">
-                No hay reservas registradas para esta sesión. Pulsa en <strong>“Añadir Alumno”</strong> para registrar a alguien directamente en el tatami.
+                No hay asistencias registradas para esta sesión. Pulsa en <strong>“Añadir Alumno”</strong> para registrar a alguien directamente en el tatami.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -1052,7 +866,6 @@ export const AttendanceAdminPage: React.FC = () => {
                       <th className="py-3.5 px-4">Cinturón</th>
                       <th className="py-3.5 px-4">Modalidad</th>
                       <th className="py-3.5 px-4">Origen</th>
-                      <th className="py-3.5 px-4">Estado</th>
                       <th className="py-3.5 px-4 text-right">Acciones</th>
                     </tr>
                   </thead>
@@ -1066,14 +879,10 @@ export const AttendanceAdminPage: React.FC = () => {
                         beltSystem: 'ADULT',
                         accountStatus: 'ACTIVE',
                       };
-                      const isAttended = booking.status === 'ATTENDED';
-
                       return (
                         <tr
                           key={booking.id}
-                          className={`hover:bg-slate-50/70 transition ${
-                            isAttended ? 'bg-emerald-50/30' : ''
-                          }`}
+                          className="hover:bg-slate-50/70 transition bg-emerald-50/30"
                         >
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-1.5">
@@ -1123,53 +932,13 @@ export const AttendanceAdminPage: React.FC = () => {
                             </span>
                           </td>
 
-                          <td className="py-3.5 px-4">
-                            {isAttended ? (
-                              <Badge variant="success" className="text-[10px]">
-                                Presente
-                              </Badge>
-                            ) : booking.status === 'BOOKED' ? (
-                              <Badge variant="warning" className="text-[10px]">
-                                Reservado
-                              </Badge>
-                            ) : booking.status === 'WAITLISTED' ? (
-                              <Badge variant="secondary" className="text-[10px]">
-                                En Espera
-                              </Badge>
-                            ) : (
-                              <Badge variant="destructive" className="text-[10px]">
-                                Cancelado
-                              </Badge>
-                            )}
-                          </td>
-
                           <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant={isAttended ? 'outline' : 'default'}
-                                onClick={() => handleToggleAttendance(booking)}
-                                disabled={actionLoading === booking.id}
-                                className={`text-xs ${
-                                  !isAttended ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''
-                                }`}
-                              >
-                                {isAttended ? (
-                                  <>
-                                    <RotateCcw className="w-3.5 h-3.5 mr-1" /> Deshacer
-                                  </>
-                                ) : (
-                                  <>
-                                    <Check className="w-3.5 h-3.5 mr-1" /> Presente
-                                  </>
-                                )}
-                              </Button>
-
                               <button
                                 onClick={() => handleRemoveBooking(booking)}
                                 disabled={actionLoading === booking.id}
                                 className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                                title="Eliminar de la clase"
+                                title="Quitar asistencia"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1619,13 +1388,13 @@ export const AttendanceAdminPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL RADIX DIALOG: ELIMINAR RESERVA / ASISTENCIA */}
+      {/* MODAL RADIX DIALOG: QUITAR ASISTENCIA */}
       <Dialog open={!!bookingToRemove} onOpenChange={(open) => !open && setBookingToRemove(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Eliminar Asistencia o Reserva</DialogTitle>
+            <DialogTitle>Quitar asistencia</DialogTitle>
             <DialogDescription>
-              ¿Seguro que deseas cancelar y retirar esta asistencia de la lista oficial de la sesión? El aforo de la clase se actualizará automáticamente.
+              ¿Seguro que deseas quitar esta asistencia de la lista oficial de la sesión? El registro se eliminará.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
@@ -1643,7 +1412,7 @@ export const AttendanceAdminPage: React.FC = () => {
               onClick={handleConfirmRemoveBooking}
               disabled={actionLoading === bookingToRemove?.id}
             >
-              {actionLoading === bookingToRemove?.id ? 'Eliminando...' : 'Confirmar Eliminación'}
+              {actionLoading === bookingToRemove?.id ? 'Eliminando...' : 'Quitar asistencia'}
             </Button>
           </DialogFooter>
         </DialogContent>

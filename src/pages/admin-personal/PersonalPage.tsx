@@ -261,7 +261,11 @@ export const PersonalPage: React.FC = () => {
 
       const bList: BookingDomainModel[] = [];
       if (bookingsRes.status === 'fulfilled') {
-        bookingsRes.value.forEach((d) => bList.push({ id: d.id, ...(d.data() as Omit<BookingDomainModel, 'id'>) }));
+        // Only ATTENDED rows count: legacy reservation-era statuses must not inflate attendance
+        bookingsRes.value.forEach((d) => {
+          const data = d.data() as Omit<BookingDomainModel, 'id'>;
+          if (data.status === 'ATTENDED') bList.push({ id: d.id, ...data });
+        });
       }
       setBookings(bList);
 
@@ -324,7 +328,7 @@ export const PersonalPage: React.FC = () => {
   }, [schedules]);
 
   /**
-   * Disciplines a student trains, derived from the last 60 days of (non-cancelled) bookings,
+   * Disciplines a student trains, derived from the last 60 days of attended sessions,
    * plus Kids for children in the kids belt system. Empty means "unknown".
    */
   const disciplinesByUid = useMemo(() => {
@@ -333,7 +337,6 @@ export const PersonalPage: React.FC = () => {
       const set = new Set<DisciplineId>();
       if (u.beltSystem === 'KIDS') set.add('KIDS');
       for (const b of bookingsByUid.get(u.uid) ?? []) {
-        if (b.status === 'CANCELLED') continue;
         const program = programByScheduleId.get(b.scheduleId);
         const id = program ? disciplineForProgram(program) : null;
         if (id) set.add(id);
@@ -1195,7 +1198,7 @@ export const PersonalPage: React.FC = () => {
                     <p className="mt-1 text-sm text-slate-700">
                       {selectedDisciplineNames.length > 0
                         ? selectedDisciplineNames.join(' · ')
-                        : 'Sin disciplina registrada: se deduce de las reservas de los últimos 60 días.'}
+                        : 'Sin disciplina registrada: se deduce de las asistencias de los últimos 60 días.'}
                     </p>
                   </div>
 

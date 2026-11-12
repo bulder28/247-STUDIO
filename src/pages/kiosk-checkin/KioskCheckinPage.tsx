@@ -6,11 +6,9 @@ import {
   doc,
   getDoc,
   getDocs,
-  increment,
   query,
   serverTimestamp,
   setDoc,
-  updateDoc,
   where,
 } from 'firebase/firestore';
 import {
@@ -341,7 +339,7 @@ export const KioskCheckinPage: React.FC = () => {
     }
   };
 
-  // 5. Confirmación de Check-in respetando reservas previas e inmutabilidad de createdAt
+  // 5. Confirmación de Check-in: crea el registro de asistencia (ATTENDED)
   const handleConfirmCheckin = async (student: KioskMember) => {
     if (!activeSchedule) return;
     setLoadingCheckin(true);
@@ -375,40 +373,16 @@ export const KioskCheckinPage: React.FC = () => {
         return;
       }
 
-      if (existingBooking.exists()) {
-        // Si el alumno ya tenía reserva: actualizamos a ATTENDED sin sobreescribir createdAt
-        await updateDoc(bookingRef, {
-          status: 'ATTENDED',
-          sessionType,
-          attendanceWeight: weight,
-          checkInSource: 'TABLET',
-        });
-      } else {
-        // Si es drop-in o check-in sin reserva previa: creamos el booking inicial
-        await setDoc(bookingRef, {
-          uid: student.uid,
-          scheduleId: activeSchedule.id,
-          date: madridNow.dateStr,
-          status: 'ATTENDED',
-          sessionType,
-          attendanceWeight: weight,
-          checkInSource: 'TABLET',
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      // Sincronizar contador agregado en class_capacity
-      const capRef = doc(db, 'class_capacity', `cap_${activeSchedule.id}_${madridNow.dateStr}`);
-      await setDoc(
-        capRef,
-        {
-          scheduleId: activeSchedule.id,
-          date: madridNow.dateStr,
-          bookedCount: increment(existingBooking.exists() ? 0 : 1),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      await setDoc(bookingRef, {
+        uid: student.uid,
+        scheduleId: activeSchedule.id,
+        date: madridNow.dateStr,
+        status: 'ATTENDED',
+        sessionType,
+        attendanceWeight: weight,
+        checkInSource: 'TABLET',
+        createdAt: serverTimestamp(),
+      });
 
       // Cálculo de gamificación y número de clase
       let classNumber = 1;
@@ -416,7 +390,7 @@ export const KioskCheckinPage: React.FC = () => {
         const pastSnap = await getDocs(
           query(collection(db, 'bookings'), where('uid', '==', student.uid), where('status', '==', 'ATTENDED'))
         );
-        classNumber = pastSnap.size + (existingBooking.exists() ? 0 : 1);
+        classNumber = pastSnap.size + 1;
       } catch {
         classNumber = 1;
       }
