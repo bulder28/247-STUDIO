@@ -69,7 +69,7 @@ export const RegisterPage: React.FC = () => {
                 Proceso Oficial de Incorporación
               </p>
               <p>
-                Por seguridad deportiva, control de aforo y respeto al tatami, <strong>nadie puede registrarse por libre en internet</strong>. Toda alta requiere pasar previamente por la academia, formalizar la ficha deportiva y contratar la cuota correspondiente con los directores (Mario o David).
+                Por seguridad deportiva y respeto al tatami, <strong>nadie puede registrarse por libre en internet</strong>. Toda alta requiere pasar previamente por la academia, formalizar la ficha deportiva y contratar la cuota correspondiente con los directores (Mario o David).
               </p>
             </div>
           </div>
