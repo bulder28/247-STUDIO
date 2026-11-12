@@ -1,5 +1,4 @@
 import {
-  BookingDomainModel,
   ScheduleDomainModel,
   ScheduleExceptionDomainModel,
 } from './types';
@@ -129,69 +128,44 @@ export function getNextClass(
 }
 
 /**
- * Valida si una reserva puede ser cancelada por el alumno según el plazo límite.
- * El admin cuenta siempre con facultad de override.
- */
-export function canCancel(
-  booking: Pick<BookingDomainModel, 'date' | 'status'>,
-  schedule: Pick<ScheduleDomainModel, 'startTime'>,
-  cancellationDeadlineHours: number,
-  now: Date,
-  isAdmin: boolean = false
-): boolean {
-  if (isAdmin) return true;
-  if (booking.status !== 'BOOKED' && booking.status !== 'WAITLISTED') return false;
-
-  // Reconstruir la fecha y hora de la clase en Europe/Madrid
-  const [year, month, day] = booking.date.split('-').map((v) => parseInt(v, 10));
-  const [hour, minute] = schedule.startTime.split(':').map((v) => parseInt(v, 10));
-
-  // Creamos la fecha objetivo en UTC considerando el offset de Madrid
-  const classStartApprox = new Date(Date.UTC(year, month - 1, day, hour - 1, minute)); 
-  const deadlineMs = cancellationDeadlineHours * 60 * 60 * 1000;
-
-  return (classStartApprox.getTime() - now.getTime()) >= deadlineMs;
-}
-
-/**
  * Horario oficial por defecto extraído directamente de la Diapositiva 8 del PowerPoint de 247Studio.
  * Sirve como fallback garantizado si la base de datos Firestore está recién creada.
  */
 export const DEFAULT_OFFICIAL_SCHEDULES: ScheduleDomainModel[] = [
   // LUNES (1)
-  { id: 'sched-1-1', dayOfWeek: 1, startTime: '10:00', endTime: '11:30', program: 'GI', professor: 'Mario Bros', capacity: 26, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-1-2', dayOfWeek: 1, startTime: '17:30', endTime: '18:30', program: 'KIDS 1', professor: 'David', capacity: 16, active: true, room: 'Tatami 2 (Kids)', levelRequired: 'KIDS' },
-  { id: 'sched-1-3', dayOfWeek: 1, startTime: '18:30', endTime: '19:30', program: 'KIDS 2', professor: 'David', capacity: 18, active: true, room: 'Tatami 2 (Kids)', levelRequired: 'KIDS' },
-  { id: 'sched-1-4', dayOfWeek: 1, startTime: '19:30', endTime: '20:30', program: 'GI', professor: 'Mario Bros', capacity: 26, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-1-5', dayOfWeek: 1, startTime: '20:30', endTime: '21:30', program: 'GRAPPLING', professor: 'David', capacity: 26, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-1-1', dayOfWeek: 1, startTime: '10:00', endTime: '11:30', program: 'GI', professor: 'Mario Bros', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-1-2', dayOfWeek: 1, startTime: '17:30', endTime: '18:30', program: 'KIDS 1', professor: 'David', active: true, room: 'Tatami 2 (Kids)', levelRequired: 'KIDS' },
+  { id: 'sched-1-3', dayOfWeek: 1, startTime: '18:30', endTime: '19:30', program: 'KIDS 2', professor: 'David', active: true, room: 'Tatami 2 (Kids)', levelRequired: 'KIDS' },
+  { id: 'sched-1-4', dayOfWeek: 1, startTime: '19:30', endTime: '20:30', program: 'GI', professor: 'Mario Bros', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-1-5', dayOfWeek: 1, startTime: '20:30', endTime: '21:30', program: 'GRAPPLING', professor: 'David', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
 
   // MARTES (2)
-  { id: 'sched-2-1', dayOfWeek: 2, startTime: '10:00', endTime: '11:30', program: 'GRAPPLING', professor: 'David', capacity: 24, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-2-2', dayOfWeek: 2, startTime: '17:30', endTime: '18:30', program: 'MMA', professor: 'Coach Pro', capacity: 20, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-2-3', dayOfWeek: 2, startTime: '18:30', endTime: '19:30', program: 'BJJ FEM', professor: 'Instructora BJJ', capacity: 20, active: true, room: 'Tatami 2 (Anexo)', levelRequired: 'TODOS' },
-  { id: 'sched-2-4', dayOfWeek: 2, startTime: '19:30', endTime: '20:30', program: 'GRAPPLING', professor: 'David', capacity: 26, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-2-5', dayOfWeek: 2, startTime: '20:30', endTime: '21:30', program: 'COMP CLAS.', professor: 'Mario Bros', capacity: 22, active: true, room: 'Tatami Principal', levelRequired: 'COMPETICION' },
+  { id: 'sched-2-1', dayOfWeek: 2, startTime: '10:00', endTime: '11:30', program: 'GRAPPLING', professor: 'David', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-2-2', dayOfWeek: 2, startTime: '17:30', endTime: '18:30', program: 'MMA', professor: 'Coach Pro', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-2-3', dayOfWeek: 2, startTime: '18:30', endTime: '19:30', program: 'BJJ FEM', professor: 'Instructora BJJ', active: true, room: 'Tatami 2 (Anexo)', levelRequired: 'TODOS' },
+  { id: 'sched-2-4', dayOfWeek: 2, startTime: '19:30', endTime: '20:30', program: 'GRAPPLING', professor: 'David', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-2-5', dayOfWeek: 2, startTime: '20:30', endTime: '21:30', program: 'COMP CLAS.', professor: 'Mario Bros', active: true, room: 'Tatami Principal', levelRequired: 'COMPETICION' },
 
   // MIÉRCOLES (3)
-  { id: 'sched-3-1', dayOfWeek: 3, startTime: '10:00', endTime: '11:30', program: 'GI', professor: 'Mario Bros', capacity: 26, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-3-2', dayOfWeek: 3, startTime: '17:30', endTime: '18:30', program: 'KIDS 1', professor: 'David', capacity: 16, active: true, room: 'Tatami 2 (Kids)', levelRequired: 'KIDS' },
-  { id: 'sched-3-3', dayOfWeek: 3, startTime: '18:30', endTime: '19:30', program: 'KIDS 2', professor: 'David', capacity: 18, active: true, room: 'Tatami 2 (Kids)', levelRequired: 'KIDS' },
-  { id: 'sched-3-4', dayOfWeek: 3, startTime: '19:30', endTime: '20:30', program: 'GI', professor: 'Mario Bros', capacity: 26, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-3-5', dayOfWeek: 3, startTime: '20:30', endTime: '21:30', program: 'GRAPPLING', professor: 'David', capacity: 26, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-3-1', dayOfWeek: 3, startTime: '10:00', endTime: '11:30', program: 'GI', professor: 'Mario Bros', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-3-2', dayOfWeek: 3, startTime: '17:30', endTime: '18:30', program: 'KIDS 1', professor: 'David', active: true, room: 'Tatami 2 (Kids)', levelRequired: 'KIDS' },
+  { id: 'sched-3-3', dayOfWeek: 3, startTime: '18:30', endTime: '19:30', program: 'KIDS 2', professor: 'David', active: true, room: 'Tatami 2 (Kids)', levelRequired: 'KIDS' },
+  { id: 'sched-3-4', dayOfWeek: 3, startTime: '19:30', endTime: '20:30', program: 'GI', professor: 'Mario Bros', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-3-5', dayOfWeek: 3, startTime: '20:30', endTime: '21:30', program: 'GRAPPLING', professor: 'David', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
 
   // JUEVES (4)
-  { id: 'sched-4-1', dayOfWeek: 4, startTime: '10:00', endTime: '11:30', program: 'GRAPPLING', professor: 'David', capacity: 24, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-4-2', dayOfWeek: 4, startTime: '17:30', endTime: '18:30', program: 'MMA', professor: 'Coach Pro', capacity: 20, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-4-3', dayOfWeek: 4, startTime: '18:30', endTime: '19:30', program: 'BJJ FEM', professor: 'Instructora BJJ', capacity: 20, active: true, room: 'Tatami 2 (Anexo)', levelRequired: 'TODOS' },
-  { id: 'sched-4-4', dayOfWeek: 4, startTime: '19:30', endTime: '20:30', program: 'LUCHA', professor: 'Wrestling Coach', capacity: 22, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-4-5', dayOfWeek: 4, startTime: '20:30', endTime: '21:30', program: 'GI SPARRING', professor: 'Mario Bros', capacity: 26, active: true, room: 'Tatami Principal', levelRequired: 'AVANZADO' },
+  { id: 'sched-4-1', dayOfWeek: 4, startTime: '10:00', endTime: '11:30', program: 'GRAPPLING', professor: 'David', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-4-2', dayOfWeek: 4, startTime: '17:30', endTime: '18:30', program: 'MMA', professor: 'Coach Pro', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-4-3', dayOfWeek: 4, startTime: '18:30', endTime: '19:30', program: 'BJJ FEM', professor: 'Instructora BJJ', active: true, room: 'Tatami 2 (Anexo)', levelRequired: 'TODOS' },
+  { id: 'sched-4-4', dayOfWeek: 4, startTime: '19:30', endTime: '20:30', program: 'LUCHA', professor: 'Wrestling Coach', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-4-5', dayOfWeek: 4, startTime: '20:30', endTime: '21:30', program: 'GI SPARRING', professor: 'Mario Bros', active: true, room: 'Tatami Principal', levelRequired: 'AVANZADO' },
 
   // VIERNES (5)
-  { id: 'sched-5-1', dayOfWeek: 5, startTime: '10:00', endTime: '11:30', program: 'GRAPPLING', professor: 'David', capacity: 24, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-5-2', dayOfWeek: 5, startTime: '17:30', endTime: '18:30', program: 'KIDS 1', professor: 'David', capacity: 16, active: true, room: 'Tatami 2 (Kids)', levelRequired: 'KIDS' },
-  { id: 'sched-5-3', dayOfWeek: 5, startTime: '18:30', endTime: '19:30', program: 'MMA', professor: 'Coach Pro', capacity: 20, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-5-4', dayOfWeek: 5, startTime: '19:30', endTime: '20:30', program: 'LUCHA', professor: 'Wrestling Coach', capacity: 22, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
-  { id: 'sched-5-5', dayOfWeek: 5, startTime: '20:30', endTime: '21:30', program: 'OPEN MAT', professor: 'Mario & David', capacity: 35, active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-5-1', dayOfWeek: 5, startTime: '10:00', endTime: '11:30', program: 'GRAPPLING', professor: 'David', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-5-2', dayOfWeek: 5, startTime: '17:30', endTime: '18:30', program: 'KIDS 1', professor: 'David', active: true, room: 'Tatami 2 (Kids)', levelRequired: 'KIDS' },
+  { id: 'sched-5-3', dayOfWeek: 5, startTime: '18:30', endTime: '19:30', program: 'MMA', professor: 'Coach Pro', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-5-4', dayOfWeek: 5, startTime: '19:30', endTime: '20:30', program: 'LUCHA', professor: 'Wrestling Coach', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
+  { id: 'sched-5-5', dayOfWeek: 5, startTime: '20:30', endTime: '21:30', program: 'OPEN MAT', professor: 'Mario & David', active: true, room: 'Tatami Principal', levelRequired: 'TODOS' },
 ];
 
 /**
@@ -349,14 +323,12 @@ export function detectScheduleConflicts(schedules: ScheduleDomainModel[]): Sched
 export function calculateWeeklyStats(schedules: ScheduleDomainModel[]) {
   const activeSchedules = schedules.filter((s) => s.active);
   let totalMinutes = 0;
-  let totalCapacity = 0;
   const professorMap: Record<string, { count: number; minutes: number }> = {};
   const roomMap: Record<string, number> = {};
 
   activeSchedules.forEach((s) => {
     const dur = calculateScheduleDurationMinutes(s.startTime, s.endTime);
     totalMinutes += dur;
-    totalCapacity += s.capacity || 24;
 
     const prof = s.professor || 'Sin asignar';
     if (!professorMap[prof]) {
@@ -376,7 +348,6 @@ export function calculateWeeklyStats(schedules: ScheduleDomainModel[]) {
     activeClasses: activeSchedules.length,
     totalMinutes,
     totalHours: `${hours}h`,
-    totalCapacity,
     professorBreakdown: professorMap,
     roomBreakdown: roomMap,
   };

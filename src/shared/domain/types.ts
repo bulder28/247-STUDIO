@@ -38,7 +38,7 @@ export type PaymentStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
 
 export type DerivedPaymentStatus = 'OK' | 'PENDING_VALIDATION' | 'GRACE' | 'NOK';
 
-export type BookingStatus = 'BOOKED' | 'WAITLISTED' | 'ATTENDED' | 'NO_SHOW' | 'CANCELLED';
+export type BookingStatus = 'ATTENDED';
 
 export type SessionType = 'PARTICIPANT' | 'OBSERVER' | 'GRADUATION_CLASS';
 
@@ -113,7 +113,6 @@ export interface BookingDomainModel {
   attendanceWeight: number;
   checkInSource: CheckInSource;
   createdAt: string;
-  cancelledAt?: string;
 }
 
 export interface PaymentDomainModel {
@@ -160,7 +159,6 @@ export interface ScheduleDomainModel {
   endTime: string;   // HH:mm
   professor: string;
   program: string;
-  capacity?: number;
   active: boolean;
   // REA (Resource-Event-Agent) & Gymdesk architecture:
   room?: string; // Tatami 1 (Principal), Tatami 2 (Anexo), etc.

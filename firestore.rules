@@ -259,27 +259,6 @@ service cloud.firestore {
         resource.data.uid == request.auth.uid || isAdmin() || isCoach() || isKiosk()
       );
 
-      // Creación por el alumno
-      allow create: if isAuthenticated() &&
-        request.resource.data.keys().hasAll(['uid', 'scheduleId', 'date', 'status', 'checkInSource', 'createdAt']) &&
-        request.resource.data.keys().hasOnly([
-          'uid', 'scheduleId', 'date', 'status', 'checkInSource', 'sessionType', 'attendanceWeight', 'createdAt', 'updatedAt'
-        ]) &&
-        request.resource.data.uid == request.auth.uid &&
-        request.resource.data.scheduleId is string &&
-        isValidDateString(request.resource.data.date) &&
-        request.resource.data.status in ['BOOKED', 'WAITLISTED'] &&
-        request.resource.data.checkInSource == 'APP' &&
-        request.resource.data.createdAt == request.time;
-
-      // Cancelación por el alumno
-      allow update: if isAuthenticated() &&
-        resource.data.uid == request.auth.uid &&
-        resource.data.status in ['BOOKED', 'WAITLISTED'] &&
-        request.resource.data.status == 'CANCELLED' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt', 'updatedAt']) &&
-        request.resource.data.cancelledAt == request.time;
-
       // Kiosco Tablet: Puede crear o actualizar asistencia ATTENDED
       allow create: if isKiosk() &&
         request.resource.data.keys().hasOnly([
@@ -290,7 +269,19 @@ service cloud.firestore {
         isValidDateString(request.resource.data.date) &&
         request.resource.data.status == 'ATTENDED' &&
         request.resource.data.checkInSource == 'TABLET' &&
-        request.resource.data.attendanceWeight in [0.5, 1.0, 3.0] &&
+        request.resource.data.attendanceWeight is number && request.resource.data.attendanceWeight >= 0.5 && request.resource.data.attendanceWeight <= 3 &&
+        request.resource.data.createdAt == request.time;
+
+      // Un check-in de kiosco sobre una fila heredada (no ATTENDED) la sobrescribe con setDoc:
+      // se permite regrabar createdAt solo en ese caso. Una fila ATTENDED no se puede reescribir.
+      allow update: if isKiosk() &&
+        resource.data.status != 'ATTENDED' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'sessionType', 'attendanceWeight', 'checkInSource', 'attendedAt', 'createdAt', 'updatedAt'
+        ]) &&
+        request.resource.data.status == 'ATTENDED' &&
+        request.resource.data.checkInSource == 'TABLET' &&
+        request.resource.data.attendanceWeight is number && request.resource.data.attendanceWeight >= 0.5 && request.resource.data.attendanceWeight <= 3 &&
         request.resource.data.createdAt == request.time;
 
       allow update: if isKiosk() &&
@@ -299,18 +290,33 @@ service cloud.firestore {
         ]) &&
         request.resource.data.status == 'ATTENDED' &&
         request.resource.data.checkInSource == 'TABLET' &&
-        request.resource.data.attendanceWeight in [0.5, 1.0, 3.0];
+        request.resource.data.attendanceWeight is number && request.resource.data.attendanceWeight >= 0.5 && request.resource.data.attendanceWeight <= 3;
 
       // Admin total
-      allow create, delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
 
-      // Marcado de asistencia en tatami por Admin o Coach
-      allow update: if isAdmin() || (
-        isCoach() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'attendedAt', 'updatedAt']) &&
-        request.resource.data.status in ['ATTENDED', 'NO_SHOW'] &&
-        request.resource.data.updatedAt == request.time
-      );
+      // Panel de asistencia (/admin/asistencia) accesible para Coach:
+      // alta manual de asistencia, cambio de modalidad de sesión y retirada de asistencia
+      allow create: if isCoach() &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'scheduleId', 'date', 'status', 'sessionType', 'attendanceWeight', 'checkInSource', 'createdAt'
+        ]) &&
+        request.resource.data.uid is string &&
+        request.resource.data.scheduleId is string &&
+        isValidDateString(request.resource.data.date) &&
+        request.resource.data.status == 'ATTENDED' &&
+        request.resource.data.checkInSource == 'ADMIN' &&
+        request.resource.data.attendanceWeight is number && request.resource.data.attendanceWeight >= 0.5 && request.resource.data.attendanceWeight <= 3 &&
+        request.resource.data.createdAt == request.time;
+
+      allow update: if isCoach() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'sessionType', 'attendanceWeight', 'attendedAt', 'updatedAt'
+        ]) &&
+        request.resource.data.status == 'ATTENDED' &&
+        request.resource.data.attendanceWeight is number && request.resource.data.attendanceWeight >= 0.5 && request.resource.data.attendanceWeight <= 3;
+
+      allow delete: if isCoach();
     }
 
     // =========================================================================
@@ -434,23 +440,6 @@ service cloud.firestore {
         request.resource.data.status in ['APPROVED', 'REJECTED'];
 
       allow delete: if false;
-    }
-
-    // =========================================================================
-    // COLECCIÓN: class_capacity (Contador agregado de aforo por clase y fecha)
-    // =========================================================================
-    match /class_capacity/{capacityId} {
-      allow read: if isAuthenticated();
-      // Permite reserva/cancelación atómica desde app móvil o kiosco
-      allow create, update: if isAuthenticated() &&
-        request.resource.data.scheduleId is string &&
-        isValidDateString(request.resource.data.date) &&
-        request.resource.data.bookedCount is int &&
-        request.resource.data.bookedCount >= 0 &&
-        (!('waitlistCount' in request.resource.data) || (request.resource.data.waitlistCount is int && request.resource.data.waitlistCount >= 0)) &&
-        request.resource.data.updatedAt == request.time &&
-        request.resource.data.keys().hasOnly(['scheduleId', 'date', 'bookedCount', 'waitlistCount', 'updatedAt']);
-      allow delete: if isAdmin();
     }
   }
 }
