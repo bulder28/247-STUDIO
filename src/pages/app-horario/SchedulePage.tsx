@@ -1,17 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
-  doc,
-  increment,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
-import {
-  AlertCircle,
   Calendar,
   CalendarDays,
-  Check,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -21,30 +11,20 @@ import {
   MapPin,
   Moon,
   QrCode,
-  Sparkles,
   Sun,
   Sunrise,
   User,
-  Users,
-  X,
 } from 'lucide-react';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { db } from '@/shared/api/firebase';
 import { useScheduleStore } from '@/shared/stores/useScheduleStore';
 import { useScheduleData } from '@/shared/hooks/useScheduleQueries';
 import {
   calculateScheduleDurationMinutes,
-  canCancel,
   getMadridTimeComponents,
   getProgramTheme,
   isClassInProgress,
 } from '@/shared/domain/schedule';
-import {
-  BookingDomainModel,
-  BookingStatus,
-  ScheduleDomainModel,
-  ScheduleExceptionDomainModel,
-} from '@/shared/domain/types';
+import { ScheduleDomainModel, ScheduleExceptionDomainModel } from '@/shared/domain/types';
 import {
   Dialog,
   DialogContent,
@@ -63,7 +43,6 @@ export interface ActivityCategory {
   icon: string;
   image: string;
   match: (program: string) => boolean;
-  defaultCapacity: number;
   description: string;
   badge: string;
 }
@@ -77,7 +56,6 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     image: '/galeria/bjj/bjj9.webp',
     match: (program: string) =>
       /GI|BJJ FEM|MANHÃ|INICIANTES/i.test(program) && !/NO-GI|GRAPPLING/i.test(program),
-    defaultCapacity: 15,
     description: 'Técnica de kimono, agarres, transiciones y combate controlado',
     badge: 'bg-indigo-100 text-indigo-900 border-indigo-200',
   },
@@ -88,7 +66,6 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     icon: '🤼',
     image: '/galeria/grappling/grappling11.webp',
     match: (program: string) => /GRAPPLING|NO-GI/i.test(program),
-    defaultCapacity: 18,
     description: 'Lucha de sumisión sin kimono, ritmo fluido, derribos y llaves',
     badge: 'bg-emerald-100 text-emerald-900 border-emerald-200',
   },
@@ -99,7 +76,6 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     icon: '🥊',
     image: '/galeria/grappling/grappling1.webp',
     match: (program: string) => /MMA|BOXEO|STRIKING|KICK/i.test(program),
-    defaultCapacity: 14,
     description: 'Artes marciales mixtas, combinación de golpeo y suelo',
     badge: 'bg-rose-100 text-rose-900 border-rose-200',
   },
@@ -110,7 +86,6 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     icon: '🤼‍♂️',
     image: '/galeria/lucha/lucha5.webp',
     match: (program: string) => /LUCHA|WRESTLING/i.test(program),
-    defaultCapacity: 14,
     description: 'Control de pie, derribos olímpicos y defensa en tatami',
     badge: 'bg-amber-100 text-amber-900 border-amber-200',
   },
@@ -121,7 +96,6 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     icon: '👶',
     image: '/galeria/kids/kids1.webp',
     match: (program: string) => /KIDS|INFANTIL|JUVENIL/i.test(program),
-    defaultCapacity: 12,
     description: 'Psicomotricidad, disciplina marcial y valores para los más jóvenes',
     badge: 'bg-sky-100 text-sky-900 border-sky-200',
   },
@@ -132,7 +106,6 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
     icon: '⚡',
     image: '/galeria/bjj/bjj1.webp',
     match: (program: string) => /OPEN MAT|TATAMI LIBRE|SPARRING LIBRE/i.test(program),
-    defaultCapacity: 20,
     description: 'Tatami libre para rodar con compañeros a tu propio ritmo',
     badge: 'bg-purple-100 text-purple-900 border-purple-200',
   },
@@ -157,20 +130,12 @@ export const DISCIPLINE_FILTERS: DisciplineFilterItem[] = [
     image: '/herobackground.webp',
   },
   {
-    id: 'GI',
-    label: 'Brazilian Jiu-Jitsu (GI)',
-    short: 'GI',
-    subtitle: 'Kimono tradicional',
+    id: 'GI_GRAPPLING',
+    label: 'BJJ Gi & Grappling',
+    short: 'GI & GRAPPLING',
+    subtitle: 'Con y sin kimono',
     icon: '🥋',
     image: '/galeria/bjj/bjj9.webp',
-  },
-  {
-    id: 'GRAPPLING',
-    label: 'Grappling & No-Gi',
-    short: 'GRAPPLING',
-    subtitle: 'Lucha sin kimono',
-    icon: '🤼',
-    image: '/galeria/grappling/grappling11.webp',
   },
   {
     id: 'MMA',
@@ -224,7 +189,6 @@ export function getActivityCategory(program: string): ActivityCategory {
     icon: '🥋',
     image: '/herobackground.webp',
     match: () => true,
-    defaultCapacity: 15,
     description: 'Entrenamiento dirigido en tatami',
     badge: 'bg-slate-100 text-slate-900 border-slate-200',
   };
@@ -304,14 +268,9 @@ function formatReadableDateEs(dateStr: string): string {
 }
 
 export const SchedulePage: React.FC = () => {
-  const { user, role, userData } = useAuth();
-  const [searchParams] = useSearchParams();
+  const { user, userData } = useAuth();
   const [schedules, setSchedules] = useState<ScheduleDomainModel[]>([]);
   const [exceptions, setExceptions] = useState<ScheduleExceptionDomainModel[]>([]);
-  const [myBookings, setMyBookings] = useState<BookingDomainModel[]>([]);
-  const [classCapacities, setClassCapacities] = useState<
-    Record<string, { bookedCount: number; waitlistCount: number }>
-  >({});
 
   const now = new Date();
   const madridNow = getMadridTimeComponents(now);
@@ -334,14 +293,10 @@ export const SchedulePage: React.FC = () => {
     selectedProfessor,
     selectedRoom,
     viewMode,
-    mobileSectionTab,
-    onlyMyBookings,
     setSelectedDiscipline,
     setSelectedProfessor,
     setSelectedRoom,
     setViewMode,
-    setMobileSectionTab,
-    setOnlyMyBookings,
   } = useScheduleStore();
 
   // Modo de agrupación de clases en vista diaria: Por Actividad (BJJ Gi, No-Gi, MMA...) o Por Franja Horaria
@@ -352,8 +307,6 @@ export const SchedulePage: React.FC = () => {
 
   // Estado de carga y feedback
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // Modal de Ficha Rápida REA (al pulsar sobre una clase en vista Semanal o Mensual)
   const [selectedSlotModal, setSelectedSlotModal] = useState<{
@@ -371,19 +324,9 @@ export const SchedulePage: React.FC = () => {
     if (scheduleQueryData) {
       setSchedules(scheduleQueryData.schedules);
       setExceptions(scheduleQueryData.exceptions);
-      setMyBookings(scheduleQueryData.myBookings);
-      setClassCapacities(scheduleQueryData.classCapacities);
       setLoading(false);
     }
   }, [scheduleQueryData]);
-
-  // Sincronizar parámetro URL si el usuario pulsa en "Mis Pases" de la barra inferior
-  useEffect(() => {
-    if (searchParams.get('tab') === 'mis-reservas') {
-      setMobileSectionTab('MIS_RESERVAS');
-      setOnlyMyBookings(true);
-    }
-  }, [searchParams, setMobileSectionTab, setOnlyMyBookings]);
 
   const fetchScheduleData = async () => {
     await refetchScheduleData();
@@ -418,59 +361,6 @@ export const SchedulePage: React.FC = () => {
     return Array.from(set).sort();
   }, [schedules]);
 
-  // Reservas activas del socio (BOOKED o WAITLISTED desde hoy en adelante)
-  const activeMyBookings = useMemo(() => {
-    return myBookings.filter(
-      (b) => (b.status === 'BOOKED' || b.status === 'WAITLISTED') && b.date >= todayStr
-    );
-  }, [myBookings, todayStr]);
-
-  // Detalle enriquecido de próximas reservas (Estilo Madrid Móvil "Mis Reservas y Anulaciones")
-  const upcomingMyBookingsDetailed = useMemo(() => {
-    return activeMyBookings
-      .map((booking) => {
-        const schedule = schedules.find((s) => s.id === booking.scheduleId);
-        return schedule ? { booking, schedule } : null;
-      })
-      .filter((item): item is { booking: BookingDomainModel; schedule: ScheduleDomainModel } => item !== null)
-      .sort((a, b) => {
-        const dateCmp = a.booking.date.localeCompare(b.booking.date);
-        if (dateCmp !== 0) return dateCmp;
-        return a.schedule.startTime.localeCompare(b.schedule.startTime);
-      });
-  }, [activeMyBookings, schedules]);
-
-  // Helper para saber si una clase en una fecha está reservada por el usuario
-  const getMyBookingForSlot = (scheduleId: string, dateStr: string): BookingDomainModel | undefined => {
-    return myBookings.find(
-      (b) =>
-        b.scheduleId === scheduleId &&
-        b.date === dateStr &&
-        (b.status === 'BOOKED' || b.status === 'WAITLISTED')
-    );
-  };
-
-  // Helper para saber el aforo en una fecha con aforo predeterminado y contador descendente (plazas libres / total)
-  const getCapacityForSlot = (schedule: ScheduleDomainModel, dateStr: string) => {
-    const key = `${schedule.id}_${dateStr}`;
-    const capData = classCapacities[key] || { bookedCount: 0, waitlistCount: 0 };
-    const activityCat = getActivityCategory(schedule.program);
-    // Aforo predeterminado por actividad (ej: 15, 18, 14 plazas según disciplina o modelo)
-    const capacity = schedule.capacity || activityCat.defaultCapacity || 15;
-    const currentAttendees = Math.max(0, capData.bookedCount);
-    const freeSpots = Math.max(0, capacity - currentAttendees);
-    const isFull = freeSpots === 0;
-    const fillPct = Math.min(100, Math.round((currentAttendees / capacity) * 100));
-    return {
-      currentAttendees,
-      waitlistCount: Math.max(0, capData.waitlistCount),
-      capacity,
-      freeSpots,
-      isFull,
-      fillPct,
-    };
-  };
-
   // Helper para comprobar excepción/festivo en una fecha
   const getExceptionForSlot = (
     scheduleId: string,
@@ -482,20 +372,19 @@ export const SchedulePage: React.FC = () => {
   };
 
   // Filtrar horarios según criterios REA seleccionados + Franja Horaria (Madrid Móvil)
-  const matchesFilters = (schedule: ScheduleDomainModel, dateStr?: string): boolean => {
+  const matchesFilters = (schedule: ScheduleDomainModel): boolean => {
     const prog = (schedule.program || '').toUpperCase();
     let matchDiscipline = true;
 
     if (selectedDiscipline === 'TODAS') {
       matchDiscipline = true;
-    } else if (selectedDiscipline === 'GI') {
-      matchDiscipline =
+    } else if (selectedDiscipline === 'GI_GRAPPLING') {
+      const isGrappling = prog.includes('GRAPPLING') || prog.includes('NO-GI');
+      const isGi =
         (/\bGI\b/.test(prog) || prog.includes('KIMONO') || prog.includes('BJJ')) &&
-        !prog.includes('NO-GI') &&
-        !prog.includes('GRAPPLING') &&
+        !isGrappling &&
         !prog.includes('FEM');
-    } else if (selectedDiscipline === 'GRAPPLING') {
-      matchDiscipline = prog.includes('GRAPPLING') || prog.includes('NO-GI');
+      matchDiscipline = isGi || isGrappling;
     } else if (selectedDiscipline === 'MMA') {
       matchDiscipline = prog.includes('MMA') || prog.includes('BOXEO') || prog.includes('STRIKING');
     } else if (selectedDiscipline === 'LUCHA') {
@@ -517,207 +406,7 @@ export const SchedulePage: React.FC = () => {
 
     if (!matchDiscipline || !matchProfessor || !matchRoom) return false;
 
-    if (onlyMyBookings && dateStr) {
-      return !!getMyBookingForSlot(schedule.id, dateStr);
-    }
-
     return true;
-  };
-
-  // Acción: Reservar Clase (con fecha explícita YYYY-MM-DD y respuesta instantánea 0 ms)
-  const handleBookClass = async (schedule: ScheduleDomainModel, targetDateStr: string) => {
-    if (!user) return;
-    const slotKey = `${schedule.id}_${targetDateStr}`;
-    setActionLoading(slotKey);
-    setMessage(null);
-
-    try {
-      if (targetDateStr < todayStr) {
-        throw new Error('No se pueden reservar clases en fechas pasadas.');
-      }
-
-      const inProgress =
-        targetDateStr === todayStr && isClassInProgress(schedule, exceptions, now);
-      if (inProgress) {
-        throw new Error('La clase ya está en curso o finalizada.');
-      }
-
-      const { isFull } = getCapacityForSlot(schedule, targetDateStr);
-      const bookingId = `${schedule.id}_${targetDateStr}_${user.uid}`;
-      const status: BookingStatus = isFull ? 'WAITLISTED' : 'BOOKED';
-
-      // 1. ACTUALIZACIÓN OPTIMISTA INSTANTÁNEA (0 ms): Se actualiza en memoria sin bloquear
-      const newBooking: BookingDomainModel = {
-        id: bookingId,
-        uid: user.uid,
-        scheduleId: schedule.id,
-        date: targetDateStr,
-        status,
-        sessionType: 'PARTICIPANT',
-        attendanceWeight: 1,
-        checkInSource: 'APP',
-        createdAt: new Date().toISOString(),
-      };
-
-      setMyBookings((prev) => [...prev.filter((b) => b.id !== bookingId), newBooking]);
-      setClassCapacities((prev) => {
-        const cur = prev[slotKey] || { bookedCount: 0, waitlistCount: 0 };
-        return {
-          ...prev,
-          [slotKey]: {
-            bookedCount: isFull ? cur.bookedCount : cur.bookedCount + 1,
-            waitlistCount: isFull ? cur.waitlistCount + 1 : cur.waitlistCount,
-          },
-        };
-      });
-
-      setMessage({
-        text: isFull
-          ? `Aforo completo el ${targetDateStr}. Te hemos añadido a la Lista de Espera.`
-          : `¡Plaza reservada en ${schedule.program} (${schedule.startTime}) para el ${targetDateStr}!`,
-        type: 'success',
-      });
-
-      // 2. Persistencia en background sin bloquear al usuario
-      const capDocId = `${schedule.id}_${targetDateStr}`;
-      Promise.all([
-        setDoc(doc(db, 'bookings', bookingId), {
-          uid: user.uid,
-          scheduleId: schedule.id,
-          date: targetDateStr,
-          status,
-          sessionType: 'PARTICIPANT',
-          checkInSource: 'APP',
-          createdAt: serverTimestamp(),
-        }),
-        setDoc(
-          doc(db, 'class_capacity', capDocId),
-          {
-            scheduleId: schedule.id,
-            date: targetDateStr,
-            bookedCount: isFull ? increment(0) : increment(1),
-            waitlistCount: isFull ? increment(1) : increment(0),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        ),
-      ])
-        .then(() => {
-          refetchScheduleData();
-        })
-        .catch((err) => {
-        console.error('Error persistiendo reserva en segundo plano:', err);
-        // Reversión optimista
-        setMyBookings((prev) => prev.filter((b) => b.id !== bookingId));
-        setClassCapacities((prev) => {
-          const cur = prev[slotKey] || { bookedCount: 1, waitlistCount: 0 };
-          return {
-            ...prev,
-            [slotKey]: {
-              bookedCount: isFull ? cur.bookedCount : Math.max(0, cur.bookedCount - 1),
-              waitlistCount: isFull ? Math.max(0, cur.waitlistCount - 1) : cur.waitlistCount,
-            },
-          };
-        });
-        setMessage({
-          text: 'Error de conexión con la base de datos. Se revirtió la reserva.',
-          type: 'error',
-        });
-      });
-    } catch (err: unknown) {
-      setMessage({
-        text: err instanceof Error ? err.message : 'No se pudo realizar la reserva.',
-        type: 'error',
-      });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Acción: Cancelar Reserva (Respuesta instantánea 0 ms)
-  const handleCancelBooking = async (
-    booking: BookingDomainModel,
-    schedule: ScheduleDomainModel,
-    targetDateStr: string
-  ) => {
-    if (!user) return;
-    const slotKey = `${schedule.id}_${targetDateStr}`;
-    setActionLoading(slotKey);
-    setMessage(null);
-
-    try {
-      const allowed = canCancel(booking, schedule, 2, now, role === 'admin');
-      if (!allowed) {
-        throw new Error('No es posible cancelar con menos de 2 horas de antelación.');
-      }
-
-      // 1. ACTUALIZACIÓN OPTIMISTA INSTANTÁNEA (0 ms)
-      const prevBooking = booking;
-      setMyBookings((prev) => prev.filter((b) => b.id !== booking.id));
-      setClassCapacities((prev) => {
-        const cur = prev[slotKey] || { bookedCount: 1, waitlistCount: 0 };
-        return {
-          ...prev,
-          [slotKey]: {
-            bookedCount:
-              booking.status === 'BOOKED' ? Math.max(0, cur.bookedCount - 1) : cur.bookedCount,
-            waitlistCount:
-              booking.status === 'WAITLISTED' ? Math.max(0, cur.waitlistCount - 1) : cur.waitlistCount,
-          },
-        };
-      });
-
-      setMessage({ text: 'Reserva cancelada correctamente. Plaza liberada.', type: 'success' });
-
-      // 2. Persistencia en background sin bloquear
-      const capDocId = `${schedule.id}_${targetDateStr}`;
-      Promise.all([
-        updateDoc(doc(db, 'bookings', booking.id), {
-          status: 'CANCELLED',
-          cancelledAt: serverTimestamp(),
-        }),
-        booking.status === 'BOOKED'
-          ? setDoc(
-              doc(db, 'class_capacity', capDocId),
-              {
-                scheduleId: schedule.id,
-                date: targetDateStr,
-                bookedCount: increment(-1),
-                updatedAt: serverTimestamp(),
-              },
-              { merge: true }
-            )
-          : setDoc(
-              doc(db, 'class_capacity', capDocId),
-              {
-                scheduleId: schedule.id,
-                date: targetDateStr,
-                waitlistCount: increment(-1),
-                updatedAt: serverTimestamp(),
-              },
-              { merge: true }
-            ),
-      ])
-        .then(() => {
-          refetchScheduleData();
-        })
-        .catch((err) => {
-        console.error('Error persistiendo cancelación en segundo plano:', err);
-        // Reversión optimista
-        setMyBookings((prev) => [...prev, prevBooking]);
-        setMessage({
-          text: 'Error de red al cancelar la reserva.',
-          type: 'error',
-        });
-      });
-    } catch (err: unknown) {
-      setMessage({
-        text: err instanceof Error ? err.message : 'No se pudo cancelar la reserva.',
-        type: 'error',
-      });
-    } finally {
-      setActionLoading(null);
-    }
   };
 
   // Semana activa calculada a partir de selectedDateStr (Lunes a Domingo)
@@ -738,43 +427,6 @@ export const SchedulePage: React.FC = () => {
     });
   }, [mondayOfSelectedWeek, todayStr]);
 
-  // Carrusel horizontal de días lectivos (Lunes a Viernes exclusivamente, sin fines de semana)
-  const mobileCarouselDays = useMemo(() => {
-    const days: Array<{
-      num: number;
-      label: string;
-      short: string;
-      letter: string;
-      dateStr: string;
-      dayNum: number;
-      monthShort: string;
-      isToday: boolean;
-    }> = [];
-
-    const baseMonday = getMondayOfWeek(
-      selectedDateStr < todayStr ? selectedDateStr : todayStr
-    );
-
-    let cursor = baseMonday;
-    while (days.length < 15) {
-      const parsed = parseYMD(cursor);
-      if (parsed.dayOfWeek >= 1 && parsed.dayOfWeek <= 5) {
-        const meta =
-          WORKING_WEEKDAY_HEADERS.find((w) => w.num === parsed.dayOfWeek) ||
-          WORKING_WEEKDAY_HEADERS[0];
-        days.push({
-          ...meta,
-          dateStr: cursor,
-          dayNum: parsed.day,
-          monthShort: MONTH_NAMES_ES[parsed.month0].slice(0, 3).toUpperCase(),
-          isToday: cursor === todayStr,
-        });
-      }
-      cursor = addDaysYMD(cursor, 1);
-    }
-    return days;
-  }, [todayStr, selectedDateStr]);
-
   // Celdas de la matriz mensual (Lunes a Viernes exclusivamente, omitiendo sábados y domingos)
   const monthGridCells = useMemo(() => {
     const { year, month0 } = visibleMonth;
@@ -789,7 +441,6 @@ export const SchedulePage: React.FC = () => {
       isToday: boolean;
       isSelected: boolean;
       daySchedules: ScheduleDomainModel[];
-      dayBookingsCount: number;
       dayException: ScheduleExceptionDomainModel | undefined;
     }> = [];
 
@@ -806,12 +457,8 @@ export const SchedulePage: React.FC = () => {
         const parsed = parseYMD(dateStr);
         const isCurrentMonth = parsed.month0 === month0 && parsed.year === year;
         const daySchedules = schedules
-          .filter((s) => s.dayOfWeek === parsed.dayOfWeek && matchesFilters(s, dateStr))
+          .filter((s) => s.dayOfWeek === parsed.dayOfWeek && matchesFilters(s))
           .sort((a, b) => a.startTime.localeCompare(b.startTime));
-
-        const dayBookingsCount = daySchedules.filter(
-          (s) => !!getMyBookingForSlot(s.id, dateStr)
-        ).length;
 
         const dayException = exceptions.find((e) => e.date === dateStr);
 
@@ -823,7 +470,6 @@ export const SchedulePage: React.FC = () => {
           isToday: dateStr === todayStr,
           isSelected: dateStr === selectedDateStr,
           daySchedules,
-          dayBookingsCount,
           dayException,
         });
       }
@@ -836,11 +482,9 @@ export const SchedulePage: React.FC = () => {
     visibleMonth,
     schedules,
     exceptions,
-    myBookings,
     selectedDiscipline,
     selectedProfessor,
     selectedRoom,
-    onlyMyBookings,
     todayStr,
     selectedDateStr,
   ]);
@@ -903,7 +547,7 @@ export const SchedulePage: React.FC = () => {
       .filter(
         (s) =>
           s.dayOfWeek === selectedDayParsed.dayOfWeek &&
-          matchesFilters(s, selectedDateStr)
+          matchesFilters(s)
       )
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }, [
@@ -913,11 +557,9 @@ export const SchedulePage: React.FC = () => {
     selectedDiscipline,
     selectedProfessor,
     selectedRoom,
-    onlyMyBookings,
-    myBookings,
   ]);
 
-  // División / Agrupación de clases por actividad deportiva con aforo predeterminado
+  // División / Agrupación de clases por actividad deportiva
   const groupedByActivity = useMemo(() => {
     const groups: { category: ActivityCategory; schedules: ScheduleDomainModel[] }[] = [];
     ACTIVITY_CATEGORIES.forEach((cat) => {
@@ -937,18 +579,6 @@ export const SchedulePage: React.FC = () => {
     }
     return groups;
   }, [selectedDaySchedules]);
-
-  // Reserva de hoy activa para el cotejo automático con el Carnet Virtual en recepción
-  const todayMyBooking = useMemo(() => {
-    return myBookings.find(
-      (b) => b.date === todayStr && (b.status === 'BOOKED' || b.status === 'WAITLISTED' || b.status === 'ATTENDED')
-    );
-  }, [myBookings, todayStr]);
-
-  const todayBookingSchedule = useMemo(() => {
-    if (!todayMyBooking) return null;
-    return schedules.find((s) => s.id === todayMyBooking.scheduleId) || null;
-  }, [todayMyBooking, schedules]);
 
   // Rango legible en la cabecera
   const periodTitle = useMemo(() => {
@@ -1026,61 +656,12 @@ export const SchedulePage: React.FC = () => {
           )}
         </div>
 
-        {/* Segmented Control Principal estilo Madrid Móvil: [ 🥋 Reservar Clases ] | [ 🎟️ Mis Reservas (X) ] */}
-        <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          <div className="grid grid-cols-2 gap-1.5 bg-slate-900 p-1 rounded-2xl border border-slate-800">
+        {/* Conmutador de Vistas en Escritorio (Día · Semana · Mes) */}
+        <div className="hidden lg:flex justify-end mt-4 pt-3 border-t border-slate-800/80">
+          <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
             <button
               type="button"
-              onClick={() => {
-                setMobileSectionTab('RESERVAR');
-                setOnlyMyBookings(false);
-              }}
-              className={`py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer ${
-                mobileSectionTab === 'RESERVAR'
-                  ? 'bg-white text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Reservar Clases</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setMobileSectionTab('MIS_RESERVAS');
-                setOnlyMyBookings(true);
-              }}
-              className={`py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer relative ${
-                mobileSectionTab === 'MIS_RESERVAS'
-                  ? 'bg-emerald-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Check className="w-3.5 h-3.5" />
-              <span>Mis Reservas</span>
-              {activeMyBookings.length > 0 && (
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    mobileSectionTab === 'MIS_RESERVAS'
-                      ? 'bg-white text-emerald-900'
-                      : 'bg-emerald-500 text-white'
-                  }`}
-                >
-                  {activeMyBookings.length}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Conmutador de Vistas en Escritorio (Día · Semana · Mes) */}
-          <div className="hidden lg:flex items-center gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
-            <button
-              type="button"
-              onClick={() => {
-                setViewMode('DAY');
-                setMobileSectionTab('RESERVAR');
-              }}
+              onClick={() => setViewMode('DAY')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'DAY'
                   ? 'bg-amber-400 text-slate-950 shadow-xs font-black'
@@ -1093,10 +674,7 @@ export const SchedulePage: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => {
-                setViewMode('WEEK');
-                setMobileSectionTab('RESERVAR');
-              }}
+              onClick={() => setViewMode('WEEK')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'WEEK'
                   ? 'bg-white text-slate-950 shadow-xs font-black'
@@ -1109,10 +687,7 @@ export const SchedulePage: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => {
-                setViewMode('MONTH');
-                setMobileSectionTab('RESERVAR');
-              }}
+              onClick={() => setViewMode('MONTH')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 viewMode === 'MONTH'
                   ? 'bg-white text-slate-950 shadow-xs font-black'
@@ -1127,195 +702,10 @@ export const SchedulePage: React.FC = () => {
       </div>
 
       {/* ======================================================== */}
-      {/* 1.5 BANNER COTEJO DE ACCESO ACTIVO PARA HOY (MADRID MÓVIL)*/}
+      {/* 2. HORARIO DE CONSULTA (SEMANA + FILTROS + VISTAS)        */}
       {/* ======================================================== */}
-      {todayMyBooking && todayBookingSchedule && (
-        <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 border-2 border-emerald-500/70 rounded-3xl p-4 sm:p-5 shadow-xl text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in duration-300">
-          <div className="flex items-start gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 flex items-center justify-center shrink-0">
-              <Check className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500 text-slate-950">
-                  Cotejo de Acceso Activo
-                </span>
-                <span className="text-[11px] text-emerald-400 font-mono font-bold">
-                  Hoy a las {todayBookingSchedule.startTime}
-                </span>
-              </div>
-              <h3 className="text-sm sm:text-base font-black uppercase text-white mt-1">
-                {todayBookingSchedule.program} · {todayBookingSchedule.room || 'Tatami Principal'}
-              </h3>
-              <p className="text-xs text-slate-300 mt-0.5 max-w-xl">
-                Al escanear tu Carnet Virtual en la tablet del torno, el sistema coteja y valida tu asistencia automáticamente, descontando tu plaza del aforo en tiempo real.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowQrPassModal(true)}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-md shrink-0 cursor-pointer active:scale-95"
-          >
-            <QrCode className="w-4 h-4 text-slate-950" />
-            <span>Ver Carnet QR</span>
-          </button>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* 2. PANTALLA PRINCIPAL: 'MIS RESERVAS' O 'RESERVAR CLASES' */}
-      {/* ======================================================== */}
-      {mobileSectionTab === 'MIS_RESERVAS' ? (
-        /* ======================================================== */
-        /* 2A. WALLET DE RESERVAS Y ANULACIONES ESTILO MADRID MÓVIL */
-        /* ======================================================== */
-        <div className="space-y-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">
-                  STUDIO 247 · Tus Pases Activos
-                </span>
-                <h2 className="text-lg font-black text-slate-900 uppercase">
-                  Mis Reservas y Anulaciones ({upcomingMyBookingsDetailed.length})
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileSectionTab('RESERVAR');
-                  setOnlyMyBookings(false);
-                }}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition cursor-pointer"
-              >
-                + Nueva Reserva
-              </button>
-            </div>
-
-            {upcomingMyBookingsDetailed.length === 0 ? (
-              <div className="text-center py-12 px-4">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3 border border-emerald-200">
-                  <Calendar className="w-7 h-7" />
-                </div>
-                <h3 className="text-sm font-black text-slate-900 uppercase">
-                  No tienes reservas activas
-                </h3>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
-                  Selecciona una fecha en el calendario para reservar tu plaza en las clases de BJJ, Grappling o MMA.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileSectionTab('RESERVAR');
-                    setOnlyMyBookings(false);
-                  }}
-                  className="px-4 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition shadow-sm cursor-pointer"
-                >
-                  Explorar Clases Disponibles →
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3 pt-4">
-                {upcomingMyBookingsDetailed.map(({ booking, schedule }) => {
-                  const slotKey = `${schedule.id}_${booking.date}`;
-                  const theme = getProgramTheme(schedule.program);
-                  const dur = calculateScheduleDurationMinutes(schedule.startTime, schedule.endTime);
-                  const isPast = booking.date < todayStr;
-
-                  return (
-                    <div
-                      key={booking.id}
-                      className="bg-slate-50/70 border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs transition hover:shadow-md relative overflow-hidden"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${theme.badge}`}
-                            >
-                              {schedule.program}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                              {booking.status === 'WAITLISTED' ? 'En Lista de Espera' : 'Plaza Confirmada'}
-                            </span>
-                            <span className="text-[10px] font-mono text-slate-400">
-                              Reserva #{booking.id.slice(-6).toUpperCase()}
-                            </span>
-                          </div>
-
-                          <div>
-                            <h3 className="text-base sm:text-lg font-black text-slate-900 capitalize font-headline">
-                              {formatReadableDateEs(booking.date)}
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 mt-1">
-                              <span className="font-mono font-black text-slate-900 flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5 text-slate-500" />
-                                {schedule.startTime} – {schedule.endTime} ({dur}m)
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <User className="w-3.5 h-3.5 text-slate-400" />
-                                Prof. {schedule.professor}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                                {schedule.room || 'Tatami Principal'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Botones de acción del Pase Madrid Móvil */}
-                        <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
-                          {userData && (
-                            <button
-                              type="button"
-                              onClick={() => setShowQrPassModal(true)}
-                              className="flex-1 sm:flex-initial py-2.5 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer active:scale-95"
-                              title="Mostrar Pase QR para el torno"
-                            >
-                              <QrCode className="w-4 h-4 text-amber-400" />
-                              <span>Pase QR Torno</span>
-                            </button>
-                          )}
-
-                          {!isPast && (
-                            <button
-                              type="button"
-                              onClick={() => handleCancelBooking(booking, schedule, booking.date)}
-                              disabled={actionLoading === slotKey}
-                              className="py-2.5 px-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
-                            >
-                              {actionLoading === slotKey ? 'Anulando...' : 'Anular Reserva'}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Nota informativa de normativa municipal de anulación */}
-                <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-                    <span>Normativa de Reservas y Anulaciones (STUDIO 247):</span>
-                  </div>
-                  <p className="text-amber-800 pl-5">
-                    Puedes anular tu reserva sin penalización hasta <strong>2 horas antes</strong> del inicio de la sesión. Presenta tu código QR en el torno de entrada al tatami para validar tu asistencia.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        /* ======================================================== */
-        /* 2B. FLUJO DE RESERVA DE CLASES (CARRUSEL + FILTROS + REA)*/
-        /* ======================================================== */
         <div className="space-y-4">
-          {/* Tira Horizontal de 14 Días estilo Madrid Móvil (SIEMPRE VISIBLE EN RESERVAR) */}
+          {/* Selector fijo de semana (Lunes a Viernes, 5 columnas sin scroll horizontal) */}
           <div className="bg-white p-3 rounded-3xl border border-slate-200/80 shadow-sm space-y-2">
             <div className="flex items-center justify-between px-1">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
@@ -1331,64 +721,76 @@ export const SchedulePage: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none">
-              {mobileCarouselDays.map((d) => {
-                const isSelected = d.dateStr === selectedDateStr;
-                const hasBookingOnDay = schedules.some(
-                  (s) =>
-                    s.dayOfWeek === d.num && !!getMyBookingForSlot(s.id, d.dateStr)
-                );
+            <div className="flex items-stretch gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleSelectDate(addDaysYMD(selectedDateStr, -7))}
+                aria-label="Semana anterior"
+                title="Semana anterior"
+                className="w-8 shrink-0 rounded-2xl flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 transition cursor-pointer active:scale-95"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
 
-                return (
-                  <button
-                    key={d.dateStr}
-                    type="button"
-                    onClick={() => handleSelectDate(d.dateStr)}
-                    aria-pressed={isSelected}
-                    aria-label={`Ver horario del ${d.label} ${d.dayNum}${d.isToday ? ' (Hoy)' : ''}`}
-                    className={`py-2 px-3 min-w-[64px] shrink-0 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer border relative active:scale-95 ${
-                      isSelected
-                        ? 'bg-slate-950 text-white border-slate-950 shadow-md ring-2 ring-slate-900/10'
-                        : d.isToday
-                        ? 'bg-amber-50/80 text-slate-950 border-amber-300 font-bold'
-                        : 'bg-slate-50 text-slate-700 border-slate-200/80 hover:bg-slate-100 hover:text-slate-950'
-                    }`}
-                  >
-                    <span className="text-[9px] font-black uppercase tracking-wider">
-                      {d.short}
-                    </span>
-                    <span className="text-base font-black font-mono mt-0.5 leading-none">
-                      {d.dayNum}
-                    </span>
-                    <span
-                      className={`text-[8px] font-bold uppercase mt-0.5 ${
-                        isSelected ? 'text-slate-300' : 'text-slate-400'
+              <div className="grid grid-cols-5 gap-1 flex-1 min-w-0">
+                {weekDays.map((d) => {
+                  const isSelected = d.dateStr === selectedDateStr;
+
+                  return (
+                    <button
+                      key={d.dateStr}
+                      type="button"
+                      onClick={() => handleSelectDate(d.dateStr)}
+                      aria-pressed={isSelected}
+                      aria-label={`Ver horario del ${d.label} ${d.dayNum}${d.isToday ? ' (Hoy)' : ''}`}
+                      className={`py-2 px-0.5 min-w-0 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer border active:scale-95 ${
+                        isSelected
+                          ? 'bg-slate-950 text-white border-slate-950 shadow-md ring-2 ring-slate-900/10'
+                          : d.isToday
+                          ? 'bg-amber-50/80 text-slate-950 border-amber-300 font-bold'
+                          : 'bg-slate-50 text-slate-700 border-slate-200/80 hover:bg-slate-100 hover:text-slate-950'
                       }`}
                     >
-                      {d.monthShort}
-                    </span>
-                    <div className="flex items-center gap-1 mt-1 h-2.5">
-                      {d.isToday && (
-                        <span
-                          className={`text-[7px] font-black uppercase px-1 rounded-full leading-tight ${
-                            isSelected
-                              ? 'bg-amber-400 text-slate-950'
-                              : 'bg-amber-200 text-amber-950'
-                          }`}
-                        >
-                          Hoy
-                        </span>
-                      )}
-                      {hasBookingOnDay && (
-                        <span
-                          title="Tienes clase reservada este día"
-                          className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white"
-                        />
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+                      <span className="text-[9px] font-black uppercase tracking-wider">
+                        {d.short}
+                      </span>
+                      <span className="text-base font-black font-mono mt-0.5 leading-none">
+                        {d.dayNum}
+                      </span>
+                      <span
+                        className={`text-[8px] font-bold uppercase mt-0.5 ${
+                          isSelected ? 'text-slate-300' : 'text-slate-400'
+                        }`}
+                      >
+                        {d.monthShort}
+                      </span>
+                      <div className="mt-1 h-2.5 flex items-center">
+                        {d.isToday && (
+                          <span
+                            className={`text-[7px] font-black uppercase px-1 rounded-full leading-tight ${
+                              isSelected
+                                ? 'bg-amber-400 text-slate-950'
+                                : 'bg-amber-200 text-amber-950'
+                            }`}
+                          >
+                            Hoy
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleSelectDate(addDaysYMD(selectedDateStr, 7))}
+                aria-label="Semana siguiente"
+                title="Semana siguiente"
+                className="w-8 shrink-0 rounded-2xl flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80 transition cursor-pointer active:scale-95"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
@@ -1539,33 +941,6 @@ export const SchedulePage: React.FC = () => {
             </div>
           </div>
 
-      {/* Feedback de Reserva / Cancelación */}
-      {message && (
-        <div
-          className={`p-3.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-2 animate-in fade-in duration-150 ${
-            message.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-red-50 border-red-200 text-red-700'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {message.type === 'success' ? (
-              <Check className="w-4 h-4 shrink-0 text-emerald-600" />
-            ) : (
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
-            )}
-            <span>{message.text}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setMessage(null)}
-            className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       {/* ======================================================== */}
       {/* 3. CONTENIDO SEGÚN LA VISTA ACTIVA (DÍA | SEMANA | MES)   */}
       {/* ======================================================== */}
@@ -1623,7 +998,7 @@ export const SchedulePage: React.FC = () => {
               const colSchedules = schedules
                 .filter(
                   (s) =>
-                    s.dayOfWeek === dayCol.num && matchesFilters(s, dayCol.dateStr)
+                    s.dayOfWeek === dayCol.num && matchesFilters(s)
                 )
                 .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
@@ -1694,13 +1069,9 @@ export const SchedulePage: React.FC = () => {
                           sched.startTime,
                           sched.endTime
                         );
-                        const myBooking = getMyBookingForSlot(sched.id, dayCol.dateStr);
                         const exc = getExceptionForSlot(sched.id, dayCol.dateStr);
-                        const { currentAttendees, capacity, isFull, fillPct } =
-                          getCapacityForSlot(sched, dayCol.dateStr);
                         const inProgress =
                           dayCol.isToday && isClassInProgress(sched, exceptions, now);
-                        const isPastDay = dayCol.dateStr < todayStr;
                         const slotKey = `${sched.id}_${dayCol.dateStr}`;
 
                         return (
@@ -1715,8 +1086,6 @@ export const SchedulePage: React.FC = () => {
                             className={`p-3 rounded-xl border transition-all hover:shadow-md cursor-pointer flex flex-col justify-between gap-2 ${
                               exc
                                 ? 'bg-rose-50/50 border-rose-200 opacity-75'
-                                : myBooking
-                                ? 'bg-emerald-50/40 border-emerald-300 ring-1 ring-emerald-200'
                                 : `${theme.bg} ${theme.border} ${theme.borderLeft}`
                             }`}
                           >
@@ -1744,12 +1113,6 @@ export const SchedulePage: React.FC = () => {
                                     En curso
                                   </span>
                                 )}
-                                {myBooking && (
-                                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9px] font-black uppercase flex items-center gap-0.5">
-                                    <Check className="w-2.5 h-2.5" />
-                                    {myBooking.status === 'WAITLISTED' ? 'Espera' : 'Inscrito'}
-                                  </span>
-                                )}
                               </div>
 
                               {/* Profesor & Sala */}
@@ -1767,99 +1130,13 @@ export const SchedulePage: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Barra de Ocupación REA + Botón Rápido 1-Clic */}
-                            <div
-                              className="pt-2 border-t border-slate-200/60 space-y-1.5"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="flex items-center justify-between text-[10px] font-mono">
-                                <span className="text-slate-500 flex items-center gap-1">
-                                  <Users className="w-3 h-3" />
-                                  {currentAttendees}/{capacity} plazas
-                                </span>
-                                <span
-                                  className={`font-bold ${
-                                    isFull
-                                      ? 'text-rose-600'
-                                      : fillPct >= 75
-                                      ? 'text-amber-600'
-                                      : 'text-emerald-600'
-                                  }`}
-                                >
-                                  {isFull ? 'Completo' : `${capacity - currentAttendees} libres`}
-                                </span>
-                              </div>
-
-                              <div className="w-full h-1.5 bg-white/80 rounded-full overflow-hidden border border-slate-200/60">
-                                <div
-                                  className={`h-full rounded-full transition-all ${
-                                    isFull
-                                      ? 'bg-rose-500'
-                                      : fillPct >= 75
-                                      ? 'bg-amber-500'
-                                      : 'bg-emerald-500'
-                                  }`}
-                                  style={{ width: `${fillPct}%` }}
-                                />
-                              </div>
-
-                              {exc ? (
+                            {exc && (
+                              <div className="pt-2 border-t border-slate-200/60">
                                 <div className="text-[10px] font-bold text-rose-700 text-center py-1 bg-rose-100/70 rounded-lg">
                                   Cerrado: {exc.reason}
                                 </div>
-                              ) : myBooking ? (
-                                <div className="flex items-center gap-1">
-                                  <span className="flex-1 py-1 px-2 rounded-lg bg-emerald-600 text-white text-[10px] font-bold text-center flex items-center justify-center gap-1">
-                                    <Check className="w-3 h-3" />
-                                    {myBooking.status === 'WAITLISTED'
-                                      ? 'En Espera'
-                                      : 'Reservada'}
-                                  </span>
-                                  {!isPastDay && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleCancelBooking(myBooking, sched, dayCol.dateStr)
-                                      }
-                                      disabled={actionLoading === slotKey}
-                                      title="Cancelar mi reserva"
-                                      className="p-1 rounded-lg bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 transition cursor-pointer"
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              ) : isPastDay ? (
-                                <div className="text-[10px] font-semibold text-slate-400 text-center py-1">
-                                  Sesión finalizada
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleBookClass(sched, dayCol.dateStr)}
-                                  disabled={actionLoading === slotKey}
-                                  className={`w-full py-1.5 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
-                                    isFull
-                                      ? 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300'
-                                      : 'bg-slate-900 hover:bg-slate-800 text-white shadow-2xs'
-                                  }`}
-                                >
-                                  {actionLoading === slotKey ? (
-                                    <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                  ) : isFull ? (
-                                    <>
-                                      <Clock className="w-3 h-3" />
-                                      <span>Lista Espera</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Sparkles className="w-3 h-3 text-amber-400" />
-                                      <span>Reservar</span>
-                                    </>
-                                  )}
-                                </button>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })
@@ -1941,7 +1218,7 @@ export const SchedulePage: React.FC = () => {
                         : 'bg-white hover:bg-slate-50/80'
                     }`}
                   >
-                    {/* Fila superior: Número de día + Insignia de Reserva */}
+                    {/* Fila superior: Número de día */}
                     <div className="flex items-center justify-between gap-1">
                       <span
                         className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${
@@ -1956,13 +1233,6 @@ export const SchedulePage: React.FC = () => {
                       >
                         {cell.day}
                       </span>
-
-                      {cell.dayBookingsCount > 0 && (
-                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9px] font-black flex items-center gap-0.5">
-                          <Check className="w-2.5 h-2.5" />
-                          <span className="hidden sm:inline">{cell.dayBookingsCount}</span>
-                        </span>
-                      )}
                     </div>
 
                     {/* Píldoras de clases del día */}
@@ -1974,7 +1244,6 @@ export const SchedulePage: React.FC = () => {
                       ) : (
                         <>
                           {visiblePills.map((s) => {
-                            const booked = !!getMyBookingForSlot(s.id, cell.dateStr);
                             const theme = getProgramTheme(s.program);
                             return (
                               <div
@@ -1987,16 +1256,11 @@ export const SchedulePage: React.FC = () => {
                                     dateStr: cell.dateStr,
                                   });
                                 }}
-                                className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold truncate flex items-center justify-between gap-1 border ${
-                                  booked
-                                    ? 'bg-emerald-600 text-white border-emerald-700'
-                                    : `${theme.bg} ${theme.text} ${theme.border}`
-                                }`}
+                                className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold truncate flex items-center justify-between gap-1 border ${theme.bg} ${theme.text} ${theme.border}`}
                               >
                                 <span className="truncate">
                                   <strong className="font-mono">{s.startTime}</strong> {s.program}
                                 </span>
-                                {booked && <Check className="w-2.5 h-2.5 shrink-0" />}
                               </div>
                             );
                           })}
@@ -2042,23 +1306,13 @@ export const SchedulePage: React.FC = () => {
               <div className="space-y-2.5 max-h-[540px] overflow-y-auto pr-1">
                 {selectedDaySchedules.map((sched) => {
                   const theme = getProgramTheme(sched.program);
-                  const myBooking = getMyBookingForSlot(sched.id, selectedDateStr);
                   const exc = getExceptionForSlot(sched.id, selectedDateStr);
-                  const { currentAttendees, capacity, isFull } = getCapacityForSlot(
-                    sched,
-                    selectedDateStr
-                  );
-                  const isPastDay = selectedDateStr < todayStr;
                   const slotKey = `${sched.id}_${selectedDateStr}`;
 
                   return (
                     <div
                       key={slotKey}
-                      className={`p-3 rounded-xl border transition ${
-                        myBooking
-                          ? 'bg-emerald-50/40 border-emerald-300'
-                          : 'bg-slate-50/60 border-slate-200/80'
-                      }`}
+                      className="p-3 rounded-xl border transition bg-slate-50/60 border-slate-200/80"
                     >
                       <div className="flex items-center justify-between gap-2 mb-1">
                         <span className="font-mono text-xs font-black text-slate-900">
@@ -2071,58 +1325,16 @@ export const SchedulePage: React.FC = () => {
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-600 mb-2.5">
+                      <div className="text-[11px] text-slate-600">
                         <span>
                           Prof. <strong>{sched.professor}</strong> · {sched.room || 'Tatami Principal'}
                         </span>
-                        <span className="font-mono font-bold">
-                          {currentAttendees}/{capacity}
-                        </span>
                       </div>
 
-                      {exc ? (
-                        <div className="text-[11px] font-bold text-rose-600">
+                      {exc && (
+                        <div className="mt-2.5 text-[11px] font-bold text-rose-600">
                           Cancelada: {exc.reason}
                         </div>
-                      ) : myBooking ? (
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" />
-                            {myBooking.status === 'WAITLISTED'
-                              ? 'En Lista de Espera'
-                              : 'Plaza Reservada'}
-                          </span>
-                          {!isPastDay && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleCancelBooking(myBooking, sched, selectedDateStr)
-                              }
-                              disabled={actionLoading === slotKey}
-                              className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold cursor-pointer"
-                            >
-                              Cancelar
-                            </button>
-                          )}
-                        </div>
-                      ) : isPastDay ? (
-                        <span className="text-[11px] text-slate-400 italic">
-                          Fecha pasada
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleBookClass(sched, selectedDateStr)}
-                          disabled={actionLoading === slotKey}
-                          className={`w-full py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                            isFull
-                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                              : 'bg-slate-900 hover:bg-slate-800 text-white'
-                          }`}
-                        >
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          <span>{isFull ? 'Entrar en Lista de Espera' : 'Reservar Plaza'}</span>
-                        </button>
                       )}
                     </div>
                   );
@@ -2187,7 +1399,7 @@ export const SchedulePage: React.FC = () => {
             </div>
           ) : groupingMode === 'BY_ACTIVITY' ? (
             /* ======================================================== */
-            /* 1. VISTA AGRUPADA POR ACTIVIDAD DEPORTIVA (AFORO)       */
+            /* 1. VISTA AGRUPADA POR ACTIVIDAD DEPORTIVA               */
             /* ======================================================== */
             <div className="space-y-6">
               {groupedByActivity.map(({ category, schedules: catSchedules }) => (
@@ -2209,9 +1421,6 @@ export const SchedulePage: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 pl-2">
-                      <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-amber-400 text-slate-950 shadow-2xs">
-                        Aforo {category.defaultCapacity} pl.
-                      </span>
                       <span className="px-2 py-1 rounded-xl text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
                         {catSchedules.length} {catSchedules.length === 1 ? 'clase' : 'clases'}
                       </span>
@@ -2230,13 +1439,6 @@ export const SchedulePage: React.FC = () => {
                         selectedDateStr === todayStr &&
                         isClassInProgress(schedule, exceptions, now);
                       const exc = getExceptionForSlot(schedule.id, selectedDateStr);
-                      const myBooking = getMyBookingForSlot(schedule.id, selectedDateStr);
-                      const { currentAttendees, capacity, isFull, fillPct } = getCapacityForSlot(
-                        schedule,
-                        selectedDateStr
-                      );
-                      const freeSpots = Math.max(0, capacity - currentAttendees);
-                      const isPastDay = selectedDateStr < todayStr;
                       const slotKey = `${schedule.id}_${selectedDateStr}`;
 
                       return (
@@ -2245,8 +1447,6 @@ export const SchedulePage: React.FC = () => {
                           className={`bg-white border rounded-2xl p-4 sm:p-5 shadow-sm transition-all hover:shadow-md ${
                             inProgress
                               ? 'border-emerald-400 ring-1 ring-emerald-200'
-                              : myBooking
-                              ? 'border-emerald-300 bg-emerald-50/20'
                               : 'border-slate-200/80'
                           }`}
                         >
@@ -2282,32 +1482,6 @@ export const SchedulePage: React.FC = () => {
                                     {schedule.program}
                                   </span>
 
-                                  {/* Contador Descendente de Aforo estilo Madrid Móvil (15/15, 14/15, 13/15...) */}
-                                  <span
-                                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border flex items-center gap-1.5 ${
-                                      isFull
-                                        ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                        : freeSpots <= 4
-                                        ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
-                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    }`}
-                                  >
-                                    <span
-                                      className={`w-1.5 h-1.5 rounded-full ${
-                                        isFull
-                                          ? 'bg-rose-500'
-                                          : freeSpots <= 4
-                                          ? 'bg-amber-500'
-                                          : 'bg-emerald-500'
-                                      }`}
-                                    />
-                                    {isFull
-                                      ? `0/${capacity} plazas · Completo`
-                                      : freeSpots <= 4
-                                      ? `¡Últimas ${freeSpots}/${capacity} plazas!`
-                                      : `${freeSpots}/${capacity} plazas libres`}
-                                  </span>
-
                                   {schedule.levelRequired && (
                                     <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-mono font-bold uppercase">
                                       Nivel: {schedule.levelRequired}
@@ -2338,107 +1512,8 @@ export const SchedulePage: React.FC = () => {
                                     <MapPin className="w-3.5 h-3.5 text-slate-400" />
                                     {schedule.room || 'Tatami Principal'}
                                   </span>
-
-                                  <span className="flex items-center gap-1 text-[11px] font-mono text-slate-500">
-                                    <Users className="w-3.5 h-3.5" />
-                                    {currentAttendees} / {capacity} ocupadas ({fillPct}%)
-                                  </span>
-                                </div>
-
-                                {/* Barra de ocupación en tiempo real */}
-                                <div className="w-full max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full transition-all duration-300 ${
-                                      isFull
-                                        ? 'bg-rose-500'
-                                        : fillPct >= 75
-                                        ? 'bg-amber-500'
-                                        : 'bg-emerald-500'
-                                    }`}
-                                    style={{ width: `${fillPct}%` }}
-                                  />
                                 </div>
                               </div>
-                            </div>
-
-                            {/* Acciones de Reserva / Resguardo QR / Cancelación */}
-                            <div className="flex items-center justify-end gap-2 shrink-0">
-                              {exc ? (
-                                <span className="text-xs font-bold text-red-600">
-                                  Clase no disponible
-                                </span>
-                              ) : myBooking ? (
-                                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-                                  <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
-                                    <Check className="w-4 h-4 text-emerald-600" />
-                                    {myBooking.status === 'WAITLISTED'
-                                      ? 'En Lista de Espera'
-                                      : 'Plaza Reservada'}
-                                  </span>
-
-                                  {userData && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowQrPassModal(true)}
-                                      className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
-                                      title="Mostrar Carnet Virtual QR para el torno"
-                                    >
-                                      <QrCode className="w-3.5 h-3.5 text-amber-400" />
-                                      <span>QR</span>
-                                    </button>
-                                  )}
-
-                                  {!isPastDay && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleCancelBooking(
-                                          myBooking,
-                                          schedule,
-                                          selectedDateStr
-                                        )
-                                      }
-                                      disabled={actionLoading === slotKey}
-                                      aria-label={`Cancelar mi reserva para ${schedule.program} a las ${schedule.startTime}`}
-                                      className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold transition cursor-pointer"
-                                      title="Cancelar mi reserva"
-                                    >
-                                      {actionLoading === slotKey ? (
-                                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                                      ) : (
-                                        <X className="w-4 h-4" />
-                                      )}
-                                    </button>
-                                  )}
-                                </div>
-                              ) : isPastDay ? (
-                                <span className="text-xs font-semibold text-slate-400">
-                                  Sesión pasada
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleBookClass(schedule, selectedDateStr)}
-                                  disabled={actionLoading === slotKey}
-                                  className={`w-full sm:w-auto justify-center py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer ${
-                                    isFull
-                                      ? 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
-                                      : 'bg-slate-900 hover:bg-slate-800 text-white'
-                                  }`}
-                                >
-                                  {actionLoading === slotKey ? (
-                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                  ) : isFull ? (
-                                    <>
-                                      <Clock className="w-3.5 h-3.5" /> Lista de Espera
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Reservar ({freeSpots}/{capacity})
-                                    </>
-                                  )}
-                                </button>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -2489,14 +1564,7 @@ export const SchedulePage: React.FC = () => {
                           selectedDateStr === todayStr &&
                           isClassInProgress(schedule, exceptions, now);
                         const exc = getExceptionForSlot(schedule.id, selectedDateStr);
-                        const myBooking = getMyBookingForSlot(schedule.id, selectedDateStr);
-                        const { currentAttendees, capacity, isFull, fillPct } = getCapacityForSlot(
-                          schedule,
-                          selectedDateStr
-                        );
                         const activityCat = getActivityCategory(schedule.program);
-                        const freeSpots = Math.max(0, capacity - currentAttendees);
-                        const isPastDay = selectedDateStr < todayStr;
                         const slotKey = `${schedule.id}_${selectedDateStr}`;
 
                         return (
@@ -2505,8 +1573,6 @@ export const SchedulePage: React.FC = () => {
                             className={`bg-white border rounded-2xl p-4 sm:p-5 shadow-sm transition-all hover:shadow-md ${
                               inProgress
                                 ? 'border-emerald-400 ring-1 ring-emerald-200'
-                                : myBooking
-                                ? 'border-emerald-300 bg-emerald-50/20'
                                 : 'border-slate-200/80'
                             }`}
                           >
@@ -2542,32 +1608,6 @@ export const SchedulePage: React.FC = () => {
                                       {schedule.program}
                                     </span>
 
-                                    {/* Contador descendente de aforo */}
-                                    <span
-                                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border flex items-center gap-1.5 ${
-                                        isFull
-                                          ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                          : freeSpots <= 4
-                                          ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
-                                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                      }`}
-                                    >
-                                      <span
-                                        className={`w-1.5 h-1.5 rounded-full ${
-                                          isFull
-                                            ? 'bg-rose-500'
-                                            : freeSpots <= 4
-                                            ? 'bg-amber-500'
-                                            : 'bg-emerald-500'
-                                        }`}
-                                      />
-                                      {isFull
-                                        ? `0/${capacity} plazas · Completo`
-                                        : freeSpots <= 4
-                                        ? `¡Últimas ${freeSpots}/${capacity} plazas!`
-                                        : `${freeSpots}/${capacity} plazas libres`}
-                                    </span>
-
                                     {schedule.levelRequired && (
                                       <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-mono font-bold uppercase">
                                         Nivel: {schedule.levelRequired}
@@ -2598,105 +1638,8 @@ export const SchedulePage: React.FC = () => {
                                       <MapPin className="w-3.5 h-3.5 text-slate-400" />
                                       {schedule.room || 'Tatami Principal'}
                                     </span>
-
-                                    <span className="flex items-center gap-1 text-[11px] font-mono text-slate-500">
-                                      <Users className="w-3.5 h-3.5" />
-                                      {currentAttendees} / {capacity} ocupadas ({fillPct}%)
-                                    </span>
-                                  </div>
-
-                                  <div className="w-full max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full transition-all duration-300 ${
-                                        isFull
-                                          ? 'bg-rose-500'
-                                          : fillPct >= 75
-                                          ? 'bg-amber-500'
-                                          : 'bg-emerald-500'
-                                      }`}
-                                      style={{ width: `${fillPct}%` }}
-                                    />
                                   </div>
                                 </div>
-                              </div>
-
-                              <div className="flex items-center justify-end gap-2 shrink-0">
-                                {exc ? (
-                                  <span className="text-xs font-bold text-red-600">
-                                    Clase no disponible
-                                  </span>
-                                ) : myBooking ? (
-                                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-                                    <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
-                                      <Check className="w-4 h-4 text-emerald-600" />
-                                      {myBooking.status === 'WAITLISTED'
-                                        ? 'En Lista de Espera'
-                                        : 'Plaza Reservada'}
-                                    </span>
-
-                                    {userData && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setShowQrPassModal(true)}
-                                        className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
-                                        title="Mostrar Carnet Virtual QR para el torno"
-                                      >
-                                        <QrCode className="w-3.5 h-3.5 text-amber-400" />
-                                        <span>QR</span>
-                                      </button>
-                                    )}
-
-                                    {!isPastDay && (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleCancelBooking(
-                                            myBooking,
-                                            schedule,
-                                            selectedDateStr
-                                          )
-                                        }
-                                        disabled={actionLoading === slotKey}
-                                        aria-label={`Cancelar mi reserva para ${schedule.program} a las ${schedule.startTime}`}
-                                        className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold transition cursor-pointer"
-                                        title="Cancelar mi reserva"
-                                      >
-                                        {actionLoading === slotKey ? (
-                                          <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                                        ) : (
-                                          <X className="w-4 h-4" />
-                                        )}
-                                      </button>
-                                    )}
-                                  </div>
-                                ) : isPastDay ? (
-                                  <span className="text-xs font-semibold text-slate-400">
-                                    Sesión pasada
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleBookClass(schedule, selectedDateStr)}
-                                    disabled={actionLoading === slotKey}
-                                    className={`w-full sm:w-auto justify-center py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer ${
-                                      isFull
-                                        ? 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
-                                        : 'bg-slate-900 hover:bg-slate-800 text-white'
-                                    }`}
-                                  >
-                                    {actionLoading === slotKey ? (
-                                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                    ) : isFull ? (
-                                      <>
-                                        <Clock className="w-3.5 h-3.5" /> Lista de Espera
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Reservar ({freeSpots}/{capacity})
-                                      </>
-                                    )}
-                                  </button>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -2711,7 +1654,6 @@ export const SchedulePage: React.FC = () => {
         </div>
       )}
         </div>
-      )}
 
       {/* ======================================================== */}
       {/* 4. MODAL DE FICHA RÁPIDA REA (QUICK-GLANCE CLASS DIALOG)  */}
@@ -2730,14 +1672,7 @@ export const SchedulePage: React.FC = () => {
               schedule.startTime,
               schedule.endTime
             );
-            const myBooking = getMyBookingForSlot(schedule.id, dateStr);
             const exc = getExceptionForSlot(schedule.id, dateStr);
-            const { currentAttendees, capacity, isFull, fillPct } = getCapacityForSlot(
-              schedule,
-              dateStr
-            );
-            const isPastDay = dateStr < todayStr;
-            const slotKey = `${schedule.id}_${dateStr}`;
 
             return (
               <>
@@ -2791,77 +1726,11 @@ export const SchedulePage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Aforo en tiempo real */}
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-700">
-                        Ocupación del Tatami
-                      </span>
-                      <span className="font-mono font-black text-slate-900">
-                        {currentAttendees} / {capacity} atletas ({fillPct}%)
-                      </span>
-                    </div>
-                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${
-                          isFull
-                            ? 'bg-rose-500'
-                            : fillPct >= 75
-                            ? 'bg-amber-500'
-                            : 'bg-emerald-500'
-                        }`}
-                        style={{ width: `${fillPct}%` }}
-                      />
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      Cancelación gratuita disponible hasta 2 horas antes del inicio de la sesión.
-                    </p>
-                  </div>
-
-                  {exc ? (
+                  {exc && (
                     <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-bold">
                       Sesión suspendida: {exc.reason}
                     </div>
-                  ) : myBooking ? (
-                    <div className="flex items-center justify-between gap-2 pt-1">
-                      <span className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold flex items-center gap-1.5">
-                        <Check className="w-4 h-4 text-emerald-600" />
-                        {myBooking.status === 'WAITLISTED'
-                          ? 'Inscrito en Lista de Espera'
-                          : 'Tienes Plaza Reservada'}
-                      </span>
-                      {!isPastDay && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            await handleCancelBooking(myBooking, schedule, dateStr);
-                            setSelectedSlotModal(null);
-                          }}
-                          disabled={actionLoading === slotKey}
-                          className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer"
-                        >
-                          Cancelar Reserva
-                        </button>
-                      )}
-                    </div>
-                  ) : !isPastDay ? (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await handleBookClass(schedule, dateStr);
-                        setSelectedSlotModal(null);
-                      }}
-                      disabled={actionLoading === slotKey}
-                      className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-                    >
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      <span>
-                        {isFull
-                          ? 'Unirse a la Lista de Espera'
-                          : 'Confirmar Reserva de Plaza'}
-                      </span>
-                    </button>
-                  ) : null}
+                  )}
                 </div>
               </>
             );
@@ -2880,11 +1749,6 @@ export const SchedulePage: React.FC = () => {
           <div className="max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
             <QrCodePassCard
               user={userData}
-              todayBookingText={
-                todayBookingSchedule
-                  ? `Reserva de hoy: ${todayBookingSchedule.program} a las ${todayBookingSchedule.startTime} en ${todayBookingSchedule.room || 'Tatami Principal'}. Torno habilitado.`
-                  : undefined
-              }
               onClose={() => setShowQrPassModal(false)}
             />
           </div>
