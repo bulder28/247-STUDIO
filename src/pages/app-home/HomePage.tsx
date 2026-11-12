@@ -14,7 +14,6 @@ import {
   isClassInProgress,
 } from '@/shared/domain/schedule';
 import {
-  BookingDomainModel,
   DerivedPaymentStatus,
   ScheduleDomainModel,
   ScheduleExceptionDomainModel,
@@ -25,8 +24,8 @@ import { QrCodePassCard } from '@/widgets/QrCodePassCard';
 const PAYMENT_UI: Record<DerivedPaymentStatus, { label: string; hint: string; cls: string }> = {
   OK: { label: 'Al día', hint: 'No tienes pagos pendientes', cls: 'bg-[#DDF3E8] text-[#0B5D3B]' },
   PENDING_VALIDATION: { label: 'En revisión', hint: 'Estamos validando tu pago', cls: 'bg-[#FDEBC8] text-[#5C3700]' },
-  GRACE: { label: 'Pendiente', hint: 'Paga pronto para seguir reservando', cls: 'bg-[#FDEBC8] text-[#5C3700]' },
-  NOK: { label: 'Impago', hint: 'Regulariza tu cuota para reservar', cls: 'bg-[#FBDADD] text-[#8F1420]' },
+  GRACE: { label: 'Pendiente', hint: 'Paga pronto para mantener tu cuota al día', cls: 'bg-[#FDEBC8] text-[#5C3700]' },
+  NOK: { label: 'Impago', hint: 'Regulariza tu cuota cuanto antes', cls: 'bg-[#FBDADD] text-[#8F1420]' },
 };
 
 function formatClassDay(dateStr: string, todayStr: string): string {
@@ -48,7 +47,6 @@ export const HomePage: React.FC = () => {
   const { data: scheduleData, isLoading: scheduleLoading } = useScheduleData(user?.uid);
   const schedules: ScheduleDomainModel[] = scheduleData?.schedules ?? DEFAULT_OFFICIAL_SCHEDULES;
   const exceptions: ScheduleExceptionDomainModel[] = scheduleData?.exceptions ?? [];
-  const bookings: BookingDomainModel[] = scheduleData?.myBookings ?? [];
   const loading = scheduleLoading || paymentsLoading;
 
   const getGreeting = () => {
@@ -113,20 +111,6 @@ export const HomePage: React.FC = () => {
   const displayClass = activeClass || nextClassInfo?.schedule;
   const isClassActive = !!activeClass;
   const classDate = activeClass ? madridNow.dateStr : nextClassInfo?.targetDateStr;
-  const isBooked =
-    !!displayClass &&
-    bookings.some((b) => b.scheduleId === displayClass.id && b.date === classDate && b.status === 'BOOKED');
-
-  const upcoming = bookings
-    .filter(
-      (b) =>
-        b.status === 'BOOKED' &&
-        b.date >= madridNow.dateStr &&
-        !(b.scheduleId === displayClass?.id && b.date === classDate)
-    )
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 3)
-    .map((b) => ({ booking: b, schedule: schedules.find((s) => s.id === b.scheduleId) }));
 
   const monthName = new Date(`${madridNow.dateStr.slice(0, 7)}-15T12:00:00`).toLocaleDateString('es-ES', {
     month: 'long',
@@ -162,14 +146,6 @@ export const HomePage: React.FC = () => {
           <QrCode className="h-5 w-5" aria-hidden="true" />
           Enseñar carnet QR
         </button>
-        {displayClass && (
-          <Link
-            to="/app/horario"
-            className="flex min-h-[44px] items-center justify-center text-sm text-studio-cream underline"
-          >
-            {isBooked ? 'Tienes plaza reservada · Ver o cancelar' : 'Reservar plaza'}
-          </Link>
-        )}
       </section>
 
       <Link
@@ -183,35 +159,12 @@ export const HomePage: React.FC = () => {
         <span className={`rounded-full px-3 py-1.5 text-sm font-semibold ${payment.cls}`}>{payment.label}</span>
       </Link>
 
-      <section>
-        <h2 className="mb-1 text-base font-semibold">Después</h2>
-        {upcoming.length > 0 ? (
-          <ul>
-            {upcoming.map(({ booking, schedule }) => (
-              <li
-                key={booking.id}
-                className="flex min-h-[48px] items-center justify-between border-t border-studio-cream text-[15px]"
-              >
-                <span>
-                  {formatClassDay(booking.date, madridNow.dateStr)}
-                  {schedule ? ` · ${schedule.startTime} · ${schedule.program}` : ''}
-                </span>
-                <span className="text-sm font-semibold text-[#0B5D3B]">Reservada</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="border-t border-studio-cream pt-3 text-[15px] text-slate-700">
-            No tienes más reservas. Reserva tu próxima clase.
-          </p>
-        )}
-        <Link
-          to="/app/horario"
-          className="flex min-h-[44px] items-center gap-1 text-sm font-semibold text-studio-red-dark"
-        >
-          Ver horario completo <ChevronRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
-      </section>
+      <Link
+        to="/app/horario"
+        className="flex min-h-[44px] items-center gap-1 text-sm font-semibold text-studio-red-dark"
+      >
+        Ver horario completo <ChevronRight className="h-4 w-4" aria-hidden="true" />
+      </Link>
 
       <Dialog open={showQrModal} onOpenChange={setShowQrModal}>
         <DialogContent className="max-w-xs border-0 bg-transparent p-0 shadow-none">

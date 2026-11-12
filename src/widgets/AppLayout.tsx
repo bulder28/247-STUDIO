@@ -36,9 +36,6 @@ import {
   DropdownMenuTrigger,
 } from '@/shared/ui/dropdown-menu';
 import { QrCodePassCard } from '@/widgets/QrCodePassCard';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '@/shared/api/firebase';
-import { getMadridTimeComponents } from '@/shared/domain/schedule';
 
 interface NavItem {
   to: string;
@@ -65,44 +62,6 @@ export const AppLayout: React.FC = () => {
   }, []);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [todayBookingSummary, setTodayBookingSummary] = useState<string | undefined>(undefined);
-
-  // Cotejar reserva de hoy al abrir el Carnet Virtual (QR)
-  useEffect(() => {
-    if (!qrModalOpen || !userData?.uid) return;
-    const todayStr = getMadridTimeComponents(new Date()).dateStr;
-    const fetchTodayBooking = async () => {
-      try {
-        const q = query(
-          collection(db, 'bookings'),
-          where('uid', '==', userData.uid),
-          where('date', '==', todayStr)
-        );
-        const snap = await getDocs(q);
-        const active = snap.docs
-          .map((d) => d.data())
-          .find((b) => b.status === 'BOOKED' || b.status === 'WAITLISTED');
-
-        if (active && active.scheduleId) {
-          const schedSnap = await getDoc(doc(db, 'schedules', active.scheduleId));
-          const schedData = schedSnap.exists() ? schedSnap.data() : null;
-          if (schedData) {
-            setTodayBookingSummary(
-              `Reserva confirmada hoy: ${schedData.program} a las ${schedData.startTime} en ${schedData.room || 'Tatami Principal'}.`
-            );
-          } else {
-            setTodayBookingSummary('Reserva confirmada para hoy. Torno habilitado para cotejo de acceso.');
-          }
-        } else {
-          setTodayBookingSummary(undefined);
-        }
-      } catch (err) {
-        console.error('Error fetching today booking for QR card:', err);
-        setTodayBookingSummary(undefined);
-      }
-    };
-    fetchTodayBooking();
-  }, [qrModalOpen, userData?.uid]);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
     try {
       const saved = localStorage.getItem('247_sidebar_mode') as SidebarMode | null;
@@ -686,7 +645,6 @@ export const AppLayout: React.FC = () => {
           {userData && (
             <QrCodePassCard
               user={userData}
-              todayBookingText={todayBookingSummary}
               onClose={() => setQrModalOpen(false)}
             />
           )}
