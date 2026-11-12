@@ -48,11 +48,11 @@ async function main() {
   console.log('\n   Muestra de primeros 10 alumnos:');
   console.table(sampleList);
 
-  // 3. Reservas activas para hoy
+  // 3. Asistencias registradas hoy
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date());
-  console.log(`\n3. RESERVAS ACTIVAS PARA HOY (${todayStr}):`);
+  console.log(`\n3. ASISTENCIAS REGISTRADAS HOY (${todayStr}):`);
   const bookSnap = await db.collection('bookings').where('date', '==', todayStr).get();
-  console.log(`   Total reservas encontradas para hoy: ${bookSnap.size}`);
+  console.log(`   Total asistencias registradas hoy: ${bookSnap.size}`);
 
   // 4. Diagnóstico de visibilidad en la app
   console.log('\n4. DIAGNÓSTICO DE VISIBILIDAD EN LA APP:');

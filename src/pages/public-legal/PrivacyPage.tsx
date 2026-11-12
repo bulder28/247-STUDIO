@@ -43,7 +43,7 @@ export const PrivacyPage: React.FC = () => {
           </h2>
           <p>Tratamos la información que nos facilita con las siguientes finalidades:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Gestión de miembros y acceso:</strong> Control de asistencias en recepción, reservas de clases y seguro deportivo obligatorio (Base: Ejecución de contrato de membresía).</li>
+            <li><strong>Gestión de miembros y acceso:</strong> Control y registro de asistencias a clase en recepción y seguro deportivo obligatorio (Base: Ejecución de contrato de membresía).</li>
             <li><strong>Gestión de pagos y cuotas:</strong> Control de facturación, contabilidad y registro de métodos de pago autorizados (Base: Obligación legal y contractual).</li>
             <li><strong>Datos de Salud (Art. 9.2.a RGPD):</strong> Las lesiones o patologías médicas declaradas por el atleta se tratan exclusivamente bajo su <strong>consentimiento explícito</strong> para adaptar la intensidad del entrenamiento y prevenir accidentes en el tatami.</li>
           </ul>

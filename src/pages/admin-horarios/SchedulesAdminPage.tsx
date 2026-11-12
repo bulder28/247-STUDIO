@@ -28,7 +28,6 @@ import {
   Sparkles,
   Trash2,
   User,
-  Users,
   X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -149,7 +148,6 @@ export const SchedulesAdminPage: React.FC = () => {
     professor: string;
     room: string;
     levelRequired: LevelRequired;
-    capacity: number;
     curriculumTopic: string;
     active: boolean;
   }>({
@@ -160,7 +158,6 @@ export const SchedulesAdminPage: React.FC = () => {
     professor: 'Mario Bros',
     room: 'Tatami Principal',
     levelRequired: 'TODOS',
-    capacity: 26,
     curriculumTopic: '',
     active: true,
   });
@@ -258,7 +255,6 @@ export const SchedulesAdminPage: React.FC = () => {
       professor: 'Mario Bros',
       room: 'Tatami Principal',
       levelRequired: 'TODOS',
-      capacity: 26,
       curriculumTopic: '',
       active: true,
     });
@@ -276,7 +272,6 @@ export const SchedulesAdminPage: React.FC = () => {
       professor: schedule.professor,
       room: schedule.room || 'Tatami Principal',
       levelRequired: schedule.levelRequired || 'TODOS',
-      capacity: schedule.capacity || 26,
       curriculumTopic: schedule.curriculumTopic || '',
       active: schedule.active,
     });
@@ -305,7 +300,6 @@ export const SchedulesAdminPage: React.FC = () => {
         professor: formState.professor.trim(),
         room: formState.room.trim(),
         levelRequired: formState.levelRequired,
-        capacity: Number(formState.capacity) || 26,
         curriculumTopic: formState.curriculumTopic.trim(),
         active: formState.active,
       };
@@ -488,7 +482,7 @@ export const SchedulesAdminPage: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Gestión de recursos de tatami, asignación docente, aforos máximos y detección de solapamientos operativos.
+            Gestión de recursos de tatami, asignación docente y detección de solapamientos operativos.
           </p>
         </div>
 
@@ -584,7 +578,7 @@ export const SchedulesAdminPage: React.FC = () => {
       {/* ======================================================== */}
       {/* 2. REA ANALYTICS BAR (RECURSOS, EVENTOS Y AGENTES)        */}
       {/* ======================================================== */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
             Clases Semanales
@@ -609,18 +603,6 @@ export const SchedulesAdminPage: React.FC = () => {
           </div>
           <span className="text-[11px] text-slate-500 block mt-1">
             {weeklyStats.totalMinutes} min de formación
-          </span>
-        </div>
-
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
-          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 block mb-1">
-            Plazas Totales Tatami
-          </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
-            {weeklyStats.totalCapacity}
-          </div>
-          <span className="text-[11px] text-slate-500 block mt-1">
-            Aforo acumulado semanal
           </span>
         </div>
 
@@ -853,10 +835,6 @@ export const SchedulesAdminPage: React.FC = () => {
                               <span className="flex items-center gap-1 font-semibold truncate max-w-[110px]" title={s.professor}>
                                 <User className="w-3 h-3 text-brand-accent shrink-0" />
                                 <span className="truncate">{s.professor}</span>
-                              </span>
-                              <span className="flex items-center gap-0.5 text-[10px] text-slate-500 font-mono font-bold">
-                                <Users className="w-3 h-3" />
-                                {s.capacity || 26}
                               </span>
                             </div>
 
@@ -1110,7 +1088,6 @@ export const SchedulesAdminPage: React.FC = () => {
                   <th className="py-3.5 px-4">Programa / Disciplina</th>
                   <th className="py-3.5 px-4">Profesor</th>
                   <th className="py-3.5 px-4">Tatami / Sala</th>
-                  <th className="py-3.5 px-4">Aforo</th>
                   <th className="py-3.5 px-4">Estado</th>
                   <th className="py-3.5 px-4 text-right">Acciones</th>
                 </tr>
@@ -1135,7 +1112,6 @@ export const SchedulesAdminPage: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4 font-semibold text-slate-900">{s.professor}</td>
                       <td className="py-3.5 px-4 text-slate-600">{s.room || 'Tatami Principal'}</td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-800">{s.capacity || 26}</td>
                       <td className="py-3.5 px-4">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
@@ -1298,37 +1274,22 @@ export const SchedulesAdminPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Sala / Tatami (REA Recurso) y Aforo */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                  Tatami / Sala
-                </label>
-                <select
-                  value={formState.room}
-                  onChange={(e) => setFormState({ ...formState, room: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
-                >
-                  {ROOM_SUGGESTIONS.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
-                  Aforo Máximo (Plazas)
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={formState.capacity}
-                  onChange={(e) => setFormState({ ...formState, capacity: parseInt(e.target.value, 10) || 26 })}
-                  className="font-mono font-bold"
-                />
-              </div>
+            {/* Sala / Tatami (REA Recurso) */}
+            <div>
+              <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                Tatami / Sala
+              </label>
+              <select
+                value={formState.room}
+                onChange={(e) => setFormState({ ...formState, room: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none"
+              >
+                {ROOM_SUGGESTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Nivel Requerido */}
@@ -1489,7 +1450,7 @@ export const SchedulesAdminPage: React.FC = () => {
               Registrar Excepción / Festivo
             </DialogTitle>
             <p className="text-xs text-slate-400">
-              Pausar reservas para una fecha determinada
+              Pausar o cancelar las clases de una fecha determinada
             </p>
           </DialogHeader>
 

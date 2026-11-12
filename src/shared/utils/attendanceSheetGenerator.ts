@@ -94,7 +94,7 @@ export async function generateAttendanceSheetPdf(data: AttendanceSheetData): Pro
   // Footer notes
   doc.setFontSize(8);
   doc.setTextColor(148, 163, 184);
-  doc.text('Documento operativo para control de aforo y graduación continua. 247 Studio Pinto. OSS.', 15, 290);
+  doc.text('Documento operativo para control de asistencia y graduación continua. 247 Studio Pinto. OSS.', 15, 290);
 
   return doc;
 }

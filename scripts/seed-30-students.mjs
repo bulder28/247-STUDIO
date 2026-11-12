@@ -3,7 +3,7 @@
 /**
  * Script de siembra (seed) de 30 alumnos ficticios realistas para 247 STUDIO
  * Crea perfiles completos en 'users', proyecciones en 'kiosk_members',
- * pagos en 'payments' y asistencias/reservas en 'bookings'.
+ * pagos en 'payments' y asistencias (status ATTENDED) en 'bookings'.
  *
  * Sin datos médicos ni consentimientos sanitarios (conforme a la directriz).
  */
@@ -756,7 +756,7 @@ async function seed() {
           status: 'ATTENDED',
           sessionType: 'PARTICIPANT',
           attendanceWeight: 1,
-          checkInSource: studentIdx % 2 === 0 ? 'TABLET' : 'APP',
+          checkInSource: 'TABLET',
           createdAt: `${dayInfo.date}T10:00:00.000Z`,
         });
       }
@@ -794,7 +794,7 @@ async function seed() {
       email: 'pablo.herrero@gmail.com',
       interest: 'Kids BJJ (8 años)',
       status: 'TRIAL_BOOKED',
-      notes: 'Reservada prueba para el miércoles a las 17:30.',
+      notes: 'Clase de prueba acordada para el miércoles a las 17:30.',
       createdAt: nowIso,
     },
   ];

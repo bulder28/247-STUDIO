@@ -184,7 +184,7 @@ export const LoginPage: React.FC = () => {
             Vuelves al <br />Tatami.
           </h1>
           <p className="mt-4 text-sm text-brand-background/80 max-w-sm leading-relaxed">
-            Consulta tus asistencias, reservas de clase, estado de cuota y pase QR para el kiosco.
+            Consulta tus asistencias, el horario de clases, estado de cuota y pase QR para el kiosco.
           </p>
           <div className="mt-6 max-w-xs">
             <Belt belt="WHITE" stripes={0} decorative />

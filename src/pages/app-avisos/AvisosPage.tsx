@@ -23,7 +23,7 @@ export const AvisosPage: React.FC = () => {
       type: 'event',
       title: 'Seminario Especial Mario & David de Técnicas de Piernas',
       date: '15 de Noviembre · 18:00',
-      message: 'Masterclass intensiva sobre control de talón y defensas modernas de leglocks. Plazas limitadas. Reserva tu puesto en recepción.',
+      message: 'Masterclass intensiva sobre control de talón y defensas modernas de leglocks. Más información en recepción.',
       author: 'Mario Bros (Head Coach)',
       pinned: true,
     },
