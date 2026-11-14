@@ -27,6 +27,12 @@ interface Plan {
   id: string;
   name: string;
   price_eur: number;
+  plan_disciplines?: { discipline_id: string }[];
+}
+
+interface Discipline {
+  id: string;
+  name: string;
 }
 
 interface TrialGuest {
@@ -42,12 +48,14 @@ export function AdminStudentsPage() {
   const currentMonth = getLocalMonthYear();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [disciplines, setDisciplines] = useState<Discipline[]>([]);
   const [trials, setTrials] = useState<TrialGuest[]>([]);
   const [docTemplates, setDocTemplates] = useState<DocTemplate[]>([]);
   const [signaturesByUser, setSignaturesByUser] = useState<Record<string, DocSignature[]>>({});
   const [subsByUser, setSubsByUser] = useState<Record<string, string>>({});
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | MemberStatus>('all');
+  const [disciplineFilter, setDisciplineFilter] = useState<'all' | string>('all');
   const [docFilter, setDocFilter] = useState<'all' | 'pending' | 'complete'>('all');
   const [selected, setSelected] = useState<Profile | null>(null);
   const [editPhotoFile, setEditPhotoFile] = useState<File | null>(null);
@@ -88,9 +96,14 @@ export function AdminStudentsPage() {
   const [copied, setCopied] = useState(false);
 
   const loadAll = async () => {
-    const [profRes, planRes, subRes, trialRes, tplRes, sigRes] = await Promise.all([
+    const [profRes, planRes, discRes, subRes, trialRes, tplRes, sigRes] = await Promise.all([
       supabase.from('profiles').select('*').order('full_name'),
-      supabase.from('plans').select('id, name, price_eur').eq('is_active', true).order('price_eur'),
+      supabase
+        .from('plans')
+        .select('id, name, price_eur, plan_disciplines(discipline_id)')
+        .eq('is_active', true)
+        .order('price_eur'),
+      supabase.from('disciplines').select('id, name').eq('is_active', true).order('sort_order'),
       supabase
         .from('subscriptions')
         .select('user_id, plan_id')
@@ -110,6 +123,7 @@ export function AdminStudentsPage() {
 
     setProfiles((profRes.data as Profile[]) ?? []);
     setPlans((planRes.data as Plan[]) ?? []);
+    setDisciplines((discRes.data as Discipline[]) ?? []);
     setTrials((trialRes.data as unknown as TrialGuest[]) ?? []);
     setDocTemplates((tplRes.data as DocTemplate[]) ?? []);
 
@@ -138,6 +152,13 @@ export function AdminStudentsPage() {
       p.email.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
     if (!matchesSearch || !matchesStatus) return false;
+    if (disciplineFilter !== 'all') {
+      const userPlan = plans.find((pl) => pl.id === subsByUser[p.id]);
+      const hasDiscipline = Boolean(
+        userPlan?.plan_disciplines?.some((pd) => pd.discipline_id === disciplineFilter)
+      );
+      if (!hasDiscipline) return false;
+    }
     if (docFilter === 'all') return true;
     if (p.role !== 'client') return docFilter === 'complete';
     const comp = getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date);
@@ -442,6 +463,18 @@ export function AdminStudentsPage() {
           <option value="active">Activos</option>
           <option value="paused">Pausados</option>
           <option value="inactive">Bajas</option>
+        </select>
+        <select
+          value={disciplineFilter}
+          onChange={(e) => setDisciplineFilter(e.target.value)}
+          className="rounded-xl bg-studio-navy border border-white/10 px-3 py-2.5 text-sm text-white"
+        >
+          <option value="all">Todas las disciplinas</option>
+          {disciplines.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
         </select>
         <select
           value={docFilter}
