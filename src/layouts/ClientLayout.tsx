@@ -24,25 +24,34 @@ export function ClientLayout({ children }: { children: ReactNode }) {
   const { signOut } = useAuth();
 
   return (
-    <div className="min-h-screen bg-studio-navy-deep text-slate-100 flex flex-col pb-20 md:pb-0">
-      <header className="bg-studio-navy border-b border-white/10 px-4 py-3 sticky top-0 z-30">
+    <div className="min-h-screen text-slate-100 flex flex-col pb-24 md:pb-0">
+      <header className="bg-slate-950/75 backdrop-blur-xl border-b border-white/10 px-4 py-3 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.webp" alt="247 STUDIO" className="w-8 h-8 rounded-md object-contain" />
-            <span className="font-headline text-lg uppercase tracking-wide text-white">
-              247 STUDIO
-            </span>
+            <div className="p-1 rounded-lg bg-white/5 border border-white/10">
+              <img src="/logo.webp" alt="247 STUDIO" className="w-7 h-7 rounded object-contain" />
+            </div>
+            <div>
+              <span className="font-headline text-lg uppercase tracking-wide text-white leading-none block">
+                247 STUDIO
+              </span>
+              <span className="text-[10px] text-studio-red font-semibold tracking-widest uppercase">
+                Pinto · Tatami
+              </span>
+            </div>
           </div>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1 rounded-2xl bg-white/[0.03] border border-white/10 p-1">
             {primaryNav.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}
                 to={to}
                 end={end}
                 className={({ isActive }) =>
-                  `inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-                    isActive ? 'bg-studio-red text-white' : 'text-slate-300 hover:bg-white/5'
+                  `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                    isActive
+                      ? 'bg-studio-red text-white shadow-glow-red'
+                      : 'text-slate-300 hover:text-white hover:bg-white/5'
                   }`
                 }
               >
@@ -56,10 +65,10 @@ export function ClientLayout({ children }: { children: ReactNode }) {
             <NavLink
               to="/app/tarifas"
               className={({ isActive }) =>
-                `inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition ${
+                `inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition ${
                   isActive
-                    ? 'bg-studio-red border-studio-red text-white'
-                    : 'border-white/10 text-slate-300 hover:bg-white/5'
+                    ? 'bg-studio-red border-studio-red text-white shadow-glow-red'
+                    : 'border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/10'
                 }`
               }
             >
@@ -69,10 +78,10 @@ export function ClientLayout({ children }: { children: ReactNode }) {
             <NavLink
               to="/app/faqs"
               className={({ isActive }) =>
-                `inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition ${
+                `inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition ${
                   isActive
-                    ? 'bg-studio-red border-studio-red text-white'
-                    : 'border-white/10 text-slate-300 hover:bg-white/5'
+                    ? 'bg-studio-red border-studio-red text-white shadow-glow-red'
+                    : 'border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/10'
                 }`
               }
             >
@@ -82,7 +91,7 @@ export function ClientLayout({ children }: { children: ReactNode }) {
             <button
               onClick={signOut}
               title="Cerrar sesión"
-              className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5"
+              className="p-2 rounded-xl border border-white/10 bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/10 transition"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -90,18 +99,20 @@ export function ClientLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 p-4 md:p-8 max-w-5xl w-full mx-auto">{children}</main>
+      <main className="flex-1 p-4 md:p-8 max-w-5xl w-full mx-auto animate-studio-in">
+        {children}
+      </main>
 
-      {/* Bottom Nav Mobile */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-studio-navy border-t border-white/10 flex justify-around py-2 z-30">
+      {/* Dock flotante Mobile */}
+      <nav className="md:hidden fixed bottom-3 inset-x-3 rounded-2xl bg-slate-950/90 backdrop-blur-xl border border-white/15 shadow-modal flex justify-around py-1.5 px-1 z-30">
         {primaryNav.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
             end={end}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 px-2 py-1 text-[11px] font-medium ${
-                isActive ? 'text-studio-red' : 'text-slate-400'
+              `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${
+                isActive ? 'bg-studio-red/20 text-studio-red' : 'text-slate-400 hover:text-slate-200'
               }`
             }
           >

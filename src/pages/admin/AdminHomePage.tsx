@@ -1,8 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, CreditCard, AlertTriangle, UserPlus, CheckCircle2, FileWarning, BarChart3, Clock } from 'lucide-react';
+import {
+  Users,
+  CreditCard,
+  AlertTriangle,
+  UserPlus,
+  CheckCircle2,
+  FileWarning,
+  BarChart3,
+  Clock,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Ticket,
+  ShieldAlert,
+  Calendar,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
+import { getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
 
 interface DisciplineStat {
@@ -12,12 +27,68 @@ interface DisciplineStat {
   uniqueStudents: number;
 }
 
+interface ClassRanking {
+  id: string;
+  title: string;
+  dayOfWeek: number;
+  startTime: string;
+  coachName: string;
+  attendances: number;
+  sessions: number;
+}
+
 interface InactiveStudent {
   id: string;
   full_name: string;
   belt: string;
   lastAttendance: string | null;
   daysInactive: number;
+}
+
+interface LowCreditSub {
+  id: string;
+  userName: string;
+  planName: string;
+  remaining: number;
+  total: number;
+}
+
+interface ComplianceAlert {
+  id: string;
+  fullName: string;
+  reasons: string[];
+}
+
+interface PastDueRow {
+  user_id: string;
+  full_name: string;
+  month_year: string;
+  plan_name: string;
+  price_eur: number;
+}
+
+const DAY_LABELS: Record<number, string> = {
+  1: 'Lun',
+  2: 'Mar',
+  3: 'Mié',
+  4: 'Jue',
+  5: 'Vie',
+  6: 'Sáb',
+  7: 'Dom',
+};
+
+function getPrevMonthYear(ym: string): string {
+  const [y, m] = ym.split('-').map(Number);
+  if (!y || !m) return ym;
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+}
+
+function getMonthBounds(ym: string): { start: string; nextStart: string } {
+  const [y, m] = ym.split('-').map(Number);
+  if (!y || !m) return { start: `${ym}-01`, nextStart: `${ym}-31` };
+  const nextStart =
+    m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+  return { start: `${ym}-01`, nextStart };
 }
 
 function daysBetweenISO(fromISO: string, toISO: string): number {
@@ -33,14 +104,21 @@ interface MonthlyRow {
   plan_name: string;
   price_eur: number;
   paid_amount_eur: number | null;
+  payment_method: string | null;
   effective_status:
-  | 'OK'
-  | 'ADVANCE_OK'
-  | 'FUTURE_UPCOMING'
-  | 'PAST_DUE'
-  | 'NOK_OVERDUE'
-  | 'GRACE_7_DAYS'
-  | 'PENDING';
+    | 'OK'
+    | 'ADVANCE_OK'
+    | 'FUTURE_UPCOMING'
+    | 'PAST_DUE'
+    | 'NOK_OVERDUE'
+    | 'GRACE_7_DAYS'
+    | 'PENDING';
+}
+
+interface PrevMonthlyRow {
+  price_eur: number;
+  paid_amount_eur: number | null;
+  effective_status: string;
 }
 
 interface TodayAttendance {
@@ -52,21 +130,34 @@ interface TodayAttendance {
 
 export function AdminHomePage() {
   const currentMonth = getLocalMonthYear();
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [rows, setRows] = useState<MonthlyRow[]>([]);
+  const [prevRows, setPrevRows] = useState<PrevMonthlyRow[]>([]);
+  const [pastDueHistory, setPastDueHistory] = useState<PastDueRow[]>([]);
   const [todayList, setTodayList] = useState<TodayAttendance[]>([]);
   const [activeStudentsCount, setActiveStudentsCount] = useState(0);
   const [pendingDocsCount, setPendingDocsCount] = useState(0);
   const [disciplineStats, setDisciplineStats] = useState<DisciplineStat[]>([]);
+  const [classRankings, setClassRankings] = useState<ClassRanking[]>([]);
+  const [guestsThisMonth, setGuestsThisMonth] = useState(0);
+  const [newSignupsThisMonth, setNewSignupsThisMonth] = useState(0);
   const [inactiveStudents, setInactiveStudents] = useState<InactiveStudent[]>([]);
+  const [lowCreditSubs, setLowCreditSubs] = useState<LowCreditSub[]>([]);
+  const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlert[]>([]);
+  const [alertTab, setAlertTab] = useState<'inactive' | 'credits' | 'grace' | 'legal'>('inactive');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadDashboard = async () => {
       setLoading(true);
       const todayStr = getLocalDateISO();
+      const prevMonth = getPrevMonthYear(selectedMonth);
+      const { start: monthStart, nextStart: nextMonthStart } = getMonthBounds(selectedMonth);
 
       const [
         monthlyRes,
+        prevMonthlyRes,
+        pastDueRes,
         studentsRes,
         attendanceRes,
         clientsRes,
@@ -75,11 +166,22 @@ export function AdminHomePage() {
         discRes,
         monthAttRes,
         lastAttRes,
+        lowCreditRes,
       ] = await Promise.all([
         supabase
           .from('v_monthly_payment_status')
-          .select('user_id, full_name, plan_name, price_eur, paid_amount_eur, effective_status')
-          .eq('month_year', currentMonth),
+          .select('user_id, full_name, plan_name, price_eur, paid_amount_eur, payment_method, effective_status')
+          .eq('month_year', selectedMonth),
+        supabase
+          .from('v_monthly_payment_status')
+          .select('price_eur, paid_amount_eur, effective_status')
+          .eq('month_year', prevMonth),
+        supabase
+          .from('v_monthly_payment_status')
+          .select('user_id, full_name, month_year, plan_name, price_eur')
+          .eq('effective_status', 'PAST_DUE')
+          .lt('month_year', currentMonth)
+          .order('month_year', { ascending: false }),
         supabase
           .from('profiles')
           .select('id', { count: 'exact', head: true })
@@ -92,7 +194,9 @@ export function AdminHomePage() {
           .order('created_at', { ascending: false }),
         supabase
           .from('profiles')
-          .select('id, full_name, belt, status, birth_date, created_at, first_training_at')
+          .select(
+            'id, full_name, belt, status, birth_date, created_at, first_training_at, father_name, mother_name, emergency_contact_phone'
+          )
           .eq('role', 'client')
           .in('status', ['active', 'paused']),
         supabase.from('document_templates').select('*').eq('is_active', true),
@@ -106,17 +210,29 @@ export function AdminHomePage() {
           .order('sort_order'),
         supabase
           .from('attendances')
-          .select('user_id, discipline_id, schedule_classes(discipline_id)')
-          .gte('attendance_date', `${currentMonth}-01`),
+          .select(
+            'user_id, guest_name, attendance_date, discipline_id, schedule_class_id, schedule_classes(id, title, day_of_week, start_time, coach_name, discipline_id)'
+          )
+          .gte('attendance_date', monthStart)
+          .lt('attendance_date', nextMonthStart),
         supabase
           .from('attendances')
           .select('user_id, attendance_date')
           .not('user_id', 'is', null)
           .order('attendance_date', { ascending: false })
           .limit(2000),
+        supabase
+          .from('subscriptions')
+          .select('id, remaining_credits, profiles:user_id(full_name), plans!inner(name, is_class_pack, pack_credits)')
+          .eq('month_year', selectedMonth)
+          .eq('status', 'active')
+          .eq('plans.is_class_pack', true)
+          .lte('remaining_credits', 2),
       ]);
 
       setRows((monthlyRes.data as MonthlyRow[]) ?? []);
+      setPrevRows((prevMonthlyRes.data as PrevMonthlyRow[]) ?? []);
+      setPastDueHistory((pastDueRes.data as PastDueRow[]) ?? []);
       setActiveStudentsCount(studentsRes.count ?? 0);
       setTodayList((attendanceRes.data as unknown as TodayAttendance[]) ?? []);
 
@@ -137,30 +253,108 @@ export function AdminHomePage() {
           birth_date: string | null;
           created_at: string;
           first_training_at: string | null;
+          father_name: string | null;
+          mother_name: string | null;
+          emergency_contact_phone: string | null;
         }[]) ?? [];
 
-      const clientsWithPendingDocs = clients.filter(
-        (c) => getDocumentCompliance(templates, sigMap[c.id] ?? [], c.birth_date).pending.length > 0
-      ).length;
-      setPendingDocsCount(clientsWithPendingDocs);
+      const legalList: ComplianceAlert[] = [];
+      let pendingDocUsers = 0;
+      clients.forEach((c) => {
+        const reasons: string[] = [];
+        const docRes = getDocumentCompliance(templates, sigMap[c.id] ?? [], c.birth_date);
+        if (docRes.pending.length > 0) {
+          pendingDocUsers += 1;
+          reasons.push(`${docRes.pending.length} firma(s) pendiente(s)`);
+        }
+        if (isMinorAge(c.birth_date)) {
+          const hasParent = Boolean(c.father_name?.trim() || c.mother_name?.trim());
+          if (!hasParent) reasons.push('Menor sin nombre de padre/madre');
+          if (!c.emergency_contact_phone?.trim()) reasons.push('Sin teléfono emergencia');
+        }
+        if (reasons.length > 0) {
+          legalList.push({ id: c.id, fullName: c.full_name, reasons });
+        }
+      });
+      setPendingDocsCount(pendingDocUsers);
+      setComplianceAlerts(legalList);
+
+      const signupsCount = clients.filter((c) => {
+        const createdDay = c.created_at.slice(0, 10);
+        return createdDay >= monthStart && createdDay < nextMonthStart;
+      }).length;
+      setNewSignupsThisMonth(signupsCount);
 
       const discList = (discRes.data as { id: string; name: string }[]) ?? [];
       const discCountMap: Record<string, { attendances: number; users: Set<string> }> = {};
       discList.forEach((d) => {
         discCountMap[d.id] = { attendances: 0, users: new Set() };
       });
+      const classMap: Record<
+        string,
+        {
+          id: string;
+          title: string;
+          dayOfWeek: number;
+          startTime: string;
+          coachName: string;
+          attendances: number;
+          dates: Set<string>;
+        }
+      > = {};
+      let guestCount = 0;
+
       type MonthAttRow = {
         user_id: string | null;
+        guest_name: string | null;
+        attendance_date: string;
         discipline_id: string | null;
-        schedule_classes: { discipline_id: string | null } | { discipline_id: string | null }[] | null;
+        schedule_class_id: string;
+        schedule_classes:
+          | {
+              id: string;
+              title: string;
+              day_of_week: number;
+              start_time: string;
+              coach_name: string;
+              discipline_id: string | null;
+            }
+          | {
+              id: string;
+              title: string;
+              day_of_week: number;
+              start_time: string;
+              coach_name: string;
+              discipline_id: string | null;
+            }[]
+          | null;
       };
       ((monthAttRes.data as unknown as MonthAttRow[]) ?? []).forEach((a) => {
+        if (!a.user_id && a.guest_name) guestCount += 1;
         const sc = Array.isArray(a.schedule_classes) ? a.schedule_classes[0] : a.schedule_classes;
         const discId = a.discipline_id ?? sc?.discipline_id ?? null;
-        if (!discId || !discCountMap[discId]) return;
-        discCountMap[discId].attendances += 1;
-        if (a.user_id) discCountMap[discId].users.add(a.user_id);
+        if (discId && discCountMap[discId]) {
+          discCountMap[discId].attendances += 1;
+          if (a.user_id) discCountMap[discId].users.add(a.user_id);
+        }
+        if (sc) {
+          if (!classMap[sc.id]) {
+            classMap[sc.id] = {
+              id: sc.id,
+              title: sc.title,
+              dayOfWeek: sc.day_of_week,
+              startTime: sc.start_time,
+              coachName: sc.coach_name,
+              attendances: 0,
+              dates: new Set(),
+            };
+          }
+          classMap[sc.id].attendances += 1;
+          classMap[sc.id].dates.add(a.attendance_date);
+        }
       });
+
+      setGuestsThisMonth(guestCount);
       setDisciplineStats(
         discList
           .map((d) => ({
@@ -168,6 +362,19 @@ export function AdminHomePage() {
             name: d.name,
             attendances: discCountMap[d.id]?.attendances ?? 0,
             uniqueStudents: discCountMap[d.id]?.users.size ?? 0,
+          }))
+          .sort((a, b) => b.attendances - a.attendances)
+      );
+      setClassRankings(
+        Object.values(classMap)
+          .map((c) => ({
+            id: c.id,
+            title: c.title,
+            dayOfWeek: c.dayOfWeek,
+            startTime: c.startTime,
+            coachName: c.coachName,
+            attendances: c.attendances,
+            sessions: c.dates.size,
           }))
           .sort((a, b) => b.attendances - a.attendances)
       );
@@ -195,11 +402,32 @@ export function AdminHomePage() {
         .sort((a, b) => b.daysInactive - a.daysInactive);
       setInactiveStudents(inactive);
 
+      type LowCreditRow = {
+        id: string;
+        remaining_credits: number | null;
+        profiles: { full_name: string } | { full_name: string }[] | null;
+        plans: { name: string; pack_credits: number | null } | { name: string; pack_credits: number | null }[];
+      };
+      const lowSubs: LowCreditSub[] = ((lowCreditRes.data as unknown as LowCreditRow[]) ?? []).map(
+        (row) => {
+          const prof = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+          const plan = Array.isArray(row.plans) ? row.plans[0] : row.plans;
+          return {
+            id: row.id,
+            userName: prof?.full_name ?? 'Alumno',
+            planName: plan?.name ?? 'Bono',
+            remaining: row.remaining_credits ?? 0,
+            total: plan?.pack_credits ?? 8,
+          };
+        }
+      );
+      setLowCreditSubs(lowSubs);
+
       setLoading(false);
     };
 
     loadDashboard();
-  }, [currentMonth]);
+  }, [selectedMonth, currentMonth]);
 
   const paidRows = rows.filter(
     (r) => r.effective_status === 'OK' || r.effective_status === 'ADVANCE_OK'
@@ -213,12 +441,40 @@ export function AdminHomePage() {
   const overdueRows = rows.filter(
     (r) => r.effective_status === 'NOK_OVERDUE' || r.effective_status === 'PAST_DUE'
   );
+  const graceRows = rows.filter((r) => r.effective_status === 'GRACE_7_DAYS');
 
   const totalCollected = paidRows.reduce(
     (sum, r) => sum + Number(r.paid_amount_eur ?? r.price_eur ?? 0),
     0
   );
   const totalPending = pendingRows.reduce((sum, r) => sum + Number(r.price_eur || 0), 0);
+
+  const prevPaidRows = prevRows.filter(
+    (r) => r.effective_status === 'OK' || r.effective_status === 'ADVANCE_OK'
+  );
+  const prevCollected = prevPaidRows.reduce(
+    (sum, r) => sum + Number(r.paid_amount_eur ?? r.price_eur ?? 0),
+    0
+  );
+  const momPct =
+    prevCollected > 0 ? Math.round(((totalCollected - prevCollected) / prevCollected) * 100) : null;
+  const arpu = paidRows.length > 0 ? totalCollected / paidRows.length : 0;
+
+  let cashTotal = 0;
+  let bizumTotal = 0;
+  let otherMethodTotal = 0;
+  paidRows.forEach((r) => {
+    const amt = Number(r.paid_amount_eur ?? r.price_eur ?? 0);
+    const method = (r.payment_method ?? '').toLowerCase();
+    if (method.includes('efectivo') || method.includes('cash')) {
+      cashTotal += amt;
+    } else if (method.includes('bizum')) {
+      bizumTotal += amt;
+    } else {
+      otherMethodTotal += amt;
+    }
+  });
+  const historicalDebtTotal = pastDueHistory.reduce((sum, r) => sum + Number(r.price_eur || 0), 0);
 
   // Agrupación de cuotas por programa
   const byProgram = rows.reduce<Record<string, { total: number; paid: number }>>((acc, r) => {
@@ -231,26 +487,53 @@ export function AdminHomePage() {
   }, {});
 
   const totalMonthAttendances = disciplineStats.reduce((sum, d) => sum + d.attendances, 0);
+  const totalExpected = totalCollected + totalPending;
+  const collectionRate =
+    totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+  const ringRadius = 24;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringOffset = ringCircumference - (collectionRate / 100) * ringCircumference;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-            Resumen Mensual ({currentMonth})
+            Resumen Mensual ({selectedMonth})
           </h1>
           <p className="text-sm text-slate-400">Indicadores clave de gestión — 247 STUDIO</p>
         </div>
-        <Link
-          to="/admin/seguimiento"
-          className="inline-flex items-center justify-center rounded-xl bg-studio-red hover:bg-studio-red-dark px-4 py-2 text-sm font-semibold text-white transition"
-        >
-          Ir a Seguimiento Mensual
-        </Link>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-2 rounded-xl studio-panel-inset border border-white/10 px-3 py-1.5">
+            <Calendar className="w-4 h-4 text-studio-red shrink-0" />
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
+              aria-label="Seleccionar mes"
+              className="bg-transparent text-xs font-semibold text-white focus:outline-none"
+            />
+            {selectedMonth !== currentMonth && (
+              <button
+                type="button"
+                onClick={() => setSelectedMonth(currentMonth)}
+                className="text-[11px] text-studio-red hover:underline ml-1"
+              >
+                Hoy
+              </button>
+            )}
+          </div>
+          <Link
+            to="/admin/seguimiento"
+            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-studio-red to-rose-700 hover:from-rose-600 hover:to-studio-red-dark px-4 py-2.5 text-sm font-semibold text-white shadow-glow-red transition"
+          >
+            Ir a Seguimiento
+          </Link>
+        </div>
       </div>
 
       {pendingDocsCount > 0 && (
-        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/15 text-amber-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="rounded-3xl border border-amber-500/40 bg-amber-500/15 text-amber-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <FileWarning className="w-5 h-5 text-amber-300 shrink-0" />
             <p className="text-xs sm:text-sm">
@@ -260,27 +543,47 @@ export function AdminHomePage() {
           </div>
           <Link
             to="/admin/alumnos"
-            className="inline-flex items-center justify-center rounded-xl bg-studio-navy-deep border border-amber-400/30 hover:bg-white/5 px-3.5 py-2 text-xs font-semibold text-amber-200 shrink-0"
+            className="inline-flex items-center justify-center rounded-xl studio-panel-inset border border-amber-400/30 hover:bg-white/10 px-3.5 py-2 text-xs font-semibold text-amber-200 shrink-0 transition"
           >
             Revisar en BBDD Personal
           </Link>
         </div>
       )}
 
-      {/* 4 KPIs de la Slide 15 */}
+      {/* 4 KPIs Principales con MoM, ARPU y Deuda */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl bg-studio-navy border border-white/10 p-5">
+        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-5">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500/70 via-emerald-400 to-transparent" />
           <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider">
             <span>Cuotas / Mes (OK)</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
-          <p className="mt-2 font-headline text-3xl text-white">
-            {totalCollected.toFixed(0)} €
+          <div className="mt-2 flex items-baseline gap-2.5">
+            <p className="font-headline text-3xl text-white">{totalCollected.toFixed(0)} €</p>
+            {momPct !== null && (
+              <span
+                className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                  momPct >= 0
+                    ? 'bg-emerald-500/15 text-emerald-300'
+                    : 'bg-studio-red/20 text-red-300'
+                }`}
+              >
+                {momPct >= 0 ? (
+                  <TrendingUp className="w-3 h-3" />
+                ) : (
+                  <TrendingDown className="w-3 h-3" />
+                )}
+                {momPct >= 0 ? `+${momPct}%` : `${momPct}%`} vs mes ant.
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            {paidRows.length} cobradas · ARPU {arpu.toFixed(0)} €
           </p>
-          <p className="text-xs text-slate-400 mt-1">{paidRows.length} cuotas cobradas</p>
         </div>
 
-        <div className="rounded-2xl bg-studio-navy border border-white/10 p-5">
+        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-5">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500/70 via-amber-400 to-transparent" />
           <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider">
             <span>Pendientes / Mes</span>
             <CreditCard className="w-4 h-4 text-amber-400" />
@@ -288,36 +591,77 @@ export function AdminHomePage() {
           <p className="mt-2 font-headline text-3xl text-amber-300">
             {totalPending.toFixed(0)} €
           </p>
-          <p className="text-xs text-slate-400 mt-1">{pendingRows.length} alumnos sin pago</p>
+          <p className="text-xs text-slate-400 mt-1">
+            {pendingRows.length} alumnos · {graceRows.length} en plazo 7d
+          </p>
         </div>
 
-        <div className="rounded-2xl bg-studio-navy border border-white/10 p-5">
+        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-5">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-studio-red via-rose-500 to-transparent" />
           <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider">
-            <span>Facturas pendientes (+7d)</span>
+            <span>Morosos / Deuda</span>
             <AlertTriangle className="w-4 h-4 text-studio-red" />
           </div>
           <p className="mt-2 font-headline text-3xl text-studio-red">
             {overdueRows.length}
           </p>
-          <p className="text-xs text-slate-400 mt-1">Han entrenado &gt;7 días sin pagar</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Deuda histórica: <strong className="text-slate-200">{historicalDebtTotal.toFixed(0)} €</strong> ({pastDueHistory.length})
+          </p>
         </div>
 
-        <div className="rounded-2xl bg-studio-navy border border-white/10 p-5">
+        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-5">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-500/70 via-sky-400 to-transparent" />
           <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider">
             <span>Alumnos Activos</span>
             <Users className="w-4 h-4 text-sky-400" />
           </div>
           <p className="mt-2 font-headline text-3xl text-white">{activeStudentsCount}</p>
-          <p className="text-xs text-slate-400 mt-1">Con ficha activa en la escuela</p>
+          <p className="text-xs text-slate-400 mt-1">
+            +{newSignupsThisMonth} altas · {guestsThisMonth} invitados este mes
+          </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Cuotas por Programa */}
-        <section className="rounded-2xl bg-studio-navy border border-white/10 p-5">
-          <h2 className="font-headline text-lg uppercase tracking-wide text-white mb-4">
-            Cuotas por Programa
-          </h2>
+        {/* Cuotas por Programa + Anillo de tasa de cobro */}
+        <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 className="font-headline text-lg uppercase tracking-wide text-white">
+                Cuotas por Programa
+              </h2>
+              <p className="text-xs text-slate-400">Efectividad de cobro del mes</p>
+            </div>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="relative w-14 h-14 flex items-center justify-center">
+                <svg className="w-14 h-14 -rotate-90" viewBox="0 0 60 60">
+                  <circle
+                    cx="30"
+                    cy="30"
+                    r={ringRadius}
+                    fill="none"
+                    stroke="rgba(255,255,255,0.08)"
+                    strokeWidth="5.5"
+                  />
+                  <circle
+                    cx="30"
+                    cy="30"
+                    r={ringRadius}
+                    fill="none"
+                    stroke="#10B981"
+                    strokeWidth="5.5"
+                    strokeLinecap="round"
+                    strokeDasharray={ringCircumference}
+                    strokeDashoffset={ringOffset}
+                    className="transition-all duration-500"
+                  />
+                </svg>
+                <span className="absolute font-headline text-xs text-white">{collectionRate}%</span>
+              </div>
+            </div>
+          </div>
+
           {loading ? (
             <p className="text-sm text-slate-400">Cargando...</p>
           ) : Object.keys(byProgram).length === 0 ? (
@@ -325,24 +669,35 @@ export function AdminHomePage() {
               Aún no hay suscripciones generadas para {currentMonth}.
             </p>
           ) : (
-            <div className="space-y-3">
-              {Object.entries(byProgram).map(([planName, stats]) => (
-                <div
-                  key={planName}
-                  className="flex items-center justify-between rounded-xl bg-studio-navy-deep px-4 py-3 border border-white/5"
-                >
-                  <span className="text-sm font-medium text-white">{planName}</span>
-                  <span className="text-xs font-semibold text-slate-300">
-                    {stats.paid} / {stats.total} pagadas
-                  </span>
-                </div>
-              ))}
+            <div className="space-y-2.5">
+              {Object.entries(byProgram).map(([planName, stats]) => {
+                const ratio = stats.total > 0 ? Math.round((stats.paid / stats.total) * 100) : 0;
+                return (
+                  <div
+                    key={planName}
+                    className="rounded-2xl studio-panel-inset px-4 py-3 border border-white/5 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-white truncate">{planName}</span>
+                      <span className="text-xs font-semibold text-slate-300 shrink-0">
+                        {stats.paid} / {stats.total} pagadas ({ratio}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-slate-900 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
+                        style={{ width: `${ratio}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
 
         {/* En el tatami hoy */}
-        <section className="rounded-2xl bg-studio-navy border border-white/10 p-5">
+        <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-headline text-lg uppercase tracking-wide text-white">
               En el tatami hoy ({todayList.length})
@@ -358,7 +713,7 @@ export function AdminHomePage() {
               {todayList.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between rounded-xl bg-studio-navy-deep px-3.5 py-2.5 border border-white/5"
+                  className="flex items-center justify-between rounded-2xl studio-panel-inset px-3.5 py-2.5 border border-white/5"
                 >
                   <span className="text-sm text-white font-medium">
                     {item.profiles?.full_name ?? `${item.guest_name} (Invitado)`}
@@ -373,41 +728,167 @@ export function AdminHomePage() {
         </section>
       </div>
 
-      {/* Analítica mensual y retención */}
+      {/* Analítica mensual, Ranking de Clases y Caja */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="bg-studio-navy border border-white/10 rounded-2xl p-5">
+        <div className="space-y-6">
+          {/* Desglose de Caja: Efectivo vs Bizum */}
+          <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-emerald-400" /> Arqueo por Método de Pago
+              </h2>
+              <span className="text-xs text-slate-400">{totalCollected.toFixed(0)} € cobrados</span>
+            </div>
+
+            {totalCollected === 0 ? (
+              <p className="text-sm text-slate-400">Sin cobros registrados en {selectedMonth}.</p>
+            ) : (
+              <>
+                <div className="w-full h-3 rounded-full studio-panel-inset overflow-hidden flex border border-white/5">
+                  {cashTotal > 0 && (
+                    <div
+                      title={`Efectivo: ${cashTotal.toFixed(0)} €`}
+                      className="h-full bg-emerald-500 transition-all duration-500"
+                      style={{ width: `${(cashTotal / totalCollected) * 100}%` }}
+                    />
+                  )}
+                  {bizumTotal > 0 && (
+                    <div
+                      title={`Bizum: ${bizumTotal.toFixed(0)} €`}
+                      className="h-full bg-sky-500 transition-all duration-500"
+                      style={{ width: `${(bizumTotal / totalCollected) * 100}%` }}
+                    />
+                  )}
+                  {otherMethodTotal > 0 && (
+                    <div
+                      title={`Otros: ${otherMethodTotal.toFixed(0)} €`}
+                      className="h-full bg-slate-500 transition-all duration-500"
+                      style={{ width: `${(otherMethodTotal / totalCollected) * 100}%` }}
+                    />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5 text-center">
+                  <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" /> Efectivo
+                    </span>
+                    <p className="font-headline text-lg text-white mt-0.5">{cashTotal.toFixed(0)} €</p>
+                  </div>
+                  <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-sky-500" /> Bizum
+                    </span>
+                    <p className="font-headline text-lg text-white mt-0.5">{bizumTotal.toFixed(0)} €</p>
+                  </div>
+                  <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-slate-500" /> Otros
+                    </span>
+                    <p className="font-headline text-lg text-white mt-0.5">
+                      {otherMethodTotal.toFixed(0)} €
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+
+          {/* Ocupación por Disciplina */}
+          <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-studio-red" /> Ocupación por Disciplina
+              </h2>
+              <span className="text-xs text-slate-400">
+                {totalMonthAttendances} {totalMonthAttendances === 1 ? 'asistencia' : 'asistencias'}
+              </span>
+            </div>
+            {loading ? (
+              <p className="text-sm text-slate-400">Cargando...</p>
+            ) : disciplineStats.length === 0 ? (
+              <p className="text-sm text-slate-400">Sin disciplinas activas configuradas.</p>
+            ) : (
+              <div className="space-y-3">
+                {disciplineStats.map((d) => {
+                  const pct =
+                    totalMonthAttendances > 0
+                      ? Math.round((d.attendances / totalMonthAttendances) * 100)
+                      : 0;
+                  return (
+                    <div key={d.id} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-white font-medium truncate">{d.name}</span>
+                        <span className="text-xs text-slate-300 shrink-0">
+                          {d.attendances} {d.attendances === 1 ? 'clase' : 'clases'} · {d.uniqueStudents}{' '}
+                          {d.uniqueStudents === 1 ? 'alumno' : 'alumnos'} ({pct}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 rounded-full studio-panel-inset overflow-hidden border border-white/5">
+                        <div
+                          className="h-full bg-gradient-to-r from-studio-red to-rose-500 transition-all duration-500 rounded-full"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* Ranking de Franjas Horarias */}
+        <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-studio-red" /> Ocupación por Disciplina
-            </h2>
-            <span className="text-xs text-slate-400">
-              {totalMonthAttendances} {totalMonthAttendances === 1 ? 'asistencia' : 'asistencias'} este mes
-            </span>
+            <div>
+              <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-studio-red" /> Ranking de Clases del Mes
+              </h2>
+              <p className="text-xs text-slate-400">
+                Franjas con mayor asistencia total y media por sesión
+              </p>
+            </div>
+            <Link to="/admin/horarios" className="text-xs text-studio-red hover:underline shrink-0">
+              Ver horarios
+            </Link>
           </div>
+
           {loading ? (
             <p className="text-sm text-slate-400">Cargando...</p>
-          ) : disciplineStats.length === 0 ? (
-            <p className="text-sm text-slate-400">Sin disciplinas activas configuradas.</p>
+          ) : classRankings.length === 0 ? (
+            <p className="text-sm text-slate-400">Sin asistencias registradas en {selectedMonth}.</p>
           ) : (
-            <div className="space-y-3">
-              {disciplineStats.map((d) => {
-                const pct =
-                  totalMonthAttendances > 0
-                    ? Math.round((d.attendances / totalMonthAttendances) * 100)
-                    : 0;
+            <div className="space-y-2.5 max-h-[26rem] overflow-y-auto pr-1">
+              {classRankings.map((cls, idx) => {
+                const maxAtt = classRankings[0]?.attendances || 1;
+                const barPct = Math.round((cls.attendances / maxAtt) * 100);
+                const avg = cls.sessions > 0 ? (cls.attendances / cls.sessions).toFixed(1) : '0';
                 return (
-                  <div key={d.id} className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span className="text-white font-medium truncate">{d.name}</span>
-                      <span className="text-xs text-slate-300 shrink-0">
-                        {d.attendances} {d.attendances === 1 ? 'clase' : 'clases'} · {d.uniqueStudents}{' '}
-                        {d.uniqueStudents === 1 ? 'alumno' : 'alumnos'} ({pct}%)
-                      </span>
+                  <div
+                    key={cls.id}
+                    className="rounded-2xl studio-panel-inset border border-white/5 p-3 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">
+                          <span className="text-studio-red mr-1.5">#{idx + 1}</span>
+                          {cls.title}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {DAY_LABELS[cls.dayOfWeek] ?? ''} {cls.startTime.slice(0, 5)} · Prof.{' '}
+                          {cls.coachName}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs font-bold text-white">{cls.attendances} asist.</p>
+                        <p className="text-[11px] text-slate-400">{avg} media/sesión</p>
+                      </div>
                     </div>
-                    <div className="w-full h-2 rounded-full bg-studio-navy-deep overflow-hidden border border-white/5">
+                    <div className="w-full h-1.5 rounded-full bg-slate-900 overflow-hidden">
                       <div
-                        className="h-full bg-studio-red transition-all duration-300"
-                        style={{ width: `${pct}%` }}
+                        className="h-full bg-gradient-to-r from-studio-red to-rose-500 rounded-full"
+                        style={{ width: `${barPct}%` }}
                       />
                     </div>
                   </div>
@@ -416,36 +897,64 @@ export function AdminHomePage() {
             </div>
           )}
         </section>
+      </div>
 
-        <section className="bg-studio-navy border border-white/10 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
+      {/* Centro de Alertas Accionables Unificado */}
+      <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
             <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-400" /> Alerta de Inactividad (+15d)
+              <ShieldAlert className="w-5 h-5 text-amber-400" /> Centro de Alertas y Seguimiento
             </h2>
-            <div className="flex items-center gap-3">
-              {inactiveStudents.length > 0 && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium">
-                  {inactiveStudents.length} en seguimiento
-                </span>
-              )}
-              <Link to="/admin/alumnos" className="text-xs text-studio-red hover:underline">
-                Ver alumnos
-              </Link>
-            </div>
+            <p className="text-xs text-slate-400">
+              Retención, renovación de bonos, cobros en gracia y cumplimiento legal
+            </p>
           </div>
-          {loading ? (
-            <p className="text-sm text-slate-400">Cargando...</p>
-          ) : inactiveStudents.length === 0 ? (
-            <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-300 flex items-center gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { id: 'inactive' as const, label: 'Inactivos +15d', count: inactiveStudents.length, icon: Clock },
+              { id: 'credits' as const, label: 'Bonos ≤2', count: lowCreditSubs.length, icon: Ticket },
+              { id: 'grace' as const, label: 'Gracia 7d / Deuda', count: graceRows.length + pastDueHistory.length, icon: CreditCard },
+              { id: 'legal' as const, label: 'Legal / Menores', count: complianceAlerts.length, icon: FileWarning },
+            ].map(({ id, label, count, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setAlertTab(id)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                  alertTab === id
+                    ? 'bg-studio-red border-studio-red text-white shadow-glow-red'
+                    : 'studio-panel-inset border-white/10 text-slate-300 hover:text-white'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{label}</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                    alertTab === id ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-200'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-slate-400">Cargando alertas...</p>
+        ) : alertTab === 'inactive' ? (
+          inactiveStudents.length === 0 ? (
+            <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-300 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>¡Todos tus alumnos activos han entrenado en los últimos 15 días!</span>
             </div>
           ) : (
-            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
               {inactiveStudents.map((student) => (
                 <div
                   key={student.id}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-studio-navy-deep px-3.5 py-2.5 border border-white/5"
+                  className="flex items-center justify-between gap-3 rounded-2xl studio-panel-inset px-3.5 py-2.5 border border-white/5"
                 >
                   <div className="min-w-0">
                     <p className="text-sm text-white font-medium truncate">{student.full_name}</p>
@@ -462,9 +971,100 @@ export function AdminHomePage() {
                 </div>
               ))}
             </div>
-          )}
-        </section>
-      </div>
+          )
+        ) : alertTab === 'credits' ? (
+          lowCreditSubs.length === 0 ? (
+            <p className="text-sm text-slate-400">No hay bonos de clases por agotarse en {selectedMonth}.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
+              {lowCreditSubs.map((sub) => (
+                <div
+                  key={sub.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl studio-panel-inset px-3.5 py-2.5 border border-white/5"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-white font-medium truncate">{sub.userName}</p>
+                    <p className="text-xs text-slate-400">{sub.planName}</p>
+                  </div>
+                  <span
+                    className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                      sub.remaining === 0
+                        ? 'bg-studio-red/20 text-red-200 border-studio-red/40'
+                        : 'bg-sky-500/15 text-sky-200 border-sky-400/30'
+                    }`}
+                  >
+                    {sub.remaining} / {sub.total} créditos
+                  </span>
+                </div>
+              ))}
+            </div>
+          )
+        ) : alertTab === 'grace' ? (
+          graceRows.length === 0 && pastDueHistory.length === 0 ? (
+            <p className="text-sm text-slate-400">Sin alumnos en ventana de gracia ni deuda previa.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
+              {graceRows.map((g) => (
+                <div
+                  key={`grace-${g.user_id}`}
+                  className="flex items-center justify-between gap-3 rounded-2xl studio-panel-inset px-3.5 py-2.5 border border-amber-500/20"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-white font-medium truncate">{g.full_name}</p>
+                    <p className="text-xs text-slate-400">
+                      {g.plan_name} · {Number(g.price_eur).toFixed(0)} €
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                    Plazo 7 días
+                  </span>
+                </div>
+              ))}
+              {pastDueHistory.map((pd) => (
+                <div
+                  key={`past-${pd.user_id}-${pd.month_year}`}
+                  className="flex items-center justify-between gap-3 rounded-2xl studio-panel-inset px-3.5 py-2.5 border border-studio-red/25"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-white font-medium truncate">{pd.full_name}</p>
+                    <p className="text-xs text-slate-400">
+                      {pd.plan_name} ({pd.month_year})
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-studio-red/20 text-red-200 border border-studio-red/40">
+                    -{Number(pd.price_eur).toFixed(0)} €
+                  </span>
+                </div>
+              ))}
+            </div>
+          )
+        ) : complianceAlerts.length === 0 ? (
+          <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-300 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>Toda la escuela está al día en firmas y datos de menores.</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
+            {complianceAlerts.map((al) => (
+              <div
+                key={al.id}
+                className="flex items-center justify-between gap-3 rounded-2xl studio-panel-inset px-3.5 py-2.5 border border-white/5"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm text-white font-medium truncate">{al.fullName}</p>
+                  <p className="text-xs text-amber-300 truncate">{al.reasons.join(' · ')}</p>
+                </div>
+                <Link
+                  to="/admin/alumnos"
+                  className="shrink-0 text-xs font-semibold text-studio-red hover:underline"
+                >
+                  Revisar
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

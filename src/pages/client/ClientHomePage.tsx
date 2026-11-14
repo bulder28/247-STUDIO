@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CheckCircle2,
@@ -12,11 +12,13 @@ import {
   Ticket,
   Flame,
   Users,
+  ShieldCheck,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateAge, getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
+import { FighterRadarChart } from '@/components/FighterRadarChart';
 
 interface PaymentSummary {
   month_year: string;
@@ -97,12 +99,45 @@ interface LinkedChildProfile {
   birth_date: string | null;
 }
 
-const BELT_STYLES: Record<string, { bar: string; tip: string; stripe: string }> = {
-  Blanco: { bar: 'bg-slate-100 border border-slate-300', tip: 'bg-zinc-900', stripe: 'bg-white' },
-  Azul: { bar: 'bg-blue-600 border border-blue-400/50', tip: 'bg-zinc-950', stripe: 'bg-white' },
-  Morado: { bar: 'bg-purple-700 border border-purple-400/50', tip: 'bg-zinc-950', stripe: 'bg-white' },
-  Marrón: { bar: 'bg-amber-900 border border-amber-700/60', tip: 'bg-zinc-950', stripe: 'bg-white' },
-  Negro: { bar: 'bg-zinc-950 border border-zinc-700', tip: 'bg-red-700', stripe: 'bg-white' },
+const BELT_STYLES: Record<
+  string,
+  { bar: string; tip: string; stripe: string; aura: string; ring: string }
+> = {
+  Blanco: {
+    bar: 'bg-gradient-to-b from-slate-50 to-slate-200 border border-slate-300',
+    tip: 'bg-zinc-900',
+    stripe: 'bg-white',
+    aura: 'rgba(226, 232, 240, 0.14)',
+    ring: 'border-slate-300/60',
+  },
+  Azul: {
+    bar: 'bg-gradient-to-b from-blue-500 to-blue-700 border border-blue-400/60',
+    tip: 'bg-zinc-950',
+    stripe: 'bg-white',
+    aura: 'rgba(59, 130, 246, 0.22)',
+    ring: 'border-blue-400/70',
+  },
+  Morado: {
+    bar: 'bg-gradient-to-b from-purple-600 to-purple-800 border border-purple-400/60',
+    tip: 'bg-zinc-950',
+    stripe: 'bg-white',
+    aura: 'rgba(168, 85, 247, 0.22)',
+    ring: 'border-purple-400/70',
+  },
+  Marrón: {
+    bar: 'bg-gradient-to-b from-amber-800 to-amber-950 border border-amber-600/60',
+    tip: 'bg-zinc-950',
+    stripe: 'bg-white',
+    aura: 'rgba(217, 119, 6, 0.22)',
+    ring: 'border-amber-500/70',
+  },
+  Negro: {
+    bar: 'bg-gradient-to-b from-zinc-800 to-zinc-950 border border-zinc-600',
+    tip: 'bg-red-700',
+    stripe: 'bg-white',
+    aura: 'rgba(225, 29, 46, 0.24)',
+    ring: 'border-studio-red/80',
+  },
 };
 
 function calcSessionHours(start?: string, end?: string): number {
@@ -128,6 +163,12 @@ export function ClientHomePage() {
   const [linkedChildren, setLinkedChildren] = useState<LinkedChildProfile[]>([]);
   const [goals, setGoals] = useState(profile?.personal_goals ?? '');
   const [savingGoals, setSavingGoals] = useState(false);
+  const [cardSpot, setCardSpot] = useState<{ x: number; y: number } | null>(null);
+
+  const handleCardMove = (e: MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setCardSpot({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
 
   useEffect(() => {
     setGoals(profile?.personal_goals ?? '');
@@ -342,58 +383,103 @@ export function ClientHomePage() {
         </div>
       )}
 
-      {/* Tarjeta resumen del atleta */}
-      <section className="relative overflow-hidden rounded-2xl bg-studio-navy border border-white/10 p-6">
+      {/* Carnet Oficial del Luchador */}
+      <section
+        onMouseMove={handleCardMove}
+        onMouseLeave={() => setCardSpot(null)}
+        className="relative overflow-hidden rounded-3xl studio-panel border border-white/15 p-6 sm:p-7"
+      >
         <img
           src="/herobackground.webp"
           alt=""
-          className="absolute inset-0 w-full h-full object-cover opacity-10 pointer-events-none"
+          className="absolute inset-0 w-full h-full object-cover opacity-15 pointer-events-none"
         />
-        <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-5">
-          <div className="w-24 h-24 rounded-2xl bg-studio-navy-deep border-2 border-studio-red/60 overflow-hidden flex items-center justify-center shrink-0">
-            {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={profile.full_name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <User className="w-10 h-10 text-slate-500" />
-            )}
-          </div>
+        <div className="absolute inset-0 tatami-weave opacity-50 pointer-events-none" />
+        <div
+          className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+          style={{
+            background: cardSpot
+              ? `radial-gradient(420px circle at ${cardSpot.x}px ${cardSpot.y}px, ${beltStyle.aura}, transparent 65%)`
+              : `radial-gradient(500px circle at 15% 20%, ${beltStyle.aura}, transparent 70%)`,
+          }}
+        />
+        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-studio-red to-transparent opacity-80 pointer-events-none" />
 
-          <div className="flex-1 text-center sm:text-left">
-            <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-              {profile?.full_name}
-            </h1>
-            <div className="mt-2 flex flex-wrap justify-center sm:justify-start gap-2 text-xs">
-              <span className="px-3 py-1 rounded-full bg-white/10 text-white font-semibold">
-                Cinturón {profile?.belt || 'Blanco'}
-                {profile?.belt_stripes ? ` · ${profile.belt_stripes} grados` : ''}
-              </span>
-              {age !== null && (
-                <span className="px-3 py-1 rounded-full bg-white/5 text-slate-300">{age} años</span>
-              )}
-              {profile?.weight_category && (
-                <span className="px-3 py-1 rounded-full bg-white/5 text-slate-300">
-                  {profile.weight_category}
+        <div className="relative space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-300 border-b border-white/10 pb-3">
+            <span className="inline-flex items-center gap-1.5 font-semibold tracking-wider uppercase text-slate-200">
+              <ShieldCheck className="w-3.5 h-3.5 text-studio-red" />
+              Carnet de Tatami · 247 STUDIO
+            </span>
+            <div className="flex items-center gap-2">
+              {profile?.is_founder && (
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-200 font-semibold">
+                  Socio Fundador · -10%
                 </span>
               )}
               {payment && (
-                <span className="px-3 py-1 rounded-full bg-studio-red/20 text-red-200 font-medium">
+                <span className="px-2.5 py-0.5 rounded-full bg-studio-red/20 border border-studio-red/40 text-red-100 font-semibold">
                   {payment.plan_name}
                 </span>
               )}
             </div>
+          </div>
 
-            {/* Cinturón visual con grados (0-4 tiras) */}
-            <div className="mt-4 max-w-sm mx-auto sm:mx-0">
-              <div className={`h-5 rounded-md overflow-hidden flex shadow-inner ${beltStyle.bar}`}>
-                <div className="flex-1" />
-                <div className={`w-16 h-full ${beltStyle.tip} flex items-center justify-end gap-1 px-1.5`}>
-                  {Array.from({ length: beltStripes }).map((_, idx) => (
-                    <span key={idx} className={`w-1.5 h-full ${beltStyle.stripe} opacity-95`} />
-                  ))}
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+            <div
+              className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl studio-panel-inset border-2 ${beltStyle.ring} overflow-hidden flex items-center justify-center shrink-0 shadow-modal`}
+            >
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.full_name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User className="w-10 h-10 text-slate-500" />
+              )}
+            </div>
+
+            <div className="flex-1 text-center sm:text-left min-w-0">
+              <h1 className="font-headline text-2xl sm:text-3xl uppercase tracking-wide text-white truncate">
+                {profile?.full_name}
+              </h1>
+              <div className="mt-2 flex flex-wrap justify-center sm:justify-start gap-2 text-xs">
+                <span className="px-3 py-1 rounded-full bg-white/10 border border-white/10 text-white font-semibold">
+                  Cinturón {beltKey}
+                  {beltStripes > 0 ? ` · ${beltStripes} ${beltStripes === 1 ? 'grado' : 'grados'}` : ''}
+                </span>
+                {age !== null && (
+                  <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-200">
+                    {age} años
+                  </span>
+                )}
+                {profile?.weight_category && (
+                  <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-200">
+                    {profile.weight_category}
+                  </span>
+                )}
+              </div>
+
+              {/* Cinturón tejido BJJ realista con punta y grados (0-4 tiras) */}
+              <div className="mt-4 max-w-md mx-auto sm:mx-0">
+                <div
+                  className={`relative h-6 rounded-md overflow-hidden flex shadow-modal belt-weave ${beltStyle.bar}`}
+                >
+                  <div className="w-7 h-full bg-studio-red/90 border-r border-black/30 flex items-center justify-center">
+                    <span className="font-headline text-[9px] text-white tracking-tighter">247</span>
+                  </div>
+                  <div className="flex-1 shadow-inner" />
+                  <div
+                    className={`w-16 sm:w-20 h-full ${beltStyle.tip} border-l border-black/40 flex items-center justify-end gap-1.5 px-2`}
+                  >
+                    {Array.from({ length: beltStripes }).map((_, idx) => (
+                      <span
+                        key={idx}
+                        className={`w-1.5 h-full ${beltStyle.stripe} shadow-sm opacity-95`}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -403,19 +489,19 @@ export function ClientHomePage() {
 
       {/* Contador visual de Bono (Multipack / Bono 8 clases / Clase Suelta) */}
       {activeSub?.plans?.is_class_pack && (
-        <section className="rounded-2xl bg-studio-navy border border-sky-400/30 p-5 space-y-3">
+        <section className="rounded-3xl studio-panel border border-sky-400/30 p-5 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-headline text-lg uppercase tracking-wide text-white flex items-center gap-2">
               <Ticket className="w-5 h-5 text-sky-400" />
               {activeSub.plans.name}
             </h2>
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/15 text-sky-200">
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/15 border border-sky-400/30 text-sky-200">
               {activeSub.remaining_credits ?? 0} de{' '}
               {Math.max(activeSub.plans.pack_credits ?? 1, activeSub.remaining_credits ?? 0)}{' '}
               clases disponibles
             </span>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             {Array.from({
               length: Math.max(activeSub.plans.pack_credits ?? 1, activeSub.remaining_credits ?? 0),
             }).map((_, idx) => {
@@ -429,13 +515,13 @@ export function ClientHomePage() {
                 <div
                   key={idx}
                   title={isUsed ? 'Sesión consumida' : 'Sesión disponible'}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border transition ${
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border transition ${
                     isUsed
-                      ? 'bg-white/5 border-white/10 text-slate-500 line-through'
-                      : 'bg-sky-500/20 border-sky-400/50 text-sky-200'
+                      ? 'studio-panel-inset border-white/10 text-slate-500 opacity-60'
+                      : 'bg-sky-500/20 border-sky-400/60 text-sky-100 shadow-sm'
                   }`}
                 >
-                  {idx + 1}
+                  {isUsed ? '✓' : idx + 1}
                 </div>
               );
             })}
@@ -444,7 +530,7 @@ export function ClientHomePage() {
       )}
 
       {/* Mi Progreso en el Tatami (Mat Time + Historial real) */}
-      <section className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4">
+      <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-headline text-lg uppercase tracking-wide text-white flex items-center gap-2">
             <Flame className="w-5 h-5 text-studio-red" />
@@ -454,16 +540,19 @@ export function ClientHomePage() {
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl bg-studio-navy-deep border border-white/5 p-3 text-center">
-            <p className="font-headline text-2xl text-white">{classesThisMonth}</p>
+          <div className="relative overflow-hidden rounded-2xl studio-panel-inset border border-white/10 p-3.5 text-center">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-white/30" />
+            <p className="font-headline text-2xl sm:text-3xl text-white">{classesThisMonth}</p>
             <p className="text-[11px] text-slate-400 uppercase mt-0.5">Este mes</p>
           </div>
-          <div className="rounded-xl bg-studio-navy-deep border border-white/5 p-3 text-center">
-            <p className="font-headline text-2xl text-studio-red">{attendances.length}</p>
+          <div className="relative overflow-hidden rounded-2xl studio-panel-inset border border-white/10 p-3.5 text-center">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-studio-red" />
+            <p className="font-headline text-2xl sm:text-3xl text-studio-red">{attendances.length}</p>
             <p className="text-[11px] text-slate-400 uppercase mt-0.5">Clases totales</p>
           </div>
-          <div className="rounded-xl bg-studio-navy-deep border border-white/5 p-3 text-center">
-            <p className="font-headline text-2xl text-emerald-300">
+          <div className="relative overflow-hidden rounded-2xl studio-panel-inset border border-white/10 p-3.5 text-center">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-emerald-400" />
+            <p className="font-headline text-2xl sm:text-3xl text-emerald-300">
               {totalMatHours.toFixed(1).replace(/\.0$/, '')} h
             </p>
             <p className="text-[11px] text-slate-400 uppercase mt-0.5">Mat Time</p>
@@ -475,7 +564,7 @@ export function ClientHomePage() {
             {Object.entries(byDiscipline).map(([discName, count]) => (
               <span
                 key={discName}
-                className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-200"
+                className="px-3 py-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-slate-200"
               >
                 {discName}: <strong className="text-white">{count}</strong>
               </span>
@@ -492,11 +581,11 @@ export function ClientHomePage() {
             <p className="text-[11px] uppercase tracking-wider text-slate-400">
               Últimas sesiones registradas
             </p>
-            <div className="divide-y divide-white/5 rounded-xl bg-studio-navy-deep border border-white/5">
+            <div className="divide-y divide-white/5 rounded-2xl studio-panel-inset border border-white/5">
               {attendances.slice(0, 5).map((a) => (
                 <div
                   key={a.id}
-                  className="px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs"
+                  className="px-4 py-2.5 flex items-center justify-between gap-2 text-xs"
                 >
                   <div>
                     <p className="font-semibold text-white">
@@ -521,7 +610,7 @@ export function ClientHomePage() {
 
       {/* Modo Familia / Menores vinculados */}
       {(linkedChildren.length > 0 || isMinor) && (
-        <section className="rounded-2xl bg-studio-navy border border-sky-400/25 p-5 space-y-3">
+        <section className="rounded-3xl studio-panel border border-sky-400/25 p-5 space-y-3">
           <h2 className="font-headline text-lg uppercase tracking-wide text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-sky-400" />
             {linkedChildren.length > 0
@@ -535,7 +624,7 @@ export function ClientHomePage() {
                 return (
                   <div
                     key={child.id}
-                    className="rounded-xl bg-studio-navy-deep border border-white/10 p-3.5 flex items-center justify-between gap-3"
+                    className="rounded-2xl studio-panel-inset border border-white/10 p-3.5 flex items-center justify-between gap-3"
                   >
                     <div>
                       <p className="text-sm font-semibold text-white">{child.full_name}</p>
@@ -546,10 +635,10 @@ export function ClientHomePage() {
                       </p>
                     </div>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
                         child.status === 'active'
-                          ? 'bg-emerald-500/15 text-emerald-300'
-                          : 'bg-amber-500/15 text-amber-300'
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                       }`}
                     >
                       {child.status === 'active' ? 'Activo' : 'Pausado'}
@@ -560,14 +649,14 @@ export function ClientHomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="rounded-xl bg-studio-navy-deep border border-white/5 p-3">
+              <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
                 <p className="text-slate-400 uppercase">Padre / Tutor 1</p>
                 <p className="text-sm font-semibold text-white mt-0.5">
                   {profile?.father_name || 'Pendiente de completar en Perfil'}
                 </p>
                 {profile?.father_phone && <p className="text-slate-300">{profile.father_phone}</p>}
               </div>
-              <div className="rounded-xl bg-studio-navy-deep border border-white/5 p-3">
+              <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
                 <p className="text-slate-400 uppercase">Madre / Tutor 2</p>
                 <p className="text-sm font-semibold text-white mt-0.5">
                   {profile?.mother_name || 'Pendiente de completar en Perfil'}
@@ -579,62 +668,68 @@ export function ClientHomePage() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Ficha resumen del luchador (8 atributos Slide 4) */}
-        <section className="rounded-2xl bg-studio-navy border border-white/10 p-5">
-          <h2 className="font-headline text-lg uppercase tracking-wide text-white mb-4">
-            Ficha del Luchador
-          </h2>
-          <div className="space-y-3">
-            {statItems.map(({ key, label }) => {
-              const val = stats?.[key] ?? 50;
-              return (
-                <div key={key}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-300 font-medium">{label}</span>
-                    <span className="text-white font-semibold">{val}/100</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-studio-navy-deep overflow-hidden">
-                    <div
-                      className="h-full bg-studio-red rounded-full transition-all"
-                      style={{ width: `${val}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Radar interactivo de combate (8 atributos Slide 4) */}
+        <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-headline text-lg uppercase tracking-wide text-white">
+              Radar de Combate
+            </h2>
+            <span className="text-[11px] text-slate-400">Toca un eje para inspeccionar</span>
           </div>
+          <FighterRadarChart
+            items={statItems.map(({ key, label }) => ({
+              key,
+              label,
+              value: stats?.[key] ?? 50,
+            }))}
+          />
         </section>
 
         <div className="space-y-6">
-          {/* Próximos Eventos */}
-          <section className="rounded-2xl bg-studio-navy border border-white/10 p-5">
-            <h2 className="font-headline text-lg uppercase tracking-wide text-white mb-3 flex items-center gap-2">
+          {/* Próximos Eventos estilo cartelera */}
+          <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6">
+            <h2 className="font-headline text-lg uppercase tracking-wide text-white mb-4 flex items-center gap-2">
               <Calendar className="w-4 h-4 text-studio-red" />
               Próximos Eventos
             </h2>
             {events.length === 0 ? (
               <p className="text-sm text-slate-400">No hay seminarios ni competiciones próximas.</p>
             ) : (
-              <div className="space-y-2.5">
-                {events.map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="rounded-xl bg-studio-navy-deep px-3.5 py-2.5 border border-white/5"
-                  >
-                    <p className="text-xs text-studio-red font-semibold uppercase">
-                      {ev.event_type} · {new Date(ev.event_date).toLocaleDateString('es-ES')}
-                    </p>
-                    <p className="text-sm font-medium text-white">{ev.title}</p>
-                    {ev.location && <p className="text-xs text-slate-400">{ev.location}</p>}
-                  </div>
-                ))}
+              <div className="space-y-3">
+                {events.map((ev) => {
+                  const d = new Date(ev.event_date);
+                  const dayNum = Number.isNaN(d.getTime()) ? '--' : String(d.getDate()).padStart(2, '0');
+                  const monthShort = Number.isNaN(d.getTime())
+                    ? ''
+                    : d.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+                  return (
+                    <div
+                      key={ev.id}
+                      className="rounded-2xl studio-panel-inset border border-white/10 p-3 flex items-center gap-3.5 hover:border-studio-red/40 transition"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-studio-red/15 border border-studio-red/35 flex flex-col items-center justify-center shrink-0">
+                        <span className="font-headline text-lg text-white leading-none">{dayNum}</span>
+                        <span className="text-[10px] uppercase font-bold text-studio-red leading-tight mt-0.5">
+                          {monthShort}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <span className="inline-block text-[10px] text-studio-red font-bold uppercase tracking-wider">
+                          {ev.event_type}
+                        </span>
+                        <p className="text-sm font-semibold text-white truncate">{ev.title}</p>
+                        {ev.location && <p className="text-xs text-slate-400 truncate">{ev.location}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
 
           {/* Objetivos y Diario Técnico */}
-          <section className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-3">
+          <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6 space-y-3">
             <h2 className="font-headline text-lg uppercase tracking-wide text-white flex items-center gap-2">
               <Target className="w-4 h-4 text-studio-red" />
               Objetivos y Diario Técnico
@@ -643,21 +738,21 @@ export function ClientHomePage() {
               <button
                 type="button"
                 onClick={() => appendNoteTemplate('Técnica vista')}
-                className="px-2.5 py-1 rounded-lg bg-studio-navy-deep border border-white/10 hover:bg-white/5 text-[11px] text-slate-200"
+                className="px-2.5 py-1 rounded-xl studio-panel-inset border border-white/10 hover:border-studio-red/40 hover:text-white text-[11px] text-slate-300 transition"
               >
                 + Apunte técnico de hoy
               </button>
               <button
                 type="button"
                 onClick={() => appendNoteTemplate('Guardia / Pase')}
-                className="px-2.5 py-1 rounded-lg bg-studio-navy-deep border border-white/10 hover:bg-white/5 text-[11px] text-slate-200"
+                className="px-2.5 py-1 rounded-xl studio-panel-inset border border-white/10 hover:border-studio-red/40 hover:text-white text-[11px] text-slate-300 transition"
               >
                 + Objetivo guardia/pase
               </button>
               <button
                 type="button"
                 onClick={() => appendNoteTemplate('Meta torneo')}
-                className="px-2.5 py-1 rounded-lg bg-studio-navy-deep border border-white/10 hover:bg-white/5 text-[11px] text-slate-200"
+                className="px-2.5 py-1 rounded-xl studio-panel-inset border border-white/10 hover:border-studio-red/40 hover:text-white text-[11px] text-slate-300 transition"
               >
                 + Meta competición
               </button>
@@ -667,12 +762,12 @@ export function ClientHomePage() {
               value={goals}
               onChange={(e) => setGoals(e.target.value)}
               placeholder="Ej. [2026-11-14] Técnica vista: raspado tijera desde guardia cerrada..."
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-2xl studio-panel-inset border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-studio-red transition"
             />
             <button
               onClick={handleSaveGoals}
               disabled={savingGoals}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-studio-red hover:bg-studio-red-dark px-4 py-2 text-xs font-semibold text-white"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-studio-red to-rose-700 hover:from-rose-600 hover:to-studio-red-dark px-4 py-2.5 text-xs font-semibold text-white shadow-glow-red transition"
             >
               <Save className="w-3.5 h-3.5" />
               {savingGoals ? 'Guardando...' : 'Guardar Objetivos y Notas'}

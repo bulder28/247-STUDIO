@@ -35,17 +35,19 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     )?.label ?? 'Administración';
 
   return (
-    <div className="min-h-screen bg-studio-navy-deep text-slate-100 flex flex-col md:flex-row">
+    <div className="min-h-screen text-slate-100 flex flex-col md:flex-row">
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex md:w-64 md:flex-col bg-studio-navy border-r border-white/10 shrink-0">
+      <aside className="hidden md:flex md:w-64 md:flex-col bg-slate-950/75 backdrop-blur-xl border-r border-white/10 shrink-0 sticky top-0 h-screen">
         <div className="p-5 flex items-center gap-3 border-b border-white/10">
-          <img src="/logo.webp" alt="247 STUDIO" className="w-10 h-10 rounded-lg object-contain" />
+          <div className="p-1 rounded-lg bg-white/5 border border-white/10">
+            <img src="/logo.webp" alt="247 STUDIO" className="w-9 h-9 rounded-md object-contain" />
+          </div>
           <div>
             <p className="font-headline text-lg tracking-wide uppercase text-white leading-none">
               247 STUDIO
             </p>
             <span className="text-[11px] uppercase tracking-widest text-studio-red font-semibold">
-              Admin
+              Dirección
             </span>
           </div>
         </div>
@@ -59,7 +61,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition ${
                   isActive
-                    ? 'bg-studio-red text-white shadow-glow-red'
+                    ? 'bg-gradient-to-r from-studio-red to-rose-700 text-white shadow-glow-red'
                     : 'text-slate-300 hover:bg-white/5 hover:text-white'
                 }`
               }
@@ -74,7 +76,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <p className="text-xs text-slate-400 truncate mb-2">{profile?.full_name}</p>
           <button
             onClick={signOut}
-            className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/5 transition"
+            className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-300 hover:bg-white/10 transition"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Cerrar sesión</span>
@@ -83,7 +85,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Topbar Mobile */}
-      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-studio-navy border-b border-white/10 sticky top-0 z-30">
+      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-950/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-30">
         <div className="flex items-center gap-2.5">
           <img src="/logo.webp" alt="247" className="w-8 h-8 rounded-md object-contain" />
           <span className="font-headline text-lg uppercase tracking-wide">{currentTitle}</span>
@@ -101,7 +103,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-20 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)}>
           <div
-            className="w-64 h-full bg-studio-navy p-4 flex flex-col justify-between"
+            className="w-64 h-full bg-slate-950/95 backdrop-blur-xl border-r border-white/10 p-4 flex flex-col justify-between"
             onClick={(e) => e.stopPropagation()}
           >
             <nav className="space-y-1 mt-12">
@@ -113,7 +115,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium ${
-                      isActive ? 'bg-studio-red text-white' : 'text-slate-300 hover:bg-white/5'
+                      isActive ? 'bg-studio-red text-white shadow-glow-red' : 'text-slate-300 hover:bg-white/5'
                     }`
                   }
                 >
@@ -134,7 +136,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 max-w-6xl w-full mx-auto">{children}</main>
+      <main className="flex-1 p-4 md:p-8 max-w-6xl w-full mx-auto animate-studio-in">
+        {children}
+      </main>
     </div>
   );
 }
