@@ -14,7 +14,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
+import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
 import { formatEUR, formatInt, formatMonthLong } from '@/lib/format';
 import { DeltaBadge, KpiCard, Skeleton } from '@/components/KpiCard';
@@ -92,15 +92,6 @@ const DAY_SHORT: Record<number, string> = {
   4: 'Jue',
   5: 'Vie',
   6: 'Sáb',
-};
-
-const BELT_ORDER = ['Blanco', 'Azul', 'Morado', 'Marrón', 'Negro'];
-const BELT_COLORS: Record<string, string> = {
-  Blanco: 'bg-slate-200',
-  Azul: 'bg-blue-500',
-  Morado: 'bg-purple-500',
-  Marrón: 'bg-amber-700',
-  Negro: 'bg-zinc-950 ring-1 ring-inset ring-white/40',
 };
 
 function shiftMonth(ym: string, delta: number): string {
@@ -466,14 +457,6 @@ export function AdminKpisPage() {
   ).length;
   const docCompliancePct =
     totalManagedClients > 0 ? Math.round((compliantUsers / totalManagedClients) * 100) : 100;
-
-  // Demografía y cinturones
-  const kidsCount = activeClients.filter((c) => isMinorAge(c.birth_date)).length;
-  const foundersCount = activeClients.filter((c) => c.is_founder).length;
-  const beltCounts = BELT_ORDER.map((belt) => ({
-    belt,
-    count: activeClients.filter((c) => (c.belt || 'Blanco').toLowerCase() === belt.toLowerCase()).length,
-  }));
 
   // Bonos
   const lowCreditPacks = packSubs.filter((s) => (s.remaining_credits ?? 0) <= 2).length;
@@ -959,46 +942,8 @@ export function AdminKpisPage() {
         </div>
       </div>
 
-      {/* Fila 3: Radiografía Cinturones, Embudo Legal/Captación y Bonos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Cinturones y Segmentos */}
-        <section className="rounded-3xl studio-panel border border-white/10 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-headline text-base uppercase text-white">Cinturones Activos</h3>
-            <span className="text-xs text-slate-400">{activeClients.length} alumnos</span>
-          </div>
-          <div className="space-y-2.5">
-            {beltCounts.map((b) => {
-              const pct =
-                activeClients.length > 0 ? Math.round((b.count / activeClients.length) * 100) : 0;
-              return (
-                <div key={b.belt} className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-200 font-medium">{b.belt}</span>
-                    <span className="text-slate-400">
-                      {b.count} ({pct}%)
-                    </span>
-                  </div>
-                  <div className="w-full h-2 rounded-full studio-panel-inset overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${BELT_COLORS[b.belt] ?? 'bg-slate-400'}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="pt-2 border-t border-white/5 flex flex-wrap gap-2 text-[11px]">
-            <span className="px-2.5 py-1 rounded-lg bg-sky-500/15 text-sky-200 border border-sky-400/25">
-              Kids ≤14: <strong>{kidsCount}</strong>
-            </span>
-            <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-200 border border-amber-400/25">
-              Socios Fundadores: <strong>{foundersCount}</strong>
-            </span>
-          </div>
-        </section>
-
+      {/* Fila 3: Embudo Legal/Captación y Bonos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Salud Legal y Embudo */}
         <section className="rounded-3xl studio-panel border border-white/10 p-5 space-y-4">
           <div className="flex items-center justify-between">
