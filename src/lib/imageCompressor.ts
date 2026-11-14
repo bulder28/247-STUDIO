@@ -1,23 +1,32 @@
 import { supabase } from '@/lib/supabase';
 
-export async function compressAvatarImage(file: File, maxSize = 400): Promise<Blob> {
+/**
+ * Recorta la imagen en formato cuadrado centrado (1:1) y la comprime a 400x400 WebP
+ * para que las fichas de alumno y avatares en Pasar Lista sean uniformes y ligeros.
+ */
+export async function compressAvatarImage(file: File, targetSize = 400): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
-  const width = Math.round(bitmap.width * scale);
-  const height = Math.round(bitmap.height * scale);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const sx = Math.floor((bitmap.width - side) / 2);
+  const sy = Math.floor((bitmap.height - side) / 2);
 
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = targetSize;
+  canvas.height = targetSize;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('No se pudo procesar la imagen');
-  ctx.drawImage(bitmap, 0, 0, width, height);
+  if (!ctx) {
+    bitmap.close();
+    throw new Error('No se pudo procesar la imagen');
+  }
+
+  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, targetSize, targetSize);
+  bitmap.close();
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error('Error al comprimir imagen'))),
       'image/webp',
-      0.82
+      0.85
     );
   });
 }
@@ -35,4 +44,3 @@ export async function uploadUserAvatar(userId: string, file: File): Promise<stri
   const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
   return `${data.publicUrl}?t=${Date.now()}`;
 }
-

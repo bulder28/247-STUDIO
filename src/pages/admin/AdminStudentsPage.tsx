@@ -1,8 +1,26 @@
 import { useEffect, useState } from 'react';
-import { Search, ShieldCheck, User, UserPlus, Copy, Check, Camera } from 'lucide-react';
+import {
+  Search,
+  ShieldCheck,
+  User,
+  UserPlus,
+  Copy,
+  Check,
+  Camera,
+  Upload,
+  FileWarning,
+  CheckCircle2,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { uploadUserAvatar } from '@/lib/imageCompressor';
-import { getLocalMonthYear } from '@/lib/dateUtils';
+import { getLocalMonthYear, calculateAge, isMinorAge } from '@/lib/dateUtils';
+import { getEffectivePlanPrice } from '@/lib/pricing';
+import { CameraCaptureModal } from '@/components/CameraCaptureModal';
+import {
+  getDocumentCompliance,
+  type DocSignature,
+  type DocTemplate,
+} from '@/lib/documents';
 import type { MemberStatus, Profile, UserRole } from '@/types/database';
 
 interface Plan {
@@ -25,11 +43,19 @@ export function AdminStudentsPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [trials, setTrials] = useState<TrialGuest[]>([]);
+  const [docTemplates, setDocTemplates] = useState<DocTemplate[]>([]);
+  const [signaturesByUser, setSignaturesByUser] = useState<Record<string, DocSignature[]>>({});
   const [subsByUser, setSubsByUser] = useState<Record<string, string>>({});
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | MemberStatus>('all');
+  const [docFilter, setDocFilter] = useState<'all' | 'pending' | 'complete'>('all');
   const [selected, setSelected] = useState<Profile | null>(null);
   const [editPhotoFile, setEditPhotoFile] = useState<File | null>(null);
+  const [editPhotoPreview, setEditPhotoPreview] = useState<string | null>(null);
+  const [newPhotoPreview, setNewPhotoPreview] = useState<string | null>(null);
+  const [cameraTarget, setCameraTarget] = useState<'new' | 'edit' | null>(null);
+  const [photoUploadWarning, setPhotoUploadWarning] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Alta nuevo usuario
@@ -38,10 +64,15 @@ export function AdminStudentsPage() {
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newBirthDate, setNewBirthDate] = useState('');
+  const [newFatherName, setNewFatherName] = useState('');
+  const [newFatherPhone, setNewFatherPhone] = useState('');
+  const [newMotherName, setNewMotherName] = useState('');
+  const [newMotherPhone, setNewMotherPhone] = useState('');
   const [newBelt, setNewBelt] = useState('Blanco');
   const [newRole, setNewRole] = useState<UserRole>('client');
   const [newGuardianId, setNewGuardianId] = useState('');
   const [newPlanId, setNewPlanId] = useState('');
+  const [newIsFounder, setNewIsFounder] = useState(false);
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [paidNow, setPaidNow] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<'Efectivo' | 'Bizum'>('Efectivo');
@@ -57,7 +88,7 @@ export function AdminStudentsPage() {
   const [copied, setCopied] = useState(false);
 
   const loadAll = async () => {
-    const [profRes, planRes, subRes, trialRes] = await Promise.all([
+    const [profRes, planRes, subRes, trialRes, tplRes, sigRes] = await Promise.all([
       supabase.from('profiles').select('*').order('full_name'),
       supabase.from('plans').select('id, name, price_eur').eq('is_active', true).order('price_eur'),
       supabase
@@ -71,11 +102,24 @@ export function AdminStudentsPage() {
         .is('converted_user_id', null)
         .order('trial_date', { ascending: false })
         .limit(10),
+      supabase.from('document_templates').select('*').eq('is_active', true),
+      supabase
+        .from('document_signatures')
+        .select('user_id, template_id, template_version, signed_at'),
     ]);
 
     setProfiles((profRes.data as Profile[]) ?? []);
     setPlans((planRes.data as Plan[]) ?? []);
     setTrials((trialRes.data as unknown as TrialGuest[]) ?? []);
+    setDocTemplates((tplRes.data as DocTemplate[]) ?? []);
+
+    const sigMap: Record<string, DocSignature[]> = {};
+    ((sigRes.data as DocSignature[]) ?? []).forEach((s) => {
+      if (!s.user_id) return;
+      if (!sigMap[s.user_id]) sigMap[s.user_id] = [];
+      sigMap[s.user_id].push(s);
+    });
+    setSignaturesByUser(sigMap);
 
     const map: Record<string, string> = {};
     (subRes.data ?? []).forEach((s: { user_id: string; plan_id: string }) => {
@@ -93,12 +137,29 @@ export function AdminStudentsPage() {
       p.full_name.toLowerCase().includes(search.toLowerCase()) ||
       p.email.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    if (!matchesSearch || !matchesStatus) return false;
+    if (docFilter === 'all') return true;
+    if (p.role !== 'client') return docFilter === 'complete';
+    const comp = getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date);
+    return docFilter === 'pending' ? comp.pending.length > 0 : comp.isComplete;
   });
 
   const handleSaveSelected = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selected) return;
+    setEditError(null);
+
+    if (isMinorAge(selected.birth_date)) {
+      const hasFather = Boolean(selected.father_name?.trim() && selected.father_phone?.trim());
+      const hasMother = Boolean(selected.mother_name?.trim() && selected.mother_phone?.trim());
+      if (!hasFather && !hasMother) {
+        setEditError(
+          'Al ser menor (≤ 14 años), debe constar al menos el nombre y teléfono del padre o de la madre.'
+        );
+        return;
+      }
+    }
+
     setSaving(true);
 
     let avatarUrl = selected.avatar_url;
@@ -123,6 +184,11 @@ export function AdminStudentsPage() {
         belt_stripes: selected.belt_stripes ?? 0,
         weight_category: selected.weight_category,
         guardian_user_id: selected.guardian_user_id || null,
+        father_name: selected.father_name?.trim() || null,
+        father_phone: selected.father_phone?.trim() || null,
+        mother_name: selected.mother_name?.trim() || null,
+        mother_phone: selected.mother_phone?.trim() || null,
+        is_founder: Boolean(selected.is_founder),
         avatar_url: avatarUrl,
       })
       .eq('id', selected.id);
@@ -149,6 +215,10 @@ export function AdminStudentsPage() {
     await loadAll();
     setSaving(false);
     setEditPhotoFile(null);
+    if (editPhotoPreview) {
+      URL.revokeObjectURL(editPhotoPreview);
+      setEditPhotoPreview(null);
+    }
     setSelected(null);
   };
 
@@ -164,8 +234,20 @@ export function AdminStudentsPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreating(true);
     setCreateError(null);
+
+    if (isMinorAge(newBirthDate)) {
+      const hasFather = Boolean(newFatherName.trim() && newFatherPhone.trim());
+      const hasMother = Boolean(newMotherName.trim() && newMotherPhone.trim());
+      if (!hasFather && !hasMother) {
+        setCreateError(
+          'Al ser menor (≤ 14 años), debe constar al menos el nombre y teléfono del padre o de la madre.'
+        );
+        return;
+      }
+    }
+
+    setCreating(true);
 
     const { data, error } = await supabase.functions.invoke('create-student', {
       body: {
@@ -176,6 +258,11 @@ export function AdminStudentsPage() {
         belt: newBelt,
         role: newRole,
         guardian_user_id: newGuardianId || null,
+        father_name: newFatherName.trim() || null,
+        father_phone: newFatherPhone.trim() || null,
+        mother_name: newMotherName.trim() || null,
+        mother_phone: newMotherPhone.trim() || null,
+        is_founder: newIsFounder,
         plan_id: newPlanId || null,
         month_year: currentMonth,
         paid_now: newPlanId ? paidNow : false,
@@ -195,12 +282,15 @@ export function AdminStudentsPage() {
       return;
     }
 
+    setPhotoUploadWarning(null);
     if (newPhotoFile && data?.id) {
       try {
         const avatarUrl = await uploadUserAvatar(data.id, newPhotoFile);
         await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', data.id);
       } catch {
-        // El usuario ya quedó creado aunque falle la foto
+        setPhotoUploadWarning(
+          `Usuario "${newName.trim()}" creado, pero no se pudo subir la foto. Puedes repetirla desde su ficha.`
+        );
       }
     }
 
@@ -213,9 +303,18 @@ export function AdminStudentsPage() {
     setNewEmail('');
     setNewPhone('');
     setNewBirthDate('');
+    setNewFatherName('');
+    setNewFatherPhone('');
+    setNewMotherName('');
+    setNewMotherPhone('');
     setNewGuardianId('');
     setNewPlanId('');
+    setNewIsFounder(false);
     setNewPhotoFile(null);
+    if (newPhotoPreview) {
+      URL.revokeObjectURL(newPhotoPreview);
+      setNewPhotoPreview(null);
+    }
     setTrialGuestId(null);
     setTrialDateRef(null);
     setShowNewModal(false);
@@ -310,6 +409,19 @@ export function AdminStudentsPage() {
         </section>
       )}
 
+      {photoUploadWarning && (
+        <div className="rounded-2xl bg-amber-500/15 border border-amber-400/40 px-4 py-3 text-xs text-amber-200 flex items-center justify-between gap-3">
+          <span>{photoUploadWarning}</span>
+          <button
+            type="button"
+            onClick={() => setPhotoUploadWarning(null)}
+            className="underline shrink-0"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -331,6 +443,15 @@ export function AdminStudentsPage() {
           <option value="paused">Pausados</option>
           <option value="inactive">Bajas</option>
         </select>
+        <select
+          value={docFilter}
+          onChange={(e) => setDocFilter(e.target.value as 'all' | 'pending' | 'complete')}
+          className="rounded-xl bg-studio-navy border border-white/10 px-3 py-2.5 text-sm text-white"
+        >
+          <option value="all">Docs: Todos</option>
+          <option value="pending">Con docs pendientes</option>
+          <option value="complete">Docs completos</option>
+        </select>
       </div>
 
       {/* Lista */}
@@ -338,10 +459,18 @@ export function AdminStudentsPage() {
         {filtered.map((p) => {
           const planName =
             plans.find((pl) => pl.id === subsByUser[p.id])?.name ?? 'Sin tarifa este mes';
+          const minorAge = isMinorAge(p.birth_date) ? calculateAge(p.birth_date) : null;
+          const comp =
+            p.role === 'client'
+              ? getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date)
+              : null;
           return (
             <div
               key={p.id}
-              onClick={() => setSelected(p)}
+              onClick={() => {
+                setEditError(null);
+                setSelected(p);
+              }}
               className="p-4 flex items-center justify-between gap-4 hover:bg-white/5 cursor-pointer transition"
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -357,8 +486,44 @@ export function AdminStudentsPage() {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white truncate flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-white truncate flex flex-wrap items-center gap-1.5">
                     {p.full_name}
+                    {p.is_founder && (
+                      <span
+                        title="Socio Fundador (-10%)"
+                        className="inline-flex items-center text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30"
+                      >
+                        SF
+                      </span>
+                    )}
+                    {minorAge !== null && (
+                      <span className="inline-flex items-center text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                        Menor · {minorAge}a
+                      </span>
+                    )}
+                    {comp && comp.totalRequired > 0 && (
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                          comp.isComplete
+                            ? 'bg-emerald-500/15 text-emerald-300'
+                            : 'bg-studio-red/20 text-red-200 border border-studio-red/30'
+                        }`}
+                      >
+                        {comp.isComplete ? (
+                          <CheckCircle2 className="w-3 h-3" />
+                        ) : (
+                          <FileWarning className="w-3 h-3" />
+                        )}
+                        {comp.isComplete
+                          ? `Docs ${comp.signedCount}/${comp.totalRequired}`
+                          : `Faltan ${comp.pending.length} docs`}
+                      </span>
+                    )}
+                    {!p.avatar_url && p.role === 'client' && (
+                      <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
+                        Sin foto
+                      </span>
+                    )}
                     {p.role !== 'client' && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] uppercase px-1.5 py-0.5 rounded bg-studio-red/20 text-red-300">
                         <ShieldCheck className="w-3 h-3" /> {p.role}
@@ -392,19 +557,49 @@ export function AdminStudentsPage() {
         <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveSelected}
-            className="w-full max-w-lg rounded-2xl bg-studio-navy border border-white/15 p-6 space-y-4 shadow-modal"
+            className="w-full max-w-lg rounded-2xl bg-studio-navy border border-white/15 p-6 space-y-4 shadow-modal max-h-[90vh] overflow-y-auto"
           >
             <h2 className="font-headline text-xl uppercase text-white">Editar Ficha</h2>
 
-            <div className="flex items-center gap-3">
-              <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
+            {editError && (
+              <div className="rounded-xl bg-studio-red/20 border border-studio-red/50 px-3 py-2 text-xs text-red-200">
+                {editError}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-studio-navy-deep border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
+                {editPhotoPreview || selected.avatar_url ? (
+                  <img
+                    src={editPhotoPreview || selected.avatar_url || ''}
+                    alt={selected.full_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-6 h-6 text-slate-500" />
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCameraTarget('edit')}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
+              >
                 <Camera className="w-4 h-4 text-studio-red" />
-                <span>{editPhotoFile ? editPhotoFile.name : 'Cambiar foto de perfil'}</span>
+                Realizar foto
+              </button>
+              <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
+                <Upload className="w-4 h-4 text-slate-400" />
+                <span>{editPhotoFile ? editPhotoFile.name : 'Subir archivo'}</span>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/*"
                   className="hidden"
-                  onChange={(e) => setEditPhotoFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    setEditPhotoFile(f);
+                    if (editPhotoPreview) URL.revokeObjectURL(editPhotoPreview);
+                    setEditPhotoPreview(f ? URL.createObjectURL(f) : null);
+                  }}
                 />
               </label>
             </div>
@@ -506,6 +701,64 @@ export function AdminStudentsPage() {
                   className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
                 />
               </div>
+
+              {(isMinorAge(selected.birth_date) ||
+                selected.father_name ||
+                selected.father_phone ||
+                selected.mother_name ||
+                selected.mother_phone) && (
+                <div className="sm:col-span-2 rounded-xl bg-sky-500/10 border border-sky-400/25 p-3.5 space-y-3">
+                  <p className="text-xs font-semibold text-sky-300 uppercase">
+                    Datos de Padre y Madre (Menor ≤ 14 años)
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                        Nombre del padre
+                      </label>
+                      <input
+                        value={selected.father_name ?? ''}
+                        onChange={(e) => setSelected({ ...selected, father_name: e.target.value })}
+                        placeholder="Nombre y apellidos"
+                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                        Teléfono del padre
+                      </label>
+                      <input
+                        value={selected.father_phone ?? ''}
+                        onChange={(e) => setSelected({ ...selected, father_phone: e.target.value })}
+                        placeholder="600 000 000"
+                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                        Nombre de la madre
+                      </label>
+                      <input
+                        value={selected.mother_name ?? ''}
+                        onChange={(e) => setSelected({ ...selected, mother_name: e.target.value })}
+                        placeholder="Nombre y apellidos"
+                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                        Teléfono de la madre
+                      </label>
+                      <input
+                        value={selected.mother_phone ?? ''}
+                        onChange={(e) => setSelected({ ...selected, mother_phone: e.target.value })}
+                        placeholder="600 000 000"
+                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="sm:col-span-2">
                 <label className="block text-xs text-slate-400 uppercase mb-1">
                   Familiar / Tutor vinculado (Kids / Hermanos)
@@ -529,6 +782,26 @@ export function AdminStudentsPage() {
               </div>
 
               <div className="sm:col-span-2">
+                <label className="flex items-center justify-between gap-3 rounded-xl bg-studio-navy-deep border border-amber-400/25 px-3.5 py-2.5 cursor-pointer">
+                  <div>
+                    <p className="text-xs font-semibold text-amber-300 uppercase">
+                      Socio Fundador (SF · -10%)
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Aplica un 10% de descuento en la tarifa mensual. El administrador puede
+                      activarlo o revocarlo en cualquier momento.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(selected.is_founder)}
+                    onChange={(e) => setSelected({ ...selected, is_founder: e.target.checked })}
+                    className="rounded w-4 h-4 accent-amber-400 shrink-0"
+                  />
+                </label>
+              </div>
+
+              <div className="sm:col-span-2">
                 <label className="block text-xs text-slate-400 uppercase mb-1">
                   Tarifa ({currentMonth})
                 </label>
@@ -540,13 +813,61 @@ export function AdminStudentsPage() {
                   className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
                 >
                   <option value="">— Sin tarifa —</option>
-                  {plans.map((pl) => (
-                    <option key={pl.id} value={pl.id}>
-                      {pl.name} ({pl.price_eur} €)
-                    </option>
-                  ))}
+                  {plans.map((pl) => {
+                    const effective = getEffectivePlanPrice(pl.price_eur, selected.is_founder);
+                    return (
+                      <option key={pl.id} value={pl.id}>
+                        {pl.name} ({effective} €{selected.is_founder ? ' · SF -10%' : ''})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
+
+              {selected.role === 'client' && docTemplates.length > 0 && (() => {
+                const sigs = signaturesByUser[selected.id] ?? [];
+                const comp = getDocumentCompliance(docTemplates, sigs, selected.birth_date);
+                return (
+                  <div className="sm:col-span-2 rounded-xl bg-studio-navy-deep border border-white/10 p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-white uppercase">
+                        Documentación Obligatoria
+                      </p>
+                      <span
+                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                          comp.isComplete
+                            ? 'bg-emerald-500/15 text-emerald-300'
+                            : 'bg-studio-red/20 text-red-200'
+                        }`}
+                      >
+                        {comp.signedCount} / {comp.totalRequired} firmados
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {comp.required.map((doc) => {
+                        const signed = sigs.find(
+                          (s) => s.template_id === doc.id && s.template_version === doc.version
+                        );
+                        return (
+                          <div
+                            key={doc.id}
+                            className="flex items-center justify-between gap-2 text-xs"
+                          >
+                            <span className="text-slate-300 truncate">{doc.title}</span>
+                            {signed ? (
+                              <span className="text-emerald-300 shrink-0">
+                                Firmado ({new Date(signed.signed_at).toLocaleDateString('es-ES')})
+                              </span>
+                            ) : (
+                              <span className="text-red-300 font-semibold shrink-0">Pendiente</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
@@ -632,6 +953,60 @@ export function AdminStudentsPage() {
                   className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
                 />
               </div>
+
+              {isMinorAge(newBirthDate) && (
+                <div className="sm:col-span-2 rounded-xl bg-sky-500/10 border border-sky-400/25 p-3.5 space-y-3">
+                  <p className="text-xs font-semibold text-sky-300 uppercase">
+                    Datos de Padre y Madre (Menor ≤ 14 años) *
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                        Nombre del padre
+                      </label>
+                      <input
+                        value={newFatherName}
+                        onChange={(e) => setNewFatherName(e.target.value)}
+                        placeholder="Nombre y apellidos"
+                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                        Teléfono del padre
+                      </label>
+                      <input
+                        value={newFatherPhone}
+                        onChange={(e) => setNewFatherPhone(e.target.value)}
+                        placeholder="600 000 000"
+                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                        Nombre de la madre
+                      </label>
+                      <input
+                        value={newMotherName}
+                        onChange={(e) => setNewMotherName(e.target.value)}
+                        placeholder="Nombre y apellidos"
+                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                        Teléfono de la madre
+                      </label>
+                      <input
+                        value={newMotherPhone}
+                        onChange={(e) => setNewMotherPhone(e.target.value)}
+                        placeholder="600 000 000"
+                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="block text-xs text-slate-400 uppercase mb-1">Rol</label>
                 <select
@@ -679,15 +1054,55 @@ export function AdminStudentsPage() {
                 <label className="block text-xs text-slate-400 uppercase mb-1">
                   Foto del alumno (opcional)
                 </label>
-                <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
-                  <Camera className="w-4 h-4 text-studio-red" />
-                  <span>{newPhotoFile ? newPhotoFile.name : 'Hacer foto o elegir de galería'}</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-studio-navy-deep border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
+                    {newPhotoPreview ? (
+                      <img src={newPhotoPreview} alt="Vista previa" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-5 h-5 text-slate-500" />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCameraTarget('new')}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
+                  >
+                    <Camera className="w-4 h-4 text-studio-red" />
+                    Realizar foto
+                  </button>
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
+                    <Upload className="w-4 h-4 text-slate-400" />
+                    <span>{newPhotoFile ? newPhotoFile.name : 'Subir archivo / galería'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        setNewPhotoFile(f);
+                        if (newPhotoPreview) URL.revokeObjectURL(newPhotoPreview);
+                        setNewPhotoPreview(f ? URL.createObjectURL(f) : null);
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="flex items-center justify-between gap-3 rounded-xl bg-studio-navy-deep border border-amber-400/25 px-3.5 py-2.5 cursor-pointer">
+                  <div>
+                    <p className="text-xs font-semibold text-amber-300 uppercase">
+                      Socio Fundador (SF · -10%)
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Descuento del 10% sobre el precio final de la tarifa (revocable por Admin).
+                    </p>
+                  </div>
                   <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    capture="user"
-                    className="hidden"
-                    onChange={(e) => setNewPhotoFile(e.target.files?.[0] ?? null)}
+                    type="checkbox"
+                    checked={newIsFounder}
+                    onChange={(e) => setNewIsFounder(e.target.checked)}
+                    className="rounded w-4 h-4 accent-amber-400 shrink-0"
                   />
                 </label>
               </div>
@@ -702,11 +1117,14 @@ export function AdminStudentsPage() {
                   className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
                 >
                   <option value="">— Asignar más tarde —</option>
-                  {plans.map((pl) => (
-                    <option key={pl.id} value={pl.id}>
-                      {pl.name} ({pl.price_eur} €)
-                    </option>
-                  ))}
+                  {plans.map((pl) => {
+                    const effective = getEffectivePlanPrice(pl.price_eur, newIsFounder);
+                    return (
+                      <option key={pl.id} value={pl.id}>
+                        {pl.name} ({effective} €{newIsFounder ? ' · SF -10%' : ''})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -756,6 +1174,22 @@ export function AdminStudentsPage() {
           </form>
         </div>
       )}
+
+      <CameraCaptureModal
+        open={cameraTarget !== null}
+        onClose={() => setCameraTarget(null)}
+        onCapture={(file) => {
+          if (cameraTarget === 'new') {
+            setNewPhotoFile(file);
+            if (newPhotoPreview) URL.revokeObjectURL(newPhotoPreview);
+            setNewPhotoPreview(URL.createObjectURL(file));
+          } else if (cameraTarget === 'edit') {
+            setEditPhotoFile(file);
+            if (editPhotoPreview) URL.revokeObjectURL(editPhotoPreview);
+            setEditPhotoPreview(URL.createObjectURL(file));
+          }
+        }}
+      />
     </div>
   );
 }

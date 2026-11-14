@@ -73,6 +73,11 @@ Deno.serve(async (req) => {
       payment_method = 'Efectivo',
       first_training_at = null,
       trial_guest_id = null,
+      is_founder = false,
+      father_name = null,
+      father_phone = null,
+      mother_name = null,
+      mother_phone = null,
     } = body;
 
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
@@ -115,6 +120,11 @@ Deno.serve(async (req) => {
       belt,
       role,
       guardian_user_id: guardian_user_id || null,
+      father_name: father_name ? String(father_name).trim() : null,
+      father_phone: father_phone ? String(father_phone).trim() : null,
+      mother_name: mother_name ? String(mother_name).trim() : null,
+      mother_phone: mother_phone ? String(mother_phone).trim() : null,
+      is_founder: Boolean(is_founder),
       status: 'active',
       must_change_password: true,
       first_training_at: first_training_at ? new Date(first_training_at).toISOString() : null,
@@ -153,11 +163,13 @@ Deno.serve(async (req) => {
 
       if (paid_now) {
         const safeMethod = payment_method === 'Bizum' ? 'Bizum' : 'Efectivo';
+        const basePrice = Number(planRow?.price_eur ?? 0);
+        const finalAmount = is_founder ? Math.round(basePrice * 0.9) : basePrice;
         await adminClient.from('payments').insert({
           user_id: newUserId,
           subscription_id: subData?.id ?? null,
           month_year,
-          amount_eur: planRow?.price_eur ?? 0,
+          amount_eur: finalAmount,
           status: 'paid_ok',
           payment_method: safeMethod,
           paid_at: new Date().toISOString(),

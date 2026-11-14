@@ -27,9 +27,11 @@ interface PaymentRow {
   user_id: string;
   full_name: string;
   member_status: string;
+  is_founder?: boolean;
   month_year: string;
   plan_id: string;
   plan_name: string;
+  base_price_eur?: number;
   price_eur: number;
   recorded_payment_status: 'paid_ok' | 'pending_nok' | null;
   paid_at: string | null;
@@ -47,6 +49,7 @@ interface CashPaymentRecord {
 interface StudentLatestPlan {
   user_id: string;
   full_name: string;
+  is_founder?: boolean;
   plan_id: string;
   plan_name: string;
   price_eur: number;
@@ -152,6 +155,7 @@ export function AdminTrackingPage() {
       map.set(r.user_id, {
         user_id: r.user_id,
         full_name: r.full_name,
+        is_founder: Boolean(r.is_founder),
         plan_id: r.plan_id,
         plan_name: r.plan_name,
         price_eur: Number(r.price_eur || 0),
@@ -642,6 +646,14 @@ export function AdminTrackingPage() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-semibold text-white">{r.full_name}</p>
+                        {r.is_founder && (
+                          <span
+                            title="Socio Fundador (-10%)"
+                            className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-400/30"
+                          >
+                            SF
+                          </span>
+                        )}
                         {info && info.overdueCount > 1 && (
                           <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-studio-red/20 text-red-300">
                             {info.overdueCount} facturas pendientes
@@ -764,7 +776,7 @@ export function AdminTrackingPage() {
                 >
                   {studentsCatalog.map((s) => (
                     <option key={s.user_id} value={s.user_id}>
-                      {s.full_name} — {s.plan_name} ({s.price_eur.toFixed(0)} €/mes)
+                      {s.full_name} {s.is_founder ? '[SF] ' : ''}— {s.plan_name} ({s.price_eur.toFixed(0)} €/mes)
                     </option>
                   ))}
                 </select>

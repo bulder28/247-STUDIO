@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, CreditCard, AlertTriangle, UserPlus, CheckCircle2 } from 'lucide-react';
+import { Users, CreditCard, AlertTriangle, UserPlus, CheckCircle2, FileWarning } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
+import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
 
 interface MonthlyRow {
   user_id: string;
@@ -32,6 +33,7 @@ export function AdminHomePage() {
   const [rows, setRows] = useState<MonthlyRow[]>([]);
   const [todayList, setTodayList] = useState<TodayAttendance[]>([]);
   const [activeStudentsCount, setActiveStudentsCount] = useState(0);
+  const [pendingDocsCount, setPendingDocsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function AdminHomePage() {
       setLoading(true);
       const todayStr = getLocalDateISO();
 
-      const [monthlyRes, studentsRes, attendanceRes] = await Promise.all([
+      const [monthlyRes, studentsRes, attendanceRes, clientsRes, tplRes, sigRes] = await Promise.all([
         supabase
           .from('v_monthly_payment_status')
           .select('user_id, full_name, plan_name, price_eur, paid_amount_eur, effective_status')
@@ -54,11 +56,32 @@ export function AdminHomePage() {
           .select('id, guest_name, profiles:user_id(full_name, avatar_url), schedule_classes(title, start_time)')
           .eq('attendance_date', todayStr)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('profiles')
+          .select('id, birth_date')
+          .eq('role', 'client')
+          .in('status', ['active', 'paused']),
+        supabase.from('document_templates').select('*').eq('is_active', true),
+        supabase
+          .from('document_signatures')
+          .select('user_id, template_id, template_version, signed_at'),
       ]);
 
       setRows((monthlyRes.data as MonthlyRow[]) ?? []);
       setActiveStudentsCount(studentsRes.count ?? 0);
       setTodayList((attendanceRes.data as unknown as TodayAttendance[]) ?? []);
+
+      const templates = (tplRes.data as DocTemplate[]) ?? [];
+      const sigMap: Record<string, DocSignature[]> = {};
+      ((sigRes.data as DocSignature[]) ?? []).forEach((s) => {
+        if (!s.user_id) return;
+        if (!sigMap[s.user_id]) sigMap[s.user_id] = [];
+        sigMap[s.user_id].push(s);
+      });
+      const clientsWithPendingDocs = ((clientsRes.data as { id: string; birth_date: string | null }[]) ?? []).filter(
+        (c) => getDocumentCompliance(templates, sigMap[c.id] ?? [], c.birth_date).pending.length > 0
+      ).length;
+      setPendingDocsCount(clientsWithPendingDocs);
       setLoading(false);
     };
 
@@ -110,6 +133,24 @@ export function AdminHomePage() {
           Ir a Seguimiento Mensual
         </Link>
       </div>
+
+      {pendingDocsCount > 0 && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/15 text-amber-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <FileWarning className="w-5 h-5 text-amber-300 shrink-0" />
+            <p className="text-xs sm:text-sm">
+              <strong>{pendingDocsCount}</strong> alumno(s) con documentación obligatoria pendiente
+              de firma (privacidad, imagen, exención o normas).
+            </p>
+          </div>
+          <Link
+            to="/admin/alumnos"
+            className="inline-flex items-center justify-center rounded-xl bg-studio-navy-deep border border-amber-400/30 hover:bg-white/5 px-3.5 py-2 text-xs font-semibold text-amber-200 shrink-0"
+          >
+            Revisar en BBDD Personal
+          </Link>
+        </div>
+      )}
 
       {/* 4 KPIs de la Slide 15 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

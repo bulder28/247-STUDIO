@@ -24,3 +24,28 @@ export function getLocalTimeHHMM(date: Date = new Date()): string {
   return `${hours}:${minutes}`;
 }
 
+/**
+ * Calcula la edad en años cumplidos a partir de YYYY-MM-DD en horario local.
+ */
+export function calculateAge(birthDate?: string | null): number | null {
+  if (!birthDate) return null;
+  const parts = birthDate.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+  const [y, m, d] = parts;
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  const monthDiff = today.getMonth() + 1 - m;
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) {
+    age -= 1;
+  }
+  return age >= 0 ? age : null;
+}
+
+/**
+ * En 247 STUDIO se considera menor de edad a todo alumno de hasta 14 años inclusive.
+ */
+export function isMinorAge(birthDate?: string | null): boolean {
+  const age = calculateAge(birthDate);
+  return age !== null && age <= 14;
+}
+

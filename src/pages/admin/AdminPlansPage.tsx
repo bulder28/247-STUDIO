@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, Bell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getFounderPrice } from '@/lib/pricing';
 
 interface Discipline {
   id: string;
@@ -158,10 +159,15 @@ export function AdminPlansPage() {
               step="0.01"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              placeholder="65"
+              placeholder="69"
               required
               className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
             />
+            {price && Number(price) > 0 && (
+              <p className="text-[11px] text-amber-300 mt-1">
+                Socio Fundador (SF -10%): {getFounderPrice(Number(price))} €
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-xs text-slate-400 uppercase mb-1">Oferta (opcional)</label>
@@ -266,9 +272,14 @@ export function AdminPlansPage() {
                       <p className="text-xs text-amber-300 mt-0.5">{plan.promo_text}</p>
                     )}
                   </div>
-                  <span className="font-headline text-2xl text-studio-red">
-                    {Number(plan.price_eur).toFixed(0)} €
-                  </span>
+                  <div className="text-right shrink-0">
+                    <span className="font-headline text-2xl text-studio-red">
+                      {Number(plan.price_eur).toFixed(0)} €
+                    </span>
+                    <p className="text-[11px] text-amber-300 font-semibold">
+                      SF: {getFounderPrice(Number(plan.price_eur))} €
+                    </p>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-3">
                   {discNames.map((dn) => (

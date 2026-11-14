@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, AlertTriangle, Clock, Calendar, Target, User, Save } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CheckCircle2, AlertTriangle, Clock, Calendar, Target, User, Save, FileSignature } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { getLocalMonthYear } from '@/lib/dateUtils';
+import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
 
 interface PaymentSummary {
   month_year: string;
@@ -65,6 +67,8 @@ export function ClientHomePage() {
   const [paymentRows, setPaymentRows] = useState<PaymentSummary[]>([]);
   const [stats, setStats] = useState<FighterStats | null>(null);
   const [events, setEvents] = useState<GymEvent[]>([]);
+  const [docTemplates, setDocTemplates] = useState<DocTemplate[]>([]);
+  const [docSignatures, setDocSignatures] = useState<DocSignature[]>([]);
   const [goals, setGoals] = useState(profile?.personal_goals ?? '');
   const [savingGoals, setSavingGoals] = useState(false);
 
@@ -75,7 +79,7 @@ export function ClientHomePage() {
   useEffect(() => {
     if (!user) return;
     const loadHome = async () => {
-      const [payRes, statsRes, evRes] = await Promise.all([
+      const [payRes, statsRes, evRes, tplRes, sigRes] = await Promise.all([
         supabase
           .from('v_monthly_payment_status')
           .select('month_year, plan_name, price_eur, effective_status')
@@ -89,11 +93,18 @@ export function ClientHomePage() {
           .gte('event_date', new Date().toISOString())
           .order('event_date')
           .limit(4),
+        supabase.from('document_templates').select('*').eq('is_active', true),
+        supabase
+          .from('document_signatures')
+          .select('template_id, template_version, signed_at')
+          .eq('user_id', user.id),
       ]);
 
       setPaymentRows((payRes.data as PaymentSummary[]) ?? []);
       setStats((statsRes.data as FighterStats) ?? null);
       setEvents((evRes.data as GymEvent[]) ?? []);
+      setDocTemplates((tplRes.data as DocTemplate[]) ?? []);
+      setDocSignatures((sigRes.data as DocSignature[]) ?? []);
     };
     loadHome();
   }, [user, currentMonth]);
@@ -137,9 +148,33 @@ export function ClientHomePage() {
   ];
 
   const age = calcAge(profile?.birth_date ?? null);
+  const docCompliance = getDocumentCompliance(docTemplates, docSignatures, profile?.birth_date);
 
   return (
     <div className="space-y-6">
+      {/* Aviso de documentación obligatoria pendiente */}
+      {docCompliance.totalRequired > 0 && docCompliance.pending.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/50 bg-amber-500/15 text-amber-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <FileSignature className="w-6 h-6 text-amber-300 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-headline text-base uppercase tracking-wide">
+                Documentación obligatoria pendiente ({docCompliance.signedCount}/
+                {docCompliance.totalRequired})
+              </p>
+              <p className="text-xs opacity-90">
+                Es imprescindible firmar: {docCompliance.pending.map((d) => d.title).join(', ')}.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/app/perfil"
+            className="inline-flex items-center justify-center rounded-xl bg-studio-red hover:bg-studio-red-dark px-4 py-2 text-xs font-semibold text-white shrink-0 transition"
+          >
+            Firmar ahora
+          </Link>
+        </div>
+      )}
       {/* Aviso de facturas pendientes anteriores si existieran */}
       {pastDueRows.length > 0 && (
         <div className="rounded-2xl border border-studio-red bg-studio-red/20 text-red-100 p-4 flex items-center gap-3">
@@ -197,8 +232,15 @@ export function ClientHomePage() {
                       : 'Factura pendiente'}
               </p>
               {payment && (
-                <p className="text-xs opacity-85">
-                  Plan: {payment.plan_name} ({Number(payment.price_eur).toFixed(0)} €/mes)
+                <p className="text-xs opacity-85 flex flex-wrap items-center gap-1.5">
+                  <span>
+                    Plan: {payment.plan_name} ({Number(payment.price_eur).toFixed(0)} €/mes)
+                  </span>
+                  {profile?.is_founder && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase">
+                      SF · -10%
+                    </span>
+                  )}
                 </p>
               )}
             </div>

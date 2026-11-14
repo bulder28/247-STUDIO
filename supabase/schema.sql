@@ -34,10 +34,15 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   weight_category TEXT,
   emergency_contact_name TEXT,
   emergency_contact_phone TEXT,
+  father_name TEXT,
+  father_phone TEXT,
+  mother_name TEXT,
+  mother_phone TEXT,
   medical_notes TEXT,
   personal_goals TEXT,
   guardian_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   first_training_at TIMESTAMPTZ,
+  is_founder BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

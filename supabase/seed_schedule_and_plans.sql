@@ -3,18 +3,20 @@
 -- Ejecutar en Supabase -> SQL Editor -> New query
 -- ============================================================================
 
--- 1. TARIFAS OFICIALES
+-- 1. TARIFAS OFICIALES (247studiobjj.com/pricing)
 INSERT INTO public.plans (name, price_eur, is_class_pack, pack_credits, promo_text, is_active) VALUES
-  ('BJJ & Grappling', 60, false, null, 'Acceso a Open Mat incluido', true),
-  ('MMA', 60, false, null, null, true),
-  ('Lucha', 50, false, null, null, true),
-  ('BJJ Femenino', 50, false, null, null, true),
-  ('Kids 1 (+7 años)', 45, false, null, null, true),
-  ('Kids 2 (3 a 6 años)', 40, false, null, null, true),
-  ('BJJ & Grappling + MMA', 80, false, null, 'Combo más popular', true),
-  ('BJJ & Grappling + Lucha', 75, false, null, null, true),
-  ('Pack Unlimited', 95, false, null, 'Todas las disciplinas + Open Mat', true),
-  ('Bono Clase Suelta', 15, true, 1, 'Pago por sesión', true)
+  ('BJJ & Grappling', 69, false, null, 'Acceso a Open Mat incluido', true),
+  ('MMA', 59, false, null, 'Clases ilimitadas', true),
+  ('Lucha', 42, false, null, 'Wrestling · 2-3 días/semana', true),
+  ('BJJ Femenino', 35, false, null, 'Grupo dedicado', true),
+  ('Kids 1 (+7 años)', 42, false, null, null, true),
+  ('Kids 2 (3 a 6 años)', 42, false, null, null, true),
+  ('BJJ & Grappling + MMA', 100, false, null, 'Combo más popular', true),
+  ('BJJ & Grappling + Lucha', 94, false, null, 'BJJ + Lucha · Sin permanencia', true),
+  ('MMA + Lucha', 79, false, null, 'Striking + Wrestling · Sin permanencia', true),
+  ('Pack Unlimited', 125, false, null, 'Todas las modalidades + Open Mat', true),
+  ('Bono 8 clases', 70, true, 8, 'Ideal para visitas / sin permanencia', true),
+  ('Bono Clase Suelta', 15, true, 1, 'Pago por clase', true)
 ON CONFLICT (name) DO NOTHING;
 
 -- 2. VINCULAR DISCIPLINAS A CADA TARIFA
@@ -28,7 +30,9 @@ WHERE (p.name = 'BJJ & Grappling' AND d.slug = 'bjj-grappling')
    OR (p.name = 'Kids 2 (3 a 6 años)' AND d.slug = 'kids-2')
    OR (p.name = 'BJJ & Grappling + MMA' AND d.slug IN ('bjj-grappling', 'mma'))
    OR (p.name = 'BJJ & Grappling + Lucha' AND d.slug IN ('bjj-grappling', 'lucha'))
+   OR (p.name = 'MMA + Lucha' AND d.slug IN ('mma', 'lucha'))
    OR (p.name = 'Pack Unlimited')
+   OR (p.name = 'Bono 8 clases' AND d.slug IN ('bjj-grappling', 'mma', 'lucha'))
    OR (p.name = 'Bono Clase Suelta' AND d.slug IN ('bjj-grappling', 'mma', 'lucha'))
 ON CONFLICT DO NOTHING;
 
