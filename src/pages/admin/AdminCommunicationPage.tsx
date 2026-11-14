@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Megaphone, Bell, HelpCircle, MessageCircle, FileSignature, Send } from 'lucide-react';
+import { Megaphone, Bell, HelpCircle, MessageCircle, FileSignature, Send, Calendar, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -27,9 +27,33 @@ interface SignedDocRow {
   document_templates?: { title: string } | null;
 }
 
+interface EventItem {
+  id: string;
+  title: string;
+  event_type: string;
+  event_date: string;
+  location: string | null;
+  description: string | null;
+}
+
+interface NoticeItem {
+  id: string;
+  title: string;
+  message: string;
+  notice_type: string;
+  created_at: string;
+}
+
+interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  sort_order: number | null;
+}
+
 export function AdminCommunicationPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<'forum' | 'notices' | 'chats' | 'docs' | 'faqs'>('forum');
+  const [tab, setTab] = useState<'forum' | 'notices' | 'chats' | 'docs' | 'events' | 'faqs'>('forum');
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
 
   // Foro
@@ -40,10 +64,20 @@ export function AdminCommunicationPage() {
   // Avisos
   const [noticeTitle, setNoticeTitle] = useState('');
   const [noticeMessage, setNoticeMessage] = useState('');
+  const [noticesList, setNoticesList] = useState<NoticeItem[]>([]);
+
+  // Eventos
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventType, setEventType] = useState<'Seminario' | 'Competición' | 'Graduación' | 'Open Mat'>('Seminario');
+  const [eventDate, setEventDate] = useState('');
+  const [eventLocation, setEventLocation] = useState('247 STUDIO Pinto');
+  const [eventDescription, setEventDescription] = useState('');
+  const [eventsList, setEventsList] = useState<EventItem[]>([]);
 
   // FAQs
   const [faqQuestion, setFaqQuestion] = useState('');
   const [faqAnswer, setFaqAnswer] = useState('');
+  const [faqsList, setFaqsList] = useState<FaqItem[]>([]);
 
   // Chats Privados
   const [allMessages, setAllMessages] = useState<ChatMessage[]>([]);
@@ -84,9 +118,39 @@ export function AdminCommunicationPage() {
     setSignedDocs((data as unknown as SignedDocRow[]) ?? []);
   };
 
+  const loadEvents = async () => {
+    const { data } = await supabase
+      .from('events')
+      .select('id, title, event_type, event_date, location, description')
+      .eq('is_active', true)
+      .order('event_date', { ascending: true });
+    setEventsList((data as EventItem[]) ?? []);
+  };
+
+  const loadNotices = async () => {
+    const { data } = await supabase
+      .from('notices')
+      .select('id, title, message, notice_type, created_at')
+      .order('created_at', { ascending: false })
+      .limit(30);
+    setNoticesList((data as NoticeItem[]) ?? []);
+  };
+
+  const loadFaqs = async () => {
+    const { data } = await supabase
+      .from('faqs')
+      .select('id, question, answer, sort_order')
+      .eq('is_active', true)
+      .order('sort_order');
+    setFaqsList((data as FaqItem[]) ?? []);
+  };
+
   useEffect(() => {
     if (tab === 'chats') loadChats();
     if (tab === 'docs') loadSignedDocs();
+    if (tab === 'events') loadEvents();
+    if (tab === 'notices') loadNotices();
+    if (tab === 'faqs') loadFaqs();
   }, [tab]);
 
   const publishAnnouncement = async (e: React.FormEvent) => {
@@ -115,6 +179,42 @@ export function AdminCommunicationPage() {
     setNoticeTitle('');
     setNoticeMessage('');
     setFeedback('Aviso general enviado a todos los alumnos.');
+    await loadNotices();
+  };
+
+  const deleteNotice = async (id: string) => {
+    await supabase.from('notices').delete().eq('id', id);
+    setFeedback('Aviso eliminado.');
+    await loadNotices();
+  };
+
+  const addEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eventTitle.trim() || !eventDate) return;
+    const { error } = await supabase.from('events').insert({
+      title: eventTitle.trim(),
+      event_type: eventType,
+      event_date: new Date(eventDate).toISOString(),
+      location: eventLocation.trim() || '247 STUDIO Pinto',
+      description: eventDescription.trim() || null,
+      is_active: true,
+    });
+    if (error) {
+      setFeedback(`Error al crear evento: ${error.message}`);
+      return;
+    }
+    setEventTitle('');
+    setEventDate('');
+    setEventLocation('247 STUDIO Pinto');
+    setEventDescription('');
+    setFeedback('Evento publicado correctamente.');
+    await loadEvents();
+  };
+
+  const deleteEvent = async (id: string) => {
+    await supabase.from('events').delete().eq('id', id);
+    setFeedback('Evento eliminado.');
+    await loadEvents();
   };
 
   const addFaq = async (e: React.FormEvent) => {
@@ -123,10 +223,19 @@ export function AdminCommunicationPage() {
     await supabase.from('faqs').insert({
       question: faqQuestion.trim(),
       answer: faqAnswer.trim(),
+      sort_order: faqsList.length + 1,
+      is_active: true,
     });
     setFaqQuestion('');
     setFaqAnswer('');
     setFeedback('FAQ añadida.');
+    await loadFaqs();
+  };
+
+  const deleteFaq = async (id: string) => {
+    await supabase.from('faqs').delete().eq('id', id);
+    setFeedback('FAQ eliminada.');
+    await loadFaqs();
   };
 
   const sendAdminReply = async (e: React.FormEvent) => {
@@ -166,7 +275,7 @@ export function AdminCommunicationPage() {
           Comunicación y Documentación
         </h1>
         <p className="text-sm text-slate-400">
-          Foro, Avisos, Chats privados con alumnos, Firmas legales y FAQs.
+          Foro, Avisos, Chats privados con alumnos, Firmas legales, Eventos y FAQs.
         </p>
       </div>
 
@@ -182,6 +291,7 @@ export function AdminCommunicationPage() {
           { id: 'chats', label: 'Chats Privados', icon: MessageCircle },
           { id: 'docs', label: 'Firmas', icon: FileSignature },
           { id: 'notices', label: 'Avisos', icon: Bell },
+          { id: 'events', label: 'Eventos', icon: Calendar },
           { id: 'faqs', label: 'FAQs', icon: HelpCircle },
         ].map(({ id, label, icon: Icon }) => (
           <button
@@ -343,71 +453,256 @@ export function AdminCommunicationPage() {
       )}
 
       {tab === 'notices' && (
-        <form
-          onSubmit={publishNotice}
-          className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4 max-w-2xl"
-        >
-          <div>
-            <label className="block text-xs text-slate-400 uppercase mb-1">Título del Aviso</label>
-            <input
-              value={noticeTitle}
-              onChange={(e) => setNoticeTitle(e.target.value)}
-              required
-              placeholder="Ej. Festivo próximo viernes"
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 uppercase mb-1">Texto</label>
-            <textarea
-              rows={3}
-              value={noticeMessage}
-              onChange={(e) => setNoticeMessage(e.target.value)}
-              required
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
-            />
-          </div>
-          <button
-            type="submit"
-            className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-5 py-2.5 text-sm font-semibold text-white"
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <form
+            onSubmit={publishNotice}
+            className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4"
           >
-            Enviar Aviso General
-          </button>
-        </form>
+            <div>
+              <label className="block text-xs text-slate-400 uppercase mb-1">Título del Aviso</label>
+              <input
+                value={noticeTitle}
+                onChange={(e) => setNoticeTitle(e.target.value)}
+                required
+                placeholder="Ej. Festivo próximo viernes"
+                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 uppercase mb-1">Texto</label>
+              <textarea
+                rows={3}
+                value={noticeMessage}
+                onChange={(e) => setNoticeMessage(e.target.value)}
+                required
+                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <button
+              type="submit"
+              className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-5 py-2.5 text-sm font-semibold text-white"
+            >
+              Enviar Aviso General
+            </button>
+          </form>
+
+          <div className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-3">
+            <h2 className="font-headline text-lg uppercase text-white">Avisos publicados</h2>
+            {noticesList.length === 0 ? (
+              <p className="text-sm text-slate-400">No hay avisos recientes.</p>
+            ) : (
+              <div className="space-y-2.5 max-h-[26rem] overflow-y-auto pr-1">
+                {noticesList.map((n) => (
+                  <div
+                    key={n.id}
+                    className="rounded-xl bg-studio-navy-deep border border-white/5 p-3.5 flex items-start justify-between gap-3"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-white">{n.title}</span>
+                        <span className="text-[11px] uppercase px-2 py-0.5 rounded-full bg-white/10 text-slate-300">
+                          {n.notice_type}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed">{n.message}</p>
+                      <p className="text-[11px] text-slate-500">
+                        {new Date(n.created_at).toLocaleDateString('es-ES')}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteNotice(n.id)}
+                      title="Eliminar aviso"
+                      className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === 'events' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <form
+            onSubmit={addEvent}
+            className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4"
+          >
+            <div>
+              <label className="block text-xs text-slate-400 uppercase mb-1">Título del Evento</label>
+              <input
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+                required
+                placeholder="Ej. Seminario de Grappling con Mario"
+                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-400 uppercase mb-1">Tipo de Evento</label>
+                <select
+                  value={eventType}
+                  onChange={(e) => setEventType(e.target.value as typeof eventType)}
+                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                >
+                  <option value="Seminario">Seminario</option>
+                  <option value="Competición">Competición</option>
+                  <option value="Graduación">Graduación</option>
+                  <option value="Open Mat">Open Mat</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 uppercase mb-1">Fecha y Hora</label>
+                <input
+                  type="datetime-local"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  required
+                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 uppercase mb-1">Ubicación</label>
+              <input
+                value={eventLocation}
+                onChange={(e) => setEventLocation(e.target.value)}
+                placeholder="247 STUDIO Pinto"
+                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 uppercase mb-1">Descripción (opcional)</label>
+              <textarea
+                rows={3}
+                value={eventDescription}
+                onChange={(e) => setEventDescription(e.target.value)}
+                placeholder="Detalles de horario, requisitos o inscripción..."
+                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <button
+              type="submit"
+              className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-5 py-2.5 text-sm font-semibold text-white"
+            >
+              Publicar Evento
+            </button>
+          </form>
+
+          <div className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-3">
+            <h2 className="font-headline text-lg uppercase text-white">Eventos y Seminarios activos</h2>
+            {eventsList.length === 0 ? (
+              <p className="text-sm text-slate-400">No hay eventos publicados todavía.</p>
+            ) : (
+              <div className="space-y-2.5 max-h-[28rem] overflow-y-auto pr-1">
+                {eventsList.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="rounded-xl bg-studio-navy-deep border border-white/5 p-3.5 flex items-start justify-between gap-3"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] uppercase px-2 py-0.5 rounded-full bg-studio-red/20 text-red-300 border border-studio-red/30 font-semibold">
+                          {ev.event_type}
+                        </span>
+                        <span className="text-sm font-semibold text-white">{ev.title}</span>
+                      </div>
+                      <p className="text-xs text-slate-300">
+                        {new Date(ev.event_date).toLocaleString('es-ES', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
+                        {ev.location ? ` · ${ev.location}` : ''}
+                      </p>
+                      {ev.description && (
+                        <p className="text-xs text-slate-400 leading-relaxed">{ev.description}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteEvent(ev.id)}
+                      title="Eliminar evento"
+                      className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {tab === 'faqs' && (
-        <form
-          onSubmit={addFaq}
-          className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4 max-w-2xl"
-        >
-          <div>
-            <label className="block text-xs text-slate-400 uppercase mb-1">Pregunta</label>
-            <input
-              value={faqQuestion}
-              onChange={(e) => setFaqQuestion(e.target.value)}
-              required
-              placeholder="Ej. ¿Qué necesito traer el primer día?"
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 uppercase mb-1">Respuesta</label>
-            <textarea
-              rows={3}
-              value={faqAnswer}
-              onChange={(e) => setFaqAnswer(e.target.value)}
-              required
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
-            />
-          </div>
-          <button
-            type="submit"
-            className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-5 py-2.5 text-sm font-semibold text-white"
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <form
+            onSubmit={addFaq}
+            className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4"
           >
-            Guardar FAQ
-          </button>
-        </form>
+            <div>
+              <label className="block text-xs text-slate-400 uppercase mb-1">Pregunta</label>
+              <input
+                value={faqQuestion}
+                onChange={(e) => setFaqQuestion(e.target.value)}
+                required
+                placeholder="Ej. ¿Qué necesito traer el primer día?"
+                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 uppercase mb-1">Respuesta</label>
+              <textarea
+                rows={3}
+                value={faqAnswer}
+                onChange={(e) => setFaqAnswer(e.target.value)}
+                required
+                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <button
+              type="submit"
+              className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-5 py-2.5 text-sm font-semibold text-white"
+            >
+              Guardar FAQ
+            </button>
+          </form>
+
+          <div className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-3">
+            <h2 className="font-headline text-lg uppercase text-white">Preguntas Frecuentes publicadas</h2>
+            {faqsList.length === 0 ? (
+              <p className="text-sm text-slate-400">
+                No hay FAQs en base de datos (los alumnos ven las 6 FAQs oficiales por defecto).
+              </p>
+            ) : (
+              <div className="space-y-2.5 max-h-[26rem] overflow-y-auto pr-1">
+                {faqsList.map((f) => (
+                  <div
+                    key={f.id}
+                    className="rounded-xl bg-studio-navy-deep border border-white/5 p-3.5 flex items-start justify-between gap-3"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-sm font-semibold text-white">{f.question}</p>
+                      <p className="text-xs text-slate-300 leading-relaxed">{f.answer}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteFaq(f.id)}
+                      title="Eliminar FAQ"
+                      className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {previewSig && (

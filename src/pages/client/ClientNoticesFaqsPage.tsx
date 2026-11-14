@@ -79,8 +79,47 @@ export function ClientNoticesPage() {
   );
 }
 
+const DEFAULT_OFFICIAL_FAQS: FaqItem[] = [
+  {
+    id: 'faq-default-1',
+    question: '¿Qué material necesito traer el primer día?',
+    answer:
+      'Para clases de Grappling No-Gi, MMA o Wrestling basta con camiseta ajustada (rashguard o técnica sin cremalleras) y pantalón corto sin bolsillos. Para clases de BJJ Gi se requiere kimono; si es tu clase de prueba gratuita avísanos y te prestamos uno.',
+  },
+  {
+    id: 'faq-default-2',
+    question: '¿Cuál es la diferencia entre BJJ Gi y Grappling (No-Gi)?',
+    answer:
+      'En BJJ Gi se entrena con kimono tradicional permitiendo agarres en solapas y mangas. En Grappling (No-Gi) se entrena sin kimono, con un ritmo más dinámico y agarres directos al cuerpo y extremidades. Tu tarifa de BJJ incluye ambas modalidades.',
+  },
+  {
+    id: 'faq-default-3',
+    question: '¿Cómo funciona el Bono de 8 clases o la Clase Suelta?',
+    answer:
+      'El Bono de 8 clases (70 €) te da 8 accesos a cualquier sesión de BJJ, MMA o Lucha sin compromiso mensual. Cada vez que el profesor pasa lista en el tatami se descuenta automáticamente 1 crédito y ves los restantes en tu pantalla de Inicio.',
+  },
+  {
+    id: 'faq-default-4',
+    question: '¿Cuándo se abona la cuota mensual?',
+    answer:
+      'Dispones de los primeros 7 días desde tu primer entrenamiento del mes para abonar la cuota en recepción (Efectivo o Bizum). Pasado ese plazo sin regularizar, tu ficha aparecerá marcada en seguimiento como factura pendiente.',
+  },
+  {
+    id: 'faq-default-5',
+    question: '¿Cómo funcionan los grupos Kids 1 y Kids 2?',
+    answer:
+      'Kids 2 (3 a 6 años) trabaja psicomotricidad, equilibrio, juego guiado y valores de tatami. Kids 1 (+7 años hasta 14) profundiza en técnica real de Jiu-Jitsu, respeto y defensa personal. Todos los menores de hasta 14 años deben tener datos de padre/madre y autorizaciones firmadas.',
+  },
+  {
+    id: 'faq-default-6',
+    question: '¿Qué ventajas tiene el plan Socio Fundador (SF)?',
+    answer:
+      'Los alumnos reconocidos como Socio Fundador (SF) por la dirección disfrutan de un 10% de descuento aplicado directamente sobre el precio final de su tarifa mensual mientras mantengan dicha condición.',
+  },
+];
+
 export function ClientFaqsPage() {
-  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const [faqs, setFaqs] = useState<FaqItem[]>(DEFAULT_OFFICIAL_FAQS);
 
   useEffect(() => {
     supabase
@@ -88,7 +127,13 @@ export function ClientFaqsPage() {
       .select('id, question, answer')
       .eq('is_active', true)
       .order('sort_order')
-      .then(({ data }) => setFaqs((data as FaqItem[]) ?? []));
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setFaqs(data as FaqItem[]);
+        } else {
+          setFaqs(DEFAULT_OFFICIAL_FAQS);
+        }
+      });
   }, []);
 
   return (

@@ -73,10 +73,13 @@ BEGIN
 
     INSERT INTO auth.users (
       instance_id, id, aud, role, email, encrypted_password,
-      email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+      email_confirmed_at, confirmation_token, recovery_token,
+      email_change, email_change_token_new, is_sso_user,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at
     ) VALUES (
       '00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
       rec.email, crypt('Test247!', gen_salt('bf')), NOW(),
+      '', '', '', '', false,
       '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, NOW(), NOW()
     );
     INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
@@ -135,10 +138,13 @@ BEGIN
 
     INSERT INTO auth.users (
       instance_id, id, aud, role, email, encrypted_password,
-      email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+      email_confirmed_at, confirmation_token, recovery_token,
+      email_change, email_change_token_new, is_sso_user,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at
     ) VALUES (
       '00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
       rec.email, crypt('Test247!', gen_salt('bf')), NOW(),
+      '', '', '', '', false,
       '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, NOW(), NOW()
     );
     INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
