@@ -707,7 +707,7 @@ export function AdminHomePage() {
           <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-emerald-400" /> Arqueo por Método de Pago
+                <Wallet className="w-4 h-4 text-emerald-400" /> Cobros por Método de Pago
               </h2>
               <span className="text-xs text-slate-400">{formatEUR(totalCollected)} cobrados</span>
             </div>

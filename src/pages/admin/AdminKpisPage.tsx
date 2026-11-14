@@ -909,7 +909,7 @@ export function AdminKpisPage() {
 
         <div className="lg:col-span-5 space-y-6">
           <PowerDonut
-            title="Arqueo de caja por método"
+            title="Cobros por método de pago"
             centerTop={formatEUR(totalCollected)}
             centerSub="Cobrado"
             loading={loading}
