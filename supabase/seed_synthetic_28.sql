@@ -157,9 +157,18 @@ BEGIN
       END
     );
 
-    -- Ficha resumen del luchador
+    -- Ficha resumen del luchador (puede existir ya por trigger al crear profile)
     INSERT INTO public.fighter_stats (user_id, tecnica, fuerza, elasticidad, guardia, pase, derribos, leglocks, finalizacion)
-    VALUES (v_uid, 65, 70, 60, 72, 68, 55, 50, 66);
+    VALUES (v_uid, 65, 70, 60, 72, 68, 55, 50, 66)
+    ON CONFLICT (user_id) DO UPDATE SET
+      tecnica = EXCLUDED.tecnica,
+      fuerza = EXCLUDED.fuerza,
+      elasticidad = EXCLUDED.elasticidad,
+      guardia = EXCLUDED.guardia,
+      pase = EXCLUDED.pase,
+      derribos = EXCLUDED.derribos,
+      leglocks = EXCLUDED.leglocks,
+      finalizacion = EXCLUDED.finalizacion;
 
     v_plan_id := CASE rec.plan_key
       WHEN 'bjj' THEN v_plan_bjj
