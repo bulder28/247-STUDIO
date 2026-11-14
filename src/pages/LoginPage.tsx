@@ -82,7 +82,7 @@ export function LoginPage() {
             Pinto, Madrid. Jiu-Jitsu brasileño, grappling, MMA y lucha.
           </p>
 
-          {/* 24/7: los numerales se rellenan con la foto del tatami */}
+          {/* 247: los numerales se rellenan con la foto del tatami */}
           <p
             aria-hidden
             className="font-headline font-bold leading-[0.82] tracking-tighter select-none bg-cover bg-center mt-2 -ml-1"
@@ -94,7 +94,7 @@ export function LoginPage() {
               color: 'transparent',
             }}
           >
-            24/7
+            247
           </p>
 
           <h1 className="font-headline text-2xl sm:text-4xl uppercase text-white leading-tight mt-3 max-w-xl">
