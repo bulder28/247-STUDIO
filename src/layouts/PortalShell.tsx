@@ -29,7 +29,7 @@ export function PortalShell({
 
   return (
     <div className="min-h-screen text-slate-100 flex flex-col">
-      <header className="bg-[#0f2454]/80 backdrop-blur-xl border-b border-white/[0.07] px-4 sticky top-0 z-30">
+      <header className="bg-[#272c35]/80 backdrop-blur-xl border-b border-white/[0.07] px-4 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <img src="/logo.webp" alt="" className="w-9 h-9 rounded-xl object-contain shrink-0" />
@@ -109,7 +109,7 @@ export function PortalShell({
 
       {/* Dock flotante Mobile */}
       <nav
-        className="md:hidden fixed bottom-3 inset-x-3 rounded-2xl bg-[#0f2454]/90 backdrop-blur-xl border border-white/10 shadow-modal flex justify-around py-1.5 px-1 z-30"
+        className="md:hidden fixed bottom-3 inset-x-3 rounded-2xl bg-[#272c35]/90 backdrop-blur-xl border border-white/10 shadow-modal flex justify-around py-1.5 px-1 z-30"
         style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
         aria-label="Navegación principal"
       >

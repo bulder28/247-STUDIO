@@ -70,31 +70,31 @@ export function LoginPage() {
       className="min-h-screen relative overflow-hidden flex items-center justify-center px-4 py-10 lg:px-12"
       style={{
         background:
-          'radial-gradient(circle at 75% 20%, rgba(56, 189, 248, 0.25), transparent 50%), linear-gradient(135deg, #0f2454 0%, #173a82 52%, #1e40af 100%)',
+          'radial-gradient(circle at 18% 25%, rgba(239, 68, 68, 0.24), transparent 52%), linear-gradient(130deg, #272c35 0%, #373e4a 55%, #47505e 100%)',
       }}
     >
-      {/* Fondo: foto del tatami bajo tinta cobalto */}
+      {/* Fondo: foto del tatami bajo tinta cemento urbano */}
       <img
         src="/herobackground.webp"
         alt=""
-        className="absolute inset-0 w-full h-full object-cover opacity-[0.16] scale-105 pointer-events-none"
+        className="absolute inset-0 w-full h-full object-cover opacity-[0.17] scale-105 pointer-events-none"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0f2454]/65 via-transparent to-[#0f2454]/30 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#272c35]/60 via-transparent to-[#272c35]/30 pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-6 items-center">
         {/* Columna editorial */}
         <div className="lg:col-span-7 min-w-0">
-          <p className="text-sm text-blue-100">
+          <p className="text-sm text-gray-200">
             Pinto, Madrid. Jiu-Jitsu brasileño, grappling, MMA y lucha.
           </p>
 
-          {/* 247: los numerales con degradado blanco hielo a azul */}
+          {/* 247: los numerales en blanco a gris acero */}
           <p
             aria-hidden
             className="font-headline font-bold leading-[0.82] tracking-tighter select-none bg-cover bg-center mt-2 -ml-1"
             style={{
               fontSize: 'clamp(6.5rem, 21vw, 18rem)',
-              backgroundImage: 'linear-gradient(175deg, #ffffff 10%, #dbeafe 60%, #93c5fd 100%)',
+              backgroundImage: 'linear-gradient(175deg, #ffffff 10%, #e5e7eb 60%, #9ca3af 100%)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               color: 'transparent',
@@ -106,7 +106,7 @@ export function LoginPage() {
           <h1 className="font-headline text-2xl sm:text-4xl uppercase text-white leading-tight mt-3 max-w-xl">
             Disciplina diaria en el tatami
           </h1>
-          <p className="hidden sm:block text-base text-blue-100 max-w-lg leading-relaxed mt-3">
+          <p className="hidden sm:block text-base text-gray-200 max-w-lg leading-relaxed mt-3">
             Tu progreso real, el horario en vivo, tus cuotas, documentos y avisos oficiales de la
             academia en un único lugar.
           </p>
@@ -124,7 +124,7 @@ export function LoginPage() {
                   className="relative w-36 aspect-[3/4] rounded-2xl overflow-hidden ring-1 ring-white/20 shrink-0"
                 >
                   <img src={item.img} alt={item.label} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0f2454]/85 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#272c35]/85 via-transparent to-transparent" />
                   <figcaption className="absolute bottom-2.5 left-3 font-headline text-sm uppercase tracking-wide text-white">
                     {item.label}
                   </figcaption>
@@ -136,7 +136,7 @@ export function LoginPage() {
 
         {/* Tarjeta de acceso blanca limpia */}
         <div className="lg:col-span-5 w-full max-w-md mx-auto lg:ml-auto lg:mr-0">
-          <div className="bg-white rounded-3xl overflow-hidden shadow-2xl shadow-[#08122b]/50 ring-1 ring-white/30 animate-studio-in">
+          <div className="bg-white rounded-3xl overflow-hidden shadow-2xl shadow-black/40 ring-1 ring-white/30 animate-studio-in">
             <BeltRule belt="Negro" stripes={4} className="!rounded-none !ring-0" />
 
             <div className="p-7 sm:p-9">
@@ -144,7 +144,7 @@ export function LoginPage() {
                 <img
                   src="/logo.webp"
                   alt=""
-                  className="w-14 h-14 object-contain rounded-2xl bg-[#0f2454] p-1.5"
+                  className="w-14 h-14 object-contain rounded-2xl bg-[#272c35] p-1.5"
                 />
                 <div>
                   <h2 className="font-headline text-3xl uppercase leading-none text-slate-900">
@@ -231,7 +231,7 @@ export function LoginPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="group w-full flex items-center justify-center gap-2 rounded-xl bg-[#ef4444] hover:bg-[#dc2626] shadow-lg shadow-red-500/25 disabled:opacity-60 px-4 py-3.5 text-sm font-semibold text-white transition"
+                    className="group w-full flex items-center justify-center gap-2 rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] shadow-lg shadow-red-600/25 disabled:opacity-60 px-4 py-3.5 text-sm font-semibold text-white transition"
                   >
                     <span>{isSubmitting ? 'Entrando…' : 'Entrar'}</span>
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -240,7 +240,7 @@ export function LoginPage() {
                   <button
                     type="button"
                     onClick={handlePasswordReset}
-                    className="w-full rounded-xl bg-[#ef4444] hover:bg-[#dc2626] shadow-lg shadow-red-500/25 px-4 py-3.5 text-sm font-semibold text-white transition"
+                    className="w-full rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] shadow-lg shadow-red-600/25 px-4 py-3.5 text-sm font-semibold text-white transition"
                   >
                     Enviar enlace de recuperación
                   </button>

@@ -8,16 +8,16 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   247 STUDIO — "Azul Cobalto Eléctrico"
-   Cobalto profundo (#0f2454 -> #1e40af) + blanco hielo + rojo coral (#ef4444) para acción.
+   247 STUDIO — "Gris Cemento Urbano & Rojo"
+   Cemento urbano (#272c35 -> #47505e) + blanco limpio + rojo vivo (#dc2626) para acción.
    ========================================================================== */
 
 :root {
-  --ink: #0f2454;
-  --ink-raised: #173a82;
-  --sand: #dbeafe;
+  --ink: #272c35;
+  --ink-raised: #343b46;
+  --sand: #e5e7eb;
   --sand-light: #ffffff;
-  --belt-red: #ef4444;
+  --belt-red: #dc2626;
 }
 
 @layer base {
@@ -32,6 +32,7 @@
     outline: 2px solid var(--sand);
     outline-offset: 2px;
   }
+
   :focus:not(:focus-visible) {
     outline: none;
   }
@@ -40,27 +41,30 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(221, 214, 184, 0.22) transparent;
   }
+
   *::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
+
   *::-webkit-scrollbar-thumb {
     background: rgba(221, 214, 184, 0.22);
     border-radius: 999px;
   }
+
   *::-webkit-scrollbar-track {
     background: transparent;
   }
 
   body {
     background-color: var(--ink);
-    /* Degradado Azul Cobalto Eléctrico + juntas de tatami de 96px */
+    /* Degradado Gris Cemento Urbano + juntas de tatami de 96px */
     background-image:
-      radial-gradient(ellipse 65% 50% at 80% 10%, rgba(56, 189, 248, 0.22), transparent 55%),
-      radial-gradient(ellipse 60% 50% at 10% 90%, rgba(30, 64, 175, 0.45), transparent 60%),
-      linear-gradient(rgba(219, 234, 254, 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(219, 234, 254, 0.04) 1px, transparent 1px),
-      linear-gradient(135deg, #0f2454 0%, #173a82 52%, #1e40af 100%);
+      radial-gradient(ellipse 65% 50% at 80% 10%, rgba(239, 68, 68, 0.18), transparent 52%),
+      radial-gradient(ellipse 60% 50% at 10% 90%, rgba(71, 80, 94, 0.45), transparent 60%),
+      linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(130deg, #272c35 0%, #373e4a 55%, #47505e 100%);
     background-size:
       auto,
       auto,
@@ -68,7 +72,7 @@
       96px 96px,
       cover;
     background-attachment: fixed;
-    @apply text-slate-100 font-sans antialiased selection:bg-blue-200 selection:text-slate-950;
+    @apply text-slate-100 font-sans antialiased selection:bg-gray-200 selection:text-slate-950;
   }
 
   /* Grano de película sobre toda la app */
@@ -85,39 +89,38 @@
 }
 
 @layer components {
-  /* Panel principal: cobalto translúcido con foco azul hielo que sigue al puntero (--mx/--my) */
+
+  /* Panel principal: cemento urbano translúcido con foco claro que sigue al puntero (--mx/--my) */
   .studio-panel {
-    background-color: rgba(15, 36, 84, 0.72);
+    background-color: rgba(52, 59, 70, 0.78);
     background-image:
-      radial-gradient(
-        380px circle at var(--mx, -999px) var(--my, -999px),
-        rgba(147, 197, 253, 0.12),
-        transparent 62%
-      ),
-      linear-gradient(160deg, rgba(30, 64, 175, 0.38) 0%, rgba(15, 36, 84, 0.55) 100%);
+      radial-gradient(380px circle at var(--mx, -999px) var(--my, -999px),
+        rgba(255, 255, 255, 0.09),
+        transparent 62%),
+      linear-gradient(160deg, rgba(71, 80, 94, 0.45) 0%, rgba(39, 44, 53, 0.65) 100%);
     box-shadow:
       inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
-      0 18px 40px -22px rgba(7, 16, 40, 0.75);
+      0 18px 40px -22px rgba(15, 18, 24, 0.75);
     backdrop-filter: blur(12px);
   }
 
   .studio-panel-inset {
-    background: linear-gradient(180deg, rgba(11, 27, 66, 0.58) 0%, rgba(15, 36, 84, 0.78) 100%);
+    background: linear-gradient(180deg, rgba(31, 35, 43, 0.65) 0%, rgba(39, 44, 53, 0.82) 100%);
     box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
   }
 
-  /* Tarjeta clara protagonista: blanco limpio con sombra cobalto */
+  /* Tarjeta clara protagonista: blanco limpio con sombra urbana */
   .studio-sand {
     background-color: var(--sand-light);
-    background-image: linear-gradient(160deg, #ffffff 0%, #f1f5f9 100%);
-    color: #0f172a;
+    background-image: linear-gradient(160deg, #ffffff 0%, #e5e7eb 100%);
+    color: #111827;
     box-shadow:
       inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
-      0 30px 60px -25px rgba(8, 18, 43, 0.65);
+      0 30px 60px -25px rgba(15, 18, 24, 0.65);
   }
 
   .studio-sand :focus-visible {
-    outline-color: #0f2454;
+    outline-color: #272c35;
   }
 
   /* Título de página: Oswald condensada en blanco hielo */
@@ -150,12 +153,14 @@
       filter 0.15s ease,
       box-shadow 0.15s ease;
   }
+
   .studio-btn:hover:not(:disabled) {
     filter: brightness(1.1);
     box-shadow:
       inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
       0 14px 26px -12px rgba(225, 29, 46, 1);
   }
+
   .studio-btn:active:not(:disabled) {
     transform: translateY(1px) scale(0.985);
     filter: brightness(0.95);
@@ -171,12 +176,15 @@
       box-shadow 0.15s ease,
       background-color 0.15s ease;
   }
+
   .studio-field::placeholder {
     color: #64748b;
   }
+
   .studio-field:hover:not(:disabled) {
     border-color: rgba(221, 214, 184, 0.28);
   }
+
   .studio-field:focus,
   .studio-field:focus-visible {
     outline: none;
@@ -186,13 +194,16 @@
       inset 0 1px 2px 0 rgba(0, 0, 0, 0.4),
       0 0 0 3px rgba(221, 214, 184, 0.16);
   }
+
   .studio-field:disabled {
     opacity: 0.55;
     cursor: not-allowed;
   }
+
   .studio-field[aria-invalid='true'] {
     border-color: rgba(244, 63, 94, 0.9);
   }
+
   select.studio-field option {
     background-color: #0b111f;
   }
@@ -207,9 +218,11 @@
       box-shadow 0.15s ease,
       background-color 0.15s ease;
   }
+
   .studio-field-sand::placeholder {
     color: rgba(20, 26, 43, 0.42);
   }
+
   .studio-field-sand:focus,
   .studio-field-sand:focus-visible {
     outline: none;
@@ -230,20 +243,16 @@
 
   .belt-weave {
     background-image:
-      repeating-linear-gradient(
-        0deg,
+      repeating-linear-gradient(0deg,
         rgba(255, 255, 255, 0.14) 0px,
         rgba(255, 255, 255, 0.14) 1px,
         transparent 1px,
-        transparent 4px
-      ),
-      repeating-linear-gradient(
-        90deg,
+        transparent 4px),
+      repeating-linear-gradient(90deg,
         rgba(0, 0, 0, 0.16) 0px,
         rgba(0, 0, 0, 0.16) 1px,
         transparent 1px,
-        transparent 6px
-      );
+        transparent 6px);
   }
 
   /* Línea de puntos tipo carta de precios */
@@ -259,19 +268,23 @@
   }
 
   /* <details> con signo + que gira a × */
-  .studio-faq > summary {
+  .studio-faq>summary {
     list-style: none;
   }
-  .studio-faq > summary::-webkit-details-marker {
+
+  .studio-faq>summary::-webkit-details-marker {
     display: none;
   }
+
   .studio-faq .studio-faq-mark {
     transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   }
+
   .studio-faq[open] .studio-faq-mark {
     transform: rotate(45deg);
   }
-  .studio-faq[open] > summary {
+
+  .studio-faq[open]>summary {
     color: var(--sand);
   }
 }
@@ -285,6 +298,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -299,6 +313,7 @@
   from {
     transform: scaleX(0);
   }
+
   to {
     transform: scaleX(1);
   }
@@ -309,6 +324,7 @@
     transform: scaleY(0);
     opacity: 0;
   }
+
   to {
     transform: scaleY(1);
     opacity: 1;
@@ -319,6 +335,7 @@
   from {
     transform: translateY(105%);
   }
+
   to {
     transform: translateY(0);
   }
@@ -339,7 +356,8 @@
   overflow: hidden;
   padding-bottom: 0.06em;
 }
-.title-mask > * {
+
+.title-mask>* {
   display: block;
   animation: titleRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
 }
@@ -348,6 +366,7 @@
   from {
     transform: translateX(0);
   }
+
   to {
     transform: translateX(-50%);
   }
@@ -358,6 +377,7 @@
   width: max-content;
   animation: studioMarquee 38s linear infinite;
 }
+
 .studio-marquee:hover {
   animation-play-state: paused;
 }
@@ -366,28 +386,28 @@
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
 }
 
 .studio-shimmer {
-  background-image: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(221, 214, 184, 0.09) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  background-image: linear-gradient(90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(221, 214, 184, 0.09) 50%,
+      rgba(255, 255, 255, 0) 100%);
   background-size: 200% 100%;
   animation: studioShimmer 1.4s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .animate-studio-in,
   .studio-shimmer,
   .belt-rule,
   .belt-rule-stripe,
-  .title-mask > *,
+  .title-mask>*,
   .studio-marquee {
     animation: none;
   }
