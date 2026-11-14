@@ -14,9 +14,9 @@ export default {
           'accent-dark': '#B91C1C',
         },
         studio: {
-          navy: '#1A1D2E',
-          'navy-light': '#252B44',
-          'navy-deep': '#111320',
+          navy: '#273549',
+          'navy-light': '#33445E',
+          'navy-deep': '#1E293B',
           red: '#E11D2E',
           'red-dark': '#B91C1C',
           cream: '#DDD6B8',
