@@ -1,0 +1,18 @@
+# .gitleaks.toml - Configuración oficial de Gitleaks para 247 STUDIO
+title = "247 Studio Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Permitir artefactos compilados, dependencias y claves públicas de cliente Web"
+paths = [
+  '''(?i)package-lock\.json''',
+  '''(?i)node_modules/''',
+  '''(?i)dist/''',
+  '''(?i)\.system_generated/''',
+  '''(?i)coverage/''',
+]
+regexes = [
+]
+
