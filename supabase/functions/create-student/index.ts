@@ -6,7 +6,9 @@ const corsHeaders = {
 };
 
 function generateTempPassword(): string {
-  const digits = Math.floor(1000 + Math.random() * 9000);
+  const arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  const digits = 1000 + (arr[0] % 9000);
   return `247-${digits}`;
 }
 
@@ -64,6 +66,7 @@ Deno.serve(async (req) => {
       birth_date,
       belt = 'Blanco',
       role = 'client',
+      guardian_user_id = null,
       plan_id,
       month_year,
       paid_now = false,
@@ -72,7 +75,10 @@ Deno.serve(async (req) => {
       trial_guest_id = null,
     } = body;
 
-    if (!email || !full_name) {
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const normalizedName = typeof full_name === 'string' ? full_name.trim() : '';
+
+    if (!normalizedEmail || !normalizedName) {
       return new Response(JSON.stringify({ error: 'Faltan campos obligatorios (nombre y email)' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -82,13 +88,17 @@ Deno.serve(async (req) => {
     const tempPassword = generateTempPassword();
 
     const { data: createdAuth, error: authErr } = await adminClient.auth.admin.createUser({
-      email,
+      email: normalizedEmail,
       password: tempPassword,
       email_confirm: true,
     });
 
     if (authErr || !createdAuth.user) {
-      return new Response(JSON.stringify({ error: authErr?.message ?? 'Error al crear Auth' }), {
+      const rawMsg = authErr?.message ?? 'Error al crear Auth';
+      const friendlyMsg = rawMsg.toLowerCase().includes('already')
+        ? 'Ya existe un usuario registrado con ese correo electrónico.'
+        : rawMsg;
+      return new Response(JSON.stringify({ error: friendlyMsg }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -98,12 +108,13 @@ Deno.serve(async (req) => {
 
     const { error: profErr } = await adminClient.from('profiles').insert({
       id: newUserId,
-      email,
-      full_name,
+      email: normalizedEmail,
+      full_name: normalizedName,
       phone: phone || null,
       birth_date: birth_date || null,
       belt,
       role,
+      guardian_user_id: guardian_user_id || null,
       status: 'active',
       must_change_password: true,
       first_training_at: first_training_at ? new Date(first_training_at).toISOString() : null,
@@ -117,32 +128,38 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (role === 'client') {
+      await adminClient.from('fighter_stats').upsert({ user_id: newUserId }, { onConflict: 'user_id' });
+    }
+
     if (plan_id && month_year) {
+      const { data: planRow } = await adminClient
+        .from('plans')
+        .select('price_eur, is_class_pack, pack_credits')
+        .eq('id', plan_id)
+        .single();
+
       const { data: subData } = await adminClient
         .from('subscriptions')
         .insert({
           user_id: newUserId,
           plan_id,
           month_year,
+          remaining_credits: planRow?.is_class_pack ? (planRow.pack_credits ?? 1) : null,
           status: 'active',
         })
         .select('id')
         .single();
 
       if (paid_now) {
-        const { data: planRow } = await adminClient
-          .from('plans')
-          .select('price_eur')
-          .eq('id', plan_id)
-          .single();
-
+        const safeMethod = payment_method === 'Bizum' ? 'Bizum' : 'Efectivo';
         await adminClient.from('payments').insert({
           user_id: newUserId,
           subscription_id: subData?.id ?? null,
           month_year,
           amount_eur: planRow?.price_eur ?? 0,
           status: 'paid_ok',
-          payment_method,
+          payment_method: safeMethod,
           paid_at: new Date().toISOString(),
         });
       }
@@ -155,7 +172,7 @@ Deno.serve(async (req) => {
         .eq('id', trial_guest_id);
     }
 
-    return new Response(JSON.stringify({ id: newUserId, email, tempPassword }), {
+    return new Response(JSON.stringify({ id: newUserId, email: normalizedEmail, tempPassword }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

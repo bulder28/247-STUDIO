@@ -445,8 +445,8 @@ def build_manual():
         "04_admin_students.png",
         "Listado de Alumnos e Invitados: buscador, filtros por estado (Activos, Pausados, Bajas), acceso a ficha completa y botón «+ Nuevo Alumno».",
     )
-    add_bullet(doc, "Al pulsar sobre cualquier alumno se puede editar su estado (Activo, Pausado o Baja), su foto, sus datos de contacto, su cinturón/grados, sus 8 atributos físicos del gráfico de rendimiento, su tarifa del mes y vincular hermanos menores con un tutor.", "Edición de ficha: ")
-    add_bullet(doc, "Nunca se borra un alumno de forma destructiva para preservar el histórico contable y de asistencias; en su lugar se pasa a estado Baja.", "Restricción de borrado: ")
+    add_bullet(doc, "Al pulsar sobre cualquier alumno se puede editar su estado (Activo, Pausado o Baja), su foto, sus datos de contacto, su cinturón y grados (0 a 4), alias de tatami (útil si hay dos alumnos con el mismo nombre), fecha de nacimiento, su tarifa del mes y vincular hermanos menores con un tutor.", "Edición completa de ficha: ")
+    add_bullet(doc, "Nunca se borra un alumno de forma destructiva para preservar el histórico contable y de asistencias; en su lugar se pasa a estado Baja, desactivando automáticamente su suscripción del mes en curso y mostrando un aviso claro si intenta entrar con sesión abierta.", "Restricción de borrado y Bajas: ")
 
     # =========================================================================
     # SECCIÓN 4: PASAR LISTA EN EL TATAMI
@@ -465,7 +465,8 @@ def build_manual():
     add_bullet(doc, "Si se entra en sábado, domingo o un día sin clases, la app salta automáticamente al próximo día con clase programada (por ejemplo, Lunes) mostrando el modo «Previsión de Clase» para ver quién debería asistir.", "Previsión en fin de semana: ")
     add_bullet(doc, "Solo permite validar asistencia en el día actual (en días de previsión futura queda bloqueado el toque para evitar marcar asistencias por error antes de tiempo).", "Restricción de validación: ")
     add_bullet(doc, "Únicamente aparecen alumnos Activos cuya tarifa incluye la disciplina de esa clase. Los alumnos Pausados o en Baja no aparecen en la lista.", "Filtro automático por tarifa y estado: ")
-    add_bullet(doc, "Si un alumno tiene bono de clases sueltas, al validarle asistencia se descuenta automáticamente 1 crédito.", "Descuento automático de bonos: ")
+    add_bullet(doc, "Si un alumno tiene bono de clases sueltas, al validarle asistencia se descuenta automáticamente 1 crédito (y si se desmarca por error, se devuelve al instante); su tarjeta muestra cuántas clases le quedan o si el bono está agotado.", "Control real de bonos: ")
+    add_bullet(doc, "La app bloquea toques repetidos accidentales en pantallas táctiles, separa el contador de alumnos del contador de invitados de prueba y muestra un buscador rápido en clases con más de 6 alumnos (incluyendo el alias por si hay homónimos).", "Protecciones en tatami: ")
 
     add_screenshot(
         doc,
@@ -600,9 +601,10 @@ def build_manual():
             ["Métodos de Pago", "Exclusivamente Efectivo y Bizum. No existen Tarjeta ni Transferencia en ningún formulario."],
             ["Regla de los 7 Días", "Si un alumno entrena sin haber pagado el mes actual, la app concede 7 días naturales desde su primera asistencia del mes antes de marcarlo en rojo como Factura pendiente (+7d)."],
             ["Pagos Adelantados", "Pagar meses futuros no genera alerta ni doble cobro; al alumno le figura «Cubierto hasta [Mes]» y al Admin «Pago adelantado»."],
-            ["Clases Simultáneas", "El horario no contempla dos clases simultáneas; Pasar Lista selecciona la sesión actual o el próximo día previsto de forma directa."],
+            ["Clases Simultáneas", "El horario no contempla dos clases simultáneas; Pasar Lista selecciona la sesión actual o el próximo día previsto y bloquea doble-toques accidentales y cambios de día a medianoche."],
+            ["Bonos y Firmas", "Los Bonos descuentan/devuelven créditos automáticamente al pasar lista y la firma digital impide enviar formularios con el recuadro en blanco."],
             ["Roles y Visibilidad", "Los Profesores no ven precios ni facturas; los Alumnos no publican en el foro ni editan su cinturón o estado."],
-            ["Bajas de Alumnos", "Un alumno en estado Baja pierde inmediatamente acceso al contenido interno, pero su historial contable y asistencias se conservan intactos."],
+            ["Bajas de Alumnos", "Un alumno en estado Baja ve una pantalla de cuenta desactivada y pierde acceso al contenido interno, conservando intacto su historial contable y asistencias."],
         ],
         col_widths=[1.7, 4.8],
     )

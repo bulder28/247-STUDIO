@@ -191,9 +191,9 @@ def make_route_handler(active_profile_state: dict):
         if path.startswith("/rest/v1/subscriptions"):
             if "select" in qs and "profiles!inner" in qs["select"][0]:
                 send_json([
-                    {"user_id": UID_CLIENT1, "profiles": PROFILES[2]},
-                    {"user_id": UID_CLIENT2, "profiles": PROFILES[3]},
-                    {"user_id": UID_CLIENT3, "profiles": PROFILES[4]},
+                    {"user_id": UID_CLIENT1, "remaining_credits": None, "plans": {"is_class_pack": False, "pack_credits": None}, "profiles": PROFILES[2]},
+                    {"user_id": UID_CLIENT2, "remaining_credits": None, "plans": {"is_class_pack": False, "pack_credits": None}, "profiles": PROFILES[3]},
+                    {"user_id": UID_CLIENT3, "remaining_credits": 1, "plans": {"is_class_pack": True, "pack_credits": 1}, "profiles": PROFILES[4]},
                 ])
             else:
                 send_json([

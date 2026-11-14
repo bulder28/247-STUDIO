@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, AlertTriangle, Clock, Calendar, Target, User, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { getLocalMonthYear } from '@/lib/dateUtils';
 
 interface PaymentSummary {
   month_year: string;
@@ -59,7 +60,7 @@ interface GymEvent {
 
 export function ClientHomePage() {
   const { user, profile, refreshProfile } = useAuth();
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentMonth = getLocalMonthYear();
 
   const [paymentRows, setPaymentRows] = useState<PaymentSummary[]>([]);
   const [stats, setStats] = useState<FighterStats | null>(null);

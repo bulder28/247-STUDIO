@@ -31,6 +31,7 @@ export function ClientProfilePage() {
   const [signingDoc, setSigningDoc] = useState<DocTemplate | null>(null);
   const [signerName, setSignerName] = useState(profile?.full_name ?? '');
   const [signerDni, setSignerDni] = useState('');
+  const [hasDrawn, setHasDrawn] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawing = useRef(false);
@@ -112,6 +113,7 @@ export function ClientProfilePage() {
     const { x, y } = getCoords(e);
     ctx.lineTo(x, y);
     ctx.stroke();
+    setHasDrawn(true);
   };
 
   const endDraw = () => {
@@ -123,10 +125,15 @@ export function ClientProfilePage() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn(false);
   };
 
   const submitSignature = async () => {
     if (!user || !signingDoc || !canvasRef.current || !signerName.trim()) return;
+    if (!hasDrawn) {
+      setFeedback('Por favor, traza tu firma en el recuadro antes de confirmar.');
+      return;
+    }
     const dataUrl = canvasRef.current.toDataURL('image/png');
 
     await supabase.from('document_signatures').insert({
@@ -140,6 +147,7 @@ export function ClientProfilePage() {
 
     setSigningDoc(null);
     setSignerDni('');
+    setHasDrawn(false);
     setFeedback(`Documento "${signingDoc.title}" firmado y guardado.`);
     await loadDocs();
   };
@@ -271,7 +279,10 @@ export function ClientProfilePage() {
                   </span>
                 ) : (
                   <button
-                    onClick={() => setSigningDoc(doc)}
+                    onClick={() => {
+                      setHasDrawn(false);
+                      setSigningDoc(doc);
+                    }}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-studio-red hover:bg-studio-red-dark text-xs font-semibold text-white shrink-0"
                   >
                     <PenTool className="w-3.5 h-3.5" /> Firmar en pantalla
@@ -347,7 +358,8 @@ export function ClientProfilePage() {
               <button
                 type="button"
                 onClick={submitSignature}
-                className="px-5 py-2 rounded-xl bg-studio-red hover:bg-studio-red-dark text-sm font-semibold text-white"
+                disabled={!hasDrawn}
+                className="px-5 py-2 rounded-xl bg-studio-red hover:bg-studio-red-dark disabled:opacity-45 text-sm font-semibold text-white"
               >
                 Confirmar Firma
               </button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, CreditCard, AlertTriangle, UserPlus, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 
 interface MonthlyRow {
   user_id: string;
@@ -27,7 +28,7 @@ interface TodayAttendance {
 }
 
 export function AdminHomePage() {
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentMonth = getLocalMonthYear();
   const [rows, setRows] = useState<MonthlyRow[]>([]);
   const [todayList, setTodayList] = useState<TodayAttendance[]>([]);
   const [activeStudentsCount, setActiveStudentsCount] = useState(0);
@@ -36,7 +37,7 @@ export function AdminHomePage() {
   useEffect(() => {
     const loadDashboard = async () => {
       setLoading(true);
-      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayStr = getLocalDateISO();
 
       const [monthlyRes, studentsRes, attendanceRes] = await Promise.all([
         supabase

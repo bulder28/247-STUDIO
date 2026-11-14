@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getLocalMonthYear } from '@/lib/dateUtils';
 
 type EffectiveStatus =
   | 'OK'
@@ -92,7 +93,7 @@ function isPaidStatus(status: EffectiveStatus): boolean {
 }
 
 export function AdminTrackingPage() {
-  const currentMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const currentMonth = useMemo(() => getLocalMonthYear(), []);
   const [monthYear, setMonthYear] = useState(currentMonth);
   const [tab, setTab] = useState<'person' | 'product'>('person');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'future'>('all');

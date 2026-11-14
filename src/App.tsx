@@ -21,7 +21,7 @@ import { ClientForumChatPage } from '@/pages/client/ClientForumChatPage';
 import { ClientNoticesPage, ClientFaqsPage } from '@/pages/client/ClientNoticesFaqsPage';
 
 function AppRoutes() {
-  const { user, profile, loading, isPasswordRecovery } = useAuth();
+  const { user, profile, loading, isPasswordRecovery, signOut } = useAuth();
 
   if (loading) {
     return (
@@ -37,6 +37,26 @@ function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+    );
+  }
+
+  if (profile?.role === 'client' && profile?.status === 'inactive') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-studio-navy-deep px-4">
+        <div className="w-full max-w-md rounded-2xl bg-studio-navy border border-white/15 p-7 text-center space-y-4">
+          <h1 className="font-headline text-2xl uppercase text-white">Cuenta desactivada</h1>
+          <p className="text-sm text-slate-300">
+            Tu ficha en <strong>247 STUDIO</strong> figura actualmente en estado de baja.
+            Contacta con Mario o David en recepción si deseas reactivar tu acceso.
+          </p>
+          <button
+            onClick={signOut}
+            className="w-full rounded-xl bg-studio-red hover:bg-studio-red-dark px-4 py-2.5 text-sm font-semibold text-white transition"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
     );
   }
 

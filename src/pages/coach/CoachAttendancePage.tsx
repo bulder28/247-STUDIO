@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Check, UserPlus, User, Users, Calendar } from 'lucide-react';
+import { Check, UserPlus, User, Users, Calendar, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { getLocalDateISO, getLocalTimeHHMM } from '@/lib/dateUtils';
 
 const DAYS = [
   { value: 1, label: 'Lunes' },
@@ -27,6 +28,8 @@ interface StudentCard {
   alias: string | null;
   avatar_url: string | null;
   belt: string | null;
+  remaining_credits: number | null;
+  is_class_pack: boolean;
 }
 
 interface AttendanceRecord {
@@ -42,7 +45,7 @@ interface Discipline {
 
 export function CoachAttendancePage() {
   const { user } = useAuth();
-  const todayDate = new Date().toISOString().slice(0, 10);
+  const todayDate = getLocalDateISO();
   const currentMonth = todayDate.slice(0, 7);
   const jsDay = new Date().getDay(); // 0=Dom, 1=Lun ... 6=Sab
   const todayDayOfWeek = jsDay === 0 ? 7 : jsDay;
@@ -55,6 +58,8 @@ export function CoachAttendancePage() {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [students, setStudents] = useState<StudentCard[]>([]);
   const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
+  const [togglingIds, setTogglingIds] = useState<Record<string, boolean>>({});
+  const [searchTerm, setSearchTerm] = useState('');
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
@@ -104,7 +109,7 @@ export function CoachAttendancePage() {
     }
 
     if (selectedDay === todayDayOfWeek) {
-      const nowTime = new Date().toTimeString().slice(0, 5);
+      const nowTime = getLocalTimeHHMM();
       const current = dayList.find((c) => c.end_time.slice(0, 5) >= nowTime) ?? dayList[0];
       setSelectedClassId(current.id);
     } else {
@@ -129,7 +134,9 @@ export function CoachAttendancePage() {
       if (allowedPlanIds.length > 0) {
         const { data: subs } = await supabase
           .from('subscriptions')
-          .select('user_id, profiles!inner(id, full_name, alias, avatar_url, belt, status, role)')
+          .select(
+            'user_id, remaining_credits, plans(is_class_pack, pack_credits), profiles!inner(id, full_name, alias, avatar_url, belt, status, role)'
+          )
           .eq('month_year', currentMonth)
           .eq('status', 'active')
           .in('plan_id', allowedPlanIds)
@@ -137,7 +144,26 @@ export function CoachAttendancePage() {
           .eq('profiles.role', 'client');
 
         eligibleStudents = (subs ?? [])
-          .map((row: unknown) => (row as { profiles: StudentCard }).profiles)
+          .map((row: unknown) => {
+            const r = row as {
+              remaining_credits: number | null;
+              plans?: { is_class_pack?: boolean; pack_credits?: number | null } | null;
+              profiles: {
+                id: string;
+                full_name: string;
+                alias: string | null;
+                avatar_url: string | null;
+                belt: string | null;
+              };
+            };
+            const isPack = Boolean(r.plans?.is_class_pack);
+            const credits = isPack ? (r.remaining_credits ?? r.plans?.pack_credits ?? 1) : null;
+            return {
+              ...r.profiles,
+              is_class_pack: isPack,
+              remaining_credits: credits,
+            };
+          })
           .sort((a, b) => a.full_name.localeCompare(b.full_name));
       }
 
@@ -160,29 +186,50 @@ export function CoachAttendancePage() {
   }, [selectedClassId, allClasses, currentMonth, todayDate, todayDayOfWeek]);
 
   const toggleStudent = async (studentId: string) => {
-    if (!isToday) return;
+    if (!isToday || togglingIds[studentId]) return;
     const selected = allClasses.find((c) => c.id === selectedClassId);
     if (!selected || !user) return;
 
-    const existing = attendances.find((a) => a.user_id === studentId);
-    if (existing) {
-      await supabase.from('attendances').delete().eq('id', existing.id);
-      setAttendances((prev) => prev.filter((a) => a.id !== existing.id));
-    } else {
-      const { data } = await supabase
-        .from('attendances')
-        .insert({
-          user_id: studentId,
-          schedule_class_id: selected.id,
-          discipline_id: selected.discipline_id,
-          attendance_date: todayDate,
-          validated_by: user.id,
-        })
-        .select('id, user_id, guest_name')
-        .single();
-      if (data) {
-        setAttendances((prev) => [...prev, data as AttendanceRecord]);
+    setTogglingIds((prev) => ({ ...prev, [studentId]: true }));
+    try {
+      const existing = attendances.find((a) => a.user_id === studentId);
+      if (existing) {
+        const { error } = await supabase.from('attendances').delete().eq('id', existing.id);
+        if (!error) {
+          setAttendances((prev) => prev.filter((a) => a.id !== existing.id));
+          setStudents((prev) =>
+            prev.map((s) =>
+              s.id === studentId && s.is_class_pack && s.remaining_credits !== null
+                ? { ...s, remaining_credits: s.remaining_credits + 1 }
+                : s
+            )
+          );
+        }
+      } else {
+        const { data, error } = await supabase
+          .from('attendances')
+          .insert({
+            user_id: studentId,
+            schedule_class_id: selected.id,
+            discipline_id: selected.discipline_id,
+            attendance_date: todayDate,
+            validated_by: user.id,
+          })
+          .select('id, user_id, guest_name')
+          .single();
+        if (!error && data) {
+          setAttendances((prev) => [...prev, data as AttendanceRecord]);
+          setStudents((prev) =>
+            prev.map((s) =>
+              s.id === studentId && s.is_class_pack && s.remaining_credits !== null
+                ? { ...s, remaining_credits: Math.max(0, s.remaining_credits - 1) }
+                : s
+            )
+          );
+        }
       }
+    } finally {
+      setTogglingIds((prev) => ({ ...prev, [studentId]: false }));
     }
   };
 
@@ -227,8 +274,16 @@ export function CoachAttendancePage() {
     setShowGuestModal(false);
   };
 
+  const memberAttendancesCount = attendances.filter((a) => a.user_id !== null).length;
   const guestList = attendances.filter((a) => !a.user_id && a.guest_name);
   const selectedDayLabel = DAYS.find((d) => d.value === selectedDay)?.label ?? '';
+  const visibleStudents = searchTerm.trim()
+    ? students.filter(
+        (s) =>
+          s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (s.alias && s.alias.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : students;
 
   return (
     <div className="space-y-6">
@@ -399,19 +454,34 @@ export function CoachAttendancePage() {
         </div>
       )}
 
-      {/* Contador */}
+      {/* Contador y búsqueda rápida */}
       {classesForDay.length > 0 && (
-        <div className="flex items-center gap-2 text-sm text-slate-300">
-          <Users className="w-4 h-4 text-emerald-400" />
-          {isToday ? (
-            <span>
-              <strong className="text-white">{attendances.length}</strong> de{' '}
-              <strong className="text-white">{students.length}</strong> alumnos marcados en esta clase
-            </span>
-          ) : (
-            <span>
-              <strong className="text-white">{students.length}</strong> alumnos previstos en esta clase
-            </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-slate-300">
+            <Users className="w-4 h-4 text-emerald-400" />
+            {isToday ? (
+              <span>
+                <strong className="text-white">{memberAttendancesCount}</strong> de{' '}
+                <strong className="text-white">{students.length}</strong> alumnos marcados
+                {guestList.length > 0 ? ` (+${guestList.length} prueba)` : ''}
+              </span>
+            ) : (
+              <span>
+                <strong className="text-white">{students.length}</strong> alumnos previstos en esta clase
+              </span>
+            )}
+          </div>
+
+          {students.length > 6 && (
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar alumno..."
+                className="w-full rounded-xl bg-studio-navy border border-white/10 pl-9 pr-3 py-1.5 text-xs text-white"
+              />
+            </div>
           )}
         </div>
       )}
@@ -422,18 +492,22 @@ export function CoachAttendancePage() {
         <div className="rounded-2xl bg-studio-navy border border-white/10 p-6 text-sm text-slate-400">
           No hay clases programadas para este día.
         </div>
-      ) : students.length === 0 ? (
+      ) : visibleStudents.length === 0 ? (
         <div className="rounded-2xl bg-studio-navy border border-white/10 p-6 text-sm text-slate-400">
-          No hay alumnos activos con tarifa compatible para esta disciplina este mes ({currentMonth}).
+          {students.length === 0
+            ? `No hay alumnos activos con tarifa compatible para esta disciplina este mes (${currentMonth}).`
+            : 'Ningún alumno coincide con la búsqueda.'}
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {students.map((st) => {
+          {visibleStudents.map((st) => {
             const checked = attendances.some((a) => a.user_id === st.id);
+            const busy = Boolean(togglingIds[st.id]);
             return (
               <button
                 key={st.id}
                 type="button"
+                disabled={busy}
                 onClick={() => toggleStudent(st.id)}
                 className={`relative rounded-2xl p-4 border text-left transition flex flex-col items-center text-center gap-2.5 ${
                   checked
@@ -441,7 +515,7 @@ export function CoachAttendancePage() {
                     : isToday
                       ? 'bg-studio-navy border-white/10 text-slate-200 hover:border-white/30'
                       : 'bg-studio-navy/70 border-white/10 text-slate-200 cursor-default'
-                }`}
+                } ${busy ? 'opacity-60' : ''}`}
               >
                 {checked && (
                   <span className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center">
@@ -461,7 +535,23 @@ export function CoachAttendancePage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold leading-tight">{st.full_name}</p>
+                  {st.alias && (
+                    <p className="text-[11px] text-studio-cream/80 font-medium">&ldquo;{st.alias}&rdquo;</p>
+                  )}
                   <p className="text-[11px] text-slate-400 mt-0.5">{st.belt || 'Blanco'}</p>
+                  {st.is_class_pack && st.remaining_credits !== null && (
+                    <span
+                      className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        st.remaining_credits > 0
+                          ? 'bg-sky-500/15 text-sky-300'
+                          : 'bg-studio-red/20 text-red-300'
+                      }`}
+                    >
+                      {st.remaining_credits > 0
+                        ? `Bono: ${st.remaining_credits} ${st.remaining_credits === 1 ? 'clase' : 'clases'}`
+                        : 'Bono agotado (0)'}
+                    </span>
+                  )}
                 </div>
               </button>
             );

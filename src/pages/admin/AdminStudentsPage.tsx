@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search, ShieldCheck, User, UserPlus, Copy, Check, Camera } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { uploadUserAvatar } from '@/lib/imageCompressor';
+import { getLocalMonthYear } from '@/lib/dateUtils';
 import type { MemberStatus, Profile, UserRole } from '@/types/database';
 
 interface Plan {
@@ -20,7 +21,7 @@ interface TrialGuest {
 }
 
 export function AdminStudentsPage() {
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentMonth = getLocalMonthYear();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [trials, setTrials] = useState<TrialGuest[]>([]);
@@ -39,6 +40,7 @@ export function AdminStudentsPage() {
   const [newBirthDate, setNewBirthDate] = useState('');
   const [newBelt, setNewBelt] = useState('Blanco');
   const [newRole, setNewRole] = useState<UserRole>('client');
+  const [newGuardianId, setNewGuardianId] = useState('');
   const [newPlanId, setNewPlanId] = useState('');
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [paidNow, setPaidNow] = useState(true);
@@ -112,12 +114,15 @@ export function AdminStudentsPage() {
       .from('profiles')
       .update({
         full_name: selected.full_name,
+        alias: selected.alias || null,
         phone: selected.phone,
+        birth_date: selected.birth_date || null,
         role: selected.role,
         status: selected.status,
         belt: selected.belt,
-        belt_stripes: selected.belt_stripes,
+        belt_stripes: selected.belt_stripes ?? 0,
         weight_category: selected.weight_category,
+        guardian_user_id: selected.guardian_user_id || null,
         avatar_url: avatarUrl,
       })
       .eq('id', selected.id);
@@ -133,6 +138,12 @@ export function AdminStudentsPage() {
         },
         { onConflict: 'user_id,month_year' }
       );
+    } else if (selected.status === 'inactive') {
+      await supabase
+        .from('subscriptions')
+        .update({ status: 'cancelled' })
+        .eq('user_id', selected.id)
+        .eq('month_year', currentMonth);
     }
 
     await loadAll();
@@ -158,12 +169,13 @@ export function AdminStudentsPage() {
 
     const { data, error } = await supabase.functions.invoke('create-student', {
       body: {
-        email: newEmail.trim(),
+        email: newEmail.trim().toLowerCase(),
         full_name: newName.trim(),
         phone: newPhone.trim(),
         birth_date: newBirthDate || null,
         belt: newBelt,
         role: newRole,
+        guardian_user_id: newGuardianId || null,
         plan_id: newPlanId || null,
         month_year: currentMonth,
         paid_now: newPlanId ? paidNow : false,
@@ -201,6 +213,7 @@ export function AdminStudentsPage() {
     setNewEmail('');
     setNewPhone('');
     setNewBirthDate('');
+    setNewGuardianId('');
     setNewPlanId('');
     setNewPhotoFile(null);
     setTrialGuestId(null);
@@ -455,21 +468,64 @@ export function AdminStudentsPage() {
                   <option value="Negro">Negro</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-xs text-slate-400 uppercase mb-1">Grados (0–4)</label>
+                <select
+                  value={selected.belt_stripes ?? 0}
+                  onChange={(e) =>
+                    setSelected({ ...selected, belt_stripes: Number(e.target.value) })
+                  }
+                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                >
+                  {[0, 1, 2, 3, 4].map((g) => (
+                    <option key={g} value={g}>
+                      {g} {g === 1 ? 'grado' : 'grados'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 uppercase mb-1">
+                  Alias / Apodo tatami
+                </label>
+                <input
+                  value={selected.alias ?? ''}
+                  onChange={(e) => setSelected({ ...selected, alias: e.target.value })}
+                  placeholder="Opcional (ayuda con homónimos)"
+                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 uppercase mb-1">
+                  Fecha nacimiento
+                </label>
+                <input
+                  type="date"
+                  value={selected.birth_date ?? ''}
+                  onChange={(e) => setSelected({ ...selected, birth_date: e.target.value })}
+                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                />
+              </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs text-slate-400 uppercase mb-1">
-                  Foto del alumno (opcional)
+                  Familiar / Tutor vinculado (Kids / Hermanos)
                 </label>
-                <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
-                  <Camera className="w-4 h-4 text-studio-red" />
-                  <span>{newPhotoFile ? newPhotoFile.name : 'Hacer foto o elegir de galería'}</span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    capture="user"
-                    className="hidden"
-                    onChange={(e) => setNewPhotoFile(e.target.files?.[0] ?? null)}
-                  />
-                </label>
+                <select
+                  value={selected.guardian_user_id ?? ''}
+                  onChange={(e) =>
+                    setSelected({ ...selected, guardian_user_id: e.target.value || null })
+                  }
+                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                >
+                  <option value="">— Ninguno —</option>
+                  {profiles
+                    .filter((other) => other.id !== selected.id)
+                    .map((other) => (
+                      <option key={other.id} value={other.id}>
+                        {other.full_name} ({other.email})
+                      </option>
+                    ))}
+                </select>
               </div>
 
               <div className="sm:col-span-2">
@@ -600,6 +656,23 @@ export function AdminStudentsPage() {
                   <option value="Morado">Morado</option>
                   <option value="Marrón">Marrón</option>
                   <option value="Negro">Negro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 uppercase mb-1">
+                  Tutor / Hermano vinculado (opcional)
+                </label>
+                <select
+                  value={newGuardianId}
+                  onChange={(e) => setNewGuardianId(e.target.value)}
+                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                >
+                  <option value="">— Ninguno —</option>
+                  {profiles.map((other) => (
+                    <option key={other.id} value={other.id}>
+                      {other.full_name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="sm:col-span-2">
