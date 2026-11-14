@@ -126,7 +126,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen text-slate-100 flex flex-col md:flex-row">
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex md:w-60 md:flex-col bg-[#070b15]/80 backdrop-blur-xl border-r border-white/[0.07] shrink-0 sticky top-0 h-screen">
+      <aside className="hidden md:flex md:w-60 md:flex-col bg-[#0f2454]/80 backdrop-blur-xl border-r border-white/[0.07] shrink-0 sticky top-0 h-screen">
         <div className="px-5 pt-6 pb-5 flex items-center gap-3">
           <img src="/logo.webp" alt="" className="w-10 h-10 rounded-xl object-contain" />
           <p className="font-headline text-xl tracking-wide uppercase text-studio-cream leading-none">
@@ -152,7 +152,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Topbar Mobile */}
-      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-[#070b15]/85 backdrop-blur-xl border-b border-white/[0.07] sticky top-0 z-30">
+      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-[#0f2454]/85 backdrop-blur-xl border-b border-white/[0.07] sticky top-0 z-30">
         <div className="flex items-center gap-2.5">
           <img src="/logo.webp" alt="" className="w-8 h-8 rounded-lg object-contain" />
           <span className="font-headline text-lg uppercase tracking-wide text-studio-cream">247 Studio</span>
@@ -174,7 +174,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           onClick={() => setMobileOpen(false)}
         >
           <div
-            className="w-72 max-w-[85vw] h-full bg-[#070b15] border-r border-white/10 p-4 flex flex-col gap-5 animate-studio-in"
+            className="w-72 max-w-[85vw] h-full bg-[#0f2454] border-r border-white/10 p-4 flex flex-col gap-5 animate-studio-in"
             style={{ animationDelay: '0s' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -202,7 +202,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Dock Mobile: accesos del día a día + menú completo */}
       <nav
-        className="md:hidden fixed bottom-3 inset-x-3 rounded-2xl bg-[#070b15]/92 backdrop-blur-xl border border-white/10 shadow-modal flex justify-around py-1.5 px-1 z-30"
+        className="md:hidden fixed bottom-3 inset-x-3 rounded-2xl bg-[#0f2454]/92 backdrop-blur-xl border border-white/10 shadow-modal flex justify-around py-1.5 px-1 z-30"
         style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
         aria-label="Accesos rápidos"
       >

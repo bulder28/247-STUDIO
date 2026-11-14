@@ -8,16 +8,16 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   247 STUDIO — "Tatami de noche"
-   Tinta azul noche + arena de tatami (#DDD6B8) + rojo de cinturón solo para acción.
+   247 STUDIO — "Azul Cobalto Eléctrico"
+   Cobalto profundo (#0f2454 -> #1e40af) + blanco hielo + rojo coral (#ef4444) para acción.
    ========================================================================== */
 
 :root {
-  --ink: #090e1a;
-  --ink-raised: #111a2c;
-  --sand: #ddd6b8;
-  --sand-light: #f4f0e1;
-  --belt-red: #e11d2e;
+  --ink: #0f2454;
+  --ink-raised: #173a82;
+  --sand: #dbeafe;
+  --sand-light: #ffffff;
+  --belt-red: #ef4444;
 }
 
 @layer base {
@@ -54,19 +54,21 @@
 
   body {
     background-color: var(--ink);
-    /* Juntas de tatami: losas de 96px apenas visibles + luz roja de esquina */
+    /* Degradado Azul Cobalto Eléctrico + juntas de tatami de 96px */
     background-image:
-      radial-gradient(ellipse 70% 45% at 8% -8%, rgba(225, 29, 46, 0.16), transparent 62%),
-      radial-gradient(ellipse 60% 50% at 100% 0%, rgba(221, 214, 184, 0.06), transparent 60%),
-      linear-gradient(rgba(221, 214, 184, 0.028) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(221, 214, 184, 0.028) 1px, transparent 1px);
+      radial-gradient(ellipse 65% 50% at 80% 10%, rgba(56, 189, 248, 0.22), transparent 55%),
+      radial-gradient(ellipse 60% 50% at 10% 90%, rgba(30, 64, 175, 0.45), transparent 60%),
+      linear-gradient(rgba(219, 234, 254, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(219, 234, 254, 0.04) 1px, transparent 1px),
+      linear-gradient(135deg, #0f2454 0%, #173a82 52%, #1e40af 100%);
     background-size:
       auto,
       auto,
       96px 96px,
-      96px 96px;
+      96px 96px,
+      cover;
     background-attachment: fixed;
-    @apply text-slate-100 font-sans antialiased selection:bg-studio-cream selection:text-slate-950;
+    @apply text-slate-100 font-sans antialiased selection:bg-blue-200 selection:text-slate-950;
   }
 
   /* Grano de película sobre toda la app */
@@ -83,42 +85,42 @@
 }
 
 @layer components {
-  /* Panel principal: tinta elevada con un foco arena que sigue al puntero (--mx/--my) */
+  /* Panel principal: cobalto translúcido con foco azul hielo que sigue al puntero (--mx/--my) */
   .studio-panel {
-    background-color: rgba(15, 23, 41, 0.86);
+    background-color: rgba(15, 36, 84, 0.72);
     background-image:
       radial-gradient(
         380px circle at var(--mx, -999px) var(--my, -999px),
-        rgba(221, 214, 184, 0.075),
+        rgba(147, 197, 253, 0.12),
         transparent 62%
       ),
-      linear-gradient(160deg, rgba(40, 54, 78, 0.55) 0%, rgba(13, 19, 34, 0.35) 100%);
+      linear-gradient(160deg, rgba(30, 64, 175, 0.38) 0%, rgba(15, 36, 84, 0.55) 100%);
     box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
-      0 18px 40px -22px rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(10px);
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+      0 18px 40px -22px rgba(7, 16, 40, 0.75);
+    backdrop-filter: blur(12px);
   }
 
   .studio-panel-inset {
-    background: linear-gradient(180deg, rgba(6, 10, 20, 0.62) 0%, rgba(11, 17, 31, 0.78) 100%);
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.035);
+    background: linear-gradient(180deg, rgba(11, 27, 66, 0.58) 0%, rgba(15, 36, 84, 0.78) 100%);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
   }
 
-  /* Tarjeta clara (arena) para momentos protagonistas: login, precio destacado */
+  /* Tarjeta clara protagonista: blanco limpio con sombra cobalto */
   .studio-sand {
     background-color: var(--sand-light);
-    background-image: linear-gradient(160deg, #f8f5ea 0%, #e6dfc4 100%);
-    color: #141a2b;
+    background-image: linear-gradient(160deg, #ffffff 0%, #f1f5f9 100%);
+    color: #0f172a;
     box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
-      0 30px 60px -25px rgba(0, 0, 0, 0.9);
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+      0 30px 60px -25px rgba(8, 18, 43, 0.65);
   }
 
   .studio-sand :focus-visible {
-    outline-color: #141a2b;
+    outline-color: #0f2454;
   }
 
-  /* Título de página: Oswald condensada en arena */
+  /* Título de página: Oswald condensada en blanco hielo */
   .studio-display {
     font-family: Oswald, 'Archivo Variable', Impact, system-ui, sans-serif;
     font-weight: 700;
@@ -126,7 +128,7 @@
     font-size: clamp(2rem, 1.1rem + 3.6vw, 3.5rem);
     line-height: 0.95;
     letter-spacing: -0.012em;
-    color: var(--sand);
+    color: #ffffff;
     text-wrap: balance;
   }
 

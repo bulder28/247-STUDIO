@@ -30,7 +30,7 @@ function LiveClassCard({ cls, live }: { cls: ScheduleClass; live: boolean }) {
   return (
     <div className="relative overflow-hidden rounded-3xl min-h-[11rem] flex items-end p-5 sm:p-6 ring-1 ring-white/10">
       <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#070b15] via-[#070b15]/70 to-[#070b15]/10" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0f2454] via-[#0f2454]/70 to-[#0f2454]/10" />
       <div className="relative min-w-0 w-full">
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
