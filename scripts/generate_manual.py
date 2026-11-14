@@ -334,13 +334,15 @@ def build_manual():
         doc,
         ["Funcionalidad", "Dirección (Admin)", "Profesor (Coach)", "Alumno"],
         [
-            ["Resumen mensual y métricas de ingresos", "Acceso total", "NO visible", "NO visible"],
+            ["Resumen mensual y Centro de Alertas", "Acceso total", "NO visible", "NO visible"],
+            ["Pestaña KPIs tipo Power BI (/admin/kpis)", "Acceso total", "NO visible", "NO visible"],
             ["Seguimiento de cuotas, facturas pendientes y cobros", "Acceso total", "NO visible", "NO visible"],
             ["Alta de alumnos, edición de cinturones y bajas", "Acceso total", "NO visible", "Solo edita su teléfono/emergencia/objetivos"],
             ["Pasar Lista y registrar Invitado / Clase Prueba", "Sí", "Sí (pantalla principal)", "NO visible"],
-            ["Consultar horarios de la semana", "Edita y avisa cambios", "Solo consulta", "Solo consulta"],
+            ["Consultar horarios de la semana (filtro por día)", "Edita y avisa cambios", "Solo consulta", "Solo consulta"],
             ["Tablón / Foro interno", "Publica anuncios", "Publica anuncios", "Solo lectura (no publica)"],
             ["Chat privado Dirección ↔ Alumno", "Responde a todos", "NO visible", "Habla solo con Dirección"],
+            ["Eventos, Avisos y FAQs", "Crea y elimina", "NO visible", "Solo consulta"],
             ["Tarifas y planes", "Crea, edita y desactiva", "NO visible", "Solo consulta tarifas activas"],
             ["Firmas digitales (RGPD / Normas)", "Consulta todas las firmas", "NO visible", "Firma con el dedo en su perfil"],
         ],
@@ -423,18 +425,31 @@ def build_manual():
     )
 
     # =========================================================================
-    # SECCIÓN 3: PANEL DE DIRECCIÓN — RESUMEN Y ALUMNOS
+    # SECCIÓN 3: PANEL DE DIRECCIÓN — RESUMEN, KPIs POWER BI Y ALUMNOS
     # =========================================================================
-    add_section_heading(doc, "03", "Panel de Dirección: Resumen y Gestión de Alumnos")
+    add_section_heading(doc, "03", "Panel de Dirección: Resumen, KPIs Power BI y Alumnos")
     add_body(
         doc,
-        "Al iniciar sesión, Dirección accede directamente al Resumen Mensual con los 4 indicadores clave de la escuela y el listado de quién ha entrenado hoy.",
+        "Al iniciar sesión, Dirección accede directamente al Resumen Mensual (con selector de mes) para controlar la operativa diaria de cobros, asistencias y alertas accionables.",
     )
     add_screenshot(
         doc,
         "03_admin_home.png",
-        "Resumen Mensual (Admin): ingresos cobrados del mes, cuotas pendientes, alertas de facturas pendientes (+7 días), alumnos activos y asistencias del día.",
+        "Resumen Mensual (Admin): ingresos cobrados (% MoM y ARPU), pendientes, deuda histórica, arqueo Efectivo/Bizum, ranking de clases, ocupación por disciplina y Centro de Alertas.",
     )
+    add_bullet(doc, "Muestra comparativa frente al mes anterior (% MoM), ticket medio (ARPU), arqueo rápido Efectivo vs Bizum, tasa de cobro circular y deuda previa acumulada.", "Finanzas y Caja en Resumen: ")
+    add_bullet(doc, "Incluye 4 pestañas rápidas: Inactivos (+15 días sin entrenar), Bonos por agotarse (≤2 créditos), Alumnos en gracia de 7 días / deuda y Alertas legales / menores sin datos de tutor.", "Centro de Alertas Unificado: ")
+
+    add_sub_heading(doc, "Nueva Pestaña «KPIs» tipo Power BI (/admin/kpis)")
+    add_body(
+        doc,
+        "Accesible desde el menú lateral justo debajo de Resumen, ofrece un cuadro de mando analítico interactivo con segmentadores (Slicers) por Mes y por Disciplina que recalculan los indicadores en tiempo real:",
+    )
+    add_bullet(doc, "5 tarjetas ejecutivas superiores con ingresos cobrados (% MoM y ARPU), pendiente + deuda previa, tasa de cobro, asistencias del mes y captación/riesgo.", "Tarjetas KPI Ejecutivas: ")
+    add_bullet(doc, "Gráfico combinado de los últimos 6 meses con barras de ingresos (cobrado vs pendiente) y línea superpuesta de asistencias con detalle interactivo al pasar el ratón.", "Tendencia Histórica 6 Meses: ")
+    add_bullet(doc, "Dos gráficos circulares (Donuts) para el Arqueo de Caja (Efectivo / Bizum / Otros) y el estado de la Cartera del Mes (OK / Gracia 7d / Vencidos).", "Gráficos Circulares de Caja y Cartera: ")
+    add_bullet(doc, "Distribución de cinturones activos, conteo de Kids (≤14 años) y Socios Fundadores, % de firmas legales al día, pruebas vs altas y estado medio de bonos.", "Radiografía, Salud Legal y Bonos: ")
+    add_bullet(doc, "Mapa de Calor Semanal (Día × Franja Mañana/Tarde/Noche) y tabla de ocupación por clase con media de alumnos por sesión.", "Matriz Semanal y Ocupación: ")
 
     add_body(
         doc,
@@ -555,7 +570,7 @@ def build_manual():
     # =========================================================================
     # SECCIÓN 7: COMUNICACIÓN INTERNA
     # =========================================================================
-    add_section_heading(doc, "07", "Comunicación Interna (Foro, Avisos, Chat y Firmas)")
+    add_section_heading(doc, "07", "Comunicación Interna (Foro, Avisos, Eventos, Chat y Firmas)")
     add_body(
         doc,
         "Toda la comunicación oficial del gimnasio queda centralizada dentro de la app, evitando grupos de WhatsApp ruidosos o mensajes perdidos.",
@@ -563,10 +578,11 @@ def build_manual():
     add_screenshot(
         doc,
         "10_admin_communication.png",
-        "Panel de Comunicación (Admin): pestañas para publicar en el Foro/Tablón, enviar Avisos internos, responder Chats Privados, revisar Firmas Digitales y editar FAQs.",
+        "Panel de Comunicación (Admin): pestañas para Foro/Tablón, Chats Privados, Firmas Digitales, Avisos (con borrado), Eventos/Seminarios y FAQs.",
     )
     add_bullet(doc, "Solo Dirección y Profesores pueden publicar comunicados; los alumnos únicamente pueden leerlos para mantener el tablón limpio.", "Tablón / Foro (solo lectura para alumnos): ")
-    add_bullet(doc, "Los avisos sobre cambios de tarifa, cambios de horario o recordatorios se consultan en la sección Avisos de la propia app.", "Avisos internos dentro de la App: ")
+    add_bullet(doc, "Los avisos generales, cambios de tarifa o cambios de horario se consultan en la sección Avisos y pueden eliminarse desde el listado de Dirección.", "Avisos internos dentro de la App: ")
+    add_bullet(doc, "Nueva pestaña Eventos para publicar Seminarios, Competiciones, Graduaciones y Open Mats con fecha, hora, ubicación y descripción, visibles en la cartelera del alumno.", "Gestor de Eventos y Seminarios: ")
     add_bullet(doc, "Cada alumno dispone de un hilo privado directo con Dirección (Mario & David).", "Chat privado 1 a 1: ")
     add_bullet(doc, "Dirección puede consultar y verificar en cualquier momento los documentos firmados digitalmente por cada alumno (nombre, DNI y trazo de firma).", "Archivo de documentos firmados: ")
 
@@ -576,13 +592,17 @@ def build_manual():
     add_section_heading(doc, "08", "Portal del Alumno y Firma en Pantalla")
     add_body(
         doc,
-        "Cada alumno accede a una experiencia limpia diseñada para móvil desde donde consulta su estado de cuota, su ficha física, el horario de la semana, sus avisos y los documentos pendientes de firma.",
+        "Cada alumno accede a una experiencia renovada con estética de tatami diseñada para móvil desde donde consulta su Carnet Oficial, su Radar de Combate, su progreso real, el horario semanal (con filtro rápido por día), sus avisos y los documentos pendientes de firma.",
     )
     add_screenshot(
         doc,
         "13_client_home.png",
-        "Inicio del Portal del Alumno: indicador de cuota (incluye alerta de facturas pendientes o aviso «Cubierto hasta [Mes]» si pagó por adelantado), objetivos personales, ficha del luchador y eventos.",
+        "Inicio del Portal del Alumno: Carnet de Tatami con cinturón tejido realista y grados, contador de Bonos, Mat Time, Radar de Combate SVG, eventos y diario técnico.",
     )
+    add_bullet(doc, "Muestra el Carnet Oficial del Luchador con halo dinámico según su cinturón y representación tejida realista con punta y grados cosidos (0 a 4).", "Carnet de Tatami y Cinturón Visual: ")
+    add_bullet(doc, "Sustituye las barras estáticas por un gráfico Radar SVG interactivo de 8 ejes (Técnica, Fuerza, Elasticidad, Guardia, Pase, Derribos, Leglocks y Finalización) con media global.", "Radar de Combate Interactivo: ")
+    add_bullet(doc, "Contabiliza clases del mes, clases totales, horas estimadas de tatami (Mat Time), desglose por disciplina y las últimas 5 sesiones validadas en clase, además de casillas selladas para Bonos de clases.", "Mat Time y Contador Visual de Bonos: ")
+    add_bullet(doc, "Muestra automáticamente los hijos/familiares vinculados a un tutor o los datos de contacto de padre/madre en menores (≤14 años), botones rápidos con fecha para el Diario Técnico y FAQs oficiales con respaldo automático.", "Modo Familia, Diario Técnico y FAQs: ")
     add_screenshot(
         doc,
         "14_client_profile.png",
@@ -603,6 +623,7 @@ def build_manual():
             ["Pagos Adelantados", "Pagar meses futuros no genera alerta ni doble cobro; al alumno le figura «Cubierto hasta [Mes]» y al Admin «Pago adelantado»."],
             ["Clases Simultáneas", "El horario no contempla dos clases simultáneas; Pasar Lista selecciona la sesión actual o el próximo día previsto y bloquea doble-toques accidentales y cambios de día a medianoche."],
             ["Bonos y Firmas", "Los Bonos descuentan/devuelven créditos automáticamente al pasar lista y la firma digital impide enviar formularios con el recuadro en blanco."],
+            ["Analítica y KPIs", "La pestaña KPIs tipo Power BI y el Centro de Alertas son exclusivos de Dirección y calculan métricas en tiempo real sobre cobros, asistencias y fichas legales."],
             ["Roles y Visibilidad", "Los Profesores no ven precios ni facturas; los Alumnos no publican en el foro ni editan su cinturón o estado."],
             ["Bajas de Alumnos", "Un alumno en estado Baja ve una pantalla de cuenta desactivada y pierde acceso al contenido interno, conservando intacto su historial contable y asistencias."],
         ],

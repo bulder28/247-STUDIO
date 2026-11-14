@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
+  BarChart3,
   CreditCard,
   Users,
   Tags,
@@ -16,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { to: '/admin', label: 'Resumen', icon: LayoutDashboard, end: true },
+  { to: '/admin/kpis', label: 'KPIs', icon: BarChart3 },
   { to: '/admin/pasar-lista', label: 'Pasar Lista', icon: ClipboardCheck },
   { to: '/admin/seguimiento', label: 'Seguimiento', icon: CreditCard },
   { to: '/admin/alumnos', label: 'Alumnos', icon: Users },

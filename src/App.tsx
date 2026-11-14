@@ -6,6 +6,7 @@ import { AdminLayout } from '@/layouts/AdminLayout';
 import { CoachLayout } from '@/layouts/CoachLayout';
 import { ClientLayout } from '@/layouts/ClientLayout';
 import { AdminHomePage } from '@/pages/admin/AdminHomePage';
+import { AdminKpisPage } from '@/pages/admin/AdminKpisPage';
 import { AdminTrackingPage } from '@/pages/admin/AdminTrackingPage';
 import { AdminStudentsPage } from '@/pages/admin/AdminStudentsPage';
 import { AdminPlansPage } from '@/pages/admin/AdminPlansPage';
@@ -80,6 +81,7 @@ function AppRoutes() {
             <AdminLayout>
               <Routes>
                 <Route path="" element={<AdminHomePage />} />
+                <Route path="kpis" element={<AdminKpisPage />} />
                 <Route path="pasar-lista" element={<CoachAttendancePage />} />
                 <Route path="seguimiento" element={<AdminTrackingPage />} />
                 <Route path="alumnos" element={<AdminStudentsPage />} />
