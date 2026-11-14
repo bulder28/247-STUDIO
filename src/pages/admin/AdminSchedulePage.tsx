@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Trash2, Bell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getDisciplineImage } from '@/lib/disciplineImages';
+import { PageHeader } from '@/components/PageHeader';
 
 const DAYS = [
   { value: 1, label: 'Lunes' },
@@ -96,18 +97,14 @@ export function AdminSchedulePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-          BBDD Horarios
-        </h1>
-        <p className="text-sm text-slate-400">
-          Configura la parrilla de clases semanales (Lunes a Sábado). Los cambios pueden avisar automáticamente al alumno.
-        </p>
-      </div>
+      <PageHeader
+        title="Horarios"
+        subtitle={<>Configura la parrilla de clases semanales (Lunes a Sábado). Los cambios pueden avisar automáticamente al alumno.</>}
+      />
 
       <form
         onSubmit={handleAddClass}
-        className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4"
+        className="rounded-2xl studio-panel border border-white/10 p-5 space-y-4"
       >
         <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
           <Plus className="w-4 h-4 text-studio-red" />
@@ -120,7 +117,7 @@ export function AdminSchedulePage() {
             <select
               value={dayOfWeek}
               onChange={(e) => setDayOfWeek(Number(e.target.value))}
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             >
               {DAYS.map((d) => (
                 <option key={d.value} value={d.value}>
@@ -138,7 +135,7 @@ export function AdminSchedulePage() {
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 required
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
             <div>
@@ -148,7 +145,7 @@ export function AdminSchedulePage() {
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 required
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
           </div>
@@ -158,7 +155,7 @@ export function AdminSchedulePage() {
             <select
               value={disciplineId}
               onChange={(e) => setDisciplineId(e.target.value)}
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             >
               {disciplines.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -175,7 +172,7 @@ export function AdminSchedulePage() {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ej. GI GRAPPLING / MMA"
               required
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
           </div>
 
@@ -186,7 +183,7 @@ export function AdminSchedulePage() {
               onChange={(e) => setCoachName(e.target.value)}
               placeholder="Ej. Mario / David"
               required
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
           </div>
         </div>
@@ -206,7 +203,7 @@ export function AdminSchedulePage() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-xl bg-studio-red hover:bg-studio-red-dark disabled:opacity-50 px-5 py-2 text-sm font-semibold text-white transition"
+            className="rounded-xl studio-btn disabled:opacity-50 px-5 py-2 text-sm font-semibold text-white transition"
           >
             {saving ? 'Añadiendo...' : 'Añadir Clase'}
           </button>
@@ -218,7 +215,7 @@ export function AdminSchedulePage() {
         {DAYS.map((day) => {
           const dayClasses = classes.filter((c) => c.day_of_week === day.value);
           return (
-            <div key={day.value} className="rounded-2xl bg-studio-navy border border-white/10 p-4">
+            <div key={day.value} className="rounded-2xl studio-panel border border-white/10 p-4">
               <h3 className="font-headline text-lg uppercase text-white border-b border-white/10 pb-2 mb-3">
                 {day.label}
               </h3>
@@ -229,7 +226,7 @@ export function AdminSchedulePage() {
                   {dayClasses.map((c) => (
                     <div
                       key={c.id}
-                      className="flex items-center justify-between gap-2 rounded-xl bg-studio-navy-deep p-2.5 border border-white/5"
+                      className="flex items-center justify-between gap-2 rounded-xl studio-panel-inset p-2.5 border border-white/5"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <img

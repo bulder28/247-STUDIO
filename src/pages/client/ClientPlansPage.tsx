@@ -3,6 +3,8 @@ import { Award } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { getFounderPrice } from '@/lib/pricing';
+import { PageHeader } from '@/components/PageHeader';
+import { Skeleton } from '@/components/KpiCard';
 
 interface Plan {
   id: string;
@@ -13,10 +15,44 @@ interface Plan {
   pack_credits: number | null;
 }
 
+function PriceRow({ plan, isFounder }: { plan: Plan; isFounder: boolean }) {
+  const basePrice = Number(plan.price_eur);
+  const sfPrice = getFounderPrice(basePrice);
+  return (
+    <li className="group py-4 first:pt-0 last:pb-0">
+      <div className="flex items-baseline gap-3">
+        <h3 className="font-headline text-xl sm:text-2xl uppercase text-white leading-tight group-hover:text-studio-cream transition-colors">
+          {plan.name}
+        </h3>
+        <span className="studio-leader" aria-hidden />
+        <p className="font-headline text-3xl sm:text-4xl leading-none tabular-nums text-studio-cream shrink-0">
+          {isFounder && (
+            <span className="text-base text-slate-500 line-through mr-2 align-middle">
+              {basePrice.toFixed(0)} €
+            </span>
+          )}
+          {isFounder ? sfPrice : basePrice.toFixed(0)}
+          <span className="text-lg ml-1">€</span>
+        </p>
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+        <span>
+          {plan.is_class_pack
+            ? `${plan.pack_credits} ${plan.pack_credits === 1 ? 'clase' : 'clases'}, sin compromiso mensual`
+            : 'al mes'}
+        </span>
+        {plan.promo_text && (
+          <span className="px-2 py-0.5 rounded-md bg-amber-400/15 text-amber-200">{plan.promo_text}</span>
+        )}
+      </div>
+    </li>
+  );
+}
+
 export function ClientPlansPage() {
   const { profile } = useAuth();
   const isFounder = Boolean(profile?.is_founder);
-  const [plans, setPlans] = useState<Plan[]>([]);
+  const [plans, setPlans] = useState<Plan[] | null>(null);
 
   useEffect(() => {
     supabase
@@ -27,67 +63,66 @@ export function ClientPlansPage() {
       .then(({ data }) => setPlans((data as Plan[]) ?? []));
   }, []);
 
+  const monthly = (plans ?? []).filter((p) => !p.is_class_pack);
+  const packs = (plans ?? []).filter((p) => p.is_class_pack);
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-          Tarifas y Programas
-        </h1>
-        <p className="text-sm text-slate-400">
-          Información oficial de cuotas y ofertas vigentes en 247 STUDIO (precios finales).
-        </p>
-        {isFounder && (
-          <div className="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-500/15 border border-amber-400/30 px-3 py-2 text-xs text-amber-200">
-            <Award className="w-4 h-4 text-amber-300 shrink-0" />
-            <span>
-              <strong>Socio Fundador (SF) activo:</strong> disfrutas de un 10% de descuento en tu cuota.
-            </span>
-          </div>
-        )}
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Tarifas"
+        subtitle="Cuotas y bonos oficiales de la academia. Precios finales, se abonan en recepción en efectivo o Bizum."
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {plans.map((pl) => {
-          const basePrice = Number(pl.price_eur);
-          const sfPrice = getFounderPrice(basePrice);
+      {isFounder && (
+        <div className="studio-sand rounded-2xl px-5 py-4 flex items-center gap-3.5">
+          <Award className="w-7 h-7 shrink-0 text-amber-700" />
+          <p className="text-sm leading-snug">
+            <strong className="font-headline uppercase text-base tracking-wide">Socio Fundador.</strong>{' '}
+            Tu 10 % de descuento ya está aplicado en los precios de esta página.
+          </p>
+        </div>
+      )}
 
-          return (
-            <div
-              key={pl.id}
-              className="rounded-2xl bg-studio-navy border border-white/10 p-5 flex flex-col justify-between"
+      {plans === null ? (
+        <div className="space-y-3">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-14 w-full !rounded-2xl" />
+          ))}
+        </div>
+      ) : plans.length === 0 ? (
+        <p className="text-sm text-slate-400">Todavía no hay tarifas publicadas. Pregunta en recepción.</p>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+          {monthly.length > 0 && (
+            <section
+              className={`rounded-3xl studio-panel border border-white/10 p-6 sm:p-8 ${
+                packs.length > 0 ? 'lg:col-span-3' : 'lg:col-span-5'
+              }`}
             >
-              <div>
-                <h2 className="font-headline text-xl uppercase text-white">{pl.name}</h2>
-                {pl.promo_text && (
-                  <p className="mt-1 inline-block text-xs px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300">
-                    {pl.promo_text}
-                  </p>
-                )}
-              </div>
-              <div className="mt-4 pt-3 border-t border-white/10 flex items-baseline justify-between">
-                <span className="text-xs text-slate-400">
-                  {pl.is_class_pack ? `Bono ${pl.pack_credits} clases` : 'Cuota mensual'}
-                </span>
-                {isFounder ? (
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm text-slate-500 line-through">
-                      {basePrice.toFixed(0)} €
-                    </span>
-                    <span className="font-headline text-3xl text-amber-300">
-                      {sfPrice} €
-                    </span>
-                  </div>
-                ) : (
-                  <span className="font-headline text-3xl text-studio-red">
-                    {basePrice.toFixed(0)} €
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              <h2 className="text-sm font-semibold text-slate-400 mb-5">Cuota mensual</h2>
+              <ul className="divide-y divide-white/[0.07]">
+                {monthly.map((pl) => (
+                  <PriceRow key={pl.id} plan={pl} isFounder={isFounder} />
+                ))}
+              </ul>
+            </section>
+          )}
+          {packs.length > 0 && (
+            <section
+              className={`rounded-3xl studio-panel border border-white/10 p-6 sm:p-8 ${
+                monthly.length > 0 ? 'lg:col-span-2' : 'lg:col-span-5'
+              }`}
+            >
+              <h2 className="text-sm font-semibold text-slate-400 mb-5">Bonos y clases sueltas</h2>
+              <ul className="divide-y divide-white/[0.07]">
+                {packs.map((pl) => (
+                  <PriceRow key={pl.id} plan={pl} isFounder={isFounder} />
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      )}
     </div>
   );
 }
-

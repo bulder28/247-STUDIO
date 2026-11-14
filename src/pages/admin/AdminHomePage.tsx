@@ -11,7 +11,6 @@ import {
   Clock,
   Wallet,
   TrendingUp,
-  TrendingDown,
   Ticket,
   ShieldAlert,
   Calendar,
@@ -19,6 +18,9 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
+import { formatEUR, formatMonthLong } from '@/lib/format';
+import { DeltaBadge, KpiCard } from '@/components/KpiCard';
+import { PageHeader } from '@/components/PageHeader';
 
 interface DisciplineStat {
   id: string;
@@ -496,14 +498,11 @@ export function AdminHomePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-            Resumen Mensual ({selectedMonth})
-          </h1>
-          <p className="text-sm text-slate-400">Indicadores clave de gestión — 247 STUDIO</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+      <PageHeader
+        title={formatMonthLong(selectedMonth)}
+        subtitle="Resumen de gestión del mes: cobros, alumnos, ocupación y alertas."
+        actions={
+          <>
           <div className="flex items-center gap-2 rounded-xl studio-panel-inset border border-white/10 px-3 py-1.5">
             <Calendar className="w-4 h-4 text-studio-red shrink-0" />
             <input
@@ -525,12 +524,13 @@ export function AdminHomePage() {
           </div>
           <Link
             to="/admin/seguimiento"
-            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-studio-red to-rose-700 hover:from-rose-600 hover:to-studio-red-dark px-4 py-2.5 text-sm font-semibold text-white shadow-glow-red transition"
+            className="inline-flex items-center justify-center rounded-xl studio-btn px-4 py-2.5 text-sm font-semibold text-white transition"
           >
             Ir a Seguimiento
           </Link>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {pendingDocsCount > 0 && (
         <div className="rounded-3xl border border-amber-500/40 bg-amber-500/15 text-amber-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -552,75 +552,47 @@ export function AdminHomePage() {
 
       {/* 4 KPIs Principales con MoM, ARPU y Deuda */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-5">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500/70 via-emerald-400 to-transparent" />
-          <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider">
-            <span>Cuotas / Mes (OK)</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2.5">
-            <p className="font-headline text-3xl text-white">{totalCollected.toFixed(0)} €</p>
-            {momPct !== null && (
-              <span
-                className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                  momPct >= 0
-                    ? 'bg-emerald-500/15 text-emerald-300'
-                    : 'bg-studio-red/20 text-red-300'
-                }`}
-              >
-                {momPct >= 0 ? (
-                  <TrendingUp className="w-3 h-3" />
-                ) : (
-                  <TrendingDown className="w-3 h-3" />
-                )}
-                {momPct >= 0 ? `+${momPct}%` : `${momPct}%`} vs mes ant.
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            {paidRows.length} cobradas · ARPU {arpu.toFixed(0)} €
-          </p>
-        </div>
-
-        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-5">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500/70 via-amber-400 to-transparent" />
-          <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider">
-            <span>Pendientes / Mes</span>
-            <CreditCard className="w-4 h-4 text-amber-400" />
-          </div>
-          <p className="mt-2 font-headline text-3xl text-amber-300">
-            {totalPending.toFixed(0)} €
-          </p>
-          <p className="text-xs text-slate-400 mt-1">
-            {pendingRows.length} alumnos · {graceRows.length} en plazo 7d
-          </p>
-        </div>
-
-        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-5">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-studio-red via-rose-500 to-transparent" />
-          <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider">
-            <span>Morosos / Deuda</span>
-            <AlertTriangle className="w-4 h-4 text-studio-red" />
-          </div>
-          <p className="mt-2 font-headline text-3xl text-studio-red">
-            {overdueRows.length}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">
-            Deuda histórica: <strong className="text-slate-200">{historicalDebtTotal.toFixed(0)} €</strong> ({pastDueHistory.length})
-          </p>
-        </div>
-
-        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-5">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-500/70 via-sky-400 to-transparent" />
-          <div className="flex items-center justify-between text-slate-400 text-xs uppercase tracking-wider">
-            <span>Alumnos Activos</span>
-            <Users className="w-4 h-4 text-sky-400" />
-          </div>
-          <p className="mt-2 font-headline text-3xl text-white">{activeStudentsCount}</p>
-          <p className="text-xs text-slate-400 mt-1">
-            +{newSignupsThisMonth} altas · {guestsThisMonth} invitados este mes
-          </p>
-        </div>
+        <KpiCard
+          label="Cuotas cobradas"
+          icon={CheckCircle2}
+          accent="emerald"
+          loading={loading}
+          value={formatEUR(totalCollected)}
+          delta={<DeltaBadge value={momPct} />}
+          footnote={`${paidRows.length} cobradas · ARPU ${formatEUR(arpu)}`}
+        />
+        <KpiCard
+          label="Pendiente del mes"
+          icon={CreditCard}
+          accent="amber"
+          loading={loading}
+          value={formatEUR(totalPending)}
+          valueClassName={totalPending > 0 ? 'text-amber-300' : 'text-white'}
+          footnote={`${pendingRows.length} alumnos · ${graceRows.length} en plazo 7 d`}
+        />
+        <KpiCard
+          label="Morosos"
+          icon={AlertTriangle}
+          accent="red"
+          loading={loading}
+          value={overdueRows.length}
+          valueClassName={overdueRows.length > 0 ? 'text-rose-400' : 'text-white'}
+          footnote={
+            <>
+              Deuda histórica:{' '}
+              <strong className="text-slate-200">{formatEUR(historicalDebtTotal)}</strong> (
+              {pastDueHistory.length})
+            </>
+          }
+        />
+        <KpiCard
+          label="Alumnos activos"
+          icon={Users}
+          accent="sky"
+          loading={loading}
+          value={activeStudentsCount}
+          footnote={`+${newSignupsThisMonth} altas · ${guestsThisMonth} invitados este mes`}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -666,7 +638,7 @@ export function AdminHomePage() {
             <p className="text-sm text-slate-400">Cargando...</p>
           ) : Object.keys(byProgram).length === 0 ? (
             <p className="text-sm text-slate-400">
-              Aún no hay suscripciones generadas para {currentMonth}.
+              Aún no hay suscripciones generadas para {formatMonthLong(selectedMonth)}.
             </p>
           ) : (
             <div className="space-y-2.5">
@@ -737,31 +709,31 @@ export function AdminHomePage() {
               <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
                 <Wallet className="w-4 h-4 text-emerald-400" /> Arqueo por Método de Pago
               </h2>
-              <span className="text-xs text-slate-400">{totalCollected.toFixed(0)} € cobrados</span>
+              <span className="text-xs text-slate-400">{formatEUR(totalCollected)} cobrados</span>
             </div>
 
             {totalCollected === 0 ? (
-              <p className="text-sm text-slate-400">Sin cobros registrados en {selectedMonth}.</p>
+              <p className="text-sm text-slate-400">Sin cobros registrados en {formatMonthLong(selectedMonth)}.</p>
             ) : (
               <>
                 <div className="w-full h-3 rounded-full studio-panel-inset overflow-hidden flex border border-white/5">
                   {cashTotal > 0 && (
                     <div
-                      title={`Efectivo: ${cashTotal.toFixed(0)} €`}
+                      title={`Efectivo: ${formatEUR(cashTotal)}`}
                       className="h-full bg-emerald-500 transition-all duration-500"
                       style={{ width: `${(cashTotal / totalCollected) * 100}%` }}
                     />
                   )}
                   {bizumTotal > 0 && (
                     <div
-                      title={`Bizum: ${bizumTotal.toFixed(0)} €`}
+                      title={`Bizum: ${formatEUR(bizumTotal)}`}
                       className="h-full bg-sky-500 transition-all duration-500"
                       style={{ width: `${(bizumTotal / totalCollected) * 100}%` }}
                     />
                   )}
                   {otherMethodTotal > 0 && (
                     <div
-                      title={`Otros: ${otherMethodTotal.toFixed(0)} €`}
+                      title={`Otros: ${formatEUR(otherMethodTotal)}`}
                       className="h-full bg-slate-500 transition-all duration-500"
                       style={{ width: `${(otherMethodTotal / totalCollected) * 100}%` }}
                     />
@@ -773,20 +745,20 @@ export function AdminHomePage() {
                     <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" /> Efectivo
                     </span>
-                    <p className="font-headline text-lg text-white mt-0.5">{cashTotal.toFixed(0)} €</p>
+                    <p className="font-headline text-lg text-white mt-0.5">{formatEUR(cashTotal)}</p>
                   </div>
                   <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
                     <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
                       <span className="w-2 h-2 rounded-full bg-sky-500" /> Bizum
                     </span>
-                    <p className="font-headline text-lg text-white mt-0.5">{bizumTotal.toFixed(0)} €</p>
+                    <p className="font-headline text-lg text-white mt-0.5">{formatEUR(bizumTotal)}</p>
                   </div>
                   <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
                     <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
                       <span className="w-2 h-2 rounded-full bg-slate-500" /> Otros
                     </span>
                     <p className="font-headline text-lg text-white mt-0.5">
-                      {otherMethodTotal.toFixed(0)} €
+                      {formatEUR(otherMethodTotal)}
                     </p>
                   </div>
                 </div>
@@ -826,7 +798,7 @@ export function AdminHomePage() {
                       </div>
                       <div className="w-full h-2.5 rounded-full studio-panel-inset overflow-hidden border border-white/5">
                         <div
-                          className="h-full bg-gradient-to-r from-studio-red to-rose-500 transition-all duration-500 rounded-full"
+                          className="h-full bg-gradient-to-r from-studio-cream/60 to-studio-cream transition-all duration-500 rounded-full"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -857,7 +829,7 @@ export function AdminHomePage() {
           {loading ? (
             <p className="text-sm text-slate-400">Cargando...</p>
           ) : classRankings.length === 0 ? (
-            <p className="text-sm text-slate-400">Sin asistencias registradas en {selectedMonth}.</p>
+            <p className="text-sm text-slate-400">Sin asistencias registradas en {formatMonthLong(selectedMonth)}.</p>
           ) : (
             <div className="space-y-2.5 max-h-[26rem] overflow-y-auto pr-1">
               {classRankings.map((cls, idx) => {
@@ -872,7 +844,7 @@ export function AdminHomePage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-white truncate">
-                          <span className="text-studio-red mr-1.5">#{idx + 1}</span>
+                          <span className="text-studio-cream mr-1.5">#{idx + 1}</span>
                           {cls.title}
                         </p>
                         <p className="text-xs text-slate-400">
@@ -887,7 +859,7 @@ export function AdminHomePage() {
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-slate-900 overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-studio-red to-rose-500 rounded-full"
+                        className="h-full bg-gradient-to-r from-studio-cream/60 to-studio-cream rounded-full"
                         style={{ width: `${barPct}%` }}
                       />
                     </div>
@@ -923,15 +895,15 @@ export function AdminHomePage() {
                 onClick={() => setAlertTab(id)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
                   alertTab === id
-                    ? 'bg-studio-red border-studio-red text-white shadow-glow-red'
+                    ? 'bg-studio-cream border-studio-cream text-slate-950'
                     : 'studio-panel-inset border-white/10 text-slate-300 hover:text-white'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{label}</span>
                 <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                    alertTab === id ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-200'
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                    alertTab === id ? 'bg-slate-950/15 text-slate-950' : 'bg-white/10 text-slate-200'
                   }`}
                 >
                   {count}
@@ -974,7 +946,7 @@ export function AdminHomePage() {
           )
         ) : alertTab === 'credits' ? (
           lowCreditSubs.length === 0 ? (
-            <p className="text-sm text-slate-400">No hay bonos de clases por agotarse en {selectedMonth}.</p>
+            <p className="text-sm text-slate-400">No hay bonos de clases por agotarse en {formatMonthLong(selectedMonth)}.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
               {lowCreditSubs.map((sub) => (
@@ -1012,7 +984,7 @@ export function AdminHomePage() {
                   <div className="min-w-0">
                     <p className="text-sm text-white font-medium truncate">{g.full_name}</p>
                     <p className="text-xs text-slate-400">
-                      {g.plan_name} · {Number(g.price_eur).toFixed(0)} €
+                      {g.plan_name} · {formatEUR(Number(g.price_eur))}
                     </p>
                   </div>
                   <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
@@ -1032,7 +1004,7 @@ export function AdminHomePage() {
                     </p>
                   </div>
                   <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-studio-red/20 text-red-200 border border-studio-red/40">
-                    -{Number(pd.price_eur).toFixed(0)} €
+                    -{formatEUR(Number(pd.price_eur))}
                   </span>
                 </div>
               ))}

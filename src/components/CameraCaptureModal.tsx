@@ -141,7 +141,7 @@ export function CameraCaptureModal({ open, onClose, onCapture }: CameraCaptureMo
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-2xl bg-studio-navy border border-white/15 p-5 space-y-4 shadow-modal">
+      <div className="w-full max-w-md rounded-2xl studio-panel border border-white/15 p-5 space-y-4 shadow-modal">
         <div className="flex items-center justify-between">
           <h3 className="font-headline text-lg uppercase text-white flex items-center gap-2">
             <Camera className="w-5 h-5 text-studio-red" /> Realizar Foto
@@ -164,7 +164,7 @@ export function CameraCaptureModal({ open, onClose, onCapture }: CameraCaptureMo
             <select
               value={selectedDeviceId}
               onChange={(e) => handleSwitchDevice(e.target.value)}
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-xs text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-xs text-white"
             >
               {devices.map((d, idx) => (
                 <option key={d.deviceId} value={d.deviceId}>
@@ -237,7 +237,7 @@ export function CameraCaptureModal({ open, onClose, onCapture }: CameraCaptureMo
                 type="button"
                 disabled={Boolean(error) || starting}
                 onClick={handleTakePhoto}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-studio-red hover:bg-studio-red-dark disabled:opacity-50 text-xs font-semibold text-white"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl studio-btn disabled:opacity-50 text-xs font-semibold text-white"
               >
                 <Camera className="w-4 h-4" /> Capturar
               </button>

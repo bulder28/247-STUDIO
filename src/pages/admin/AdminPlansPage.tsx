@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Trash2, Bell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getFounderPrice } from '@/lib/pricing';
+import { PageHeader } from '@/components/PageHeader';
 
 interface Discipline {
   id: string;
@@ -116,17 +117,13 @@ export function AdminPlansPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-          BBDD Tarifas
-        </h1>
-        <p className="text-sm text-slate-400">
-          Define las tarifas, ofertas y qué disciplinas incluye cada una (ej. BJJ + MMA o Pack Unlimited).
-        </p>
-      </div>
+      <PageHeader
+        title="Tarifas"
+        subtitle={<>Define las tarifas, ofertas y qué disciplinas incluye cada una (ej. BJJ + MMA o Pack Unlimited).</>}
+      />
 
       {feedback && (
-        <div className="rounded-xl bg-studio-navy border border-white/15 px-4 py-3 text-sm text-slate-200">
+        <div className="rounded-xl bg-white/[0.04] border border-white/15 px-4 py-3 text-sm text-slate-200">
           {feedback}
         </div>
       )}
@@ -134,7 +131,7 @@ export function AdminPlansPage() {
       {/* Formulario Nueva Tarifa */}
       <form
         onSubmit={handleCreatePlan}
-        className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4"
+        className="rounded-2xl studio-panel border border-white/10 p-5 space-y-4"
       >
         <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
           <Plus className="w-4 h-4 text-studio-red" />
@@ -149,7 +146,7 @@ export function AdminPlansPage() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej. BJJ & Grappling + MMA"
               required
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
           </div>
           <div>
@@ -161,7 +158,7 @@ export function AdminPlansPage() {
               onChange={(e) => setPrice(e.target.value)}
               placeholder="69"
               required
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
             {price && Number(price) > 0 && (
               <p className="text-[11px] text-amber-300 mt-1">
@@ -175,7 +172,7 @@ export function AdminPlansPage() {
               value={promo}
               onChange={(e) => setPromo(e.target.value)}
               placeholder="Ej. Matrícula gratis este mes"
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
           </div>
         </div>
@@ -194,8 +191,8 @@ export function AdminPlansPage() {
                   onClick={() => toggleDiscipline(d.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
                     active
-                      ? 'bg-studio-red border-studio-red text-white'
-                      : 'bg-studio-navy-deep border-white/10 text-slate-300 hover:border-white/30'
+                      ? 'bg-studio-cream border-studio-cream text-slate-950'
+                      : 'studio-panel-inset border-white/10 text-slate-300 hover:border-white/30'
                   }`}
                 >
                   {d.name}
@@ -222,7 +219,7 @@ export function AdminPlansPage() {
                 min={1}
                 value={packCredits}
                 onChange={(e) => setPackCredits(e.target.value)}
-                className="w-20 rounded-lg bg-studio-navy-deep border border-white/10 px-2 py-1 text-xs text-white"
+                className="w-20 rounded-lg studio-field px-2 py-1 text-xs text-white"
                 placeholder="Clases"
               />
             )}
@@ -241,7 +238,7 @@ export function AdminPlansPage() {
           <button
             type="submit"
             disabled={saving || selectedDisciplines.length === 0}
-            className="rounded-xl bg-studio-red hover:bg-studio-red-dark disabled:opacity-50 px-5 py-2 text-sm font-semibold text-white transition"
+            className="rounded-xl studio-btn disabled:opacity-50 px-5 py-2 text-sm font-semibold text-white transition"
           >
             {saving ? 'Guardando...' : 'Guardar Tarifa'}
           </button>
@@ -260,7 +257,7 @@ export function AdminPlansPage() {
               key={plan.id}
               className={`rounded-2xl border p-5 flex flex-col justify-between gap-3 ${
                 plan.is_active
-                  ? 'bg-studio-navy border-white/10'
+                  ? 'bg-white/[0.04] border-white/10'
                   : 'bg-studio-navy/40 border-white/5 opacity-60'
               }`}
             >

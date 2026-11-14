@@ -22,6 +22,7 @@ import {
   type DocTemplate,
 } from '@/lib/documents';
 import type { MemberStatus, Profile, UserRole } from '@/types/database';
+import { PageHeader } from '@/components/PageHeader';
 
 interface Plan {
   id: string;
@@ -354,28 +355,26 @@ export function AdminStudentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-            BBDD Personal (Alumnos y Staff)
-          </h1>
-          <p className="text-sm text-slate-400">
-            Gestiona altas, bajas, pausas, cinturones, roles y la tarifa mensual ({currentMonth}).
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            setTrialGuestId(null);
-            setTrialDateRef(null);
-            setCreateError(null);
-            setShowNewModal(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-studio-red hover:bg-studio-red-dark px-4 py-2.5 text-sm font-semibold text-white transition shrink-0"
-        >
-          <UserPlus className="w-4 h-4" />
-          Nuevo Alumno
-        </button>
-      </div>
+      <PageHeader
+        title="Alumnos y staff"
+        subtitle={<>Gestiona altas, bajas, pausas, cinturones, roles y la tarifa mensual ({currentMonth}).</>}
+        actions={
+          <>
+            <button
+              onClick={() => {
+                setTrialGuestId(null);
+                setTrialDateRef(null);
+                setCreateError(null);
+                setShowNewModal(true);
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl studio-btn px-4 py-2.5 text-sm font-semibold text-white transition shrink-0"
+            >
+              <UserPlus className="w-4 h-4" />
+              Nuevo Alumno
+            </button>
+          </>
+        }
+      />
 
       {/* Clave temporal generada tras un alta */}
       {createdCredentials && (
@@ -402,7 +401,7 @@ export function AdminStudentsPage() {
 
       {/* Clases de prueba recientes pendientes de alta */}
       {trials.length > 0 && (
-        <section className="rounded-2xl bg-studio-navy border border-amber-500/30 p-4 space-y-3">
+        <section className="rounded-2xl studio-panel border border-amber-500/30 p-4 space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">
             Pruebas recientes pendientes de alta ({trials.length})
           </p>
@@ -410,7 +409,7 @@ export function AdminStudentsPage() {
             {trials.map((t) => (
               <div
                 key={t.id}
-                className="rounded-xl bg-studio-navy-deep px-3.5 py-2.5 border border-white/5 flex items-center justify-between gap-2"
+                className="rounded-xl studio-panel-inset px-3.5 py-2.5 border border-white/5 flex items-center justify-between gap-2"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-white truncate">{t.full_name}</p>
@@ -420,7 +419,7 @@ export function AdminStudentsPage() {
                 </div>
                 <button
                   onClick={() => openNewFromTrial(t)}
-                  className="px-3 py-1.5 rounded-lg bg-studio-red hover:bg-studio-red-dark text-xs font-semibold text-white shrink-0"
+                  className="px-3 py-1.5 rounded-lg studio-btn text-xs font-semibold text-white shrink-0"
                 >
                   Dar de alta
                 </button>
@@ -451,13 +450,13 @@ export function AdminStudentsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre o email..."
-            className="w-full rounded-xl bg-studio-navy border border-white/10 pl-10 pr-4 py-2.5 text-sm text-white"
+            className="w-full rounded-xl studio-field pl-10 pr-4 py-2.5 text-sm text-white"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as 'all' | MemberStatus)}
-          className="rounded-xl bg-studio-navy border border-white/10 px-3 py-2.5 text-sm text-white"
+          className="rounded-xl studio-field px-3 py-2.5 text-sm text-white"
         >
           <option value="all">Todos los estados</option>
           <option value="active">Activos</option>
@@ -467,7 +466,7 @@ export function AdminStudentsPage() {
         <select
           value={disciplineFilter}
           onChange={(e) => setDisciplineFilter(e.target.value)}
-          className="rounded-xl bg-studio-navy border border-white/10 px-3 py-2.5 text-sm text-white"
+          className="rounded-xl studio-field px-3 py-2.5 text-sm text-white"
         >
           <option value="all">Todas las disciplinas</option>
           {disciplines.map((d) => (
@@ -479,7 +478,7 @@ export function AdminStudentsPage() {
         <select
           value={docFilter}
           onChange={(e) => setDocFilter(e.target.value as 'all' | 'pending' | 'complete')}
-          className="rounded-xl bg-studio-navy border border-white/10 px-3 py-2.5 text-sm text-white"
+          className="rounded-xl studio-field px-3 py-2.5 text-sm text-white"
         >
           <option value="all">Docs: Todos</option>
           <option value="pending">Con docs pendientes</option>
@@ -488,7 +487,7 @@ export function AdminStudentsPage() {
       </div>
 
       {/* Lista */}
-      <div className="rounded-2xl bg-studio-navy border border-white/10 divide-y divide-white/5">
+      <div className="rounded-2xl studio-panel border border-white/10 divide-y divide-white/5">
         {filtered.map((p) => {
           const planName =
             plans.find((pl) => pl.id === subsByUser[p.id])?.name ?? 'Sin tarifa este mes';
@@ -507,7 +506,7 @@ export function AdminStudentsPage() {
               className="p-4 flex items-center justify-between gap-4 hover:bg-white/5 cursor-pointer transition"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-studio-navy-deep border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                <div className="w-10 h-10 rounded-full studio-panel-inset border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
                   {p.avatar_url ? (
                     <img
                       src={p.avatar_url}
@@ -590,7 +589,7 @@ export function AdminStudentsPage() {
         <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveSelected}
-            className="w-full max-w-lg rounded-2xl bg-studio-navy border border-white/15 p-6 space-y-4 shadow-modal max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-lg rounded-2xl studio-panel border border-white/15 p-6 space-y-4 shadow-modal max-h-[90vh] overflow-y-auto"
           >
             <h2 className="font-headline text-xl uppercase text-white">Editar Ficha</h2>
 
@@ -601,7 +600,7 @@ export function AdminStudentsPage() {
             )}
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-studio-navy-deep border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
+              <div className="w-14 h-14 rounded-full studio-panel-inset border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
                 {editPhotoPreview || selected.avatar_url ? (
                   <img
                     src={editPhotoPreview || selected.avatar_url || ''}
@@ -615,12 +614,12 @@ export function AdminStudentsPage() {
               <button
                 type="button"
                 onClick={() => setCameraTarget('edit')}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
               >
                 <Camera className="w-4 h-4 text-studio-red" />
                 Realizar foto
               </button>
-              <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
+              <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
                 <Upload className="w-4 h-4 text-slate-400" />
                 <span>{editPhotoFile ? editPhotoFile.name : 'Subir archivo'}</span>
                 <input
@@ -645,7 +644,7 @@ export function AdminStudentsPage() {
                 <input
                   value={selected.full_name}
                   onChange={(e) => setSelected({ ...selected, full_name: e.target.value })}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
               <div>
@@ -653,7 +652,7 @@ export function AdminStudentsPage() {
                 <input
                   value={selected.phone ?? ''}
                   onChange={(e) => setSelected({ ...selected, phone: e.target.value })}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
               <div>
@@ -663,7 +662,7 @@ export function AdminStudentsPage() {
                   onChange={(e) =>
                     setSelected({ ...selected, status: e.target.value as MemberStatus })
                   }
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   <option value="active">Activo</option>
                   <option value="paused">Pausado (lesión/descanso)</option>
@@ -675,7 +674,7 @@ export function AdminStudentsPage() {
                 <select
                   value={selected.role}
                   onChange={(e) => setSelected({ ...selected, role: e.target.value as UserRole })}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   <option value="client">Alumno (client)</option>
                   <option value="coach">Profesor (coach)</option>
@@ -687,7 +686,7 @@ export function AdminStudentsPage() {
                 <select
                   value={selected.belt ?? 'Blanco'}
                   onChange={(e) => setSelected({ ...selected, belt: e.target.value })}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   <option value="Blanco">Blanco</option>
                   <option value="Azul">Azul</option>
@@ -703,7 +702,7 @@ export function AdminStudentsPage() {
                   onChange={(e) =>
                     setSelected({ ...selected, belt_stripes: Number(e.target.value) })
                   }
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   {[0, 1, 2, 3, 4].map((g) => (
                     <option key={g} value={g}>
@@ -720,7 +719,7 @@ export function AdminStudentsPage() {
                   value={selected.alias ?? ''}
                   onChange={(e) => setSelected({ ...selected, alias: e.target.value })}
                   placeholder="Opcional (ayuda con homónimos)"
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
               <div>
@@ -731,7 +730,7 @@ export function AdminStudentsPage() {
                   type="date"
                   value={selected.birth_date ?? ''}
                   onChange={(e) => setSelected({ ...selected, birth_date: e.target.value })}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
 
@@ -753,7 +752,7 @@ export function AdminStudentsPage() {
                         value={selected.father_name ?? ''}
                         onChange={(e) => setSelected({ ...selected, father_name: e.target.value })}
                         placeholder="Nombre y apellidos"
-                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                       />
                     </div>
                     <div>
@@ -764,7 +763,7 @@ export function AdminStudentsPage() {
                         value={selected.father_phone ?? ''}
                         onChange={(e) => setSelected({ ...selected, father_phone: e.target.value })}
                         placeholder="600 000 000"
-                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                       />
                     </div>
                     <div>
@@ -775,7 +774,7 @@ export function AdminStudentsPage() {
                         value={selected.mother_name ?? ''}
                         onChange={(e) => setSelected({ ...selected, mother_name: e.target.value })}
                         placeholder="Nombre y apellidos"
-                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                       />
                     </div>
                     <div>
@@ -786,7 +785,7 @@ export function AdminStudentsPage() {
                         value={selected.mother_phone ?? ''}
                         onChange={(e) => setSelected({ ...selected, mother_phone: e.target.value })}
                         placeholder="600 000 000"
-                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                       />
                     </div>
                   </div>
@@ -801,7 +800,7 @@ export function AdminStudentsPage() {
                   onChange={(e) =>
                     setSelected({ ...selected, guardian_user_id: e.target.value || null })
                   }
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   <option value="">— Ninguno —</option>
                   {profiles
@@ -815,7 +814,7 @@ export function AdminStudentsPage() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="flex items-center justify-between gap-3 rounded-xl bg-studio-navy-deep border border-amber-400/25 px-3.5 py-2.5 cursor-pointer">
+                <label className="flex items-center justify-between gap-3 rounded-xl studio-panel-inset border border-amber-400/25 px-3.5 py-2.5 cursor-pointer">
                   <div>
                     <p className="text-xs font-semibold text-amber-300 uppercase">
                       Socio Fundador (SF · -10%)
@@ -843,7 +842,7 @@ export function AdminStudentsPage() {
                   onChange={(e) =>
                     setSubsByUser((prev) => ({ ...prev, [selected.id]: e.target.value }))
                   }
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   <option value="">— Sin tarifa —</option>
                   {plans.map((pl) => {
@@ -861,7 +860,7 @@ export function AdminStudentsPage() {
                 const sigs = signaturesByUser[selected.id] ?? [];
                 const comp = getDocumentCompliance(docTemplates, sigs, selected.birth_date);
                 return (
-                  <div className="sm:col-span-2 rounded-xl bg-studio-navy-deep border border-white/10 p-3.5 space-y-2">
+                  <div className="sm:col-span-2 rounded-xl studio-panel-inset border border-white/10 p-3.5 space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-semibold text-white uppercase">
                         Documentación Obligatoria
@@ -914,7 +913,7 @@ export function AdminStudentsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="px-5 py-2 rounded-xl bg-studio-red hover:bg-studio-red-dark text-sm font-semibold text-white"
+                className="px-5 py-2 rounded-xl studio-btn text-sm font-semibold text-white"
               >
                 {saving ? 'Guardando...' : 'Guardar Cambios'}
               </button>
@@ -928,7 +927,7 @@ export function AdminStudentsPage() {
         <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <form
             onSubmit={handleCreateUser}
-            className="w-full max-w-lg rounded-2xl bg-studio-navy border border-white/15 p-6 space-y-4 shadow-modal max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-lg rounded-2xl studio-panel border border-white/15 p-6 space-y-4 shadow-modal max-h-[90vh] overflow-y-auto"
           >
             <h2 className="font-headline text-xl uppercase text-white">Alta Nuevo Usuario</h2>
             <p className="text-xs text-slate-400">
@@ -951,7 +950,7 @@ export function AdminStudentsPage() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Ej. Laura Gómez"
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
               <div>
@@ -964,7 +963,7 @@ export function AdminStudentsPage() {
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   placeholder="laura@email.com"
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
               <div>
@@ -972,7 +971,7 @@ export function AdminStudentsPage() {
                 <input
                   value={newPhone}
                   onChange={(e) => setNewPhone(e.target.value)}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
               <div>
@@ -983,7 +982,7 @@ export function AdminStudentsPage() {
                   type="date"
                   value={newBirthDate}
                   onChange={(e) => setNewBirthDate(e.target.value)}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
 
@@ -1001,7 +1000,7 @@ export function AdminStudentsPage() {
                         value={newFatherName}
                         onChange={(e) => setNewFatherName(e.target.value)}
                         placeholder="Nombre y apellidos"
-                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                       />
                     </div>
                     <div>
@@ -1012,7 +1011,7 @@ export function AdminStudentsPage() {
                         value={newFatherPhone}
                         onChange={(e) => setNewFatherPhone(e.target.value)}
                         placeholder="600 000 000"
-                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                       />
                     </div>
                     <div>
@@ -1023,7 +1022,7 @@ export function AdminStudentsPage() {
                         value={newMotherName}
                         onChange={(e) => setNewMotherName(e.target.value)}
                         placeholder="Nombre y apellidos"
-                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                       />
                     </div>
                     <div>
@@ -1034,7 +1033,7 @@ export function AdminStudentsPage() {
                         value={newMotherPhone}
                         onChange={(e) => setNewMotherPhone(e.target.value)}
                         placeholder="600 000 000"
-                        className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                       />
                     </div>
                   </div>
@@ -1045,7 +1044,7 @@ export function AdminStudentsPage() {
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as UserRole)}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   <option value="client">Alumno (client)</option>
                   <option value="coach">Profesor (coach)</option>
@@ -1057,7 +1056,7 @@ export function AdminStudentsPage() {
                 <select
                   value={newBelt}
                   onChange={(e) => setNewBelt(e.target.value)}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   <option value="Blanco">Blanco</option>
                   <option value="Azul">Azul</option>
@@ -1073,7 +1072,7 @@ export function AdminStudentsPage() {
                 <select
                   value={newGuardianId}
                   onChange={(e) => setNewGuardianId(e.target.value)}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   <option value="">— Ninguno —</option>
                   {profiles.map((other) => (
@@ -1088,7 +1087,7 @@ export function AdminStudentsPage() {
                   Foto del alumno (opcional)
                 </label>
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-studio-navy-deep border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 rounded-full studio-panel-inset border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
                     {newPhotoPreview ? (
                       <img src={newPhotoPreview} alt="Vista previa" className="w-full h-full object-cover" />
                     ) : (
@@ -1098,12 +1097,12 @@ export function AdminStudentsPage() {
                   <button
                     type="button"
                     onClick={() => setCameraTarget('new')}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
                   >
                     <Camera className="w-4 h-4 text-studio-red" />
                     Realizar foto
                   </button>
-                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-studio-navy-deep px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
                     <Upload className="w-4 h-4 text-slate-400" />
                     <span>{newPhotoFile ? newPhotoFile.name : 'Subir archivo / galería'}</span>
                     <input
@@ -1122,7 +1121,7 @@ export function AdminStudentsPage() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="flex items-center justify-between gap-3 rounded-xl bg-studio-navy-deep border border-amber-400/25 px-3.5 py-2.5 cursor-pointer">
+                <label className="flex items-center justify-between gap-3 rounded-xl studio-panel-inset border border-amber-400/25 px-3.5 py-2.5 cursor-pointer">
                   <div>
                     <p className="text-xs font-semibold text-amber-300 uppercase">
                       Socio Fundador (SF · -10%)
@@ -1147,7 +1146,7 @@ export function AdminStudentsPage() {
                 <select
                   value={newPlanId}
                   onChange={(e) => setNewPlanId(e.target.value)}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   <option value="">— Asignar más tarde —</option>
                   {plans.map((pl) => {
@@ -1162,7 +1161,7 @@ export function AdminStudentsPage() {
               </div>
 
               {newPlanId && (
-                <div className="sm:col-span-2 rounded-xl bg-studio-navy-deep border border-white/10 p-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="sm:col-span-2 rounded-xl studio-panel-inset border border-white/10 p-3 flex flex-wrap items-center justify-between gap-3">
                   <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1178,7 +1177,7 @@ export function AdminStudentsPage() {
                       onChange={(e) =>
                         setPaymentMethod(e.target.value as 'Efectivo' | 'Bizum')
                       }
-                      className="rounded-lg bg-studio-navy border border-white/10 px-2.5 py-1.5 text-xs text-white"
+                      className="rounded-lg bg-white/[0.04] border border-white/10 px-2.5 py-1.5 text-xs text-white"
                     >
                       <option value="Efectivo">Efectivo</option>
                       <option value="Bizum">Bizum</option>
@@ -1199,7 +1198,7 @@ export function AdminStudentsPage() {
               <button
                 type="submit"
                 disabled={creating}
-                className="px-5 py-2 rounded-xl bg-studio-red hover:bg-studio-red-dark disabled:opacity-50 text-sm font-semibold text-white"
+                className="px-5 py-2 rounded-xl studio-btn disabled:opacity-50 text-sm font-semibold text-white"
               >
                 {creating ? 'Creando...' : 'Crear Usuario'}
               </button>

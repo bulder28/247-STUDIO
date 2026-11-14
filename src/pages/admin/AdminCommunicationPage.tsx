@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Megaphone, Bell, HelpCircle, MessageCircle, FileSignature, Send, Calendar, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { PageHeader } from '@/components/PageHeader';
 
 interface Discipline {
   id: string;
@@ -270,14 +271,10 @@ export function AdminCommunicationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-          Comunicación y Documentación
-        </h1>
-        <p className="text-sm text-slate-400">
-          Foro, Avisos, Chats privados con alumnos, Firmas legales, Eventos y FAQs.
-        </p>
-      </div>
+      <PageHeader
+        title="Comunicación"
+        subtitle={<>Foro, Avisos, Chats privados con alumnos, Firmas legales, Eventos y FAQs.</>}
+      />
 
       {feedback && (
         <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-4 py-2.5 text-sm text-emerald-200">
@@ -301,7 +298,7 @@ export function AdminCommunicationPage() {
               setTab(id as typeof tab);
             }}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold ${
-              tab === id ? 'bg-studio-red text-white' : 'bg-studio-navy text-slate-300'
+              tab === id ? 'bg-studio-cream text-slate-950' : 'bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08]'
             }`}
           >
             <Icon className="w-4 h-4" /> {label}
@@ -312,14 +309,14 @@ export function AdminCommunicationPage() {
       {tab === 'forum' && (
         <form
           onSubmit={publishAnnouncement}
-          className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4 max-w-2xl"
+          className="rounded-2xl studio-panel border border-white/10 p-5 space-y-4 max-w-2xl"
         >
           <div>
             <label className="block text-xs text-slate-400 uppercase mb-1">Disciplina</label>
             <select
               value={forumDiscipline}
               onChange={(e) => setForumDiscipline(e.target.value)}
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             >
               <option value="">Todas las disciplinas (General)</option>
               {disciplines.map((d) => (
@@ -336,7 +333,7 @@ export function AdminCommunicationPage() {
               onChange={(e) => setForumTitle(e.target.value)}
               required
               placeholder="Ej. Seminario de Leglocks este sábado"
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
           </div>
           <div>
@@ -347,12 +344,12 @@ export function AdminCommunicationPage() {
               onChange={(e) => setForumContent(e.target.value)}
               required
               placeholder="Escribe el comunicado..."
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
           </div>
           <button
             type="submit"
-            className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-5 py-2.5 text-sm font-semibold text-white"
+            className="rounded-xl studio-btn px-5 py-2.5 text-sm font-semibold text-white"
           >
             Publicar en Foro
           </button>
@@ -361,7 +358,7 @@ export function AdminCommunicationPage() {
 
       {tab === 'chats' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-h-[55vh]">
-          <div className="rounded-2xl bg-studio-navy border border-white/10 p-3 space-y-2">
+          <div className="rounded-2xl studio-panel border border-white/10 p-3 space-y-2">
             <p className="text-xs uppercase text-slate-400 px-2 pt-1">Conversaciones</p>
             {conversations.length === 0 ? (
               <p className="text-xs text-slate-500 px-2">Ningún alumno ha escrito todavía.</p>
@@ -372,8 +369,8 @@ export function AdminCommunicationPage() {
                   onClick={() => setActiveClientId(c.clientId)}
                   className={`w-full text-left rounded-xl p-3 transition ${
                     activeClientId === c.clientId
-                      ? 'bg-studio-red text-white'
-                      : 'bg-studio-navy-deep text-slate-200 hover:bg-white/5'
+                      ? 'bg-studio-cream text-slate-950'
+                      : 'studio-panel-inset text-slate-200 hover:bg-white/5'
                   }`}
                 >
                   <p className="text-sm font-semibold truncate">{c.name}</p>
@@ -383,7 +380,7 @@ export function AdminCommunicationPage() {
             )}
           </div>
 
-          <div className="md:col-span-2 rounded-2xl bg-studio-navy border border-white/10 p-4 flex flex-col">
+          <div className="md:col-span-2 rounded-2xl studio-panel border border-white/10 p-4 flex flex-col">
             <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-96">
               {activeThread.map((m) => {
                 const isClient = m.sender_id === m.client_id;
@@ -392,8 +389,8 @@ export function AdminCommunicationPage() {
                     key={m.id}
                     className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
                       isClient
-                        ? 'mr-auto bg-studio-navy-deep text-slate-200 border border-white/10'
-                        : 'ml-auto bg-studio-red text-white'
+                        ? 'mr-auto studio-panel-inset text-slate-200 border border-white/10'
+                        : 'ml-auto bg-studio-cream text-slate-950'
                     }`}
                   >
                     <p>{m.body}</p>
@@ -407,11 +404,11 @@ export function AdminCommunicationPage() {
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="Responder al alumno..."
-                  className="flex-1 rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="flex-1 rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
                 <button
                   type="submit"
-                  className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-4 py-2 text-white"
+                  className="rounded-xl studio-btn px-4 py-2 text-white"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -422,7 +419,7 @@ export function AdminCommunicationPage() {
       )}
 
       {tab === 'docs' && (
-        <div className="rounded-2xl bg-studio-navy border border-white/10 divide-y divide-white/5">
+        <div className="rounded-2xl studio-panel border border-white/10 divide-y divide-white/5">
           {signedDocs.length === 0 ? (
             <p className="p-6 text-sm text-slate-400">Aún no hay documentos firmados por alumnos.</p>
           ) : (
@@ -456,7 +453,7 @@ export function AdminCommunicationPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <form
             onSubmit={publishNotice}
-            className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4"
+            className="rounded-2xl studio-panel border border-white/10 p-5 space-y-4"
           >
             <div>
               <label className="block text-xs text-slate-400 uppercase mb-1">Título del Aviso</label>
@@ -465,7 +462,7 @@ export function AdminCommunicationPage() {
                 onChange={(e) => setNoticeTitle(e.target.value)}
                 required
                 placeholder="Ej. Festivo próximo viernes"
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
             <div>
@@ -475,18 +472,18 @@ export function AdminCommunicationPage() {
                 value={noticeMessage}
                 onChange={(e) => setNoticeMessage(e.target.value)}
                 required
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
             <button
               type="submit"
-              className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-5 py-2.5 text-sm font-semibold text-white"
+              className="rounded-xl studio-btn px-5 py-2.5 text-sm font-semibold text-white"
             >
               Enviar Aviso General
             </button>
           </form>
 
-          <div className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-3">
+          <div className="rounded-2xl studio-panel border border-white/10 p-5 space-y-3">
             <h2 className="font-headline text-lg uppercase text-white">Avisos publicados</h2>
             {noticesList.length === 0 ? (
               <p className="text-sm text-slate-400">No hay avisos recientes.</p>
@@ -495,7 +492,7 @@ export function AdminCommunicationPage() {
                 {noticesList.map((n) => (
                   <div
                     key={n.id}
-                    className="rounded-xl bg-studio-navy-deep border border-white/5 p-3.5 flex items-start justify-between gap-3"
+                    className="rounded-xl studio-panel-inset border border-white/5 p-3.5 flex items-start justify-between gap-3"
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -529,7 +526,7 @@ export function AdminCommunicationPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <form
             onSubmit={addEvent}
-            className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4"
+            className="rounded-2xl studio-panel border border-white/10 p-5 space-y-4"
           >
             <div>
               <label className="block text-xs text-slate-400 uppercase mb-1">Título del Evento</label>
@@ -538,7 +535,7 @@ export function AdminCommunicationPage() {
                 onChange={(e) => setEventTitle(e.target.value)}
                 required
                 placeholder="Ej. Seminario de Grappling con Mario"
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -547,7 +544,7 @@ export function AdminCommunicationPage() {
                 <select
                   value={eventType}
                   onChange={(e) => setEventType(e.target.value as typeof eventType)}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
                   <option value="Seminario">Seminario</option>
                   <option value="Competición">Competición</option>
@@ -562,7 +559,7 @@ export function AdminCommunicationPage() {
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
                   required
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
             </div>
@@ -572,7 +569,7 @@ export function AdminCommunicationPage() {
                 value={eventLocation}
                 onChange={(e) => setEventLocation(e.target.value)}
                 placeholder="247 STUDIO Pinto"
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
             <div>
@@ -582,18 +579,18 @@ export function AdminCommunicationPage() {
                 value={eventDescription}
                 onChange={(e) => setEventDescription(e.target.value)}
                 placeholder="Detalles de horario, requisitos o inscripción..."
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
             <button
               type="submit"
-              className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-5 py-2.5 text-sm font-semibold text-white"
+              className="rounded-xl studio-btn px-5 py-2.5 text-sm font-semibold text-white"
             >
               Publicar Evento
             </button>
           </form>
 
-          <div className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-3">
+          <div className="rounded-2xl studio-panel border border-white/10 p-5 space-y-3">
             <h2 className="font-headline text-lg uppercase text-white">Eventos y Seminarios activos</h2>
             {eventsList.length === 0 ? (
               <p className="text-sm text-slate-400">No hay eventos publicados todavía.</p>
@@ -602,7 +599,7 @@ export function AdminCommunicationPage() {
                 {eventsList.map((ev) => (
                   <div
                     key={ev.id}
-                    className="rounded-xl bg-studio-navy-deep border border-white/5 p-3.5 flex items-start justify-between gap-3"
+                    className="rounded-xl studio-panel-inset border border-white/5 p-3.5 flex items-start justify-between gap-3"
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -642,7 +639,7 @@ export function AdminCommunicationPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <form
             onSubmit={addFaq}
-            className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4"
+            className="rounded-2xl studio-panel border border-white/10 p-5 space-y-4"
           >
             <div>
               <label className="block text-xs text-slate-400 uppercase mb-1">Pregunta</label>
@@ -651,7 +648,7 @@ export function AdminCommunicationPage() {
                 onChange={(e) => setFaqQuestion(e.target.value)}
                 required
                 placeholder="Ej. ¿Qué necesito traer el primer día?"
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
             <div>
@@ -661,18 +658,18 @@ export function AdminCommunicationPage() {
                 value={faqAnswer}
                 onChange={(e) => setFaqAnswer(e.target.value)}
                 required
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
             <button
               type="submit"
-              className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-5 py-2.5 text-sm font-semibold text-white"
+              className="rounded-xl studio-btn px-5 py-2.5 text-sm font-semibold text-white"
             >
               Guardar FAQ
             </button>
           </form>
 
-          <div className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-3">
+          <div className="rounded-2xl studio-panel border border-white/10 p-5 space-y-3">
             <h2 className="font-headline text-lg uppercase text-white">Preguntas Frecuentes publicadas</h2>
             {faqsList.length === 0 ? (
               <p className="text-sm text-slate-400">
@@ -683,7 +680,7 @@ export function AdminCommunicationPage() {
                 {faqsList.map((f) => (
                   <div
                     key={f.id}
-                    className="rounded-xl bg-studio-navy-deep border border-white/5 p-3.5 flex items-start justify-between gap-3"
+                    className="rounded-xl studio-panel-inset border border-white/5 p-3.5 flex items-start justify-between gap-3"
                   >
                     <div className="min-w-0 space-y-1">
                       <p className="text-sm font-semibold text-white">{f.question}</p>
@@ -711,7 +708,7 @@ export function AdminCommunicationPage() {
           onClick={() => setPreviewSig(null)}
         >
           <div
-            className="rounded-2xl bg-studio-navy border border-white/15 p-6 max-w-md w-full space-y-3"
+            className="rounded-2xl studio-panel border border-white/15 p-6 max-w-md w-full space-y-3"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="font-headline text-lg uppercase text-white">
@@ -720,7 +717,7 @@ export function AdminCommunicationPage() {
             <img
               src={previewSig.signature_image_url}
               alt="Firma"
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10"
+              className="w-full rounded-xl studio-panel-inset border border-white/10"
             />
             <button
               onClick={() => setPreviewSig(null)}

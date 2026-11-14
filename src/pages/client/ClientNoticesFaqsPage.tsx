@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Bell, HelpCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { PageHeader } from '@/components/PageHeader';
 
 interface Notice {
   id: string;
@@ -32,49 +33,74 @@ export function ClientNoticesPage() {
   const personal = notices.filter((n) => n.target_user_id !== null);
   const general = notices.filter((n) => n.target_user_id === null);
 
+  const renderNotice = (n: Notice, personalNotice: boolean) => {
+    const d = new Date(n.created_at);
+    return (
+      <li key={n.id} className="relative pl-8 pb-7 last:pb-0">
+        {/* Línea de tiempo: nudo del cinturón por cada aviso */}
+        <span
+          aria-hidden
+          className="absolute left-[7px] top-2 bottom-0 w-px bg-white/10 [li:last-child>&]:hidden"
+        />
+        <span
+          aria-hidden
+          className={`absolute left-0 top-1.5 w-[15px] h-[15px] rounded-[4px] rotate-45 ${
+            personalNotice ? 'bg-studio-red' : 'bg-studio-cream/80'
+          }`}
+        />
+        <time className="block text-xs text-slate-500 tabular-nums" dateTime={n.created_at}>
+          {d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </time>
+        <h3 className="font-headline text-xl uppercase text-white leading-tight mt-0.5">{n.title}</h3>
+        <p className="text-sm text-slate-300 mt-1.5 leading-relaxed max-w-2xl whitespace-pre-line">
+          {n.message}
+        </p>
+      </li>
+    );
+  };
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-          Avisos
-        </h1>
-        <p className="text-sm text-slate-400">Avisos personales y comunicados importantes.</p>
+    <div className="space-y-8">
+      <PageHeader
+        title="Avisos"
+        subtitle="Lo que la academia te ha dicho a ti y lo que ha comunicado a todo el tatami."
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <section className="rounded-3xl studio-panel border border-studio-red/30 p-6 sm:p-7">
+          <h2 className="text-sm font-semibold text-slate-300 mb-5 flex items-center gap-2">
+            <Bell className="w-4 h-4 text-studio-red" /> Para ti
+            {personal.length > 0 && (
+              <span className="ml-auto text-xs font-normal text-slate-500 tabular-nums">
+                {personal.length}
+              </span>
+            )}
+          </h2>
+          {personal.length === 0 ? (
+            <p className="text-sm text-slate-400">
+              Nada pendiente. Si dirección te escribe un aviso personal, aparecerá aquí.
+            </p>
+          ) : (
+            <ul>{personal.map((n) => renderNotice(n, true))}</ul>
+          )}
+        </section>
+
+        <section className="rounded-3xl studio-panel border border-white/10 p-6 sm:p-7">
+          <h2 className="text-sm font-semibold text-slate-300 mb-5 flex items-center">
+            Para toda la academia
+            {general.length > 0 && (
+              <span className="ml-auto text-xs font-normal text-slate-500 tabular-nums">
+                {general.length}
+              </span>
+            )}
+          </h2>
+          {general.length === 0 ? (
+            <p className="text-sm text-slate-400">Todavía no hay avisos generales.</p>
+          ) : (
+            <ul>{general.map((n) => renderNotice(n, false))}</ul>
+          )}
+        </section>
       </div>
-
-      <section className="space-y-3">
-        <h2 className="font-headline text-lg uppercase text-studio-red flex items-center gap-2">
-          <Bell className="w-4 h-4" /> Avisos Personales
-        </h2>
-        {personal.length === 0 ? (
-          <p className="text-sm text-slate-400">No tienes avisos personales.</p>
-        ) : (
-          personal.map((n) => (
-            <div key={n.id} className="rounded-2xl bg-studio-navy border border-studio-red/30 p-4">
-              <p className="font-semibold text-white text-sm">{n.title}</p>
-              <p className="text-sm text-slate-300 mt-1">{n.message}</p>
-            </div>
-          ))
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="font-headline text-lg uppercase text-white">Avisos Generales</h2>
-        {general.length === 0 ? (
-          <p className="text-sm text-slate-400">No hay avisos generales.</p>
-        ) : (
-          general.map((n) => (
-            <div key={n.id} className="rounded-2xl bg-studio-navy border border-white/10 p-4">
-              <div className="flex justify-between items-center gap-2">
-                <p className="font-semibold text-white text-sm">{n.title}</p>
-                <span className="text-xs text-slate-500">
-                  {new Date(n.created_at).toLocaleDateString('es-ES')}
-                </span>
-              </div>
-              <p className="text-sm text-slate-300 mt-1">{n.message}</p>
-            </div>
-          ))
-        )}
-      </section>
     </div>
   );
 }
@@ -137,31 +163,39 @@ export function ClientFaqsPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white flex items-center gap-2">
-          <HelpCircle className="w-6 h-6 text-studio-red" /> Preguntas Frecuentes
-        </h1>
-      </div>
-      <div className="space-y-3">
-        {faqs.length === 0 ? (
-          <p className="text-sm text-slate-400">Todavía no hay preguntas frecuentes publicadas.</p>
-        ) : (
-          faqs.map((f) => (
-            <details
-              key={f.id}
-              className="rounded-2xl bg-studio-navy border border-white/10 p-4 group"
-            >
-              <summary className="cursor-pointer font-semibold text-sm text-white list-none flex justify-between items-center">
-                <span>{f.question}</span>
-                <span className="text-studio-red text-lg">+</span>
+    <div className="space-y-8">
+      <PageHeader
+        title="Preguntas frecuentes"
+        subtitle="Lo que más nos preguntan en recepción antes y después del primer entrenamiento."
+      />
+
+      {faqs.length === 0 ? (
+        <p className="text-sm text-slate-400">Todavía no hay preguntas frecuentes publicadas.</p>
+      ) : (
+        <div className="rounded-3xl studio-panel border border-white/10 px-5 sm:px-8 divide-y divide-white/[0.07] max-w-3xl">
+          {faqs.map((f) => (
+            <details key={f.id} className="studio-faq group py-5">
+              <summary className="cursor-pointer flex justify-between items-start gap-4 text-white transition-colors hover:text-studio-cream">
+                <span className="font-headline text-lg sm:text-xl uppercase leading-snug">
+                  {f.question}
+                </span>
+                <span
+                  aria-hidden
+                  className="studio-faq-mark grid place-items-center w-8 h-8 shrink-0 rounded-full border border-white/15 text-studio-cream text-xl leading-none"
+                >
+                  +
+                </span>
               </summary>
-              <p className="mt-3 text-sm text-slate-300 leading-relaxed">{f.answer}</p>
+              <p className="mt-3 text-sm text-slate-300 leading-relaxed max-w-2xl">{f.answer}</p>
             </details>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+
+      <p className="text-sm text-slate-400 flex items-center gap-2">
+        <HelpCircle className="w-4 h-4 text-slate-500 shrink-0" />
+        ¿No encuentras tu duda? Escríbenos desde el chat del Foro o pregunta en recepción.
+      </p>
     </div>
   );
 }
-

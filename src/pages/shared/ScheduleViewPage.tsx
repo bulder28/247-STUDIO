@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getDisciplineImage } from '@/lib/disciplineImages';
+import { PageHeader } from '@/components/PageHeader';
+import { Skeleton } from '@/components/KpiCard';
 
 const DAYS = [
   { value: 1, label: 'Lunes' },
@@ -20,6 +22,42 @@ interface ScheduleClass {
   title: string;
   coach_name: string;
   disciplines?: { name: string; slug: string } | null;
+}
+
+/** Tarjeta protagonista: clase en curso o siguiente clase del día. */
+function LiveClassCard({ cls, live }: { cls: ScheduleClass; live: boolean }) {
+  const img = getDisciplineImage(cls.disciplines?.slug, cls.title);
+  return (
+    <div className="relative overflow-hidden rounded-3xl min-h-[11rem] flex items-end p-5 sm:p-6 ring-1 ring-white/10">
+      <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#070b15] via-[#070b15]/70 to-[#070b15]/10" />
+      <div className="relative min-w-0 w-full">
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+            live ? 'bg-emerald-400 text-emerald-950' : 'bg-studio-cream text-slate-950'
+          }`}
+        >
+          {live ? (
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-900 animate-pulse" />
+          ) : (
+            <Clock className="w-3 h-3" />
+          )}
+          {live ? 'En el tatami ahora' : 'Siguiente clase de hoy'}
+        </span>
+        <div className="mt-2 flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-headline text-2xl sm:text-3xl uppercase text-white leading-none truncate">
+              {cls.title}
+            </p>
+            <p className="text-sm text-slate-300 mt-1 truncate">Prof. {cls.coach_name}</p>
+          </div>
+          <p className="font-headline text-3xl sm:text-4xl text-studio-cream leading-none tabular-nums shrink-0">
+            {cls.start_time.slice(0, 5)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ScheduleViewPage() {
@@ -54,163 +92,154 @@ export function ScheduleViewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div>
-          <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-            Horario Semanal
-          </h1>
-          <p className="text-sm text-slate-400">Parrilla oficial de clases y profesores.</p>
-        </div>
-
-        {/* Filtro rápido por día */}
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            onClick={() => setSelectedDay('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-              selectedDay === 'all'
-                ? 'bg-studio-red border-studio-red text-white shadow-glow-red'
-                : 'studio-panel-inset border-white/10 text-slate-300 hover:text-white'
-            }`}
+      <PageHeader
+        title="Horario"
+        subtitle="Parrilla oficial de clases y profesores, de lunes a sábado."
+        actions={
+          <div
+            className="inline-flex flex-wrap gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/10"
+            role="group"
+            aria-label="Filtrar por día"
           >
-            Semana
-          </button>
-          {DAYS.map((d) => {
-            const isToday = d.value === todayDay;
-            const isSelected = selectedDay === d.value;
-            return (
-              <button
-                key={d.value}
-                type="button"
-                onClick={() => setSelectedDay(d.value)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                  isSelected
-                    ? 'bg-studio-red border-studio-red text-white shadow-glow-red'
-                    : isToday
-                      ? 'studio-panel-inset border-studio-red/50 text-white'
-                      : 'studio-panel-inset border-white/10 text-slate-400 hover:text-white'
-                }`}
-              >
-                {isToday && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
-                <span>{d.label.slice(0, 3)}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={() => setSelectedDay('all')}
+              aria-pressed={selectedDay === 'all'}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                selectedDay === 'all'
+                  ? 'bg-studio-cream text-slate-950'
+                  : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+              }`}
+            >
+              Semana
+            </button>
+            {DAYS.map((d) => {
+              const isToday = d.value === todayDay;
+              const isSelected = selectedDay === d.value;
+              return (
+                <button
+                  key={d.value}
+                  type="button"
+                  onClick={() => setSelectedDay(d.value)}
+                  aria-pressed={isSelected}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+                    isSelected
+                      ? 'bg-studio-cream text-slate-950'
+                      : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                  }`}
+                >
+                  {isToday && <span className="w-1.5 h-1.5 rounded-full bg-studio-red" />}
+                  <span>{d.label.slice(0, 3)}</span>
+                </button>
+              );
+            })}
+          </div>
+        }
+      />
 
-      {/* Clase en curso / Siguiente clase (Slide 8) */}
       {(currentClass || nextClass) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {currentClass && (
-            <div className="relative overflow-hidden rounded-3xl border border-emerald-400/45 p-5 flex items-center gap-4 studio-panel">
-              <img
-                src={getDisciplineImage(currentClass.disciplines?.slug, currentClass.title)}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/70 to-emerald-950/40 pointer-events-none" />
-              <img
-                src={getDisciplineImage(currentClass.disciplines?.slug, currentClass.title)}
-                alt={currentClass.title}
-                className="relative w-16 h-16 rounded-2xl object-cover shrink-0 border-2 border-emerald-400/60 shadow-modal"
-              />
-              <div className="relative min-w-0">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  En tatami ahora
-                </span>
-                <p className="font-headline text-xl text-white mt-1 truncate">{currentClass.title}</p>
-                <p className="text-xs text-slate-300">
-                  {currentClass.start_time.slice(0, 5)} – {currentClass.end_time.slice(0, 5)} · Prof.{' '}
-                  {currentClass.coach_name}
-                </p>
-              </div>
-            </div>
-          )}
-          {nextClass && (
-            <div className="relative overflow-hidden rounded-3xl studio-panel border border-studio-red/45 p-5 flex items-center gap-4">
-              <img
-                src={getDisciplineImage(nextClass.disciplines?.slug, nextClass.title)}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover opacity-15 pointer-events-none"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/75 to-transparent pointer-events-none" />
-              <img
-                src={getDisciplineImage(nextClass.disciplines?.slug, nextClass.title)}
-                alt={nextClass.title}
-                className="relative w-16 h-16 rounded-2xl object-cover shrink-0 border border-white/20 shadow-modal"
-              />
-              <div className="relative min-w-0">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-studio-red/20 border border-studio-red/40 text-[10px] font-bold uppercase tracking-wider text-red-200">
-                  <Clock className="w-3 h-3" /> Siguiente clase hoy
-                </span>
-                <p className="font-headline text-xl text-white mt-1 truncate">{nextClass.title}</p>
-                <p className="text-xs text-slate-300">
-                  {nextClass.start_time.slice(0, 5)} – {nextClass.end_time.slice(0, 5)} · Prof.{' '}
-                  {nextClass.coach_name}
-                </p>
-              </div>
-            </div>
-          )}
+          {currentClass && <LiveClassCard cls={currentClass} live />}
+          {nextClass && <LiveClassCard cls={nextClass} live={false} />}
         </div>
       )}
 
       {loading ? (
-        <p className="text-sm text-slate-400">Cargando horario...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-64 w-full !rounded-3xl" />
+          ))}
+        </div>
       ) : (
         <div
-          className={`grid gap-4 ${
+          className={`grid gap-4 items-start ${
             selectedDay === 'all' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 max-w-xl'
           }`}
         >
           {visibleDays.map((day) => {
             const list = classes.filter((c) => c.day_of_week === day.value);
+            const isToday = day.value === todayDay;
             return (
-              <div
+              <section
                 key={day.value}
-                className={`rounded-3xl studio-panel border p-5 transition ${
-                  day.value === todayDay
-                    ? 'border-studio-red/60 shadow-glow-red'
-                    : 'border-white/10'
+                className={`rounded-3xl p-5 sm:p-6 ${
+                  isToday ? 'studio-sand' : 'studio-panel border border-white/10'
                 }`}
               >
-                <h2 className="font-headline text-lg uppercase text-white border-b border-white/10 pb-2.5 mb-3.5 flex items-center justify-between">
+                <h2
+                  className={`font-headline text-2xl uppercase leading-none flex items-baseline justify-between pb-3 mb-1 border-b ${
+                    isToday ? 'border-[#141a2b]/15' : 'text-white border-white/10'
+                  }`}
+                >
                   <span>{day.label}</span>
-                  {day.value === todayDay && (
-                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-studio-red text-white font-bold">
-                      HOY
+                  {isToday ? (
+                    <span className="text-xs font-sans font-semibold normal-case text-red-700">Hoy</span>
+                  ) : (
+                    <span className="text-xs font-sans font-normal normal-case text-slate-500 tabular-nums">
+                      {list.length > 0 && `${list.length} ${list.length === 1 ? 'clase' : 'clases'}`}
                     </span>
                   )}
                 </h2>
                 {list.length === 0 ? (
-                  <p className="text-xs text-slate-500">Sin clases programadas</p>
+                  <p className={`text-sm pt-3 ${isToday ? 'text-[#141a2b]/60' : 'text-slate-500'}`}>
+                    Día de descanso, sin clases.
+                  </p>
                 ) : (
-                  <div className="space-y-2.5">
-                    {list.map((c) => (
-                      <div
-                        key={c.id}
-                        className="group rounded-2xl studio-panel-inset p-2.5 border border-white/5 hover:border-white/15 flex items-center gap-3 transition"
-                      >
-                        <img
-                          src={getDisciplineImage(c.disciplines?.slug, c.title)}
-                          alt={c.title}
-                          className="w-12 h-12 rounded-xl object-cover shrink-0 border border-white/10 group-hover:scale-105 transition"
-                        />
-                        <div className="min-w-0">
-                          <span className="inline-block px-2 py-0.5 rounded-md bg-studio-red/15 text-[11px] font-semibold text-red-200 mb-0.5">
-                            {c.start_time.slice(0, 5)} – {c.end_time.slice(0, 5)}
-                          </span>
-                          <p className="text-sm font-medium text-white truncate">{c.title}</p>
-                          <p className="text-[11px] text-slate-400 truncate">
-                            Prof. {c.coach_name}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <ul className={`divide-y ${isToday ? 'divide-[#141a2b]/10' : 'divide-white/[0.06]'}`}>
+                    {list.map((c) => {
+                      const isLive = isToday && currentClass?.id === c.id;
+                      const isPast = isToday && c.end_time.slice(0, 5) < nowTime;
+                      return (
+                        <li
+                          key={c.id}
+                          className={`group flex items-center gap-3.5 py-3 ${isPast ? 'opacity-45' : ''}`}
+                        >
+                          <div className="w-14 shrink-0">
+                            <p
+                              className={`font-headline text-xl leading-none tabular-nums ${
+                                isToday ? 'text-[#141a2b]' : 'text-studio-cream'
+                              }`}
+                            >
+                              {c.start_time.slice(0, 5)}
+                            </p>
+                            <p
+                              className={`text-[11px] tabular-nums mt-0.5 ${
+                                isToday ? 'text-[#141a2b]/55' : 'text-slate-500'
+                              }`}
+                            >
+                              {c.end_time.slice(0, 5)}
+                            </p>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={`text-sm font-semibold truncate ${
+                                isToday ? 'text-[#141a2b]' : 'text-white'
+                              }`}
+                            >
+                              {c.title}
+                              {isLive && (
+                                <span className="ml-2 inline-block w-2 h-2 rounded-full bg-emerald-600 animate-pulse align-middle" />
+                              )}
+                            </p>
+                            <p
+                              className={`text-xs truncate ${
+                                isToday ? 'text-[#141a2b]/65' : 'text-slate-400'
+                              }`}
+                            >
+                              Prof. {c.coach_name}
+                            </p>
+                          </div>
+                          <img
+                            src={getDisciplineImage(c.disciplines?.slug, c.title)}
+                            alt=""
+                            className="w-11 h-11 rounded-xl object-cover shrink-0 transition-transform duration-300 group-hover:scale-110"
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
-              </div>
+              </section>
             );
           })}
         </div>

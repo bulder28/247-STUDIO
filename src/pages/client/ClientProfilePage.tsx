@@ -20,6 +20,7 @@ import {
   type DocSignature,
   type DocTemplate,
 } from '@/lib/documents';
+import { PageHeader } from '@/components/PageHeader';
 
 export function ClientProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
@@ -190,14 +191,10 @@ export function ClientProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-          Personal Info y Documentación
-        </h1>
-        <p className="text-sm text-slate-400">
-          Tus datos de contacto, contraseña y firma de documentos de la academia.
-        </p>
-      </div>
+      <PageHeader
+        title="Perfil y documentos"
+        subtitle={<>Tus datos de contacto, contraseña y firma de documentos de la academia.</>}
+      />
 
       {feedback && (
         <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-4 py-2.5 text-sm text-emerald-200">
@@ -209,13 +206,13 @@ export function ClientProfilePage() {
         {/* Datos personales */}
         <form
           onSubmit={handleSaveProfile}
-          className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4"
+          className="rounded-2xl studio-panel border border-white/10 p-5 space-y-4"
         >
           <h2 className="font-headline text-lg uppercase text-white">Perfil del Atleta</h2>
 
           {/* Foto identificativa */}
           <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-white/10">
-            <div className="w-14 h-14 rounded-full bg-studio-navy-deep border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
+            <div className="w-14 h-14 rounded-full studio-panel-inset border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
               {profile?.avatar_url ? (
                 <img
                   src={profile.avatar_url}
@@ -231,12 +228,12 @@ export function ClientProfilePage() {
                 type="button"
                 disabled={uploadingPhoto}
                 onClick={() => setCameraOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-studio-navy-deep border border-white/15 hover:bg-white/5 px-3 py-1.5 text-xs font-semibold text-white"
+                className="inline-flex items-center gap-1.5 rounded-xl studio-panel-inset border border-white/15 hover:bg-white/5 px-3 py-1.5 text-xs font-semibold text-white"
               >
                 <Camera className="w-3.5 h-3.5 text-studio-red" />
                 {uploadingPhoto ? 'Subiendo...' : 'Realizar foto'}
               </button>
-              <label className="inline-flex items-center gap-1.5 rounded-xl bg-studio-navy-deep border border-white/15 hover:bg-white/5 px-3 py-1.5 text-xs text-slate-200 cursor-pointer">
+              <label className="inline-flex items-center gap-1.5 rounded-xl studio-panel-inset border border-white/15 hover:bg-white/5 px-3 py-1.5 text-xs text-slate-200 cursor-pointer">
                 <Upload className="w-3.5 h-3.5 text-slate-400" />
                 <span>Subir archivo</span>
                 <input
@@ -258,7 +255,7 @@ export function ClientProfilePage() {
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
             <div>
@@ -269,7 +266,7 @@ export function ClientProfilePage() {
                 value={emergencyName}
                 onChange={(e) => setEmergencyName(e.target.value)}
                 placeholder="Nombre"
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
             <div className="sm:col-span-2">
@@ -279,7 +276,7 @@ export function ClientProfilePage() {
               <input
                 value={emergencyPhone}
                 onChange={(e) => setEmergencyPhone(e.target.value)}
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
 
@@ -296,7 +293,7 @@ export function ClientProfilePage() {
                     <input
                       value={fatherName}
                       onChange={(e) => setFatherName(e.target.value)}
-                      className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                     />
                   </div>
                   <div>
@@ -306,7 +303,7 @@ export function ClientProfilePage() {
                     <input
                       value={fatherPhone}
                       onChange={(e) => setFatherPhone(e.target.value)}
-                      className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                     />
                   </div>
                   <div>
@@ -316,7 +313,7 @@ export function ClientProfilePage() {
                     <input
                       value={motherName}
                       onChange={(e) => setMotherName(e.target.value)}
-                      className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                     />
                   </div>
                   <div>
@@ -326,7 +323,7 @@ export function ClientProfilePage() {
                     <input
                       value={motherPhone}
                       onChange={(e) => setMotherPhone(e.target.value)}
-                      className="w-full rounded-lg bg-studio-navy-deep border border-white/10 px-2.5 py-1.5 text-sm text-white"
+                      className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                     />
                   </div>
                 </div>
@@ -341,13 +338,13 @@ export function ClientProfilePage() {
                 rows={2}
                 value={medicalNotes}
                 onChange={(e) => setMedicalNotes(e.target.value)}
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
           </div>
           <button
             type="submit"
-            className="inline-flex items-center gap-2 rounded-xl bg-studio-red hover:bg-studio-red-dark px-4 py-2 text-sm font-semibold text-white"
+            className="inline-flex items-center gap-2 rounded-xl studio-btn px-4 py-2 text-sm font-semibold text-white"
           >
             <Save className="w-4 h-4" /> Guardar Datos
           </button>
@@ -356,7 +353,7 @@ export function ClientProfilePage() {
         {/* Seguridad / Cambio de contraseña */}
         <form
           onSubmit={handleChangePassword}
-          className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4 h-fit"
+          className="rounded-2xl studio-panel border border-white/10 p-5 space-y-4 h-fit"
         >
           <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
             <Lock className="w-4 h-4 text-studio-red" /> Cambiar Contraseña
@@ -368,7 +365,7 @@ export function ClientProfilePage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Mínimo 6 caracteres"
-              className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
           </div>
           <button
@@ -381,7 +378,7 @@ export function ClientProfilePage() {
       </div>
 
       {/* Documentación y Firmas en pantalla (Slide 5) */}
-      <section className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-4">
+      <section className="rounded-2xl studio-panel border border-white/10 p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-headline text-lg uppercase text-white">
@@ -425,7 +422,7 @@ export function ClientProfilePage() {
             return (
               <div
                 key={doc.id}
-                className="rounded-xl bg-studio-navy-deep border border-white/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                className="rounded-xl studio-panel-inset border border-white/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
               >
                 <div>
                   <h3 className="text-sm font-semibold text-white">{doc.title}</h3>
@@ -447,7 +444,7 @@ export function ClientProfilePage() {
                       );
                       setSigningDoc(doc);
                     }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-studio-red hover:bg-studio-red-dark text-xs font-semibold text-white shrink-0"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl studio-btn text-xs font-semibold text-white shrink-0"
                   >
                     <PenTool className="w-3.5 h-3.5" /> Firmar en pantalla
                   </button>
@@ -467,7 +464,7 @@ export function ClientProfilePage() {
       {/* Modal Firma Táctil */}
       {signingDoc && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-studio-navy border border-white/15 p-6 space-y-4 shadow-modal">
+          <div className="w-full max-w-lg rounded-2xl studio-panel border border-white/15 p-6 space-y-4 shadow-modal">
             <h3 className="font-headline text-xl uppercase text-white">{signingDoc.title}</h3>
             <p className="text-xs text-slate-300 leading-relaxed">{signingDoc.body_text}</p>
             {isMinor && (
@@ -485,7 +482,7 @@ export function ClientProfilePage() {
                 <input
                   value={signerName}
                   onChange={(e) => setSignerName(e.target.value)}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
               <div>
@@ -495,7 +492,7 @@ export function ClientProfilePage() {
                 <input
                   value={signerDni}
                   onChange={(e) => setSignerDni(e.target.value)}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
             </div>
@@ -519,7 +516,7 @@ export function ClientProfilePage() {
                 onPointerMove={draw}
                 onPointerUp={endDraw}
                 onPointerLeave={endDraw}
-                className="w-full h-44 rounded-xl bg-studio-navy-deep border border-white/20 touch-none cursor-crosshair"
+                className="w-full h-44 rounded-xl studio-panel-inset border border-white/20 touch-none cursor-crosshair"
               />
             </div>
 
@@ -535,7 +532,7 @@ export function ClientProfilePage() {
                 type="button"
                 onClick={submitSignature}
                 disabled={!hasDrawn}
-                className="px-5 py-2 rounded-xl bg-studio-red hover:bg-studio-red-dark disabled:opacity-45 text-sm font-semibold text-white"
+                className="px-5 py-2 rounded-xl studio-btn disabled:opacity-45 text-sm font-semibold text-white"
               >
                 Confirmar Firma
               </button>

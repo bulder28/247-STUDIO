@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getLocalMonthYear } from '@/lib/dateUtils';
+import { PageHeader } from '@/components/PageHeader';
 
 type EffectiveStatus =
   | 'OK'
@@ -495,46 +496,43 @@ export function AdminTrackingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-            Seguimiento Mensual
-          </h1>
-          <p className="text-sm text-slate-400">
-            Facturas pendientes, próximos vencimientos, pagos adelantados y caja real (Efectivo / Bizum).
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="month"
-            value={monthYear}
-            onChange={(e) => setMonthYear(e.target.value)}
-            className="rounded-xl bg-studio-navy border border-white/10 px-3 py-2 text-sm text-white"
-          />
-          <button
-            onClick={generateMonthFromPrevious}
-            disabled={generating}
-            title="Copiar suscripciones activas del mes anterior"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-studio-navy px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/5"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
-            Generar mes
-          </button>
-          <button
-            onClick={() => openMultiModal()}
-            disabled={studentsCatalog.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-studio-red hover:bg-studio-red-dark disabled:opacity-50 px-3.5 py-2 text-xs font-semibold text-white transition"
-          >
-            <CalendarPlus className="w-4 h-4" />
-            Cobrar varios meses
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Seguimiento"
+        subtitle={<>Facturas pendientes, próximos vencimientos, pagos adelantados y caja real (Efectivo / Bizum).</>}
+        actions={
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="month"
+                value={monthYear}
+                onChange={(e) => setMonthYear(e.target.value)}
+                className="rounded-xl studio-field px-3 py-2 text-sm text-white"
+              />
+              <button
+                onClick={generateMonthFromPrevious}
+                disabled={generating}
+                title="Copiar suscripciones activas del mes anterior"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/5"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
+                Generar mes
+              </button>
+              <button
+                onClick={() => openMultiModal()}
+                disabled={studentsCatalog.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-xl studio-btn disabled:opacity-50 px-3.5 py-2 text-xs font-semibold text-white transition"
+              >
+                <CalendarPlus className="w-4 h-4" />
+                Cobrar varios meses
+              </button>
+            </div>
+          </>
+        }
+      />
 
       {/* Resumen económico del mes vs Caja real */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-2xl bg-studio-navy border border-white/10 p-4">
+        <div className="rounded-2xl studio-panel border border-white/10 p-4">
           <p className="text-xs uppercase tracking-wider text-slate-400">
             Cuotas de {formatMonthLabel(monthYear)}
           </p>
@@ -546,7 +544,7 @@ export function AdminTrackingPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-studio-navy border border-white/10 p-4">
+        <div className="rounded-2xl studio-panel border border-white/10 p-4">
           <p className="text-xs uppercase tracking-wider text-slate-400">
             Facturas pendientes ({formatMonthLabel(monthYear)})
           </p>
@@ -558,7 +556,7 @@ export function AdminTrackingPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl bg-studio-navy border border-white/10 p-4">
+        <div className="rounded-2xl studio-panel border border-white/10 p-4">
           <div className="flex items-center justify-between text-xs uppercase tracking-wider text-slate-400">
             <span>Caja real entrada en {formatMonthLabel(monthYear)}</span>
             <Wallet className="w-4 h-4 text-sky-400" />
@@ -579,8 +577,8 @@ export function AdminTrackingPage() {
             onClick={() => setTab('person')}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
               tab === 'person'
-                ? 'bg-studio-red text-white'
-                : 'bg-studio-navy text-slate-300 hover:text-white'
+                ? 'bg-studio-cream text-slate-950'
+                : 'bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08]'
             }`}
           >
             Por Persona ({rows.length})
@@ -589,8 +587,8 @@ export function AdminTrackingPage() {
             onClick={() => setTab('product')}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
               tab === 'product'
-                ? 'bg-studio-red text-white'
-                : 'bg-studio-navy text-slate-300 hover:text-white'
+                ? 'bg-studio-cream text-slate-950'
+                : 'bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08]'
             }`}
           >
             Por Producto / Tarifa
@@ -611,7 +609,7 @@ export function AdminTrackingPage() {
                 className={`px-3 py-1.5 rounded-lg font-medium transition ${
                   statusFilter === f.id
                     ? 'bg-white/15 text-white'
-                    : 'bg-studio-navy text-slate-400 hover:text-white'
+                    : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08]'
                 }`}
               >
                 {f.label}
@@ -624,7 +622,7 @@ export function AdminTrackingPage() {
       {loading ? (
         <p className="text-sm text-slate-400">Cargando seguimiento...</p>
       ) : tab === 'person' ? (
-        <div className="rounded-2xl bg-studio-navy border border-white/10 overflow-hidden">
+        <div className="rounded-2xl studio-panel border border-white/10 overflow-hidden">
           {filteredRows.length === 0 ? (
             <p className="p-6 text-sm text-slate-400">
               No hay registros en {formatMonthLabel(monthYear)} para este filtro. Puedes usar
@@ -715,7 +713,7 @@ export function AdminTrackingPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Object.entries(byProduct).map(([planName, stats]) => (
-            <div key={planName} className="rounded-2xl bg-studio-navy border border-white/10 p-5">
+            <div key={planName} className="rounded-2xl studio-panel border border-white/10 p-5">
               <h3 className="font-headline text-xl uppercase text-white">{planName}</h3>
               <div className="mt-3 flex items-baseline justify-between">
                 <span className="text-sm text-slate-300">
@@ -733,7 +731,7 @@ export function AdminTrackingPage() {
       {/* Modal: Cobro múltiple (Pagos Vencidos + Pagos Futuros Adelantados) */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-studio-navy border border-white/15 p-6 space-y-5">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl studio-panel border border-white/15 p-6 space-y-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="font-headline text-xl uppercase text-white">
@@ -772,7 +770,7 @@ export function AdminTrackingPage() {
                       .map((r) => r.month_year);
                     setSelectedMonths(due.length > 0 ? due : [currentMonth]);
                   }}
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/15 px-3.5 py-2.5 text-sm text-white"
+                  className="w-full rounded-xl studio-panel-inset border border-white/15 px-3.5 py-2.5 text-sm text-white"
                 >
                   {studentsCatalog.map((s) => (
                     <option key={s.user_id} value={s.user_id}>
@@ -821,7 +819,7 @@ export function AdminTrackingPage() {
                           className={`rounded-xl border px-3 py-2 text-left transition ${
                             active
                               ? 'border-studio-red bg-studio-red/20 text-white'
-                              : 'border-white/10 bg-studio-navy-deep text-slate-300 hover:border-white/25'
+                              : 'border-white/10 studio-panel-inset text-slate-300 hover:border-white/25'
                           }`}
                         >
                           <p className="text-xs font-semibold">{formatMonthLabel(m.month_year)}</p>
@@ -875,7 +873,7 @@ export function AdminTrackingPage() {
                             ? 'border-teal-500/30 bg-teal-500/10 text-teal-300 opacity-75 cursor-not-allowed'
                             : active
                               ? 'border-emerald-400 bg-emerald-500/20 text-white'
-                              : 'border-white/10 bg-studio-navy-deep text-slate-300 hover:border-white/25'
+                              : 'border-white/10 studio-panel-inset text-slate-300 hover:border-white/25'
                         }`}
                       >
                         <p className="text-xs font-semibold">{formatMonthLabel(m.month_year)}</p>
@@ -903,7 +901,7 @@ export function AdminTrackingPage() {
                         className={`rounded-xl border py-2.5 text-sm font-semibold transition ${
                           paymentMethod === m
                             ? 'border-emerald-400 bg-emerald-500/20 text-white'
-                            : 'border-white/10 bg-studio-navy-deep text-slate-300'
+                            : 'border-white/10 studio-panel-inset text-slate-300'
                         }`}
                       >
                         {m}
@@ -926,7 +924,7 @@ export function AdminTrackingPage() {
                       setTotalAmountInput(e.target.value);
                     }}
                     placeholder="Ej. 180"
-                    className="w-full rounded-xl bg-studio-navy-deep border border-white/15 px-3.5 py-2.5 text-sm text-white"
+                    className="w-full rounded-xl studio-field px-3.5 py-2.5 text-sm text-white"
                   />
                 </div>
               </div>
@@ -940,7 +938,7 @@ export function AdminTrackingPage() {
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
                   placeholder="Ej. Bono trimestral con descuento"
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/15 px-3.5 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3.5 py-2 text-sm text-white"
                 />
               </div>
 

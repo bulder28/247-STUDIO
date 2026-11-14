@@ -304,7 +304,7 @@ export function ClientHomePage() {
           </div>
           <Link
             to="/app/perfil"
-            className="inline-flex items-center justify-center rounded-xl bg-studio-red hover:bg-studio-red-dark px-4 py-2 text-xs font-semibold text-white shrink-0 transition"
+            className="inline-flex items-center justify-center rounded-xl studio-btn px-4 py-2 text-xs font-semibold text-white shrink-0 transition"
           >
             Firmar ahora
           </Link>
@@ -392,7 +392,7 @@ export function ClientHomePage() {
         <img
           src="/herobackground.webp"
           alt=""
-          className="absolute inset-0 w-full h-full object-cover opacity-15 pointer-events-none"
+          className="absolute inset-0 w-full h-full object-cover opacity-[0.07] pointer-events-none"
         />
         <div className="absolute inset-0 tatami-weave opacity-50 pointer-events-none" />
         <div
@@ -546,8 +546,8 @@ export function ClientHomePage() {
             <p className="text-[11px] text-slate-400 uppercase mt-0.5">Este mes</p>
           </div>
           <div className="relative overflow-hidden rounded-2xl studio-panel-inset border border-white/10 p-3.5 text-center">
-            <div className="absolute inset-x-0 top-0 h-0.5 bg-studio-red" />
-            <p className="font-headline text-2xl sm:text-3xl text-studio-red">{attendances.length}</p>
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-studio-cream" />
+            <p className="font-headline text-2xl sm:text-3xl text-studio-cream">{attendances.length}</p>
             <p className="text-[11px] text-slate-400 uppercase mt-0.5">Clases totales</p>
           </div>
           <div className="relative overflow-hidden rounded-2xl studio-panel-inset border border-white/10 p-3.5 text-center">
@@ -767,7 +767,7 @@ export function ClientHomePage() {
             <button
               onClick={handleSaveGoals}
               disabled={savingGoals}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-studio-red to-rose-700 hover:from-rose-600 hover:to-studio-red-dark px-4 py-2.5 text-xs font-semibold text-white shadow-glow-red transition"
+              className="inline-flex items-center gap-1.5 rounded-xl studio-btn px-4 py-2.5 text-xs font-semibold text-white transition"
             >
               <Save className="w-3.5 h-3.5" />
               {savingGoals ? 'Guardando...' : 'Guardar Objetivos y Notas'}

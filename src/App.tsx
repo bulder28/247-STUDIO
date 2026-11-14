@@ -26,8 +26,22 @@ function AppRoutes() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-studio-navy-deep text-slate-400 text-sm">
-        Cargando 247 STUDIO...
+      <div
+        className="min-h-screen flex flex-col items-center justify-center gap-4 text-slate-400 text-sm"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="relative">
+          <span className="absolute inset-0 rounded-2xl bg-studio-red/30 blur-xl animate-pulse" aria-hidden />
+          <img
+            src="/logo.webp"
+            alt=""
+            className="relative w-16 h-16 rounded-2xl object-contain bg-white/5 border border-white/10 p-1.5"
+          />
+        </div>
+        <span className="font-headline uppercase tracking-[0.2em] text-xs text-slate-300">
+          Cargando 247 STUDIO
+        </span>
       </div>
     );
   }
@@ -43,8 +57,8 @@ function AppRoutes() {
 
   if (profile?.role === 'client' && profile?.status === 'inactive') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-studio-navy-deep px-4">
-        <div className="w-full max-w-md rounded-2xl bg-studio-navy border border-white/15 p-7 text-center space-y-4">
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md rounded-2xl studio-panel border border-white/15 p-7 text-center space-y-4">
           <h1 className="font-headline text-2xl uppercase text-white">Cuenta desactivada</h1>
           <p className="text-sm text-slate-300">
             Tu ficha en <strong>247 STUDIO</strong> figura actualmente en estado de baja.
@@ -52,7 +66,7 @@ function AppRoutes() {
           </p>
           <button
             onClick={signOut}
-            className="w-full rounded-xl bg-studio-red hover:bg-studio-red-dark px-4 py-2.5 text-sm font-semibold text-white transition"
+            className="w-full rounded-xl studio-btn px-4 py-2.5 text-sm font-semibold text-white transition"
           >
             Cerrar sesión
           </button>

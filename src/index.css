@@ -7,29 +7,213 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   247 STUDIO — "Tatami de noche"
+   Tinta azul noche + arena de tatami (#DDD6B8) + rojo de cinturón solo para acción.
+   ========================================================================== */
+
+:root {
+  --ink: #090e1a;
+  --ink-raised: #111a2c;
+  --sand: #ddd6b8;
+  --sand-light: #f4f0e1;
+  --belt-red: #e11d2e;
+}
+
 @layer base {
+  html {
+    /* Controles nativos (input month/date, select, scrollbars) en modo oscuro */
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Anillo de foco visible y consistente para navegación con teclado */
+  :focus-visible {
+    outline: 2px solid var(--sand);
+    outline-offset: 2px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(221, 214, 184, 0.22) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(221, 214, 184, 0.22);
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   body {
-    background-color: #0f172a;
+    background-color: var(--ink);
+    /* Juntas de tatami: losas de 96px apenas visibles + luz roja de esquina */
     background-image:
-      radial-gradient(ellipse 80% 50% at 15% -10%, rgba(225, 29, 46, 0.14), transparent 60%),
-      radial-gradient(ellipse 70% 55% at 90% 10%, rgba(56, 189, 248, 0.08), transparent 55%),
-      radial-gradient(ellipse 90% 70% at 50% 100%, rgba(30, 41, 59, 0.9), #0f172a);
+      radial-gradient(ellipse 70% 45% at 8% -8%, rgba(225, 29, 46, 0.16), transparent 62%),
+      radial-gradient(ellipse 60% 50% at 100% 0%, rgba(221, 214, 184, 0.06), transparent 60%),
+      linear-gradient(rgba(221, 214, 184, 0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(221, 214, 184, 0.028) 1px, transparent 1px);
+    background-size:
+      auto,
+      auto,
+      96px 96px,
+      96px 96px;
     background-attachment: fixed;
-    @apply text-slate-100 font-sans antialiased selection:bg-studio-red selection:text-white;
+    @apply text-slate-100 font-sans antialiased selection:bg-studio-cream selection:text-slate-950;
+  }
+
+  /* Grano de película sobre toda la app */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    pointer-events: none;
+    opacity: 0.055;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 }
 
 @layer components {
+  /* Panel principal: tinta elevada con un foco arena que sigue al puntero (--mx/--my) */
   .studio-panel {
-    background: linear-gradient(155deg, rgba(39, 53, 73, 0.88) 0%, rgba(24, 34, 52, 0.94) 100%);
+    background-color: rgba(15, 23, 41, 0.86);
+    background-image:
+      radial-gradient(
+        380px circle at var(--mx, -999px) var(--my, -999px),
+        rgba(221, 214, 184, 0.075),
+        transparent 62%
+      ),
+      linear-gradient(160deg, rgba(40, 54, 78, 0.55) 0%, rgba(13, 19, 34, 0.35) 100%);
     box-shadow:
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-      0 14px 36px -14px rgba(2, 6, 23, 0.7);
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+      0 18px 40px -22px rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
   }
 
   .studio-panel-inset {
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.72) 0%, rgba(19, 28, 46, 0.9) 100%);
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+    background: linear-gradient(180deg, rgba(6, 10, 20, 0.62) 0%, rgba(11, 17, 31, 0.78) 100%);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.035);
+  }
+
+  /* Tarjeta clara (arena) para momentos protagonistas: login, precio destacado */
+  .studio-sand {
+    background-color: var(--sand-light);
+    background-image: linear-gradient(160deg, #f8f5ea 0%, #e6dfc4 100%);
+    color: #141a2b;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+      0 30px 60px -25px rgba(0, 0, 0, 0.9);
+  }
+
+  .studio-sand :focus-visible {
+    outline-color: #141a2b;
+  }
+
+  /* Título de página: Oswald condensada en arena */
+  .studio-display {
+    font-family: Oswald, 'Archivo Variable', Impact, system-ui, sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: clamp(2rem, 1.1rem + 3.6vw, 3.5rem);
+    line-height: 0.95;
+    letter-spacing: -0.012em;
+    color: var(--sand);
+    text-wrap: balance;
+  }
+
+  /* Texto solo de contorno (numerales gigantes) */
+  .studio-outline {
+    color: transparent;
+    -webkit-text-stroke: 1.5px rgba(221, 214, 184, 0.5);
+  }
+
+  /* Botón de acción principal: el único uso del rojo como relleno */
+  .studio-btn {
+    background-color: var(--belt-red);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.12));
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
+      0 10px 22px -12px rgba(225, 29, 46, 0.9);
+    transition:
+      transform 0.12s ease,
+      filter 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .studio-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
+      0 14px 26px -12px rgba(225, 29, 46, 1);
+  }
+  .studio-btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.985);
+    filter: brightness(0.95);
+  }
+
+  /* Campo de formulario unificado (input, select, textarea) */
+  .studio-field {
+    background-color: rgba(6, 10, 20, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease,
+      background-color 0.15s ease;
+  }
+  .studio-field::placeholder {
+    color: #64748b;
+  }
+  .studio-field:hover:not(:disabled) {
+    border-color: rgba(221, 214, 184, 0.28);
+  }
+  .studio-field:focus,
+  .studio-field:focus-visible {
+    outline: none;
+    border-color: rgba(221, 214, 184, 0.8);
+    background-color: rgba(11, 17, 31, 0.95);
+    box-shadow:
+      inset 0 1px 2px 0 rgba(0, 0, 0, 0.4),
+      0 0 0 3px rgba(221, 214, 184, 0.16);
+  }
+  .studio-field:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .studio-field[aria-invalid='true'] {
+    border-color: rgba(244, 63, 94, 0.9);
+  }
+  select.studio-field option {
+    background-color: #0b111f;
+  }
+
+  /* Campo sobre tarjeta arena */
+  .studio-field-sand {
+    background-color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(20, 26, 43, 0.22);
+    color: #141a2b;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease,
+      background-color 0.15s ease;
+  }
+  .studio-field-sand::placeholder {
+    color: rgba(20, 26, 43, 0.42);
+  }
+  .studio-field-sand:focus,
+  .studio-field-sand:focus-visible {
+    outline: none;
+    background-color: #fff;
+    border-color: #141a2b;
+    box-shadow: 0 0 0 3px rgba(20, 26, 43, 0.14);
   }
 
   .tatami-weave {
@@ -59,12 +243,45 @@
         transparent 6px
       );
   }
+
+  /* Línea de puntos tipo carta de precios */
+  .studio-leader {
+    flex: 1 1 auto;
+    min-width: 1.5rem;
+    height: 1px;
+    align-self: flex-end;
+    margin-bottom: 0.45em;
+    background-image: radial-gradient(circle, rgba(221, 214, 184, 0.4) 1px, transparent 1.2px);
+    background-size: 7px 2px;
+    background-repeat: repeat-x;
+  }
+
+  /* <details> con signo + que gira a × */
+  .studio-faq > summary {
+    list-style: none;
+  }
+  .studio-faq > summary::-webkit-details-marker {
+    display: none;
+  }
+  .studio-faq .studio-faq-mark {
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .studio-faq[open] .studio-faq-mark {
+    transform: rotate(45deg);
+  }
+  .studio-faq[open] > summary {
+    color: var(--sand);
+  }
 }
+
+/* ==========================================================================
+   Movimiento — un único momento orquestado por página: el cinturón se anuda
+   ========================================================================== */
 
 @keyframes studioReveal {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -73,12 +290,103 @@
 }
 
 .animate-studio-in {
-  animation: studioReveal 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: studioReveal 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-studio-in {
-    animation: none;
+@keyframes beltDraw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
   }
 }
 
+@keyframes beltStripe {
+  from {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes titleRise {
+  from {
+    transform: translateY(105%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.belt-rule {
+  transform-origin: left center;
+  animation: beltDraw 0.8s cubic-bezier(0.65, 0, 0.2, 1) both;
+}
+
+.belt-rule-stripe {
+  transform-origin: center bottom;
+  animation: beltStripe 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.title-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+}
+.title-mask > * {
+  display: block;
+  animation: titleRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+@keyframes studioMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.studio-marquee {
+  display: flex;
+  width: max-content;
+  animation: studioMarquee 38s linear infinite;
+}
+.studio-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes studioShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.studio-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(221, 214, 184, 0.09) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: studioShimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-studio-in,
+  .studio-shimmer,
+  .belt-rule,
+  .belt-rule-stripe,
+  .title-mask > *,
+  .studio-marquee {
+    animation: none;
+  }
+}

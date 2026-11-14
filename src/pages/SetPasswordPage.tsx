@@ -44,8 +44,8 @@ export function SetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-studio-navy-deep px-4 py-10">
-      <div className="w-full max-w-md rounded-2xl bg-studio-navy border border-white/10 p-8 shadow-modal">
+    <div className="min-h-screen flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md rounded-2xl studio-panel border border-white/10 p-8 shadow-modal">
         <div className="flex flex-col items-center text-center mb-6">
           <img src="/logo.webp" alt="247 STUDIO" className="w-16 h-16 object-contain mb-3 rounded-xl" />
           <h1 className="font-headline text-2xl uppercase tracking-wide text-white">
@@ -75,7 +75,7 @@ export function SetPasswordPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Mínimo 6 caracteres"
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 pl-10 pr-4 py-2.5 text-sm text-white"
+                className="w-full rounded-xl studio-field pl-10 pr-4 py-2.5 text-sm text-white"
               />
             </div>
           </div>
@@ -91,7 +91,7 @@ export function SetPasswordPage() {
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="Repite tu contraseña"
-                className="w-full rounded-xl bg-studio-navy-deep border border-white/10 pl-10 pr-4 py-2.5 text-sm text-white"
+                className="w-full rounded-xl studio-field pl-10 pr-4 py-2.5 text-sm text-white"
               />
             </div>
           </div>
@@ -99,7 +99,7 @@ export function SetPasswordPage() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-studio-red hover:bg-studio-red-dark disabled:opacity-60 px-4 py-3 text-sm font-semibold text-white"
+            className="w-full flex items-center justify-center gap-2 rounded-xl studio-btn disabled:opacity-60 px-4 py-3 text-sm font-semibold text-white"
           >
             <CheckCircle2 className="w-4 h-4" />
             {saving ? 'Guardando...' : 'Guardar y Entrar'}

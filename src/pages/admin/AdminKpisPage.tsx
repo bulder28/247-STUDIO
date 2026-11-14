@@ -4,8 +4,6 @@ import {
   BarChart3,
   Calendar,
   Filter,
-  TrendingUp,
-  TrendingDown,
   Wallet,
   Users,
   CheckCircle2,
@@ -18,6 +16,9 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
+import { formatEUR, formatInt, formatMonthLong } from '@/lib/format';
+import { DeltaBadge, KpiCard, Skeleton } from '@/components/KpiCard';
+import { PageHeader } from '@/components/PageHeader';
 
 interface DisciplineItem {
   id: string;
@@ -99,7 +100,7 @@ const BELT_COLORS: Record<string, string> = {
   Azul: 'bg-blue-500',
   Morado: 'bg-purple-500',
   Marrón: 'bg-amber-700',
-  Negro: 'bg-zinc-900 border border-zinc-600',
+  Negro: 'bg-zinc-950 ring-1 ring-inset ring-white/40',
 };
 
 function shiftMonth(ym: string, delta: number): string {
@@ -126,6 +127,15 @@ function formatMonthLabel(ym: string): string {
   return `${MONTH_SHORT[m - 1]} ${String(y).slice(2)}`;
 }
 
+/** Redondea el máximo del eje a un valor "limpio" (1, 2, 2.5, 5 × 10^n). */
+function niceCeil(value: number): number {
+  if (value <= 0) return 1;
+  const exp = 10 ** Math.floor(Math.log10(value));
+  const n = value / exp;
+  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  return nice * exp;
+}
+
 function daysBetweenISO(fromISO: string, toISO: string): number {
   const [fy, fm, fd] = fromISO.slice(0, 10).split('-').map(Number);
   const [ty, tm, td] = toISO.slice(0, 10).split('-').map(Number);
@@ -138,73 +148,107 @@ function PowerDonut({
   centerTop,
   centerSub,
   segments,
-  unit = '',
+  formatValue = (v) => formatInt(v),
+  loading = false,
+  emptyLabel = 'Sin datos',
 }: {
   title: string;
   centerTop: string;
   centerSub: string;
   segments: DonutSegment[];
-  unit?: string;
+  formatValue?: (v: number) => string;
+  loading?: boolean;
+  emptyLabel?: string;
 }) {
+  const [hovered, setHovered] = useState<string | null>(null);
   const total = segments.reduce((s, seg) => s + seg.value, 0);
   const r = 36;
   const c = 2 * Math.PI * r;
+  // Pequeño hueco entre segmentos para que se lean como piezas separadas
+  const visibleCount = segments.filter((s) => s.value > 0).length;
+  const gap = visibleCount > 1 ? 1.6 : 0;
   let accumulated = 0;
+  const hoveredSeg = segments.find((s) => s.label === hovered) ?? null;
 
   return (
     <div className="rounded-3xl studio-panel border border-white/10 p-5 flex flex-col justify-between gap-4">
       <h3 className="font-headline text-base uppercase tracking-wide text-white">{title}</h3>
       <div className="flex items-center gap-5">
         <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
-          <svg viewBox="0 0 100 100" className="w-28 h-28 -rotate-90">
-            <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="12" />
-            {total > 0 &&
-              segments.map((seg) => {
-                if (seg.value <= 0) return null;
-                const segLen = (seg.value / total) * c;
-                const offset = -accumulated;
-                accumulated += segLen;
-                return (
-                  <circle
-                    key={seg.label}
-                    cx="50"
-                    cy="50"
-                    r={r}
-                    fill="none"
-                    stroke={seg.color}
-                    strokeWidth="12"
-                    strokeDasharray={`${segLen} ${c - segLen}`}
-                    strokeDashoffset={offset}
-                  />
-                );
-              })}
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-            <span className="font-headline text-lg text-white leading-none">{centerTop}</span>
-            <span className="text-[10px] text-slate-400 mt-0.5">{centerSub}</span>
-          </div>
+          {loading ? (
+            <Skeleton className="w-28 h-28 !rounded-full" />
+          ) : (
+            <svg viewBox="0 0 100 100" className="w-28 h-28 -rotate-90" aria-hidden>
+              <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="12" />
+              {total > 0 &&
+                segments.map((seg) => {
+                  if (seg.value <= 0) return null;
+                  const segLen = (seg.value / total) * c;
+                  const drawLen = Math.max(segLen - gap, 0.5);
+                  const offset = -accumulated;
+                  accumulated += segLen;
+                  const dim = hovered !== null && hovered !== seg.label;
+                  return (
+                    <circle
+                      key={seg.label}
+                      cx="50"
+                      cy="50"
+                      r={r}
+                      fill="none"
+                      stroke={seg.color}
+                      strokeWidth={hovered === seg.label ? 14 : 12}
+                      strokeDasharray={`${drawLen} ${c - drawLen}`}
+                      strokeDashoffset={offset}
+                      opacity={dim ? 0.3 : 1}
+                      className="transition-all duration-200"
+                    />
+                  );
+                })}
+            </svg>
+          )}
+          {!loading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-2">
+              <span className="font-headline text-lg text-white leading-none tabular-nums">
+                {total === 0 ? '—' : hoveredSeg ? formatValue(hoveredSeg.value) : centerTop}
+              </span>
+              <span className="text-[10px] text-slate-400 mt-1 leading-tight">
+                {total === 0 ? emptyLabel : hoveredSeg ? hoveredSeg.label : centerSub}
+              </span>
+            </div>
+          )}
         </div>
 
-        <div className="flex-1 space-y-2 min-w-0">
+        <ul className="flex-1 space-y-1 min-w-0">
           {segments.map((seg) => {
             const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
             return (
-              <div key={seg.label} className="flex items-center justify-between gap-2 text-xs">
-                <span className="inline-flex items-center gap-1.5 text-slate-300 truncate">
+              <li
+                key={seg.label}
+                onMouseEnter={() => setHovered(seg.label)}
+                onMouseLeave={() => setHovered(null)}
+                className={`flex items-center justify-between gap-2 text-xs rounded-lg px-2 py-1.5 -mx-2 transition ${
+                  hovered === seg.label ? 'bg-white/[0.06]' : ''
+                }`}
+              >
+                <span className="inline-flex items-center gap-2 text-slate-300 min-w-0">
                   <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    className="w-2.5 h-2.5 rounded-sm shrink-0"
                     style={{ backgroundColor: seg.color }}
                   />
                   <span className="truncate">{seg.label}</span>
                 </span>
-                <span className="font-semibold text-white shrink-0">
-                  {seg.value.toFixed(0)}
-                  {unit} <span className="text-slate-400 font-normal">({pct}%)</span>
-                </span>
-              </div>
+                {loading ? (
+                  <Skeleton className="h-3 w-14" />
+                ) : (
+                  <span className="font-semibold text-white shrink-0 tabular-nums">
+                    {formatValue(seg.value)}{' '}
+                    <span className="text-slate-500 font-normal">{pct}%</span>
+                  </span>
+                )}
+              </li>
             );
           })}
-        </div>
+        </ul>
       </div>
     </div>
   );
@@ -215,6 +259,7 @@ export function AdminKpisPage() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
   const [hoveredMonth, setHoveredMonth] = useState<string | null>(null);
+  const [pinnedMonth, setPinnedMonth] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [disciplines, setDisciplines] = useState<DisciplineItem[]>([]);
@@ -234,6 +279,7 @@ export function AdminKpisPage() {
   useEffect(() => {
     const loadBI = async () => {
       setLoading(true);
+      setPinnedMonth(null);
       const startMonth = sixMonths[0];
       const { start, nextEnd } = getMonthRangeBounds(startMonth, selectedMonth);
 
@@ -393,12 +439,16 @@ export function AdminKpisPage() {
       )
       .reduce((s, r) => s + Number(r.price_eur || 0), 0);
     const attCount = filteredAttendances6M.filter((a) => a.attendance_date.startsWith(ym)).length;
-    return { ym, label: formatMonthLabel(ym), collected, pending, attCount };
+    const signups = clients.filter((c) => c.created_at.startsWith(ym)).length;
+    const rate =
+      collected + pending > 0 ? Math.round((collected / (collected + pending)) * 100) : 0;
+    return { ym, label: formatMonthLabel(ym), collected, pending, attCount, signups, rate };
   });
 
-  const maxRev = Math.max(100, ...trendData.map((d) => d.collected + d.pending));
-  const maxAtt = Math.max(10, ...trendData.map((d) => d.attCount));
-  const activeTrend = trendData.find((d) => d.ym === (hoveredMonth ?? selectedMonth)) ?? trendData[5];
+  const maxRev = niceCeil(Math.max(100, ...trendData.map((d) => d.collected + d.pending)));
+  const maxAtt = niceCeil(Math.max(10, ...trendData.map((d) => d.attCount)));
+  const focusMonth = hoveredMonth ?? pinnedMonth ?? selectedMonth;
+  const activeTrend = trendData.find((d) => d.ym === focusMonth) ?? trendData[5];
 
   // Cumplimiento documental
   const sigByUser: Record<string, DocSignature[]> = {};
@@ -462,28 +512,41 @@ export function AdminKpisPage() {
   const maxBucket = Math.max(1, ...Object.values(matrixBuckets));
   const topClasses = Object.values(classPerfMap).sort((a, b) => b.count - a.count);
 
+  const maxClassCount = topClasses[0]?.count ?? 1;
+
+  // Geometría del gráfico combinado (coordenadas del viewBox)
+  const CH = { left: 50, right: 470, top: 22, base: 168, width: 520, height: 200 };
+  const plotH = CH.base - CH.top;
+  const colW = (CH.right - CH.left) / trendData.length;
+  const barW = Math.min(38, colW * 0.5);
+  const colCenter = (idx: number) => CH.left + colW * idx + colW / 2;
+  const yRev = (v: number) => CH.base - (v / maxRev) * plotH;
+  const yAtt = (v: number) => CH.base - (v / maxAtt) * plotH;
   const linePoints = trendData
-    .map((d, idx) => {
-      const x = 52 + idx * 82;
-      const y = 165 - (d.attCount / maxAtt) * 125;
-      return `${x},${y.toFixed(1)}`;
-    })
+    .map((d, idx) => `${colCenter(idx).toFixed(1)},${yAtt(d.attCount).toFixed(1)}`)
     .join(' ');
+  const areaPoints = `${colCenter(0).toFixed(1)},${CH.base} ${linePoints} ${colCenter(
+    trendData.length - 1
+  ).toFixed(1)},${CH.base}`;
+  const fmtAxisEur = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `${v}`);
 
   return (
     <div className="space-y-6">
-      {/* Barra superior Power BI + Segmentadores */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-studio-red">
-            <BarChart3 className="w-3.5 h-3.5" /> Business Intelligence · 247 STUDIO
-          </span>
-          <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white mt-0.5">
-            Panel de KPIs ({formatMonthLabel(selectedMonth)})
-          </h1>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
+      <PageHeader
+        title="Panel de KPIs"
+        subtitle={
+          <>
+            {formatMonthLong(selectedMonth)}
+            {selectedDiscipline !== 'all' && (
+              <span className="text-sky-300">
+                {', '}
+                {disciplines.find((d) => d.id === selectedDiscipline)?.name ?? 'Disciplina'}
+              </span>
+            )}
+          </>
+        }
+        actions={
+          <>
           <div className="flex items-center gap-2 rounded-xl studio-panel-inset border border-white/10 px-3 py-2">
             <Calendar className="w-4 h-4 text-studio-red shrink-0" />
             <input
@@ -527,184 +590,287 @@ export function AdminKpisPage() {
               Reset
             </button>
           )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Fila 1: 5 Tarjetas KPI Ejecutivas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-4">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 to-transparent" />
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-slate-400">
-            <span>Ingresos Cobrados</span>
-            <Wallet className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <p className="font-headline text-3xl text-white">{totalCollected.toFixed(0)} €</p>
-            {revenueMoM !== null && (
-              <span
-                className={`inline-flex items-center gap-0.5 text-[11px] font-bold ${
-                  revenueMoM >= 0 ? 'text-emerald-400' : 'text-studio-red'
-                }`}
-              >
-                {revenueMoM >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                {revenueMoM >= 0 ? `+${revenueMoM}%` : `${revenueMoM}%`}
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">ARPU {arpu.toFixed(0)} € · {paidMonth.length} cuotas</p>
-        </div>
-
-        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-4">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 to-transparent" />
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-slate-400">
-            <span>Pendiente + Deuda</span>
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
-          </div>
-          <p className="mt-2 font-headline text-3xl text-amber-300">{totalPending.toFixed(0)} €</p>
-          <p className="text-[11px] text-slate-400 mt-1">
-            Deuda previa: <strong className="text-slate-200">{historicalDebt.toFixed(0)} €</strong>
-          </p>
-        </div>
-
-        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-4">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-500 to-transparent" />
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-slate-400">
-            <span>Tasa de Cobro</span>
-            <CheckCircle2 className="w-4 h-4 text-sky-400" />
-          </div>
-          <p className="mt-2 font-headline text-3xl text-white">{collectionRate}%</p>
-          <div className="w-full h-1.5 rounded-full bg-slate-900 overflow-hidden mt-2">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1">
+        <KpiCard
+          label="Ingresos cobrados"
+          icon={Wallet}
+          accent="emerald"
+          loading={loading}
+          value={formatEUR(totalCollected)}
+          delta={<DeltaBadge value={revenueMoM} suffix="" />}
+          footnote={`ARPU ${formatEUR(arpu)} · ${paidMonth.length} cuotas`}
+          trend={trendData.map((d) => d.collected)}
+          trendLabel="Evolución de ingresos cobrados en 6 meses"
+        />
+        <KpiCard
+          label="Pendiente del mes"
+          icon={AlertTriangle}
+          accent="amber"
+          loading={loading}
+          value={formatEUR(totalPending)}
+          valueClassName={totalPending > 0 ? 'text-amber-300' : 'text-white'}
+          footnote={
+            <>
+              Deuda meses previos:{' '}
+              <strong className={historicalDebt > 0 ? 'text-rose-300' : 'text-slate-200'}>
+                {formatEUR(historicalDebt)}
+              </strong>
+            </>
+          }
+          trend={trendData.map((d) => d.pending)}
+          trendLabel="Evolución del importe pendiente en 6 meses"
+        />
+        <KpiCard
+          label="Tasa de cobro"
+          icon={CheckCircle2}
+          accent="sky"
+          loading={loading}
+          value={`${collectionRate}%`}
+          valueClassName={
+            collectionRate >= 90 ? 'text-emerald-300' : collectionRate >= 70 ? 'text-white' : 'text-amber-300'
+          }
+          trend={trendData.map((d) => d.rate)}
+          trendLabel="Evolución de la tasa de cobro en 6 meses"
+        >
+          <div
+            className="w-full h-1.5 rounded-full bg-slate-950/70 overflow-hidden mt-1"
+            role="progressbar"
+            aria-valuenow={collectionRate}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Tasa de cobro"
+          >
             <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-sky-400 rounded-full transition-all duration-500"
+              className="h-full bg-gradient-to-r from-sky-500 to-emerald-400 rounded-full transition-all duration-700"
               style={{ width: `${collectionRate}%` }}
             />
           </div>
-        </div>
-
-        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-4">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-studio-red to-transparent" />
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-slate-400">
-            <span>Asistencias Mes</span>
-            <Flame className="w-4 h-4 text-studio-red" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <p className="font-headline text-3xl text-white">{monthAtt.length}</p>
-            {attMoM !== null && (
-              <span
-                className={`text-[11px] font-bold ${
-                  attMoM >= 0 ? 'text-emerald-400' : 'text-studio-red'
-                }`}
-              >
-                {attMoM >= 0 ? `+${attMoM}%` : `${attMoM}%`}
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">{avgClassesPerStudent} clases/alumno activo</p>
-        </div>
-
-        <div className="relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-4">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-500 to-transparent" />
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-slate-400">
-            <span>Captación y Riesgo</span>
-            <Users className="w-4 h-4 text-purple-400" />
-          </div>
-          <p className="mt-2 font-headline text-3xl text-white">+{newSignups}</p>
-          <p className="text-[11px] text-slate-400 mt-1">
-            {guestTrials} pruebas · <strong className="text-amber-300">{inactive15Count}</strong> inactivos +15d
-          </p>
-        </div>
+        </KpiCard>
+        <KpiCard
+          label="Asistencias"
+          icon={Flame}
+          accent="red"
+          loading={loading}
+          value={formatInt(monthAtt.length)}
+          delta={<DeltaBadge value={attMoM} suffix="" />}
+          footnote={`${avgClassesPerStudent} clases por alumno activo`}
+          trend={trendData.map((d) => d.attCount)}
+          trendLabel="Evolución de asistencias en 6 meses"
+        />
+        <KpiCard
+          label="Captación y riesgo"
+          icon={Users}
+          accent="purple"
+          loading={loading}
+          value={`+${newSignups}`}
+          footnote={
+            <>
+              {guestTrials} pruebas ·{' '}
+              <strong className={inactive15Count > 0 ? 'text-amber-300' : 'text-slate-200'}>
+                {inactive15Count}
+              </strong>{' '}
+              inactivos +15 d
+            </>
+          }
+          trend={trendData.map((d) => d.signups)}
+          trendLabel="Altas nuevas por mes en 6 meses"
+        />
       </div>
 
       {/* Fila 2: Tendencia 6 Meses (Barras + Línea SVG) y 2 Donuts Power BI */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <section className="lg:col-span-7 rounded-3xl studio-panel border border-white/10 p-5 sm:p-6 flex flex-col justify-between">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <section className="lg:col-span-7 rounded-3xl studio-panel border border-white/10 p-5 sm:p-6 flex flex-col gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="font-headline text-lg uppercase text-white">
-                Tendencia 6 Meses: Ingresos (€) vs Asistencias
-              </h2>
+              <h2 className="font-headline text-lg uppercase text-white">Tendencia 6 meses</h2>
               <p className="text-xs text-slate-400">
-                Pasa el ratón por cualquier mes para inspeccionar el detalle
+                <span className="hidden sm:inline">Ingresos (€, eje izq.) frente a asistencias (eje dcho.) · </span>
+                Toca un mes para fijarlo
               </p>
             </div>
-            {activeTrend && (
-              <div className="rounded-xl studio-panel-inset border border-white/10 px-3 py-1.5 text-xs flex items-center gap-3">
-                <span className="font-bold text-white">{activeTrend.label}</span>
-                <span className="text-emerald-400">{activeTrend.collected.toFixed(0)} € ok</span>
-                <span className="text-amber-300">{activeTrend.pending.toFixed(0)} € pend.</span>
-                <span className="text-sky-300">{activeTrend.attCount} asist.</span>
+            {activeTrend && !loading && (
+              <div className="rounded-xl studio-panel-inset border border-white/10 px-3 py-2 text-xs flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
+                <span className="font-bold text-white inline-flex items-center gap-1.5">
+                  {activeTrend.label}
+                  {pinnedMonth === activeTrend.ym && (
+                    <span className="text-[9px] uppercase tracking-wider text-sky-300 bg-sky-500/15 rounded px-1 py-px">
+                      fijado
+                    </span>
+                  )}
+                </span>
+                <span className="text-emerald-300">{formatEUR(activeTrend.collected)}</span>
+                <span className="text-amber-300">{formatEUR(activeTrend.pending)} pend.</span>
+                <span className="text-sky-300">{formatInt(activeTrend.attCount)} asist.</span>
+                {activeTrend.ym !== selectedMonth && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMonth(activeTrend.ym)}
+                    className="text-studio-red font-semibold hover:underline"
+                  >
+                    Analizar mes →
+                  </button>
+                )}
               </div>
             )}
           </div>
 
           {loading ? (
-            <p className="text-sm text-slate-400 py-16 text-center">Cargando serie histórica...</p>
+            <Skeleton className="w-full h-52 !rounded-2xl" />
           ) : (
-            <div className="w-full overflow-x-auto">
-              <svg viewBox="0 0 510 205" className="w-full min-w-[420px] h-auto select-none">
-                {/* Líneas guía horizontales */}
-                {[0.25, 0.5, 0.75, 1].map((step) => {
-                  const y = 165 - step * 125;
+            <>
+            {/* Móvil: lista vertical por mes (sin scroll horizontal) */}
+            <ul className="sm:hidden space-y-1.5" aria-label="Ingresos y asistencias de los últimos 6 meses">
+              {[...trendData].reverse().map((d) => {
+                const isActive = focusMonth === d.ym;
+                const colPct = (d.collected / maxRev) * 100;
+                const penPct = (d.pending / maxRev) * 100;
+                const attPct = (d.attCount / maxAtt) * 100;
+                return (
+                  <li key={`m-${d.ym}`}>
+                    <button
+                      type="button"
+                      onClick={() => setPinnedMonth((prev) => (prev === d.ym ? null : d.ym))}
+                      aria-pressed={pinnedMonth === d.ym}
+                      className={`w-full text-left rounded-xl px-3 py-2 transition border ${
+                        isActive
+                          ? 'bg-white/[0.06] border-white/15'
+                          : 'border-transparent hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs tabular-nums">
+                        <span className={`font-semibold ${isActive ? 'text-white' : 'text-slate-300'}`}>
+                          {d.label}
+                        </span>
+                        <span className="text-slate-400">
+                          <span className="text-emerald-300">{formatEUR(d.collected)}</span>
+                          {d.pending > 0 && (
+                            <span className="text-amber-300"> + {formatEUR(d.pending)}</span>
+                          )}
+                          <span className="text-sky-300 ml-2">{d.attCount} asist.</span>
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-2 w-full rounded-full bg-slate-950/70 overflow-hidden flex">
+                        <span className="h-full bg-emerald-500" style={{ width: `${colPct}%` }} />
+                        <span className="h-full bg-amber-500" style={{ width: `${penPct}%` }} />
+                      </div>
+                      <div className="mt-1 h-1 w-full rounded-full bg-slate-950/70 overflow-hidden">
+                        <span
+                          className="block h-full rounded-full bg-sky-400"
+                          style={{ width: `${attPct}%` }}
+                        />
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="hidden sm:block w-full overflow-x-auto -mx-1 px-1">
+              <svg
+                viewBox={`0 0 ${CH.width} ${CH.height}`}
+                className="w-full min-w-[440px] h-auto select-none"
+                role="group"
+                aria-label="Gráfico combinado de ingresos y asistencias de los últimos 6 meses"
+              >
+                <defs>
+                  <linearGradient id="kpiAttArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.22" />
+                    <stop offset="100%" stopColor="#38BDF8" stopOpacity="0" />
+                  </linearGradient>
+                  {trendData.map((d, idx) => {
+                    const total = d.collected + d.pending;
+                    const h = Math.max((total / maxRev) * plotH, 2);
+                    return (
+                      <clipPath key={`clip-${d.ym}`} id={`kpiBar-${d.ym}`}>
+                        <rect x={colCenter(idx) - barW / 2} y={CH.base - h} width={barW} height={h} rx={5} />
+                      </clipPath>
+                    );
+                  })}
+                </defs>
+
+                {/* Rejilla + etiquetas de ejes */}
+                {[0, 0.25, 0.5, 0.75, 1].map((step) => {
+                  const y = CH.base - step * plotH;
                   return (
-                    <line
-                      key={step}
-                      x1="20"
-                      y1={y}
-                      x2="495"
-                      y2={y}
-                      stroke="rgba(255,255,255,0.07)"
-                      strokeDasharray="3 3"
-                    />
+                    <g key={step}>
+                      <line
+                        x1={CH.left}
+                        y1={y}
+                        x2={CH.right}
+                        y2={y}
+                        stroke={step === 0 ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)'}
+                        strokeDasharray={step === 0 ? undefined : '3 4'}
+                      />
+                      <text x={CH.left - 8} y={y + 4} textAnchor="end" fontSize="11" fill="#64748B">
+                        {fmtAxisEur(maxRev * step)}
+                      </text>
+                      <text x={CH.right + 8} y={y + 4} textAnchor="start" fontSize="11" fill="#38BDF8" opacity={0.7}>
+                        {Math.round(maxAtt * step)}
+                      </text>
+                    </g>
                   );
                 })}
 
-                {/* Barras apiladas Cobrado + Pendiente por mes */}
+                {/* Barras apiladas Cobrado + Pendiente */}
                 {trendData.map((d, idx) => {
-                  const x = 34 + idx * 82;
-                  const colH = (d.collected / maxRev) * 125;
-                  const penH = (d.pending / maxRev) * 125;
-                  const isActive = (hoveredMonth ?? selectedMonth) === d.ym;
+                  const cx = colCenter(idx);
+                  const isActive = focusMonth === d.ym;
+                  const yCol = yRev(d.collected);
+                  const yTop = yRev(d.collected + d.pending);
+                  const toggle = () => setPinnedMonth((prev) => (prev === d.ym ? null : d.ym));
                   return (
                     <g
                       key={d.ym}
-                      className="cursor-pointer"
+                      className="cursor-pointer outline-none"
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={pinnedMonth === d.ym}
+                      aria-label={`${formatMonthLong(d.ym)}: ${formatEUR(d.collected)} cobrado, ${formatEUR(
+                        d.pending
+                      )} pendiente, ${d.attCount} asistencias`}
                       onMouseEnter={() => setHoveredMonth(d.ym)}
                       onMouseLeave={() => setHoveredMonth(null)}
-                      onClick={() => setSelectedMonth(d.ym)}
+                      onFocus={() => setHoveredMonth(d.ym)}
+                      onBlur={() => setHoveredMonth(null)}
+                      onClick={toggle}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggle();
+                        }
+                      }}
                     >
                       <rect
-                        x={x - 10}
-                        y={20}
-                        width={56}
-                        height={165}
-                        rx={8}
-                        fill={isActive ? 'rgba(255,255,255,0.04)' : 'transparent'}
+                        x={cx - colW / 2 + 3}
+                        y={CH.top - 8}
+                        width={colW - 6}
+                        height={CH.base - CH.top + 30}
+                        rx={10}
+                        fill={isActive ? 'rgba(255,255,255,0.05)' : 'transparent'}
+                        stroke={pinnedMonth === d.ym ? 'rgba(56,189,248,0.35)' : 'transparent'}
                       />
-                      <rect
-                        x={x}
-                        y={165 - colH}
-                        width={36}
-                        height={Math.max(colH, 2)}
-                        rx={4}
-                        fill="#10B981"
-                        opacity={isActive ? 1 : 0.85}
-                      />
-                      {penH > 0 && (
+                      <g clipPath={`url(#kpiBar-${d.ym})`} opacity={isActive ? 1 : 0.78}>
                         <rect
-                          x={x}
-                          y={165 - colH - penH}
-                          width={36}
-                          height={penH}
-                          rx={4}
-                          fill="#F59E0B"
-                          opacity={isActive ? 1 : 0.8}
+                          x={cx - barW / 2}
+                          y={yCol}
+                          width={barW}
+                          height={Math.max(CH.base - yCol, 2)}
+                          fill="#10B981"
                         />
-                      )}
+                        {d.pending > 0 && (
+                          <rect x={cx - barW / 2} y={yTop} width={barW} height={yCol - yTop} fill="#F59E0B" />
+                        )}
+                      </g>
                       <text
-                        x={x + 18}
-                        y={188}
+                        x={cx}
+                        y={CH.base + 20}
                         textAnchor="middle"
-                        fontSize="11"
+                        fontSize="12"
                         fontWeight={isActive ? '700' : '500'}
                         fill={isActive ? '#FFFFFF' : '#94A3B8'}
                       >
@@ -714,36 +880,38 @@ export function AdminKpisPage() {
                   );
                 })}
 
-                {/* Línea superpuesta de asistencias */}
+                {/* Línea de asistencias con área */}
+                <polygon points={areaPoints} fill="url(#kpiAttArea)" className="pointer-events-none" />
                 <polyline
                   fill="none"
                   stroke="#38BDF8"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
+                  strokeLinecap="round"
                   points={linePoints}
+                  className="pointer-events-none"
                 />
                 {trendData.map((d, idx) => {
-                  const cx = 52 + idx * 82;
-                  const cy = 165 - (d.attCount / maxAtt) * 125;
-                  const isActive = (hoveredMonth ?? selectedMonth) === d.ym;
+                  const isActive = focusMonth === d.ym;
                   return (
                     <circle
                       key={`pt-${d.ym}`}
-                      cx={cx}
-                      cy={cy}
-                      r={isActive ? 5.5 : 3.8}
+                      cx={colCenter(idx)}
+                      cy={yAtt(d.attCount)}
+                      r={isActive ? 5.5 : 3.5}
                       fill={isActive ? '#FFFFFF' : '#38BDF8'}
                       stroke="#0F172A"
-                      strokeWidth="1.5"
-                      className="pointer-events-none"
+                      strokeWidth="2"
+                      className="pointer-events-none transition-all duration-200"
                     />
                   );
                 })}
               </svg>
             </div>
+            </>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400 pt-2 border-t border-white/5">
+          <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400 pt-3 border-t border-white/5">
             <span className="inline-flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Cobrado (€)
             </span>
@@ -751,31 +919,41 @@ export function AdminKpisPage() {
               <span className="w-2.5 h-2.5 rounded-sm bg-amber-500" /> Pendiente (€)
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-3 h-0.5 bg-sky-400" /> Asistencias Tatami
+              <span className="w-3.5 h-[3px] rounded-full bg-sky-400" /> Asistencias
             </span>
           </div>
         </section>
 
         <div className="lg:col-span-5 space-y-6">
           <PowerDonut
-            title="Arqueo de Caja (Método)"
-            centerTop={`${totalCollected.toFixed(0)} €`}
+            title="Arqueo de caja por método"
+            centerTop={formatEUR(totalCollected)}
             centerSub="Cobrado"
-            unit=" €"
+            loading={loading}
+            emptyLabel="Sin cobros"
+            formatValue={formatEUR}
             segments={[
               { label: 'Efectivo', value: cashSum, color: '#10B981' },
               { label: 'Bizum', value: bizumSum, color: '#38BDF8' },
-              { label: 'Otros / Sin esp.', value: otherSum, color: '#64748B' },
+              { label: 'Otros / sin especificar', value: otherSum, color: '#64748B' },
             ]}
           />
           <PowerDonut
-            title="Cartera del Mes (Estado)"
-            centerTop={String(monthPayments.length)}
+            title="Cartera del mes por estado"
+            centerTop={formatInt(monthPayments.length)}
             centerSub="Suscripciones"
+            loading={loading}
+            emptyLabel="Sin cuotas"
             segments={[
-              { label: 'Cobrado (OK)', value: paidMonth.length, color: '#10B981' },
-              { label: 'En plazo 7d', value: graceMonth.length, color: '#F59E0B' },
-              { label: 'Vencido / Pend.', value: overdueMonth.length + pendingMonth.filter((p) => p.effective_status === 'PENDING').length, color: '#E11D2E' },
+              { label: 'Cobrado', value: paidMonth.length, color: '#10B981' },
+              { label: 'En plazo (7 días)', value: graceMonth.length, color: '#F59E0B' },
+              {
+                label: 'Vencido / pendiente',
+                value:
+                  overdueMonth.length +
+                  pendingMonth.filter((p) => p.effective_status === 'PENDING').length,
+                color: '#E11D2E',
+              },
             ]}
           />
         </div>
@@ -884,10 +1062,25 @@ export function AdminKpisPage() {
               <p className="text-[10px] uppercase text-slate-400">≤ 2 créd.</p>
             </div>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Controla en tiempo real los alumnos con bono de 8 clases o clase suelta próximos a
-            renovación durante <strong className="text-slate-200">{formatMonthLabel(selectedMonth)}</strong>.
-          </p>
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[11px] text-slate-400">
+              <span>Bonos a punto de agotarse</span>
+              <span className="tabular-nums">
+                {lowCreditPacks} / {packSubs.length}
+              </span>
+            </div>
+            <div className="w-full h-2 rounded-full studio-panel-inset overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-700"
+                style={{
+                  width: `${packSubs.length > 0 ? Math.round((lowCreditPacks / packSubs.length) * 100) : 0}%`,
+                }}
+              />
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Candidatos a renovación en {formatMonthLong(selectedMonth)}.
+            </p>
+          </div>
         </section>
       </div>
 
@@ -899,7 +1092,7 @@ export function AdminKpisPage() {
               Mapa de Calor Semanal (Asistencias)
             </h2>
             <p className="text-xs text-slate-400">
-              Concentración por día y franja horaria en {formatMonthLabel(selectedMonth)}
+              Concentración por día y franja horaria en {formatMonthLong(selectedMonth)}
             </p>
           </div>
 
@@ -917,28 +1110,35 @@ export function AdminKpisPage() {
               </thead>
               <tbody>
                 {[
-                  { key: 'morning', label: 'Mañana (<14h)' },
-                  { key: 'afternoon', label: 'Tarde (14-18h)' },
-                  { key: 'evening', label: 'Noche (18h+)' },
+                  { key: 'morning', label: 'Mañana', hint: '< 14 h' },
+                  { key: 'afternoon', label: 'Tarde', hint: '14–18 h' },
+                  { key: 'evening', label: 'Noche', hint: '18 h +' },
                 ].map((slot) => (
                   <tr key={slot.key}>
-                    <td className="text-slate-300 font-medium pr-2 whitespace-nowrap">{slot.label}</td>
+                    <th scope="row" className="text-left font-medium pr-2 whitespace-nowrap">
+                      <span className="block text-slate-200">{slot.label}</span>
+                      <span className="block text-[10px] text-slate-500 font-normal">{slot.hint}</span>
+                    </th>
                     {[1, 2, 3, 4, 5, 6].map((d) => {
                       const val = matrixBuckets[`${d}-${slot.key}`] ?? 0;
                       const intensity = val / maxBucket;
+                      const isPeak = val > 0 && val === maxBucket;
                       return (
                         <td
                           key={d}
-                          className="rounded-xl text-center py-3 font-headline text-sm border border-white/5 transition"
+                          title={`${DAY_SHORT[d]} · ${slot.label}: ${val} asistencias`}
+                          className={`rounded-xl text-center py-3 font-headline text-sm tabular-nums transition hover:scale-105 ${
+                            isPeak ? 'ring-1 ring-white/60' : 'ring-1 ring-white/5'
+                          }`}
                           style={{
                             backgroundColor:
                               val === 0
-                                ? 'rgba(15, 23, 42, 0.7)'
-                                : `rgba(225, 29, 46, ${(0.18 + intensity * 0.72).toFixed(2)})`,
-                            color: val === 0 ? '#64748B' : '#FFFFFF',
+                                ? 'rgba(15, 23, 42, 0.55)'
+                                : `rgba(225, 29, 46, ${(0.16 + intensity * 0.74).toFixed(2)})`,
+                            color: val === 0 ? '#475569' : intensity > 0.35 ? '#FFFFFF' : '#FECDD3',
                           }}
                         >
-                          {val}
+                          {val === 0 ? '·' : val}
                         </td>
                       );
                     })}
@@ -946,6 +1146,20 @@ export function AdminKpisPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 text-[10px] text-slate-500">
+            <span>Menos</span>
+            <span className="flex gap-0.5" aria-hidden>
+              {[0.16, 0.34, 0.53, 0.71, 0.9].map((o) => (
+                <span
+                  key={o}
+                  className="w-4 h-2.5 rounded-sm"
+                  style={{ backgroundColor: `rgba(225, 29, 46, ${o})` }}
+                />
+              ))}
+            </span>
+            <span>Más</span>
           </div>
         </section>
 
@@ -957,29 +1171,51 @@ export function AdminKpisPage() {
             <span className="text-xs text-slate-400">{topClasses.length} clases activas</span>
           </div>
 
-          {topClasses.length === 0 ? (
-            <p className="text-sm text-slate-400">Sin asistencias para el filtro seleccionado.</p>
+          {loading ? (
+            <div className="space-y-2">
+              {[0, 1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-14 w-full !rounded-2xl" />
+              ))}
+            </div>
+          ) : topClasses.length === 0 ? (
+            <p className="text-sm text-slate-400 rounded-2xl studio-panel-inset border border-white/5 px-4 py-6 text-center">
+              Sin asistencias para el filtro seleccionado.
+            </p>
           ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
               {topClasses.map((cls, i) => {
                 const avg = cls.dates.size > 0 ? (cls.count / cls.dates.size).toFixed(1) : '0';
+                const barPct = Math.round((cls.count / maxClassCount) * 100);
                 return (
                   <div
                     key={`${cls.title}-${cls.day}-${cls.time}`}
-                    className="rounded-2xl studio-panel-inset border border-white/5 px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs"
+                    className="relative overflow-hidden rounded-2xl studio-panel-inset border border-white/5 px-3.5 py-2.5 text-xs"
                   >
-                    <div className="min-w-0">
-                      <p className="font-semibold text-white truncate">
-                        <span className="text-studio-red mr-1.5">#{i + 1}</span>
-                        {cls.title}
-                      </p>
-                      <p className="text-slate-400">
-                        {DAY_SHORT[cls.day] ?? ''} {cls.time} · Prof. {cls.coach}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-white">{cls.count} asist.</p>
-                      <p className="text-[11px] text-slate-400">{avg} / sesión</p>
+                    <div
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-studio-cream/15 to-studio-cream/[0.03] pointer-events-none"
+                      style={{ width: `${barPct}%` }}
+                      aria-hidden
+                    />
+                    <div className="relative flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex items-center gap-3">
+                        <span
+                          className={`grid place-items-center w-7 h-7 shrink-0 rounded-lg font-headline text-sm ${
+                            i < 3 ? 'bg-studio-cream text-slate-950' : 'bg-white/5 text-slate-400'
+                          }`}
+                        >
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-white truncate">{cls.title}</p>
+                          <p className="text-slate-400 truncate">
+                            {DAY_SHORT[cls.day] ?? ''} {cls.time} · Prof. {cls.coach}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 tabular-nums">
+                        <p className="font-bold text-white">{cls.count} asist.</p>
+                        <p className="text-[11px] text-slate-400">{avg} / sesión</p>
+                      </div>
                     </div>
                   </div>
                 );

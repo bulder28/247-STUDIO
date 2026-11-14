@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Megaphone } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { PageHeader } from '@/components/PageHeader';
 
 interface Discipline {
   id: string;
@@ -17,7 +18,7 @@ interface Announcement {
   disciplines?: { name: string } | null;
 }
 
-export function ForumViewPage() {
+export function ForumViewPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, profile } = useAuth();
   const canPost = profile?.role === 'admin' || profile?.role === 'coach';
 
@@ -65,14 +66,12 @@ export function ForumViewPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-          Foro de Comunicados
-        </h1>
-        <p className="text-sm text-slate-400">
-          Comunicados oficiales de la academia filtrados por disciplina.
-        </p>
-      </div>
+      {!embedded && (
+        <PageHeader
+          title="Foro"
+          subtitle="Comunicados oficiales de la academia, filtrados por disciplina."
+        />
+      )}
 
       {/* Filtro por disciplina (Slide 9) */}
       <div className="flex flex-wrap gap-2">
@@ -80,8 +79,8 @@ export function ForumViewPage() {
           onClick={() => setFilterId('all')}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
             filterId === 'all'
-              ? 'bg-studio-red border-studio-red text-white'
-              : 'bg-studio-navy border-white/10 text-slate-300'
+              ? 'bg-studio-cream border-studio-cream text-slate-950'
+              : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:border-white/25'
           }`}
         >
           Todas
@@ -92,8 +91,8 @@ export function ForumViewPage() {
             onClick={() => setFilterId(d.id)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
               filterId === d.id
-                ? 'bg-studio-red border-studio-red text-white'
-                : 'bg-studio-navy border-white/10 text-slate-300'
+                ? 'bg-studio-cream border-studio-cream text-slate-950'
+                : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:border-white/25'
             }`}
           >
             {d.name}
@@ -104,7 +103,7 @@ export function ForumViewPage() {
       {canPost && (
         <form
           onSubmit={handlePublish}
-          className="rounded-2xl bg-studio-navy border border-white/10 p-4 space-y-3"
+          className="rounded-2xl studio-panel border border-white/10 p-4 space-y-3"
         >
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-300">
             Publicar comunicado
@@ -115,12 +114,12 @@ export function ForumViewPage() {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Título"
               required
-              className="rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
             <select
               value={postDiscipline}
               onChange={(e) => setPostDiscipline(e.target.value)}
-              className="rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+              className="rounded-xl studio-field px-3 py-2 text-sm text-white"
             >
               <option value="">General (todas las disciplinas)</option>
               {disciplines.map((d) => (
@@ -136,11 +135,11 @@ export function ForumViewPage() {
             onChange={(e) => setContent(e.target.value)}
             placeholder="Escribe el comunicado para los alumnos..."
             required
-            className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+            className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
           />
           <button
             type="submit"
-            className="rounded-xl bg-studio-red hover:bg-studio-red-dark px-4 py-2 text-xs font-semibold text-white"
+            className="rounded-xl studio-btn px-4 py-2 text-xs font-semibold text-white"
           >
             Publicar
           </button>
@@ -154,19 +153,29 @@ export function ForumViewPage() {
           visiblePosts.map((post) => (
             <article
               key={post.id}
-              className="rounded-2xl bg-studio-navy border border-white/10 p-5 space-y-2"
+              className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-7 grid grid-cols-1 sm:grid-cols-[9.5rem_1fr] gap-x-6 gap-y-2"
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase px-2.5 py-0.5 rounded-full bg-studio-red/15 text-red-300">
-                  <Megaphone className="w-3 h-3" />
+              <div className="flex sm:flex-col items-center sm:items-start gap-x-3 gap-y-1 text-xs">
+                <time className="text-slate-500 tabular-nums" dateTime={post.created_at}>
+                  {new Date(post.created_at).toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </time>
+                <span className="inline-flex items-center gap-1.5 font-semibold text-studio-cream">
+                  <Megaphone className="w-3.5 h-3.5 text-studio-red" />
                   {post.disciplines?.name ?? 'General'}
                 </span>
-                <span className="text-xs text-slate-500">
-                  {new Date(post.created_at).toLocaleDateString('es-ES')}
-                </span>
               </div>
-              <h2 className="font-headline text-lg text-white uppercase">{post.title}</h2>
-              <p className="text-sm text-slate-300 whitespace-pre-line">{post.content}</p>
+              <div className="min-w-0">
+                <h2 className="font-headline text-xl sm:text-2xl text-white uppercase leading-tight">
+                  {post.title}
+                </h2>
+                <p className="text-sm text-slate-300 whitespace-pre-line leading-relaxed mt-2 max-w-2xl">
+                  {post.content}
+                </p>
+              </div>
             </article>
           ))
         )}

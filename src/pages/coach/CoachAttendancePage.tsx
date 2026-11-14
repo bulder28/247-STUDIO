@@ -3,6 +3,7 @@ import { Check, UserPlus, User, Users, Calendar, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { getLocalDateISO, getLocalTimeHHMM } from '@/lib/dateUtils';
+import { PageHeader } from '@/components/PageHeader';
 
 const DAYS = [
   { value: 1, label: 'Lunes' },
@@ -287,31 +288,26 @@ export function CoachAttendancePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="font-headline text-2xl md:text-3xl uppercase tracking-wide text-white">
-            {isToday ? 'Pasar Lista — Hoy' : `Previsión de Clase — ${selectedDayLabel}`}
-          </h1>
-          <p className="text-sm text-slate-400">
-            {isToday
-              ? 'Toca a cada alumno presente en el tatami para validar su asistencia.'
-              : 'Vista previa de los alumnos previstos para la próxima sesión (el fichaje se habilita el día de la clase).'}
-          </p>
-        </div>
-
-        <button
-          onClick={() => {
-            const current = allClasses.find((c) => c.id === selectedClassId);
-            if (current) setGuestDisciplineId(current.discipline_id);
-            else if (disciplines[0]) setGuestDisciplineId(disciplines[0].id);
-            setShowGuestModal(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-studio-navy px-4 py-2 text-xs font-semibold text-white hover:bg-white/5 shrink-0"
-        >
-          <UserPlus className="w-4 h-4 text-studio-red" />
-          + Invitado / Clase Prueba
-        </button>
-      </div>
+      <PageHeader
+        title={<>{isToday ? 'Pasar lista' : `Previsión del ${selectedDayLabel}`}</>}
+        subtitle={<>{isToday ? 'Toca a cada alumno presente en el tatami para validar su asistencia.' : 'Vista previa de los alumnos previstos para la próxima sesión (el fichaje se habilita el día de la clase).'}</>}
+        actions={
+          <>
+            <button
+              onClick={() => {
+                const current = allClasses.find((c) => c.id === selectedClassId);
+                if (current) setGuestDisciplineId(current.discipline_id);
+                else if (disciplines[0]) setGuestDisciplineId(disciplines[0].id);
+                setShowGuestModal(true);
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white hover:bg-white/5 shrink-0"
+            >
+              <UserPlus className="w-4 h-4 text-studio-red" />
+              + Invitado / Clase Prueba
+            </button>
+          </>
+        }
+      />
 
       {/* Selector de Día (Lunes a Viernes) */}
       <div className="flex flex-wrap items-center gap-2">
@@ -325,7 +321,7 @@ export function CoachAttendancePage() {
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
               selectedDay === d.value
                 ? 'bg-white text-studio-navy-deep border-white'
-                : 'bg-studio-navy border-white/10 text-slate-300 hover:border-white/25'
+                : 'bg-white/[0.04] border-white/10 text-slate-300 hover:border-white/25'
             }`}
           >
             {d.label}
@@ -343,8 +339,8 @@ export function CoachAttendancePage() {
               onClick={() => setSelectedClassId(c.id)}
               className={`px-4 py-2 rounded-xl text-left transition border ${
                 selectedClassId === c.id
-                  ? 'bg-studio-red border-studio-red text-white'
-                  : 'bg-studio-navy border-white/10 text-slate-300 hover:border-white/25'
+                  ? 'bg-studio-cream border-studio-cream text-slate-950'
+                  : 'bg-white/[0.04] border-white/10 text-slate-300 hover:border-white/25'
               }`}
             >
               <span className="block text-[11px] opacity-80">
@@ -360,7 +356,7 @@ export function CoachAttendancePage() {
         <div className="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <form
             onSubmit={addGuest}
-            className="w-full max-w-md rounded-2xl bg-studio-navy border border-white/15 p-6 space-y-4 shadow-modal"
+            className="w-full max-w-md rounded-2xl studio-panel border border-white/15 p-6 space-y-4 shadow-modal"
           >
             <h2 className="font-headline text-xl uppercase text-white">
               Registrar Clase de Prueba
@@ -376,7 +372,7 @@ export function CoachAttendancePage() {
                   onChange={(e) => setGuestName(e.target.value)}
                   placeholder="Ej. Carlos Mendoza"
                   required
-                  className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
 
@@ -387,7 +383,7 @@ export function CoachAttendancePage() {
                     value={guestPhone}
                     onChange={(e) => setGuestPhone(e.target.value)}
                     placeholder="600 000 000"
-                    className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                   />
                 </div>
                 <div>
@@ -397,7 +393,7 @@ export function CoachAttendancePage() {
                     value={guestEmail}
                     onChange={(e) => setGuestEmail(e.target.value)}
                     placeholder="carlos@email.com"
-                    className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                   />
                 </div>
               </div>
@@ -411,7 +407,7 @@ export function CoachAttendancePage() {
                     value={guestDisciplineId}
                     onChange={(e) => setGuestDisciplineId(e.target.value)}
                     required
-                    className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                   >
                     {disciplines.map((d) => (
                       <option key={d.id} value={d.id}>
@@ -429,7 +425,7 @@ export function CoachAttendancePage() {
                     value={guestDate}
                     onChange={(e) => setGuestDate(e.target.value)}
                     required
-                    className="w-full rounded-xl bg-studio-navy-deep border border-white/10 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                   />
                 </div>
               </div>
@@ -445,7 +441,7 @@ export function CoachAttendancePage() {
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-studio-red hover:bg-studio-red-dark text-sm font-semibold text-white"
+                className="px-5 py-2 rounded-xl studio-btn text-sm font-semibold text-white"
               >
                 Guardar Prueba
               </button>
@@ -479,7 +475,7 @@ export function CoachAttendancePage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar alumno..."
-                className="w-full rounded-xl bg-studio-navy border border-white/10 pl-9 pr-3 py-1.5 text-xs text-white"
+                className="w-full rounded-xl studio-field pl-9 pr-3 py-1.5 text-xs text-white"
               />
             </div>
           )}
@@ -489,11 +485,11 @@ export function CoachAttendancePage() {
       {loading ? (
         <p className="text-sm text-slate-400">Cargando lista de clase...</p>
       ) : classesForDay.length === 0 ? (
-        <div className="rounded-2xl bg-studio-navy border border-white/10 p-6 text-sm text-slate-400">
+        <div className="rounded-2xl studio-panel border border-white/10 p-6 text-sm text-slate-400">
           No hay clases programadas para este día.
         </div>
       ) : visibleStudents.length === 0 ? (
-        <div className="rounded-2xl bg-studio-navy border border-white/10 p-6 text-sm text-slate-400">
+        <div className="rounded-2xl studio-panel border border-white/10 p-6 text-sm text-slate-400">
           {students.length === 0
             ? `No hay alumnos activos con tarifa compatible para esta disciplina este mes (${currentMonth}).`
             : 'Ningún alumno coincide con la búsqueda.'}
@@ -513,7 +509,7 @@ export function CoachAttendancePage() {
                   checked
                     ? 'bg-emerald-500/15 border-emerald-500 text-white'
                     : isToday
-                      ? 'bg-studio-navy border-white/10 text-slate-200 hover:border-white/30'
+                      ? 'bg-white/[0.04] border-white/10 text-slate-200 hover:border-white/30'
                       : 'bg-studio-navy/70 border-white/10 text-slate-200 cursor-default'
                 } ${busy ? 'opacity-60' : ''}`}
               >
@@ -522,7 +518,7 @@ export function CoachAttendancePage() {
                     <Check className="w-4 h-4" />
                   </span>
                 )}
-                <div className="w-16 h-16 rounded-full bg-studio-navy-deep border border-white/10 overflow-hidden flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full studio-panel-inset border border-white/10 overflow-hidden flex items-center justify-center">
                   {st.avatar_url ? (
                     <img
                       src={st.avatar_url}
@@ -560,7 +556,7 @@ export function CoachAttendancePage() {
       )}
 
       {guestList.length > 0 && (
-        <div className="rounded-2xl bg-studio-navy border border-white/10 p-4">
+        <div className="rounded-2xl studio-panel border border-white/10 p-4">
           <h3 className="text-xs uppercase tracking-wider text-slate-400 mb-2">
             Invitados / Pruebas hoy
           </h3>
