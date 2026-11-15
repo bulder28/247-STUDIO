@@ -10,14 +10,17 @@ import {
   Check,
   Camera,
   Upload,
+  Download,
   FileWarning,
   CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { uploadUserAvatar } from '@/lib/imageCompressor';
+import { exportWorkbook } from '@/lib/excel';
 import { getLocalMonthYear, calculateAge, isMinorAge } from '@/lib/dateUtils';
 import { getEffectivePlanPrice } from '@/lib/pricing';
 import { CameraCaptureModal } from '@/components/CameraCaptureModal';
+import { StudentBulkImportModal } from '@/components/StudentBulkImportModal';
 import { Skeleton } from '@/components/KpiCard';
 import {
   getDocumentCompliance,
@@ -75,6 +78,7 @@ export function AdminStudentsPage() {
 
   // Alta nuevo usuario
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -379,6 +383,30 @@ export function AdminStudentsPage() {
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const handleExportExcel = () => {
+    const rows = filtered.map((p) => {
+      const planId = subsByUser[p.id];
+      const plan = plans.find((pl) => pl.id === planId);
+      const docs = getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date);
+      return {
+        Nombre: p.full_name,
+        Email: p.email,
+        Telefono: p.phone ?? '',
+        Fecha_nacimiento: p.birth_date ?? '',
+        Rol: p.role === 'admin' ? 'Admin' : p.role === 'coach' ? 'Coach' : 'Alumno',
+        Estado: p.status === 'active' ? 'Activo' : p.status === 'paused' ? 'Pausado' : 'Baja',
+        Cinturon: p.belt ?? 'Sin cinturón',
+        Grados: p.belt_stripes ?? 0,
+        Tarifa_mes: plan ? plan.name : 'Sin tarifa',
+        Cuota_EUR: plan ? getEffectivePlanPrice(plan.price_eur, p.is_founder) : 0,
+        Socio_fundador: p.is_founder ? 'Sí' : 'No',
+        Documentos: docs.isComplete ? 'Al día' : `Pendientes (${docs.pending.length})`,
+      };
+    });
+
+    exportWorkbook(`alumnos_247_${currentMonth}.xlsx`, [{ name: 'Alumnos', rows }]);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -386,18 +414,37 @@ export function AdminStudentsPage() {
         subtitle={<>Gestiona altas, bajas, pausas, cinturones, roles y la tarifa mensual ({currentMonth}).</>}
         actions={
           <>
-            <button
-              onClick={() => {
-                setTrialGuestId(null);
-                setTrialDateRef(null);
-                setCreateError(null);
-                setShowNewModal(true);
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl studio-btn px-4 py-2.5 text-sm font-semibold text-white transition shrink-0"
-            >
-              <UserPlus className="w-4 h-4" />
-              Nuevo Alumno
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={filtered.length === 0}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] hover:bg-white/10 disabled:opacity-50 px-3.5 py-2.5 text-xs font-semibold text-slate-200 transition shrink-0"
+              >
+                <Download className="w-4 h-4 text-emerald-400" />
+                Exportar Excel
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowImportModal(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] hover:bg-white/10 px-3.5 py-2.5 text-xs font-semibold text-slate-200 transition shrink-0"
+              >
+                <Upload className="w-4 h-4 text-red-400" />
+                Importar Excel
+              </button>
+              <button
+                onClick={() => {
+                  setTrialGuestId(null);
+                  setTrialDateRef(null);
+                  setCreateError(null);
+                  setShowNewModal(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl studio-btn px-4 py-2.5 text-sm font-semibold text-white transition shrink-0"
+              >
+                <UserPlus className="w-4 h-4" />
+                Nuevo Alumno
+              </button>
+            </div>
           </>
         }
       />
@@ -1326,6 +1373,15 @@ export function AdminStudentsPage() {
             setEditPhotoPreview(URL.createObjectURL(file));
           }
         }}
+      />
+
+      <StudentBulkImportModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImported={loadAll}
+        plans={plans}
+        existingEmails={new Set(profiles.map((p) => p.email.toLowerCase()))}
+        currentMonth={currentMonth}
       />
     </div>
   );

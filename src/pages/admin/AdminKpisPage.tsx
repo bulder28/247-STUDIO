@@ -13,8 +13,10 @@ import {
   ShieldCheck,
   Ticket,
   RotateCcw,
+  Download,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { exportWorkbook } from '@/lib/excel';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
 import { formatEUR, formatInt, formatMonthLong } from '@/lib/format';
@@ -516,6 +518,57 @@ export function AdminKpisPage() {
   ).toFixed(1)},${CH.base}`;
   const fmtAxisEur = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `${v}`);
 
+  const handleExportExcel = () => {
+    const dayLabels: Record<number, string> = {
+      1: 'Lunes',
+      2: 'Martes',
+      3: 'Miércoles',
+      4: 'Jueves',
+      5: 'Viernes',
+      6: 'Sábado',
+      7: 'Domingo',
+    };
+
+    const resumenRows = [
+      { Indicador: 'Mes', Valor: formatMonthLong(selectedMonth) },
+      { Indicador: 'Ingresos cobrados (EUR)', Valor: Number(totalCollected.toFixed(2)) },
+      { Indicador: 'Pendiente del mes (EUR)', Valor: Number(totalPending.toFixed(2)) },
+      { Indicador: 'Deuda meses previos (EUR)', Valor: Number(historicalDebt.toFixed(2)) },
+      { Indicador: 'Tasa de cobro (%)', Valor: collectionRate },
+      { Indicador: 'ARPU (EUR)', Valor: Number(arpu.toFixed(2)) },
+      { Indicador: 'Cuotas pagadas', Valor: paidMonth.length },
+      { Indicador: 'Asistencias del mes', Valor: monthAtt.length },
+    ];
+
+    const evolucionRows = trendData.map((d) => ({
+      Mes: d.label,
+      Cobrado_EUR: Number(d.collected.toFixed(2)),
+      Pendiente_EUR: Number(d.pending.toFixed(2)),
+      Tasa_cobro_pct: d.rate,
+      Asistencias: d.attCount,
+      Altas: d.signups,
+    }));
+
+    const clasesRows = topClasses.map((c) => {
+      const sessions = Math.max(1, c.dates.size);
+      return {
+        Clase: c.title,
+        Dia: dayLabels[c.day] ?? String(c.day),
+        Hora: c.time,
+        Coach: c.coach,
+        Asistencias: c.count,
+        Sesiones: c.dates.size,
+        Media_por_sesion: Number((c.count / sessions).toFixed(1)),
+      };
+    });
+
+    exportWorkbook(`kpis_247_${selectedMonth}.xlsx`, [
+      { name: 'Resumen_Mes', rows: resumenRows },
+      { name: 'Evolucion_6_Meses', rows: evolucionRows },
+      { name: 'Top_Clases', rows: clasesRows },
+    ]);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -576,6 +629,16 @@ export function AdminKpisPage() {
               Reset
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] hover:bg-white/10 disabled:opacity-50 px-3 py-2 text-xs font-semibold text-slate-200 transition"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            Exportar Excel
+          </button>
           </>
         }
       />

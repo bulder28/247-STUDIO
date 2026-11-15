@@ -8,8 +8,10 @@ import {
   CalendarClock,
   Wallet,
   X,
+  Download,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { exportWorkbook } from '@/lib/excel';
 import { getLocalMonthYear } from '@/lib/dateUtils';
 import { PageHeader } from '@/components/PageHeader';
 
@@ -494,6 +496,43 @@ export function AdminTrackingPage() {
     }
   };
 
+  const handleExportExcel = () => {
+    const statusLabel = (s: EffectiveStatus) => {
+      if (s === 'OK') return 'Pagado';
+      if (s === 'ADVANCE_OK') return 'Adelantado';
+      if (s === 'FUTURE_UPCOMING') return 'Próximo';
+      if (s === 'GRACE_7_DAYS') return 'En gracia (7 días)';
+      if (s === 'PAST_DUE' || s === 'NOK_OVERDUE') return 'Vencido / Impgado';
+      return 'Pendiente';
+    };
+
+    const detailRows = filteredRows.map((r) => ({
+      Alumno: r.full_name,
+      Mes: r.month_year,
+      Tarifa: r.plan_name,
+      Importe_EUR: Number(r.price_eur || 0),
+      Pagado_EUR: r.paid_amount_eur != null ? Number(r.paid_amount_eur) : isPaidStatus(r.effective_status) ? Number(r.price_eur || 0) : 0,
+      Estado: statusLabel(r.effective_status),
+      Metodo_pago: r.payment_method ?? '',
+      Fecha_pago: r.paid_at ? r.paid_at.slice(0, 10) : '',
+      Socio_fundador: r.is_founder ? 'Sí' : 'No',
+      Notas: r.payment_notes ?? '',
+    }));
+
+    const summaryRows = Object.entries(byProduct).map(([planName, stats]) => ({
+      Tarifa: planName,
+      Alumnos: stats.count,
+      Pagados: stats.paid,
+      Pendientes: stats.count - stats.paid,
+      Cobrado_EUR: stats.amount,
+    }));
+
+    exportWorkbook(`cobros_247_${monthYear}.xlsx`, [
+      { name: 'Cobros', rows: detailRows },
+      { name: 'Resumen_Tarifas', rows: summaryRows },
+    ]);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -508,6 +547,15 @@ export function AdminTrackingPage() {
                 onChange={(e) => setMonthYear(e.target.value)}
                 className="rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={filteredRows.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] hover:bg-white/10 disabled:opacity-50 px-3 py-2 text-xs font-medium text-slate-200"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                Exportar Excel
+              </button>
               <button
                 onClick={generateMonthFromPrevious}
                 disabled={generating}
