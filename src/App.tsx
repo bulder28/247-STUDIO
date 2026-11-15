@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { MotionConfig } from 'motion/react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -149,6 +150,34 @@ function AppRoutes() {
 }
 
 export function App() {
+  useEffect(() => {
+    let raf = 0;
+    let lastPanel: HTMLElement | null = null;
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
+      const target = e.target as HTMLElement | null;
+      const panel = target?.closest<HTMLElement>('.studio-panel') ?? null;
+      if (lastPanel && lastPanel !== panel) {
+        lastPanel.style.setProperty('--mx', '-999px');
+        lastPanel.style.setProperty('--my', '-999px');
+      }
+      lastPanel = panel;
+      if (!panel) return;
+      if (raf) cancelAnimationFrame(raf);
+      const { clientX, clientY } = e;
+      raf = requestAnimationFrame(() => {
+        const rect = panel.getBoundingClientRect();
+        panel.style.setProperty('--mx', `${clientX - rect.left}px`);
+        panel.style.setProperty('--my', `${clientY - rect.top}px`);
+      });
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
     <MotionConfig reducedMotion="user">
       <BrowserRouter>

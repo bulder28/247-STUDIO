@@ -1,5 +1,6 @@
 import { useEffect, useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -25,13 +26,13 @@ interface PaymentSummary {
   plan_name: string;
   price_eur: number;
   effective_status:
-    | 'OK'
-    | 'ADVANCE_OK'
-    | 'FUTURE_UPCOMING'
-    | 'PAST_DUE'
-    | 'NOK_OVERDUE'
-    | 'GRACE_7_DAYS'
-    | 'PENDING';
+  | 'OK'
+  | 'ADVANCE_OK'
+  | 'FUTURE_UPCOMING'
+  | 'PAST_DUE'
+  | 'NOK_OVERDUE'
+  | 'GRACE_7_DAYS'
+  | 'PENDING';
 }
 
 const MONTH_NAMES = [
@@ -332,21 +333,20 @@ export function ClientHomePage() {
       {/* Indicador visual de Pago OK / Factura pendiente / Pago adelantado */}
       {(payment || coveredUntilMonth) && (
         <div
-          className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${
-            payment?.effective_status === 'OK' ||
-            payment?.effective_status === 'ADVANCE_OK' ||
-            (!payment && coveredUntilMonth)
+          className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${payment?.effective_status === 'OK' ||
+              payment?.effective_status === 'ADVANCE_OK' ||
+              (!payment && coveredUntilMonth)
               ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
               : payment?.effective_status === 'NOK_OVERDUE' ||
-                  payment?.effective_status === 'PAST_DUE'
+                payment?.effective_status === 'PAST_DUE'
                 ? 'bg-studio-red/20 border-studio-red text-red-100'
                 : 'bg-amber-500/15 border-amber-500/40 text-amber-200'
-          }`}
+            }`}
         >
           <div className="flex items-center gap-3">
             {payment?.effective_status === 'OK' ||
-            payment?.effective_status === 'ADVANCE_OK' ||
-            (!payment && coveredUntilMonth) ? (
+              payment?.effective_status === 'ADVANCE_OK' ||
+              (!payment && coveredUntilMonth) ? (
               <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
             ) : payment?.effective_status === 'NOK_OVERDUE' ||
               payment?.effective_status === 'PAST_DUE' ? (
@@ -357,8 +357,8 @@ export function ClientHomePage() {
             <div>
               <p className="font-headline text-base uppercase tracking-wide">
                 {payment?.effective_status === 'OK' ||
-                payment?.effective_status === 'ADVANCE_OK' ||
-                (!payment && coveredUntilMonth)
+                  payment?.effective_status === 'ADVANCE_OK' ||
+                  (!payment && coveredUntilMonth)
                   ? coveredUntilMonth
                     ? `Pago mensual OK · Cubierto hasta ${formatLongMonth(coveredUntilMonth)}`
                     : 'Pago mensual OK'
@@ -386,9 +386,15 @@ export function ClientHomePage() {
       )}
 
       {/* Carnet Oficial del Luchador */}
-      <section
+      <motion.section
         onMouseMove={handleCardMove}
         onMouseLeave={() => setCardSpot(null)}
+        animate={{
+          rotateX: cardSpot ? ((cardSpot.y - 140) / 140) * -2.8 : 0,
+          rotateY: cardSpot ? ((cardSpot.x - 240) / 240) * 2.8 : 0,
+        }}
+        transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+        style={{ transformPerspective: 1000 }}
         className="relative overflow-hidden rounded-3xl studio-panel border border-white/15 p-6 sm:p-7"
       >
         <img
@@ -491,7 +497,7 @@ export function ClientHomePage() {
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Contador visual de Bono (Multipack / Bono 8 clases / Clase Suelta) */}
       {activeSub?.plans?.is_class_pack && (
@@ -521,11 +527,10 @@ export function ClientHomePage() {
                 <div
                   key={idx}
                   title={isUsed ? 'Sesión consumida' : 'Sesión disponible'}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border transition ${
-                    isUsed
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border transition ${isUsed
                       ? 'studio-panel-inset border-white/10 text-slate-500 opacity-60'
                       : 'bg-sky-500/20 border-sky-400/60 text-sky-100 shadow-sm'
-                  }`}
+                    }`}
                 >
                   {isUsed ? '✓' : idx + 1}
                 </div>
@@ -646,11 +651,10 @@ export function ClientHomePage() {
                       </p>
                     </div>
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                        child.status === 'active'
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${child.status === 'active'
                           ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                           : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                      }`}
+                        }`}
                     >
                       {child.status === 'active' ? 'Activo' : 'Pausado'}
                     </span>

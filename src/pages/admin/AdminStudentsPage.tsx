@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   Search,
   ShieldCheck,
@@ -585,12 +586,23 @@ export function AdminStudentsPage() {
       </div>
 
       {/* Modal edición rápida */}
-      {selected && (
-        <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <form
-            onSubmit={handleSaveSelected}
-            className="w-full max-w-lg rounded-2xl studio-panel border border-white/15 p-6 space-y-4 shadow-modal max-h-[90vh] overflow-y-auto"
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           >
+            <motion.form
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+              onSubmit={handleSaveSelected}
+              className="w-full max-w-lg rounded-2xl studio-panel border border-white/15 p-6 space-y-4 shadow-modal max-h-[90vh] overflow-y-auto"
+            >
             <h2 className="font-headline text-xl uppercase text-white">Editar Ficha</h2>
 
             {editError && (
@@ -927,17 +939,29 @@ export function AdminStudentsPage() {
                 {saving ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
-          </form>
-        </div>
-      )}
+            </motion.form>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Modal Alta Nuevo Alumno / Staff */}
-      {showNewModal && (
-        <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <form
-            onSubmit={handleCreateUser}
-            className="w-full max-w-lg rounded-2xl studio-panel border border-white/15 p-6 space-y-4 shadow-modal max-h-[90vh] overflow-y-auto"
+      <AnimatePresence>
+        {showNewModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           >
+            <motion.form
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+              onSubmit={handleCreateUser}
+              className="w-full max-w-lg rounded-2xl studio-panel border border-white/15 p-6 space-y-4 shadow-modal max-h-[90vh] overflow-y-auto"
+            >
             <h2 className="font-headline text-xl uppercase text-white">Alta Nuevo Usuario</h2>
             <p className="text-xs text-slate-400">
               Se generará una clave temporal única y la app le pedirá cambiarla en su primer acceso.
@@ -1213,9 +1237,10 @@ export function AdminStudentsPage() {
                 {creating ? 'Creando...' : 'Crear Usuario'}
               </button>
             </div>
-          </form>
-        </div>
-      )}
+            </motion.form>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <CameraCaptureModal
         open={cameraTarget !== null}

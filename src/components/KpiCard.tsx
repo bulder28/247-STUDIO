@@ -1,5 +1,5 @@
-import type { ComponentType, ReactNode } from 'react';
-import { motion } from 'motion/react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { animate, motion, useMotionValue } from 'motion/react';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
 
 export type KpiAccent = 'emerald' | 'amber' | 'sky' | 'red' | 'purple';
@@ -136,6 +136,44 @@ export function Sparkline({
   );
 }
 
+function AnimatedKpiValue({ value }: { value: ReactNode }) {
+  const raw = typeof value === 'number' ? String(value) : typeof value === 'string' ? value : null;
+  const match = raw ? raw.match(/^([^\d-]*)(-?[\d.,]+)(.*)$/) : null;
+  const numericStr = match?.[2] ?? '';
+  const hasGrouping = numericStr.includes('.') && !numericStr.includes(',');
+  const normalized = hasGrouping ? numericStr.replace(/\./g, '') : numericStr.replace(',', '.');
+  const target = match ? Number(normalized) : NaN;
+  const isAnimatable = Boolean(match && Number.isFinite(target));
+
+  const mv = useMotionValue(0);
+  const [display, setDisplay] = useState(raw ?? '');
+
+  useEffect(() => {
+    if (!isAnimatable || !match) return;
+    const prefix = match[1];
+    const suffix = match[3];
+    const decimals = !hasGrouping && numericStr.includes(',') ? (numericStr.split(',')[1]?.length ?? 0) : 0;
+
+    const controls = animate(mv, target, {
+      duration: 0.55,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (latest) => {
+        const rounded = decimals > 0 ? latest.toFixed(decimals) : String(Math.round(latest));
+        const formatted =
+          decimals > 0
+            ? rounded.replace('.', ',')
+            : hasGrouping
+              ? Math.round(latest).toLocaleString('es-ES')
+              : rounded;
+        setDisplay(`${prefix}${formatted}${suffix}`);
+      },
+    });
+    return () => controls.stop();
+  }, [isAnimatable, target, raw]);
+
+  return <>{isAnimatable ? display : value}</>;
+}
+
 /** Tarjeta KPI ejecutiva unificada (Resumen + Panel de KPIs). */
 export function KpiCard({
   label,
@@ -188,7 +226,9 @@ export function KpiCard({
       ) : (
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <p className={`font-headline text-3xl leading-none tabular-nums ${valueClassName}`}>{value}</p>
+            <p className={`font-headline text-3xl leading-none tabular-nums ${valueClassName}`}>
+              <AnimatedKpiValue value={value} />
+            </p>
             {delta}
           </div>
           {footnote && <p className="text-xs text-slate-400 leading-snug">{footnote}</p>}
