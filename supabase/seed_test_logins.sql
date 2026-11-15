@@ -53,20 +53,26 @@ BEGIN
       WHERE id = v_uid;
     END IF;
 
-    INSERT INTO public.profiles (id, role, status, full_name, email, belt, belt_stripes)
-    VALUES (v_uid, v_rec.role::user_role, 'active', v_rec.full_name, v_rec.email, v_rec.belt, v_rec.stripes)
-    ON CONFLICT (id) DO UPDATE SET
-      role = EXCLUDED.role,
-      status = 'active',
-      full_name = EXCLUDED.full_name,
-      belt = EXCLUDED.belt,
-      belt_stripes = EXCLUDED.belt_stripes,
-      updated_at = NOW();
+    IF EXISTS (SELECT 1 FROM public.profiles WHERE id = v_uid) THEN
+      UPDATE public.profiles
+      SET role = v_rec.role::user_role,
+          status = 'active',
+          full_name = v_rec.full_name,
+          email = v_rec.email,
+          belt = v_rec.belt,
+          belt_stripes = v_rec.stripes,
+          updated_at = NOW()
+      WHERE id = v_uid;
+    ELSE
+      INSERT INTO public.profiles (id, role, status, full_name, email, belt, belt_stripes)
+      VALUES (v_uid, v_rec.role::user_role, 'active', v_rec.full_name, v_rec.email, v_rec.belt, v_rec.stripes);
+    END IF;
 
     IF v_rec.role = 'client' THEN
-      INSERT INTO public.fighter_stats (user_id, tecnica, fuerza, elasticidad, guardia, pase, derribos, leglocks, finalizacion)
-      VALUES (v_uid, 72, 68, 65, 74, 70, 62, 58, 71)
-      ON CONFLICT (user_id) DO NOTHING;
+      IF NOT EXISTS (SELECT 1 FROM public.fighter_stats WHERE user_id = v_uid) THEN
+        INSERT INTO public.fighter_stats (user_id, tecnica, fuerza, elasticidad, guardia, pase, derribos, leglocks, finalizacion)
+        VALUES (v_uid, 72, 68, 65, 74, 70, 62, 58, 71);
+      END IF;
 
       SELECT id, price_eur INTO v_plan_id, v_plan_price
       FROM public.plans
@@ -75,24 +81,33 @@ BEGIN
       LIMIT 1;
 
       IF v_plan_id IS NOT NULL THEN
-        INSERT INTO public.subscriptions (user_id, plan_id, month_year, status)
-        VALUES (v_uid, v_plan_id, v_month, 'active')
-        ON CONFLICT (user_id, month_year) DO UPDATE SET
-          plan_id = EXCLUDED.plan_id,
-          status = 'active';
-
         SELECT id INTO v_sub_id
         FROM public.subscriptions
         WHERE user_id = v_uid AND month_year = v_month
         LIMIT 1;
 
-        INSERT INTO public.payments (user_id, subscription_id, month_year, amount_eur, status, paid_at, payment_method)
-        VALUES (v_uid, v_sub_id, v_month, v_plan_price, 'paid_ok', NOW(), 'Bizum')
-        ON CONFLICT (user_id, month_year) DO UPDATE SET
-          subscription_id = EXCLUDED.subscription_id,
-          amount_eur = EXCLUDED.amount_eur,
-          status = 'paid_ok',
-          paid_at = COALESCE(public.payments.paid_at, NOW());
+        IF v_sub_id IS NULL THEN
+          v_sub_id := gen_random_uuid();
+          INSERT INTO public.subscriptions (id, user_id, plan_id, month_year, status)
+          VALUES (v_sub_id, v_uid, v_plan_id, v_month, 'active');
+        ELSE
+          UPDATE public.subscriptions
+          SET plan_id = v_plan_id, status = 'active'
+          WHERE id = v_sub_id;
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM public.payments WHERE user_id = v_uid AND month_year = v_month) THEN
+          UPDATE public.payments
+          SET subscription_id = v_sub_id,
+              amount_eur = v_plan_price,
+              status = 'paid_ok',
+              paid_at = COALESCE(paid_at, NOW()),
+              payment_method = 'Bizum'
+          WHERE user_id = v_uid AND month_year = v_month;
+        ELSE
+          INSERT INTO public.payments (user_id, subscription_id, month_year, amount_eur, status, paid_at, payment_method)
+          VALUES (v_uid, v_sub_id, v_month, v_plan_price, 'paid_ok', NOW(), 'Bizum');
+        END IF;
       END IF;
     END IF;
   END LOOP;
