@@ -174,18 +174,33 @@ export function AdminTrackingPage() {
     toastTimer.current = window.setTimeout(() => setToast(null), 7000);
   };
 
+  // Bloqueo síncrono por alumno: un doble clic no lanza dos cobros antes de que el botón se desactive
+  const inFlight = useRef(new Set<string>());
+
   const handleCharge = async (row: PaymentRow, method: PaymentMethod) => {
+    if (inFlight.current.has(row.user_id)) return;
+    inFlight.current.add(row.user_id);
     setBusyUserId(row.user_id);
-    const ok = await markSinglePayment(row, 'paid_ok', method);
-    setBusyUserId(null);
-    if (ok) showToast(`Cobrado: ${row.full_name} · ${formatEURExact(Number(row.price_eur || 0))} por ${method}`, row);
+    try {
+      const ok = await markSinglePayment(row, 'paid_ok', method);
+      if (ok) showToast(`Cobrado: ${row.full_name} · ${formatEURExact(Number(row.price_eur || 0))} por ${method}`, row);
+    } finally {
+      inFlight.current.delete(row.user_id);
+      setBusyUserId(null);
+    }
   };
 
   const handleUndo = async (row: PaymentRow) => {
+    if (inFlight.current.has(row.user_id)) return;
+    inFlight.current.add(row.user_id);
     setBusyUserId(row.user_id);
-    const ok = await markSinglePayment(row, 'pending_nok');
-    setBusyUserId(null);
-    if (ok) showToast(`Cobro deshecho: ${row.full_name}`);
+    try {
+      const ok = await markSinglePayment(row, 'pending_nok');
+      if (ok) showToast(`Cobro deshecho: ${row.full_name}`);
+    } finally {
+      inFlight.current.delete(row.user_id);
+      setBusyUserId(null);
+    }
   };
 
   const generateMonthFromPrevious = async () => {
