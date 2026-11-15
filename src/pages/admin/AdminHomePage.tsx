@@ -18,7 +18,8 @@ import {
 import { supabase } from '@/lib/supabase';
 import { getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
-import { formatEUR, formatMonthLong } from '@/lib/format';
+import { formatEUR, formatEURExact, formatMonthLong } from '@/lib/format';
+import { getCashMonth, type CashMonth } from '@/lib/finance';
 import { DeltaBadge, KpiCard } from '@/components/KpiCard';
 import { PageHeader } from '@/components/PageHeader';
 
@@ -148,6 +149,22 @@ export function AdminHomePage() {
   const [complianceAlerts, setComplianceAlerts] = useState<ComplianceAlert[]>([]);
   const [alertTab, setAlertTab] = useState<'inactive' | 'credits' | 'grace' | 'legal'>('inactive');
   const [loading, setLoading] = useState(true);
+  // Cobrado en el mes (criterio de caja, hora de Madrid): definición única en src/lib/finance.ts
+  const [cashMonth, setCashMonth] = useState<CashMonth | null>(null);
+  const [cashError, setCashError] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setCashMonth(null);
+    setCashError(false);
+    getCashMonth(selectedMonth).then(
+      (c) => alive && setCashMonth(c),
+      () => alive && setCashError(true)
+    );
+    return () => {
+      alive = false;
+    };
+  }, [selectedMonth]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -462,20 +479,11 @@ export function AdminHomePage() {
     prevCollected > 0 ? Math.round(((totalCollected - prevCollected) / prevCollected) * 100) : null;
   const arpu = paidRows.length > 0 ? totalCollected / paidRows.length : 0;
 
-  let cashTotal = 0;
-  let bizumTotal = 0;
-  let otherMethodTotal = 0;
-  paidRows.forEach((r) => {
-    const amt = Number(r.paid_amount_eur ?? r.price_eur ?? 0);
-    const method = (r.payment_method ?? '').toLowerCase();
-    if (method.includes('efectivo') || method.includes('cash')) {
-      cashTotal += amt;
-    } else if (method.includes('bizum')) {
-      bizumTotal += amt;
-    } else {
-      otherMethodTotal += amt;
-    }
-  });
+  // Desglose por método de lo cobrado en el mes (por fecha de cobro, no por mes de la cuota)
+  const cashCollected = cashMonth?.total ?? 0;
+  const cashTotal = cashMonth?.cash ?? 0;
+  const bizumTotal = cashMonth?.bizum ?? 0;
+  const otherMethodTotal = cashMonth?.other ?? 0;
   const historicalDebtTotal = pastDueHistory.reduce((sum, r) => sum + Number(r.price_eur || 0), 0);
 
   // Agrupación de cuotas por programa
@@ -707,35 +715,45 @@ export function AdminHomePage() {
           <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-emerald-400" /> Cobros por Método de Pago
+                <Wallet className="w-4 h-4 text-emerald-400" /> Cobrado por Método de Pago
               </h2>
-              <span className="text-xs text-slate-400">{formatEUR(totalCollected)} cobrados</span>
+              {cashMonth && (
+                <span className="text-xs text-slate-400">
+                  {formatEURExact(cashCollected)} cobrados en el mes
+                </span>
+              )}
             </div>
 
-            {totalCollected === 0 ? (
+            {cashError ? (
+              <p className="text-sm text-amber-200">
+                No se ha podido calcular lo cobrado en {formatMonthLong(selectedMonth)}. Revisa la conexión y recarga.
+              </p>
+            ) : !cashMonth ? (
+              <div className="h-3 rounded-full studio-panel-inset studio-shimmer" aria-label="Cargando" />
+            ) : cashCollected === 0 ? (
               <p className="text-sm text-slate-400">Sin cobros registrados en {formatMonthLong(selectedMonth)}.</p>
             ) : (
               <>
                 <div className="w-full h-3 rounded-full studio-panel-inset overflow-hidden flex border border-white/5">
                   {cashTotal > 0 && (
                     <div
-                      title={`Efectivo: ${formatEUR(cashTotal)}`}
+                      title={`Efectivo: ${formatEURExact(cashTotal)}`}
                       className="h-full bg-emerald-500"
-                      style={{ width: `${(cashTotal / totalCollected) * 100}%` }}
+                      style={{ width: `${(cashTotal / cashCollected) * 100}%` }}
                     />
                   )}
                   {bizumTotal > 0 && (
                     <div
-                      title={`Bizum: ${formatEUR(bizumTotal)}`}
+                      title={`Bizum: ${formatEURExact(bizumTotal)}`}
                       className="h-full bg-sky-500"
-                      style={{ width: `${(bizumTotal / totalCollected) * 100}%` }}
+                      style={{ width: `${(bizumTotal / cashCollected) * 100}%` }}
                     />
                   )}
                   {otherMethodTotal > 0 && (
                     <div
-                      title={`Otros: ${formatEUR(otherMethodTotal)}`}
+                      title={`Otros: ${formatEURExact(otherMethodTotal)}`}
                       className="h-full bg-slate-500"
-                      style={{ width: `${(otherMethodTotal / totalCollected) * 100}%` }}
+                      style={{ width: `${(otherMethodTotal / cashCollected) * 100}%` }}
                     />
                   )}
                 </div>
@@ -745,20 +763,20 @@ export function AdminHomePage() {
                     <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" /> Efectivo
                     </span>
-                    <p className="font-headline text-lg text-white mt-0.5">{formatEUR(cashTotal)}</p>
+                    <p className="font-headline text-lg text-white mt-0.5">{formatEURExact(cashTotal)}</p>
                   </div>
                   <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
                     <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
                       <span className="w-2 h-2 rounded-full bg-sky-500" /> Bizum
                     </span>
-                    <p className="font-headline text-lg text-white mt-0.5">{formatEUR(bizumTotal)}</p>
+                    <p className="font-headline text-lg text-white mt-0.5">{formatEURExact(bizumTotal)}</p>
                   </div>
                   <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
                     <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
                       <span className="w-2 h-2 rounded-full bg-slate-500" /> Otros
                     </span>
                     <p className="font-headline text-lg text-white mt-0.5">
-                      {formatEUR(otherMethodTotal)}
+                      {formatEURExact(otherMethodTotal)}
                     </p>
                   </div>
                 </div>

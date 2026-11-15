@@ -96,7 +96,10 @@ BEGIN
           WHERE id = v_sub_id;
         END IF;
 
-        IF EXISTS (SELECT 1 FROM public.payments WHERE user_id = v_uid AND month_year = v_month) THEN
+        -- Si el mes ya está cobrado no se toca (finance_step0.sql impide pisar un cobro)
+        IF EXISTS (SELECT 1 FROM public.payments WHERE user_id = v_uid AND month_year = v_month AND status = 'paid_ok') THEN
+          NULL;
+        ELSIF EXISTS (SELECT 1 FROM public.payments WHERE user_id = v_uid AND month_year = v_month) THEN
           UPDATE public.payments
           SET subscription_id = v_sub_id,
               amount_eur = v_plan_price,

@@ -9,6 +9,12 @@ DELETE FROM public.trial_guests;
 DELETE FROM public.attendances
 WHERE validated_by IN (SELECT id FROM public.profiles WHERE email LIKE '%@test247.local')
    OR user_id IN (SELECT id FROM public.profiles WHERE email LIKE '%@test247.local');
+-- Desde finance_step0.sql los pagos usan ON DELETE RESTRICT: borrarlos antes que el usuario
+DELETE FROM public.payments
+WHERE user_id IN (SELECT id FROM public.profiles WHERE email LIKE '%@test247.local');
+-- ...y su historial (incluidos los eventos 'delete' que acaba de generar el borrado anterior)
+DELETE FROM public.payment_events
+WHERE user_id IN (SELECT id FROM public.profiles WHERE email LIKE '%@test247.local');
 
 DELETE FROM public.announcements WHERE title LIKE '%(Prueba)%';
 DELETE FROM public.events WHERE title LIKE '%(Prueba)%';

@@ -323,8 +323,8 @@ export function ClientHomePage() {
           <div>
             <p className="font-headline text-base uppercase tracking-wide">
               {pastDueRows.length === 1
-                ? 'Tienes 1 factura pendiente anterior'
-                : `Tienes ${pastDueRows.length} facturas pendientes anteriores`}
+                ? 'Tienes 1 cuota pendiente anterior'
+                : `Tienes ${pastDueRows.length} cuotas pendientes anteriores`}
             </p>
             <p className="text-xs opacity-85">
               Meses pendientes: {pastDueRows.map((r) => formatLongMonth(r.month_year)).join(', ')}
@@ -366,10 +366,10 @@ export function ClientHomePage() {
                     ? `Pago mensual OK · Cubierto hasta ${formatLongMonth(coveredUntilMonth)}`
                     : 'Pago mensual OK'
                   : payment?.effective_status === 'NOK_OVERDUE'
-                    ? 'Factura pendiente (+7 días)'
+                    ? 'Cuota pendiente (+7 días)'
                     : payment?.effective_status === 'GRACE_7_DAYS'
                       ? 'Cuota en plazo (7 días)'
-                      : 'Factura pendiente'}
+                      : 'Cuota pendiente'}
               </p>
               {payment && (
                 <p className="text-xs opacity-85 flex flex-wrap items-center gap-1.5">

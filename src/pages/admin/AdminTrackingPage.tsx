@@ -12,7 +12,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { exportWorkbook } from '@/lib/excel';
-import { getLocalMonthYear } from '@/lib/dateUtils';
+import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
+import { fetchAllRows, getCashMonth, type CashMonth } from '@/lib/finance';
+import { formatEURExact } from '@/lib/format';
 import { PageHeader } from '@/components/PageHeader';
 
 type EffectiveStatus =
@@ -42,11 +44,6 @@ interface PaymentRow {
   payment_method: string | null;
   paid_amount_eur: number | null;
   payment_notes: string | null;
-}
-
-interface CashPaymentRecord {
-  amount_eur: number;
-  payment_method: string | null;
 }
 
 interface StudentLatestPlan {
@@ -106,7 +103,11 @@ export function AdminTrackingPage() {
 
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [allMemberStatuses, setAllMemberStatuses] = useState<PaymentRow[]>([]);
-  const [cashPayments, setCashPayments] = useState<CashPaymentRecord[]>([]);
+  const [cashMonth, setCashMonth] = useState<CashMonth | null>(null);
+  const [cashError, setCashError] = useState(false);
+  // Historial de todos los meses incompleto: los avisos de meses pendientes no serían fiables
+  const [historyError, setHistoryError] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [studentsCatalog, setStudentsCatalog] = useState<StudentLatestPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -119,13 +120,17 @@ export function AdminTrackingPage() {
   const [totalAmountInput, setTotalAmountInput] = useState('');
   const [customAmountTouched, setCustomAmountTouched] = useState(false);
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [paidDate, setPaidDate] = useState(() => getLocalDateISO());
   const [savingMulti, setSavingMulti] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
   const loadTracking = useCallback(async () => {
     setLoading(true);
-    const nextMonthStart = `${addMonths(monthYear, 1)}-01T00:00:00.000Z`;
-    const monthStart = `${monthYear}-01T00:00:00.000Z`;
+    // Caja del mes: definición única en hora de Madrid (src/lib/finance.ts)
+    const cashPromise = getCashMonth(monthYear).then(
+      (c) => ({ ok: true as const, c }),
+      () => ({ ok: false as const, c: null })
+    );
 
     const [monthRes, allRes, cashRes] = await Promise.all([
       supabase
@@ -133,24 +138,29 @@ export function AdminTrackingPage() {
         .select('*')
         .eq('month_year', monthYear)
         .order('full_name'),
-      supabase
-        .from('v_monthly_payment_status')
-        .select('*')
-        .order('month_year', { ascending: true }),
-      supabase
-        .from('payments')
-        .select('amount_eur, payment_method')
-        .eq('status', 'paid_ok')
-        .gte('paid_at', monthStart)
-        .lt('paid_at', nextMonthStart),
+      // Todas las páginas: con muchos alumnos y meses supera el límite de 1.000 filas
+      fetchAllRows<PaymentRow>((from, to) =>
+        supabase
+          .from('v_monthly_payment_status')
+          .select('*')
+          .order('month_year', { ascending: true })
+          .order('user_id', { ascending: true })
+          .range(from, to)
+      ).then(
+        (r) => ({ ok: true as const, r }),
+        () => ({ ok: false as const, r: [] as PaymentRow[] })
+      ),
+      cashPromise,
     ]);
 
     const monthRows = (monthRes.data as PaymentRow[]) ?? [];
-    const allRows = (allRes.data as PaymentRow[]) ?? [];
+    const allRows = allRes.r;
+    setHistoryError(!allRes.ok);
 
     setRows(monthRows);
     setAllMemberStatuses(allRows);
-    setCashPayments((cashRes.data as CashPaymentRecord[]) ?? []);
+    setCashMonth(cashRes.c);
+    setCashError(!cashRes.ok);
 
     // Construir catálogo único de alumnos con su tarifa más reciente
     const map = new Map<string, StudentLatestPlan>();
@@ -199,17 +209,32 @@ export function AdminTrackingPage() {
     status: 'paid_ok' | 'pending_nok',
     method?: PaymentMethod
   ) => {
-    await supabase.from('payments').upsert(
-      {
-        user_id: row.user_id,
-        month_year: monthYear,
-        amount_eur: row.price_eur,
-        status,
-        payment_method: status === 'paid_ok' ? method ?? 'Bizum' : null,
-        paid_at: status === 'paid_ok' ? new Date().toISOString() : null,
-      },
-      { onConflict: 'user_id,month_year' }
-    );
+    setActionError(null);
+    const { error } =
+      status === 'paid_ok'
+        ? await supabase.from('payments').upsert(
+            {
+              user_id: row.user_id,
+              month_year: monthYear,
+              amount_eur: row.price_eur,
+              status,
+              payment_method: method ?? 'Bizum',
+              paid_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,month_year' }
+          )
+        : // Deshacer: no se toca el importe; el cobro original queda en el historial (payment_events)
+          await supabase
+            .from('payments')
+            .update({ status: 'pending_nok', paid_at: null, payment_method: null })
+            .eq('user_id', row.user_id)
+            .eq('month_year', monthYear);
+
+    if (error) {
+      setActionError(
+        `${row.full_name}: ${error.message || 'no se ha podido guardar el cambio.'} Se ha recargado la lista.`
+      );
+    }
     await loadTracking();
   };
 
@@ -293,6 +318,7 @@ export function AdminTrackingPage() {
     setPaymentMethod('Bizum');
     setCustomAmountTouched(false);
     setPaymentNotes('');
+    setPaidDate(getLocalDateISO());
     setModalError(null);
 
     // Preseleccionar los meses vencidos de ese alumno si los tiene, o el mes visualizado
@@ -354,6 +380,28 @@ export function AdminTrackingPage() {
       return;
     }
 
+    // No volver a cobrar un mes ya cobrado: pisaría la fecha y el importe reales
+    const alreadyPaid = selectedMonths.filter((ym) =>
+      allMemberStatuses.some(
+        (r) =>
+          r.user_id === selectedStudent.user_id &&
+          r.month_year === ym &&
+          isPaidStatus(r.effective_status)
+      )
+    );
+    if (alreadyPaid.length > 0) {
+      setModalError(
+        `${alreadyPaid.map(formatMonthLabel).join(', ')} ya está cobrado. Deshaz ese cobro antes de registrarlo de nuevo.`
+      );
+      return;
+    }
+
+    const todayISO = getLocalDateISO();
+    if (!paidDate || paidDate > todayISO) {
+      setModalError('La fecha de cobro no puede ser futura.');
+      return;
+    }
+
     setSavingMulti(true);
     setModalError(null);
 
@@ -379,7 +427,11 @@ export function AdminTrackingPage() {
       const totalCents = Math.round(totalEur * 100);
       const baseCents = Math.floor(totalCents / n);
       const remainderCents = totalCents - baseCents * n;
-      const paidAtIso = new Date().toISOString();
+      // Hoy: hora exacta. Otro día: mediodía local, para que caiga en su mes en hora de Madrid
+      const paidAtIso =
+        paidDate === todayISO
+          ? new Date().toISOString()
+          : new Date(`${paidDate}T12:00:00`).toISOString();
 
       const autoNote =
         n > 1
@@ -433,13 +485,6 @@ export function AdminTrackingPage() {
     .filter((r) => isUnpaidOverdue(r.effective_status))
     .reduce((sum, r) => sum + Number(r.price_eur || 0), 0);
 
-  const cashTotal = cashPayments.reduce((sum, p) => sum + Number(p.amount_eur || 0), 0);
-  const cashEfectivo = cashPayments
-    .filter((p) => p.payment_method === 'Efectivo')
-    .reduce((sum, p) => sum + Number(p.amount_eur || 0), 0);
-  const cashBizum = cashPayments
-    .filter((p) => p.payment_method === 'Bizum')
-    .reduce((sum, p) => sum + Number(p.amount_eur || 0), 0);
 
   const byProduct = rows.reduce<Record<string, { count: number; paid: number; amount: number }>>(
     (acc, r) => {
@@ -477,7 +522,7 @@ export function AdminTrackingPage() {
       case 'NOK_OVERDUE':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-studio-red/20 text-red-300">
-            <AlertTriangle className="w-3.5 h-3.5" /> Factura pendiente (+7d)
+            <AlertTriangle className="w-3.5 h-3.5" /> Cuota pendiente (+7d)
           </span>
         );
       case 'GRACE_7_DAYS':
@@ -490,7 +535,7 @@ export function AdminTrackingPage() {
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300">
-            <AlertTriangle className="w-3.5 h-3.5" /> Factura pendiente
+            <AlertTriangle className="w-3.5 h-3.5" /> Cuota pendiente
           </span>
         );
     }
@@ -537,7 +582,7 @@ export function AdminTrackingPage() {
     <div className="space-y-6">
       <PageHeader
         title="Seguimiento"
-        subtitle={<>Facturas pendientes, próximos vencimientos, pagos adelantados y caja real (Efectivo / Bizum).</>}
+        subtitle={<>Cuotas pendientes, próximos vencimientos, pagos adelantados y lo cobrado en el mes (Efectivo / Bizum).</>}
         actions={
           <>
             <div className="flex flex-wrap items-center gap-2">
@@ -578,6 +623,18 @@ export function AdminTrackingPage() {
         }
       />
 
+      {(historyError || actionError) && (
+        <div role="alert" className="rounded-2xl border border-amber-500/50 bg-amber-500/15 text-amber-100 p-4 text-sm space-y-1">
+          {historyError && (
+            <p>
+              No se ha podido cargar el historial completo de cuotas. Los avisos de meses pendientes y
+              adelantados pueden estar incompletos: recarga antes de cobrar varios meses.
+            </p>
+          )}
+          {actionError && <p>{actionError}</p>}
+        </div>
+      )}
+
       {/* Resumen económico del mes vs Caja real */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-2xl studio-panel border border-white/10 p-4">
@@ -585,7 +642,7 @@ export function AdminTrackingPage() {
             Cuotas de {formatMonthLabel(monthYear)}
           </p>
           <p className="mt-1 font-headline text-2xl text-emerald-400">
-            {monthQuotaPaidTotal.toFixed(2).replace(/\.00$/, '')} €
+            {formatEURExact(monthQuotaPaidTotal)}
           </p>
           <p className="text-xs text-slate-400 mt-0.5">
             {rows.filter((r) => isPaidStatus(r.effective_status)).length} de {rows.length} alumnos cubiertos
@@ -594,10 +651,10 @@ export function AdminTrackingPage() {
 
         <div className="rounded-2xl studio-panel border border-white/10 p-4">
           <p className="text-xs uppercase tracking-wider text-slate-400">
-            Facturas pendientes ({formatMonthLabel(monthYear)})
+            Cuotas pendientes ({formatMonthLabel(monthYear)})
           </p>
           <p className="mt-1 font-headline text-2xl text-amber-300">
-            {monthPendingTotal.toFixed(2).replace(/\.00$/, '')} €
+            {formatEURExact(monthPendingTotal)}
           </p>
           <p className="text-xs text-slate-400 mt-0.5">
             {rows.filter((r) => isUnpaidOverdue(r.effective_status)).length} alumnos por cobrar
@@ -606,15 +663,29 @@ export function AdminTrackingPage() {
 
         <div className="rounded-2xl studio-panel border border-white/10 p-4">
           <div className="flex items-center justify-between text-xs uppercase tracking-wider text-slate-400">
-            <span>Caja real entrada en {formatMonthLabel(monthYear)}</span>
+            <span>Cobrado en {formatMonthLabel(monthYear)}</span>
             <Wallet className="w-4 h-4 text-sky-400" />
           </div>
-          <p className="mt-1 font-headline text-2xl text-white">
-            {cashTotal.toFixed(2).replace(/\.00$/, '')} €
-          </p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Bizum: {cashBizum.toFixed(0)} € · Efectivo: {cashEfectivo.toFixed(0)} €
-          </p>
+          {cashError ? (
+            <p className="mt-2 text-sm text-amber-200">
+              No se ha podido calcular lo cobrado. Revisa la conexión y recarga.
+            </p>
+          ) : !cashMonth ? (
+            <p className="mt-1 font-headline text-2xl text-slate-500" aria-label="Cargando">…</p>
+          ) : (
+            <>
+              <p className="mt-1 font-headline text-2xl text-white">{formatEURExact(cashMonth.total)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Bizum: {formatEURExact(cashMonth.bizum)} · Efectivo: {formatEURExact(cashMonth.cash)}
+                {cashMonth.other > 0 ? ` · Otros: ${formatEURExact(cashMonth.other)}` : ''}
+              </p>
+              {cashMonth.advance > 0 && (
+                <p className="text-xs text-sky-300 mt-0.5">
+                  {formatEURExact(cashMonth.advance)} son cuotas de meses siguientes
+                </p>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -647,7 +718,7 @@ export function AdminTrackingPage() {
           <div className="flex flex-wrap gap-1.5 text-xs">
             {[
               { id: 'all', label: 'Todos' },
-              { id: 'pending', label: 'Facturas pendientes' },
+              { id: 'pending', label: 'Cuotas pendientes' },
               { id: 'paid', label: 'OK / Adelantados' },
               { id: 'future', label: 'Próximo vencimiento' },
             ].map((f) => (
@@ -702,7 +773,7 @@ export function AdminTrackingPage() {
                         )}
                         {info && info.overdueCount > 1 && (
                           <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-studio-red/20 text-red-300">
-                            {info.overdueCount} facturas pendientes
+                            {info.overdueCount} cuotas pendientes
                           </span>
                         )}
                         {info?.maxAdvanceMonth && (
@@ -786,7 +857,7 @@ export function AdminTrackingPage() {
                   Cobrar Varios Meses
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Selecciona facturas pendientes y/o meses futuros por adelantado en un solo cobro.
+                  Selecciona cuotas pendientes y/o meses futuros por adelantado en un solo cobro.
                 </p>
               </div>
               <button
@@ -832,7 +903,7 @@ export function AdminTrackingPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wider text-amber-300">
-                    Facturas pendientes (vencidos / mes actual)
+                    Cuotas pendientes (vencidas / mes actual)
                   </span>
                   {overdueMonthsForModal.length > 0 && (
                     <button
@@ -853,7 +924,7 @@ export function AdminTrackingPage() {
 
                 {overdueMonthsForModal.length === 0 ? (
                   <p className="text-xs text-slate-400 rounded-xl bg-studio-navy-deep/70 px-3 py-2.5">
-                    Este alumno no tiene facturas pendientes hasta {formatMonthLabel(currentMonth)}.
+                    Este alumno no tiene cuotas pendientes hasta {formatMonthLabel(currentMonth)}.
                   </p>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -871,7 +942,7 @@ export function AdminTrackingPage() {
                           }`}
                         >
                           <p className="text-xs font-semibold">{formatMonthLabel(m.month_year)}</p>
-                          <p className="text-[11px] text-amber-300">Factura pendiente</p>
+                          <p className="text-[11px] text-amber-300">Cuota pendiente</p>
                         </button>
                       );
                     })}
@@ -975,6 +1046,23 @@ export function AdminTrackingPage() {
                     className="w-full rounded-xl studio-field px-3.5 py-2.5 text-sm text-white"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="multi-paid-date"
+                  className="block text-xs uppercase tracking-wider text-slate-400 mb-1.5"
+                >
+                  Fecha de cobro
+                </label>
+                <input
+                  id="multi-paid-date"
+                  type="date"
+                  value={paidDate}
+                  max={getLocalDateISO()}
+                  onChange={(e) => setPaidDate(e.target.value)}
+                  className="w-full rounded-xl studio-field px-3.5 py-2 text-sm text-white"
+                />
               </div>
 
               <div>

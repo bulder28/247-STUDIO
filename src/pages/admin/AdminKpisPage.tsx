@@ -20,6 +20,7 @@ import { exportWorkbook } from '@/lib/excel';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
 import { formatEUR, formatInt, formatMonthLong } from '@/lib/format';
+import { fetchAllRows } from '@/lib/finance';
 import { DeltaBadge, KpiCard, Skeleton } from '@/components/KpiCard';
 import { PageHeader } from '@/components/PageHeader';
 
@@ -257,6 +258,8 @@ export function AdminKpisPage() {
   const [hoveredMonth, setHoveredMonth] = useState<string | null>(null);
   const [pinnedMonth, setPinnedMonth] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Alguna consulta paginada falló: las cifras serían parciales, se avisa en vez de mostrar 0 € como dato real
+  const [dataIncomplete, setDataIncomplete] = useState(false);
 
   const [disciplines, setDisciplines] = useState<DisciplineItem[]>([]);
   const [payments6M, setPayments6M] = useState<PaymentRow[]>([]);
@@ -278,26 +281,52 @@ export function AdminKpisPage() {
       setPinnedMonth(null);
       const startMonth = sixMonths[0];
       const { start, nextEnd } = getMonthRangeBounds(startMonth, selectedMonth);
+      let incomplete = false;
 
-      const [discRes, payRes, pastDueRes, attRes, cliRes, tplRes, sigRes, packRes] =
+      const [discRes, payRows, pastDueRows, attRows, cliRes, tplRes, sigRes, packRes] =
         await Promise.all([
           supabase.from('disciplines').select('id, name').eq('is_active', true).order('sort_order'),
-          supabase
-            .from('v_monthly_payment_status')
-            .select('user_id, month_year, plan_name, price_eur, paid_amount_eur, payment_method, effective_status')
-            .in('month_year', sixMonths),
-          supabase
-            .from('v_monthly_payment_status')
-            .select('user_id, month_year, plan_name, price_eur, paid_amount_eur, payment_method, effective_status')
-            .eq('effective_status', 'PAST_DUE')
-            .lt('month_year', currentMonth),
-          supabase
-            .from('attendances')
-            .select(
-              'user_id, guest_name, attendance_date, discipline_id, schedule_class_id, schedule_classes(id, title, day_of_week, start_time, coach_name, discipline_id)'
-            )
-            .gte('attendance_date', start)
-            .lt('attendance_date', nextEnd),
+          // Paginadas: 6 meses de cuotas y asistencias superan pronto el límite de 1.000 filas
+          fetchAllRows<PaymentRow>((from, to) =>
+            supabase
+              .from('v_monthly_payment_status')
+              .select('user_id, month_year, plan_name, price_eur, paid_amount_eur, payment_method, effective_status')
+              .in('month_year', sixMonths)
+              .order('month_year')
+              .order('user_id')
+              .range(from, to)
+          ).catch(() => {
+            incomplete = true;
+            return [] as PaymentRow[];
+          }),
+          fetchAllRows<PaymentRow>((from, to) =>
+            supabase
+              .from('v_monthly_payment_status')
+              .select('user_id, month_year, plan_name, price_eur, paid_amount_eur, payment_method, effective_status')
+              .eq('effective_status', 'PAST_DUE')
+              .lt('month_year', currentMonth)
+              .order('month_year')
+              .order('user_id')
+              .range(from, to)
+          ).catch(() => {
+            incomplete = true;
+            return [] as PaymentRow[];
+          }),
+          fetchAllRows<AttendanceRaw>((from, to) =>
+            supabase
+              .from('attendances')
+              .select(
+                'user_id, guest_name, attendance_date, discipline_id, schedule_class_id, schedule_classes(id, title, day_of_week, start_time, coach_name, discipline_id)'
+              )
+              .gte('attendance_date', start)
+              .lt('attendance_date', nextEnd)
+              .order('attendance_date')
+              .order('id')
+              .range(from, to) as unknown as PromiseLike<{ data: AttendanceRaw[] | null; error: unknown }>
+          ).catch(() => {
+            incomplete = true;
+            return [] as AttendanceRaw[];
+          }),
           supabase
             .from('profiles')
             .select('id, status, belt, birth_date, is_founder, created_at, first_training_at')
@@ -315,9 +344,10 @@ export function AdminKpisPage() {
         ]);
 
       setDisciplines((discRes.data as DisciplineItem[]) ?? []);
-      setPayments6M((payRes.data as PaymentRow[]) ?? []);
-      setPastDueAll((pastDueRes.data as PaymentRow[]) ?? []);
-      setAttendances6M((attRes.data as unknown as AttendanceRaw[]) ?? []);
+      setDataIncomplete(incomplete);
+      setPayments6M(payRows);
+      setPastDueAll(pastDueRows);
+      setAttendances6M(attRows);
       setClients((cliRes.data as ClientProfile[]) ?? []);
       setTemplates((tplRes.data as DocTemplate[]) ?? []);
       setSignatures((sigRes.data as (DocSignature & { user_id: string })[]) ?? []);
@@ -643,18 +673,25 @@ export function AdminKpisPage() {
         }
       />
 
+      {dataIncomplete && !loading && (
+        <div role="alert" className="rounded-2xl border border-amber-500/50 bg-amber-500/15 text-amber-100 p-4 text-sm">
+          No se han podido cargar todos los datos de cuotas o asistencias. Las cifras de esta pantalla
+          pueden estar incompletas: recarga la página antes de usarlas.
+        </div>
+      )}
+
       {/* Fila 1: 5 Tarjetas KPI Ejecutivas */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 [&>*:last-child]:col-span-2 lg:[&>*:last-child]:col-span-1">
         <KpiCard
-          label="Ingresos cobrados"
+          label="Cuotas del mes cobradas"
           icon={Wallet}
           accent="emerald"
           loading={loading}
           value={formatEUR(totalCollected)}
           delta={<DeltaBadge value={revenueMoM} suffix="" />}
-          footnote={`ARPU ${formatEUR(arpu)} · ${paidMonth.length} cuotas`}
+          footnote={`ARPU ${formatEUR(arpu)} · ${paidMonth.length} cuotas de ${formatMonthLong(selectedMonth)}`}
           trend={trendData.map((d) => d.collected)}
-          trendLabel="Evolución de ingresos cobrados en 6 meses"
+          trendLabel="Evolución de cuotas cobradas en 6 meses, por mes de la cuota"
         />
         <KpiCard
           label="Pendiente del mes"
