@@ -475,7 +475,7 @@ export function AdminKpisPage() {
     const sc = Array.isArray(a.schedule_classes) ? a.schedule_classes[0] : a.schedule_classes;
     if (!sc) return;
     const hour = Number(sc.start_time.slice(0, 2));
-    const slot = hour < 14 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+    const slot = hour < 14 ? 'morning' : 'afternoon';
     const key = `${sc.day_of_week}-${slot}`;
     matrixBuckets[key] = (matrixBuckets[key] ?? 0) + 1;
 
@@ -1056,8 +1056,7 @@ export function AdminKpisPage() {
               <tbody>
                 {[
                   { key: 'morning', label: 'Mañana', hint: '< 14 h' },
-                  { key: 'afternoon', label: 'Tarde', hint: '14–18 h' },
-                  { key: 'evening', label: 'Noche', hint: '18 h +' },
+                  { key: 'afternoon', label: 'Tarde', hint: '≥ 14 h' },
                 ].map((slot) => (
                   <tr key={slot.key}>
                     <th scope="row" className="text-left font-medium pr-2 whitespace-nowrap">
