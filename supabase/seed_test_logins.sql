@@ -79,8 +79,12 @@ BEGIN
         VALUES (v_uid, v_plan_id, v_month, 'active')
         ON CONFLICT (user_id, month_year) DO UPDATE SET
           plan_id = EXCLUDED.plan_id,
-          status = 'active'
-        RETURNING id INTO v_sub_id;
+          status = 'active';
+
+        SELECT id INTO v_sub_id
+        FROM public.subscriptions
+        WHERE user_id = v_uid AND month_year = v_month
+        LIMIT 1;
 
         INSERT INTO public.payments (user_id, subscription_id, month_year, amount_eur, status, paid_at, payment_method)
         VALUES (v_uid, v_sub_id, v_month, v_plan_price, 'paid_ok', NOW(), 'Bizum')
