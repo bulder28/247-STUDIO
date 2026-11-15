@@ -26,16 +26,22 @@ export function formatEUR(value: number): string {
   return eurFormatter.format(Number.isFinite(value) ? value : 0);
 }
 
-const eurExactFormatter = new Intl.NumberFormat('es-ES', {
+const eurWholeFormatter = new Intl.NumberFormat('es-ES', {
   style: 'currency',
   currency: 'EUR',
-  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+const eurCentsFormatter = new Intl.NumberFormat('es-ES', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 
-/** Importes de caja: 1250.5 → "1.250,5 €", 62 → "62 €" (hasta 2 decimales, sin redondear céntimos). */
+/** Importes de caja: 62 → "62 €", 38.9 → "38,90 €" (sin decimales si es redondo; si no, siempre 2). */
 export function formatEURExact(value: number): string {
-  return eurExactFormatter.format(Number.isFinite(value) ? value : 0);
+  const v = Number.isFinite(value) ? value : 0;
+  return Math.round(v * 100) % 100 === 0 ? eurWholeFormatter.format(v) : eurCentsFormatter.format(v);
 }
 
 /** 1250 → "1.250". */

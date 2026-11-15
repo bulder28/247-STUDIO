@@ -13,6 +13,8 @@ import {
   BarChart3,
   User,
   CornerDownLeft,
+  Wallet,
+  Receipt,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -27,6 +29,8 @@ const ROUTE_ITEMS = [
   { to: '/admin/pasar-lista', label: 'Pasar lista', group: 'Día a día', icon: ClipboardCheck },
   { to: '/admin/seguimiento', label: 'Cobros', group: 'Día a día', icon: CreditCard },
   { to: '/admin/alumnos', label: 'Alumnos', group: 'Día a día', icon: Users },
+  { to: '/admin/finanzas', label: 'Finanzas: resumen del mes', group: 'Finanzas', icon: Wallet },
+  { to: '/admin/finanzas/gastos', label: 'Gastos', group: 'Finanzas', icon: Receipt },
   { to: '/admin/horarios', label: 'Horarios', group: 'Academia', icon: CalendarDays },
   { to: '/admin/tarifas', label: 'Tarifas', group: 'Academia', icon: Tags },
   { to: '/admin/comunicacion', label: 'Comunicación', group: 'Academia', icon: MessageSquare },

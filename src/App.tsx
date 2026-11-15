@@ -14,6 +14,7 @@ import { AdminStudentsPage } from '@/pages/admin/AdminStudentsPage';
 import { AdminPlansPage } from '@/pages/admin/AdminPlansPage';
 import { AdminSchedulePage } from '@/pages/admin/AdminSchedulePage';
 import { AdminCommunicationPage } from '@/pages/admin/AdminCommunicationPage';
+import { AdminFinancePage } from '@/pages/admin/finance/AdminFinancePage';
 import { CoachAttendancePage } from '@/pages/coach/CoachAttendancePage';
 import { ScheduleViewPage } from '@/pages/shared/ScheduleViewPage';
 import { ForumViewPage } from '@/pages/shared/ForumViewPage';
@@ -104,6 +105,8 @@ function AppRoutes() {
                 <Route path="tarifas" element={<AdminPlansPage />} />
                 <Route path="horarios" element={<AdminSchedulePage />} />
                 <Route path="comunicacion" element={<AdminCommunicationPage />} />
+                <Route path="finanzas" element={<AdminFinancePage tab="resumen" />} />
+                <Route path="finanzas/gastos" element={<AdminFinancePage tab="gastos" />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </Routes>
             </AdminLayout>

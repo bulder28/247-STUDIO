@@ -97,7 +97,11 @@ function isPaidStatus(status: EffectiveStatus): boolean {
 
 export function AdminTrackingPage() {
   const currentMonth = useMemo(() => getLocalMonthYear(), []);
-  const [monthYear, setMonthYear] = useState(currentMonth);
+  // Admite ?mes=YYYY-MM (enlace "Ver cobros" desde Finanzas)
+  const [monthYear, setMonthYear] = useState(() => {
+    const m = new URLSearchParams(window.location.search).get('mes');
+    return m && /^\d{4}-(0[1-9]|1[0-2])$/.test(m) ? m : currentMonth;
+  });
   const [tab, setTab] = useState<'person' | 'product'>('person');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'future'>('all');
 

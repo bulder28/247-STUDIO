@@ -14,6 +14,8 @@ import {
   Menu,
   X,
   Search,
+  Wallet,
+  Receipt,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminCommandPalette } from '@/components/AdminCommandPalette';
@@ -25,6 +27,13 @@ const navGroups = [
       { to: '/admin/pasar-lista', label: 'Pasar lista', icon: ClipboardCheck },
       { to: '/admin/seguimiento', label: 'Cobros', icon: CreditCard },
       { to: '/admin/alumnos', label: 'Alumnos', icon: Users },
+    ],
+  },
+  {
+    label: 'Finanzas',
+    items: [
+      { to: '/admin/finanzas', label: 'Resumen del mes', icon: Wallet, end: true },
+      { to: '/admin/finanzas/gastos', label: 'Gastos', icon: Receipt },
     ],
   },
   {
@@ -44,11 +53,12 @@ const navGroups = [
   },
 ];
 
-const dockItems = [
+const dockItems: { to: string; label: string; icon: typeof Users; end?: boolean }[] = [
   { to: '/admin/pasar-lista', label: 'Lista', icon: ClipboardCheck },
   { to: '/admin/seguimiento', label: 'Cobros', icon: CreditCard },
   { to: '/admin/alumnos', label: 'Alumnos', icon: Users },
-  { to: '/admin', label: 'Resumen', icon: LayoutDashboard, end: true },
+  // Finanzas sustituye a "Resumen" en el dock; el inicio de dirección sigue en el menú "Más"
+  { to: '/admin/finanzas', label: 'Finanzas', icon: Wallet },
 ];
 
 function initialsOf(name?: string | null): string {
@@ -251,7 +261,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         className="flex-1 min-w-0 px-4 pt-6 pb-28 md:px-10 md:pt-10 md:pb-12 max-w-6xl w-full mx-auto"
       >
         <motion.div
-          key={location.pathname}
+          // Clave por sección (/admin/finanzas), no por ruta: cambiar de pestaña dentro
+          // de una sección no vuelve a montar la página ni a pedir todos los datos
+          key={location.pathname.split('/').slice(0, 3).join('/')}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
