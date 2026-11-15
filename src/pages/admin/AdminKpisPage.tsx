@@ -695,8 +695,8 @@ export function AdminKpisPage() {
             aria-label="Tasa de cobro"
           >
             <div
-              className="h-full bg-gradient-to-r from-sky-500 to-emerald-400 rounded-full transition-all duration-700"
-              style={{ width: `${collectionRate}%` }}
+              className="h-full w-full origin-left bg-gradient-to-r from-sky-500 to-emerald-400 rounded-full transition-transform duration-700"
+              style={{ transform: `scaleX(${collectionRate / 100})` }}
             />
           </div>
         </KpiCard>
@@ -962,7 +962,7 @@ export function AdminKpisPage() {
                       fill={isActive ? '#FFFFFF' : '#38BDF8'}
                       stroke="#0F172A"
                       strokeWidth="2"
-                      className="pointer-events-none transition-all duration-200"
+                      className="pointer-events-none transition-[r,fill] duration-200"
                     />
                   );
                 })}
@@ -1093,9 +1093,9 @@ export function AdminKpisPage() {
             </div>
             <div className="w-full h-2 rounded-full studio-panel-inset overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-700"
+                className="h-full w-full origin-left rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-transform duration-700"
                 style={{
-                  width: `${packSubs.length > 0 ? Math.round((lowCreditPacks / packSubs.length) * 100) : 0}%`,
+                  transform: `scaleX(${packSubs.length > 0 ? Math.round((lowCreditPacks / packSubs.length) * 100) / 100 : 0})`,
                 }}
               />
             </div>

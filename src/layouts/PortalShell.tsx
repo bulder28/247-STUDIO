@@ -52,7 +52,7 @@ export function PortalShell({
                 to={to}
                 end={end}
                 className={({ isActive }) =>
-                  `group relative inline-flex items-center gap-2 px-3.5 text-sm transition-all duration-200 ${isActive
+                  `group relative inline-flex items-center gap-2 px-3.5 text-sm transition-[color,background-color] duration-200 ${isActive
                     ? 'text-studio-cream font-semibold'
                     : 'text-slate-400 font-medium hover:text-white hover:bg-white/[0.06] rounded-xl'
                   }`
@@ -136,7 +136,7 @@ export function PortalShell({
               <>
                 <span
                   aria-hidden
-                  className={`absolute -top-1.5 h-[3px] rounded-full bg-studio-red transition-all duration-300 ${isActive ? 'w-6 opacity-100' : 'w-0 opacity-0'
+                  className={`absolute -top-1.5 h-[3px] rounded-full bg-studio-red w-6 transition-[transform,opacity] duration-300 ${isActive ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'
                     }`}
                 />
                 <Icon className="w-5 h-5" />

@@ -193,7 +193,7 @@ export function ScheduleViewPage() {
                       return (
                         <li
                           key={c.id}
-                          className={`group flex items-center gap-3.5 py-3 px-2 -mx-2 rounded-xl transition-all duration-200 ${
+                          className={`group flex items-center gap-3.5 py-3 px-2 -mx-2 rounded-xl transition-[background-color,opacity] duration-200 ${
                             isToday ? 'hover:bg-[#141a2b]/[0.06]' : 'hover:bg-white/[0.06]'
                           } ${isPast ? 'opacity-45' : ''}`}
                         >

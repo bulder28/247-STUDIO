@@ -31,6 +31,21 @@ if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
   );
 }
 
+// Modo app: sin menú contextual del navegador ni arrastre de imágenes/enlaces.
+// Los campos de texto conservan su menú (copiar/pegar).
+const isEditable = (t: EventTarget | null) =>
+  t instanceof Element && !!t.closest('input, textarea, [contenteditable="true"], .allow-select');
+document.addEventListener('contextmenu', (e) => {
+  if (!isEditable(e.target)) e.preventDefault();
+});
+document.addEventListener('dragstart', (e) => {
+  if (!isEditable(e.target)) e.preventDefault();
+});
+// Sin zoom por pellizco ni gesto de zoom de Safari
+['gesturestart', 'gesturechange', 'gestureend'].forEach((ev) =>
+  document.addEventListener(ev, (e) => e.preventDefault())
+);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

@@ -607,7 +607,7 @@ export function AdminHomePage() {
             </div>
             <div className="flex items-center gap-2.5 shrink-0">
               <div className="relative w-14 h-14 flex items-center justify-center">
-                <svg className="w-14 h-14 -rotate-90" viewBox="0 0 60 60">
+                <svg className="w-14 h-14 -rotate-90" viewBox="0 0 60 60" aria-hidden="true">
                   <circle
                     cx="30"
                     cy="30"
@@ -626,7 +626,7 @@ export function AdminHomePage() {
                     strokeLinecap="round"
                     strokeDasharray={ringCircumference}
                     strokeDashoffset={ringOffset}
-                    className="transition-all duration-500"
+                    className="transition-[stroke-dashoffset] duration-500"
                   />
                 </svg>
                 <span className="absolute font-headline text-xs text-white">{collectionRate}%</span>
@@ -657,8 +657,8 @@ export function AdminHomePage() {
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-slate-900 overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
-                        style={{ width: `${ratio}%` }}
+                        className="h-full w-full origin-left bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-transform duration-500"
+                        style={{ transform: `scaleX(${ratio / 100})` }}
                       />
                     </div>
                   </div>
@@ -720,21 +720,21 @@ export function AdminHomePage() {
                   {cashTotal > 0 && (
                     <div
                       title={`Efectivo: ${formatEUR(cashTotal)}`}
-                      className="h-full bg-emerald-500 transition-all duration-500"
+                      className="h-full bg-emerald-500"
                       style={{ width: `${(cashTotal / totalCollected) * 100}%` }}
                     />
                   )}
                   {bizumTotal > 0 && (
                     <div
                       title={`Bizum: ${formatEUR(bizumTotal)}`}
-                      className="h-full bg-sky-500 transition-all duration-500"
+                      className="h-full bg-sky-500"
                       style={{ width: `${(bizumTotal / totalCollected) * 100}%` }}
                     />
                   )}
                   {otherMethodTotal > 0 && (
                     <div
                       title={`Otros: ${formatEUR(otherMethodTotal)}`}
-                      className="h-full bg-slate-500 transition-all duration-500"
+                      className="h-full bg-slate-500"
                       style={{ width: `${(otherMethodTotal / totalCollected) * 100}%` }}
                     />
                   )}
@@ -798,8 +798,8 @@ export function AdminHomePage() {
                       </div>
                       <div className="w-full h-2.5 rounded-full studio-panel-inset overflow-hidden border border-white/5">
                         <div
-                          className="h-full bg-gradient-to-r from-studio-cream/60 to-studio-cream transition-all duration-500 rounded-full"
-                          style={{ width: `${pct}%` }}
+                          className="h-full w-full origin-left bg-gradient-to-r from-studio-cream/60 to-studio-cream transition-transform duration-500 rounded-full"
+                          style={{ transform: `scaleX(${pct / 100})` }}
                         />
                       </div>
                     </div>

@@ -535,7 +535,7 @@ export function CoachAttendancePage() {
                 whileTap={isToday ? { scale: 0.97 } : undefined}
                 transition={{ type: 'spring', stiffness: 420, damping: 24 }}
                 onClick={() => toggleStudent(st.id)}
-                className={`group relative rounded-2xl p-4 border text-left transition-all duration-200 flex flex-col items-center text-center gap-2.5 ${
+                className={`group relative rounded-2xl p-4 border text-left transition-[color,background-color,border-color,box-shadow,opacity] duration-200 flex flex-col items-center text-center gap-2.5 ${
                   checked
                     ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-[0_10px_24px_-10px_rgba(16,185,129,0.45)]'
                     : isToday
@@ -554,7 +554,7 @@ export function CoachAttendancePage() {
                   </motion.span>
                 )}
                 <div
-                  className={`w-16 h-16 rounded-full studio-panel-inset border overflow-hidden flex items-center justify-center transition-all duration-200 group-hover:scale-110 ${
+                  className={`w-16 h-16 rounded-full studio-panel-inset border overflow-hidden flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 group-hover:scale-110 ${
                     checked
                       ? 'border-emerald-400/70 ring-2 ring-emerald-400/40'
                       : 'border-white/10 group-hover:ring-2 group-hover:ring-studio-red/75 group-hover:shadow-[0_0_18px_rgba(220,38,38,0.4)]'

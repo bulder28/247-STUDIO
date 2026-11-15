@@ -163,7 +163,7 @@ export function LoginPage() {
           transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.12 }}
           className="lg:col-span-5 w-full max-w-md mx-auto lg:ml-auto lg:mr-0"
         >
-          <div className="bg-white rounded-3xl overflow-hidden shadow-2xl shadow-black/40 ring-1 ring-white/30 animate-studio-in">
+          <div className="studio-light bg-white rounded-3xl overflow-hidden shadow-2xl shadow-black/40 ring-1 ring-white/30 animate-studio-in">
             <BeltRule belt="Negro" stripes={4} className="!rounded-none !ring-0" />
 
             <div className="p-7 sm:p-9">
@@ -222,7 +222,7 @@ export function LoginPage() {
                       placeholder="tu@correo.com"
                       aria-invalid={Boolean(errors.email)}
                       {...register('email')}
-                      className="w-full rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none pl-10 pr-4 py-3 text-sm transition"
+                      className="w-full rounded-xl bg-slate-50 border border-slate-500 text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none pl-10 pr-4 py-3 text-sm transition"
                     />
                   </div>
                   {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
@@ -245,7 +245,7 @@ export function LoginPage() {
                         placeholder="••••••••"
                         aria-invalid={Boolean(errors.password)}
                         {...register('password')}
-                        className="w-full rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none pl-10 pr-4 py-3 text-sm transition"
+                        className="w-full rounded-xl bg-slate-50 border border-slate-500 text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none pl-10 pr-4 py-3 text-sm transition"
                       />
                     </div>
                     {errors.password && (
@@ -282,7 +282,7 @@ export function LoginPage() {
                     setResetSent(false);
                     setMode(mode === 'login' ? 'forgot' : 'login');
                   }}
-                  className="text-xs font-medium text-slate-600 hover:text-slate-900 underline underline-offset-4 decoration-slate-300 hover:decoration-slate-900 transition"
+                  className="inline-flex min-h-[44px] items-center px-3 text-sm font-medium text-slate-600 hover:text-slate-900 underline underline-offset-4 decoration-slate-300 hover:decoration-slate-900 transition-colors"
                 >
                   {mode === 'login' ? 'He olvidado mi contraseña' : 'Volver al inicio de sesión'}
                 </button>

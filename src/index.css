@@ -1,3 +1,6 @@
+/* Hallmark · checked: 2026-11-15 · genre: modern-minimal (inferred)
+ * floor: open 48, 67, 19, 63 (brand tokens, Oswald caps labels, copy punctuation; owner decision) · fixed: 10a, 15, 26a, 33, 39b, 40, 55a, F23 · structural: none printed
+ * built: the project · redesign: polish · v2.0.0 */
 @import '@fontsource-variable/archivo';
 @import '@fontsource/oswald/400.css';
 @import '@fontsource/oswald/600.css';
@@ -25,6 +28,49 @@
     /* Controles nativos (input month/date, select, scrollbars) en modo oscuro */
     color-scheme: dark;
     -webkit-tap-highlight-color: transparent;
+    /* Modo app: sin rebote ni "tirar para refrescar" del navegador */
+    overscroll-behavior: none;
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    overflow-x: clip;
+    overscroll-behavior: none;
+    /* Modo app: sin menú de pulsación larga, sin selección de texto, sin zoom por doble toque */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  /* Campos y zonas de texto editable siguen siendo seleccionables */
+  input,
+  textarea,
+  select,
+  [contenteditable='true'],
+  .allow-select {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+
+  img,
+  svg,
+  canvas,
+  video {
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+  }
+
+  a,
+  button {
+    -webkit-touch-callout: none;
+  }
+
+  /* El lienzo de firma necesita gestos propios */
+  canvas {
+    touch-action: none;
   }
 
   /* Anillo de foco visible y consistente para navegación con teclado */
@@ -119,7 +165,8 @@
       0 30px 60px -25px rgba(15, 18, 24, 0.65);
   }
 
-  .studio-sand :focus-visible {
+  .studio-sand :focus-visible,
+  .studio-light :focus-visible {
     outline-color: #272c35;
   }
 
@@ -129,7 +176,7 @@
     font-weight: 700;
     text-transform: uppercase;
     font-size: clamp(2rem, 1.1rem + 3.6vw, 3.5rem);
-    line-height: 0.95;
+    line-height: 1;
     letter-spacing: -0.012em;
     color: #ffffff;
     text-wrap: balance;
@@ -186,11 +233,10 @@
   /* Campo de formulario unificado (input, select, textarea) */
   .studio-field {
     background-color: rgba(6, 10, 20, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     box-shadow: inset 0 1px 2px 0 rgba(0, 0, 0, 0.4);
     transition:
       border-color 0.15s ease,
-      box-shadow 0.15s ease,
       background-color 0.15s ease;
   }
 
@@ -199,7 +245,7 @@
   }
 
   .studio-field:hover:not(:disabled) {
-    border-color: rgba(221, 214, 184, 0.28);
+    border-color: rgba(221, 214, 184, 0.65);
   }
 
   .studio-field:focus,
@@ -228,11 +274,10 @@
   /* Campo sobre tarjeta arena */
   .studio-field-sand {
     background-color: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(20, 26, 43, 0.22);
+    border: 1px solid rgba(20, 26, 43, 0.55);
     color: #141a2b;
     transition:
       border-color 0.15s ease,
-      box-shadow 0.15s ease,
       background-color 0.15s ease;
   }
 

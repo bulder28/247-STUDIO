@@ -512,9 +512,9 @@ export function StudentBulkImportModal({
               </div>
               <div className="w-full h-2 rounded-full bg-slate-950/70 overflow-hidden">
                 <div
-                  className="h-full bg-red-500 transition-all duration-200"
+                  className="h-full w-full origin-left bg-red-500 transition-transform duration-200"
                   style={{
-                    width: `${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}%`,
+                    transform: `scaleX(${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) / 100 : 0})`,
                   }}
                 />
               </div>

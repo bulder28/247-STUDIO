@@ -21,6 +21,8 @@ export default defineConfig({
         theme_color: '#0a0f1d',
         background_color: '#0a0f1d',
         display: 'standalone',
+        // Pantalla completa donde el sistema lo permita; si no, ventana de app sin barra del navegador
+        display_override: ['fullscreen', 'standalone'],
         orientation: 'portrait',
         start_url: '/',
         scope: '/',

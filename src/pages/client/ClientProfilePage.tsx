@@ -509,6 +509,7 @@ export function ClientProfilePage() {
                 </button>
               </div>
               <canvas
+                aria-label="Área de firma: dibuja tu firma con el dedo o el ratón"
                 ref={canvasRef}
                 width={440}
                 height={180}
