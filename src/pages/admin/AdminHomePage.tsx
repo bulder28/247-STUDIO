@@ -534,7 +534,7 @@ export function AdminHomePage() {
             to="/admin/seguimiento"
             className="inline-flex items-center justify-center rounded-xl studio-btn px-4 py-2.5 text-sm font-semibold text-white transition"
           >
-            Ir a Seguimiento
+            Ir a Cobros
           </Link>
           </>
         }
