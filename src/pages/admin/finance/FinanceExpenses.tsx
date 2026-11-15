@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Search, Download, Repeat, Plus, CheckCircle2 } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Download, Repeat, Plus, CheckCircle2, ChevronRight } from 'lucide-react';
 import { exportWorkbook } from '@/lib/excel';
 import { formatEURExact, formatMonthLong } from '@/lib/format';
 import { centsToEur, type Expense } from '@/lib/finance';
@@ -15,6 +15,82 @@ function minus(cents: number): string {
   return cents === 0 ? formatEURExact(0) : `−${formatEURExact(centsToEur(cents))}`;
 }
 
+type Tab = 'all' | 'fixed' | 'variable';
+
+/** Nodo raíz del árbol (Fijos / Variables): desplegable con su resumen. */
+function TreeRoot({
+  id,
+  icon,
+  title,
+  meta,
+  extra,
+  children,
+}: {
+  id: string;
+  icon: ReactNode;
+  title: string;
+  meta: string;
+  extra?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <details open aria-labelledby={id} className="group/root rounded-3xl studio-panel border border-white/10 overflow-hidden">
+      <summary className="list-none cursor-pointer flex flex-wrap items-center justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
+        <h2 id={id} className="font-headline text-lg uppercase text-white flex items-center gap-2">
+          <ChevronRight className="w-4 h-4 text-slate-400 transition-transform group-open/root:rotate-90" aria-hidden />
+          {icon} {title}
+        </h2>
+        <span className="flex items-center gap-4">
+          {extra}
+          <span className="text-sm text-slate-300 tabular-nums">{meta}</span>
+        </span>
+      </summary>
+      <div className="pb-2">{children}</div>
+    </details>
+  );
+}
+
+/** Rama del árbol: una categoría con sus gastos. */
+function TreeGroup({
+  name,
+  count,
+  total,
+  children,
+}: {
+  name: string;
+  count: number;
+  total: string;
+  children: ReactNode;
+}) {
+  return (
+    <details open className="group/cat border-t border-white/[0.06]">
+      <summary className="list-none cursor-pointer flex items-center justify-between gap-3 pl-5 pr-5 py-2.5 hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
+        <span className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+          <ChevronRight className="w-3.5 h-3.5 text-slate-500 transition-transform group-open/cat:rotate-90" aria-hidden />
+          {name} <span className="text-xs font-normal text-slate-500">({count})</span>
+        </span>
+        <span className="text-sm text-slate-300 tabular-nums">{total}</span>
+      </summary>
+      <ul className="divide-y divide-white/[0.06]">{children}</ul>
+    </details>
+  );
+}
+
+function groupByCategory<T>(
+  items: T[],
+  getCategoryId: (item: T) => string,
+  catName: Map<string, string>
+): { categoryId: string; name: string; items: T[] }[] {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const id = getCategoryId(item);
+    map.set(id, [...(map.get(id) ?? []), item]);
+  }
+  return [...map.entries()]
+    .map(([categoryId, list]) => ({ categoryId, name: catName.get(categoryId) ?? 'Sin categoría', items: list }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
 export function FinanceExpenses({
   data,
   month,
@@ -25,9 +101,9 @@ export function FinanceExpenses({
   onOpen: (target: ExpenseFormTarget) => void;
 }) {
   const { categories, expenses, fixedOfMonth } = data;
-  const [query, setQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showVoided, setShowVoided] = useState(false);
+  const [tab, setTab] = useState<Tab>('all');
 
   const catName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
   const fixedExpenseIds = useMemo(
@@ -35,21 +111,23 @@ export function FinanceExpenses({
     [fixedOfMonth]
   );
 
-  const q = query.trim().toLowerCase();
-  const matches = (concept: string, categoryId: string) =>
-    (!categoryFilter || categoryId === categoryFilter) &&
-    (!q || concept.toLowerCase().includes(q) || (catName.get(categoryId) ?? '').toLowerCase().includes(q));
+  const matches = (categoryId: string) => !categoryFilter || categoryId === categoryFilter;
 
-  const fixedRows = fixedOfMonth.filter((f) => matches(f.template.concept, f.template.category_id));
+  const fixedRows = fixedOfMonth.filter((f) => matches(f.template.category_id));
   const otherRows = expenses.filter(
-    (e) => !fixedExpenseIds.has(e.id) && (showVoided || !e.voided_at) && matches(e.concept, e.category_id)
+    (e) => !fixedExpenseIds.has(e.id) && (showVoided || !e.voided_at) && matches(e.category_id)
   );
   const voidedCount = expenses.filter((e) => e.voided_at).length;
+  const variableActive = otherRows.filter((e) => !e.voided_at).length;
+  const showFixed = tab !== 'variable';
+  const showVariable = tab !== 'fixed';
+  const fixedGroups = groupByCategory(fixedRows, (f) => f.expense?.category_id ?? f.template.category_id, catName);
+  const variableGroups = groupByCategory(otherRows, (e) => e.category_id, catName);
 
   const fixedSubtotal = fixedRows.reduce((s, f) => s + (f.expense && f.expense.expense_date.startsWith(month) ? f.expense.amount_cents : 0), 0);
   const coveredCount = fixedOfMonth.filter((f) => f.expense).length;
   const otherSubtotal = otherRows.reduce((s, e) => (e.voided_at ? s : s + e.amount_cents), 0);
-  const isFiltered = Boolean(q || categoryFilter);
+  const isFiltered = Boolean(categoryFilter);
 
   const handleExport = () => {
     const rows = expenses.map((e) => ({
@@ -111,18 +189,7 @@ export function FinanceExpenses({
     <div className="space-y-5">
       {/* Filtros */}
       <div className="flex flex-col lg:flex-row gap-3">
-        <label className="relative flex-1">
-          <span className="sr-only">Buscar por concepto</span>
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" aria-hidden />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por concepto o categoría…"
-            className="w-full rounded-xl studio-field pl-10 pr-3 py-2.5 text-sm text-white"
-          />
-        </label>
-        <label className="lg:w-64">
+        <label className="lg:w-72">
           <span className="sr-only">Filtrar por categoría</span>
           <select
             value={categoryFilter}
@@ -140,7 +207,7 @@ export function FinanceExpenses({
         <button
           type="button"
           onClick={handleExport}
-          className="min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 px-4 text-sm font-semibold text-slate-100 hover:bg-white/5"
+          className="lg:ml-auto min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 px-4 text-sm font-semibold text-slate-100 hover:bg-white/5"
         >
           <Download className="w-4 h-4" aria-hidden /> Exportar todo el mes
         </button>
@@ -154,69 +221,107 @@ export function FinanceExpenses({
         )}
       </p>
 
-      {/* Fijos del mes */}
-      {fixedOfMonth.length > 0 && (
-        <section aria-labelledby="exp-fixed" className="rounded-3xl studio-panel border border-white/10 overflow-hidden">
-          <div className="flex items-baseline justify-between gap-3 px-5 pt-5 pb-3">
-            <h2 id="exp-fixed" className="font-headline text-lg uppercase text-white flex items-center gap-2">
-              <Repeat className="w-4 h-4 text-slate-400" aria-hidden /> Fijos
-            </h2>
-            <span className="text-sm text-slate-300 tabular-nums">{coveredCount} de {fixedOfMonth.length} cubiertos</span>
-          </div>
-          {fixedRows.length === 0 ? (
+      {/* Pestañas: todo / fijos / variables */}
+      <div role="tablist" aria-label="Tipo de gasto" className="flex flex-wrap gap-2">
+        {(
+          [
+            { id: 'all', label: 'Todos', count: fixedRows.length + variableActive },
+            { id: 'fixed', label: 'Fijos', count: fixedRows.length },
+            { id: 'variable', label: 'Variables', count: variableActive },
+          ] as { id: Tab; label: string; count: number }[]
+        ).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`min-h-[44px] rounded-xl px-4 text-sm font-semibold border transition ${
+              tab === t.id
+                ? 'border-studio-cream/60 text-studio-cream bg-studio-cream/10'
+                : 'border-white/15 text-slate-300 hover:bg-white/5'
+            }`}
+          >
+            {t.label} <span className="tabular-nums text-xs opacity-70">({t.count})</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Árbol: Fijos */}
+      {showFixed && fixedOfMonth.length > 0 && (
+        <TreeRoot
+          id="exp-fixed"
+          icon={<Repeat className="w-4 h-4 text-slate-400" aria-hidden />}
+          title="Fijos"
+          meta={`${coveredCount} de ${fixedOfMonth.length} cubiertos · ${minus(fixedSubtotal)}`}
+        >
+          {fixedGroups.length === 0 ? (
             <p className="px-5 pb-5 text-sm text-slate-400">Ningún fijo coincide con el filtro.</p>
           ) : (
-            <ul className="divide-y divide-white/[0.06]">
-              {fixedRows.map(({ template, expense }) => (
-                <li key={template.id} className="flex items-center gap-3 px-5 py-3.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-white truncate">{expense?.concept ?? template.concept}</p>
-                    <p className="text-xs text-slate-400">
-                      {catName.get(expense?.category_id ?? template.category_id)}
-                      {expense
-                        ? ` · pagado el ${shortDate(expense.expense_date)}${expense.expense_date.startsWith(month) ? "" : ` (cuenta en ${formatMonthLong(expense.expense_date.slice(0, 7)).toLowerCase()})`}`
-                        : ` · habitual el día ${template.day_of_month}`}
-                    </p>
-                  </div>
-                  {expense ? (
-                    <button
-                      type="button"
-                      onClick={() => onOpen({ kind: 'edit', expense })}
-                      className="min-h-[44px] flex items-center gap-2 rounded-xl px-2 -mr-2 hover:bg-white/5"
-                      aria-label={`Editar ${template.concept}, ${formatEURExact(centsToEur(expense.amount_cents))}`}
-                    >
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" aria-hidden />
-                      <span className="text-sm text-white tabular-nums">{minus(expense.amount_cents)}</span>
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <span className="hidden sm:inline text-sm text-slate-400 tabular-nums">
-                        Previsto {formatEURExact(centsToEur(template.amount_cents))}
-                      </span>
+            fixedGroups.map((g) => (
+              <TreeGroup
+                key={g.categoryId}
+                name={g.name}
+                count={g.items.length}
+                total={minus(
+                  g.items.reduce(
+                    (sum, f) =>
+                      sum + (f.expense && f.expense.expense_date.startsWith(month) ? f.expense.amount_cents : 0),
+                    0
+                  )
+                )}
+              >
+                {g.items.map(({ template, expense }) => (
+                  <li key={template.id} className="flex items-center gap-3 pl-9 pr-5 py-3.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-white truncate">{expense?.concept ?? template.concept}</p>
+                      <p className="text-xs text-slate-400">
+                        {expense
+                          ? `pagado el ${shortDate(expense.expense_date)}${expense.expense_date.startsWith(month) ? '' : ` (cuenta en ${formatMonthLong(expense.expense_date.slice(0, 7)).toLowerCase()})`}`
+                          : `habitual el día ${template.day_of_month}`}
+                      </p>
+                    </div>
+                    {expense ? (
                       <button
                         type="button"
-                        onClick={() => onOpen({ kind: 'confirm-fixed', template })}
-                        className="min-h-[44px] rounded-xl border border-studio-cream/60 px-3 text-sm font-semibold text-studio-cream hover:bg-studio-cream/10"
+                        onClick={() => onOpen({ kind: 'edit', expense })}
+                        className="min-h-[44px] flex items-center gap-2 rounded-xl px-2 -mr-2 hover:bg-white/5"
+                        aria-label={`Editar ${template.concept}, ${formatEURExact(centsToEur(expense.amount_cents))}`}
                       >
-                        Confirmar pago
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" aria-hidden />
+                        <span className="text-sm text-white tabular-nums">{minus(expense.amount_cents)}</span>
                       </button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <span className="hidden sm:inline text-sm text-slate-400 tabular-nums">
+                          Previsto {formatEURExact(centsToEur(template.amount_cents))}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onOpen({ kind: 'confirm-fixed', template })}
+                          className="min-h-[44px] rounded-xl border border-studio-cream/60 px-3 text-sm font-semibold text-studio-cream hover:bg-studio-cream/10"
+                        >
+                          Confirmar pago
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </TreeGroup>
+            ))
           )}
-        </section>
+        </TreeRoot>
       )}
 
-      {/* Resto de gastos del mes */}
-      <section aria-labelledby="exp-other" className="rounded-3xl studio-panel border border-white/10 overflow-hidden">
-        <div className="flex flex-wrap items-baseline justify-between gap-3 px-5 pt-5 pb-3">
-          <h2 id="exp-other" className="font-headline text-lg uppercase text-white">
-            Otros gastos del mes
-          </h2>
-          <div className="flex items-center gap-4">
-            {voidedCount > 0 && (
+      {/* Árbol: Variables (puntuales) */}
+      {showVariable && (
+        <TreeRoot
+          id="exp-variable"
+          icon={<Plus className="w-4 h-4 text-slate-400" aria-hidden />}
+          title="Variables"
+          meta={minus(otherSubtotal)}
+          extra={
+            voidedCount > 0 ? (
               <label className="inline-flex items-center gap-2 py-3 text-xs text-slate-300 cursor-pointer">
                 <input
                   type="checkbox"
@@ -226,46 +331,53 @@ export function FinanceExpenses({
                 />
                 Ver anulados ({voidedCount})
               </label>
-            )}
-            <span className="text-sm text-slate-300 tabular-nums">{minus(otherSubtotal)}</span>
-          </div>
-        </div>
-        {otherRows.length === 0 ? (
-          <p className="px-5 pb-5 text-sm text-slate-400">
-            {isFiltered ? 'Ningún gasto coincide con el filtro.' : 'Sin otros gastos este mes.'}
-          </p>
-        ) : (
-          <ul className="divide-y divide-white/[0.06]">
-            {otherRows.map((e: Expense) => (
-              <li key={e.id}>
-                <button
-                  type="button"
-                  disabled={Boolean(e.voided_at)}
-                  onClick={() => onOpen({ kind: 'edit', expense: e })}
-                  className="w-full min-h-[56px] flex items-center gap-3 px-5 py-3 text-left hover:bg-white/[0.04] disabled:hover:bg-transparent disabled:cursor-default"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-semibold truncate ${e.voided_at ? 'text-slate-400 line-through' : 'text-white'}`}>
-                      {e.concept}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {catName.get(e.category_id)} · {shortDate(e.expense_date)}
-                      {e.payment_method ? ` · ${e.payment_method}` : ''}
-                      {e.recurring_expense_id && e.period_month !== month
-                        ? ` · fijo de ${formatMonthLong(e.period_month).toLowerCase()}`
-                        : ''}
-                      {e.voided_at ? ` · Anulado: ${e.void_reason}` : ''}
-                    </p>
-                  </div>
-                  <span className={`text-sm tabular-nums shrink-0 ${e.voided_at ? 'text-slate-400 line-through' : 'text-white'}`}>
-                    {minus(e.amount_cents)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+            ) : null
+          }
+        >
+          {variableGroups.length === 0 ? (
+            <p className="px-5 pb-5 text-sm text-slate-400">
+              {isFiltered ? 'Ningún gasto coincide con el filtro.' : 'Sin gastos variables este mes.'}
+            </p>
+          ) : (
+            variableGroups.map((g) => (
+              <TreeGroup
+                key={g.categoryId}
+                name={g.name}
+                count={g.items.length}
+                total={minus(g.items.reduce((sum, e) => (e.voided_at ? sum : sum + e.amount_cents), 0))}
+              >
+                {g.items.map((e: Expense) => (
+                  <li key={e.id}>
+                    <button
+                      type="button"
+                      disabled={Boolean(e.voided_at)}
+                      onClick={() => onOpen({ kind: 'edit', expense: e })}
+                      className="w-full min-h-[56px] flex items-center gap-3 pl-9 pr-5 py-3 text-left hover:bg-white/[0.04] disabled:hover:bg-transparent disabled:cursor-default"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-sm font-semibold truncate ${e.voided_at ? 'text-slate-400 line-through' : 'text-white'}`}>
+                          {e.concept}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {shortDate(e.expense_date)}
+                          {e.payment_method ? ` · ${e.payment_method}` : ''}
+                          {e.recurring_expense_id && e.period_month !== month
+                            ? ` · fijo de ${formatMonthLong(e.period_month).toLowerCase()}`
+                            : ''}
+                          {e.voided_at ? ` · Anulado: ${e.void_reason}` : ''}
+                        </p>
+                      </div>
+                      <span className={`text-sm tabular-nums shrink-0 ${e.voided_at ? 'text-slate-400 line-through' : 'text-white'}`}>
+                        {minus(e.amount_cents)}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </TreeGroup>
+            ))
+          )}
+        </TreeRoot>
+      )}
     </div>
   );
 }
