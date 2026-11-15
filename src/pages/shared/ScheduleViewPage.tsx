@@ -21,12 +21,13 @@ interface ScheduleClass {
   end_time: string;
   title: string;
   coach_name: string;
+  image_key?: string | null;
   disciplines?: { name: string; slug: string } | null;
 }
 
 /** Tarjeta protagonista: clase en curso o siguiente clase del día. */
 function LiveClassCard({ cls, live }: { cls: ScheduleClass; live: boolean }) {
-  const img = getDisciplineImage(cls.disciplines?.slug, cls.title);
+  const img = getDisciplineImage(cls.disciplines?.slug, cls.title, cls.image_key);
   return (
     <div className="relative overflow-hidden rounded-3xl min-h-[11rem] flex items-end p-5 sm:p-6 ring-1 ring-white/10">
       <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -232,7 +233,7 @@ export function ScheduleViewPage() {
                             </p>
                           </div>
                           <img
-                            src={getDisciplineImage(c.disciplines?.slug, c.title)}
+                            src={getDisciplineImage(c.disciplines?.slug, c.title, c.image_key)}
                             alt=""
                             className="w-11 h-11 rounded-xl object-cover shrink-0 transition-transform duration-300 group-hover:scale-110"
                           />
