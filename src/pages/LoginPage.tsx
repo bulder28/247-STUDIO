@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -83,14 +84,22 @@ export function LoginPage() {
 
       <div className="relative z-10 w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-6 items-center">
         {/* Columna editorial */}
-        <div className="lg:col-span-7 min-w-0">
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-7 min-w-0"
+        >
           <p className="text-sm text-gray-200">
             Pinto, Madrid. Jiu-Jitsu brasileño, grappling, MMA y lucha.
           </p>
 
-          {/* 247: los numerales en blanco a gris acero */}
-          <p
+          {/* 247: los numerales en blanco a gris acero con entrada cinética */}
+          <motion.p
             aria-hidden
+            initial={{ opacity: 0, scale: 0.94, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
             className="font-headline font-bold leading-[0.82] tracking-tighter select-none bg-cover bg-center mt-2 -ml-1"
             style={{
               fontSize: 'clamp(6.5rem, 21vw, 18rem)',
@@ -101,18 +110,31 @@ export function LoginPage() {
             }}
           >
             247
-          </p>
+          </motion.p>
 
-          <h1 className="font-headline text-2xl sm:text-4xl uppercase text-white leading-tight mt-3 max-w-xl">
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            className="font-headline text-2xl sm:text-4xl uppercase text-white leading-tight mt-3 max-w-xl"
+          >
             Disciplina diaria en el tatami
-          </h1>
-          <p className="hidden sm:block text-base text-gray-200 max-w-lg leading-relaxed mt-3">
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="hidden sm:block text-base text-gray-200 max-w-lg leading-relaxed mt-3"
+          >
             Tu progreso real, el horario en vivo, tus cuotas, documentos y avisos oficiales de la
             academia en un único lugar.
-          </p>
+          </motion.p>
 
           {/* Tira de disciplinas en movimiento lento */}
-          <div
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.7, delay: 0.3 }}
             className="hidden lg:block mt-9 overflow-hidden"
             style={{ maskImage: EDGE_FADE, WebkitMaskImage: EDGE_FADE }}
           >
@@ -131,11 +153,16 @@ export function LoginPage() {
                 </figure>
               ))}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Tarjeta de acceso blanca limpia */}
-        <div className="lg:col-span-5 w-full max-w-md mx-auto lg:ml-auto lg:mr-0">
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.12 }}
+          className="lg:col-span-5 w-full max-w-md mx-auto lg:ml-auto lg:mr-0"
+        >
           <div className="bg-white rounded-3xl overflow-hidden shadow-2xl shadow-black/40 ring-1 ring-white/30 animate-studio-in">
             <BeltRule belt="Negro" stripes={4} className="!rounded-none !ring-0" />
 
@@ -262,7 +289,7 @@ export function LoginPage() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

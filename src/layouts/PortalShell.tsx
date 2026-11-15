@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { motion } from 'motion/react';
 import { LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -26,6 +27,7 @@ export function PortalShell({
   children: ReactNode;
 }) {
   const { signOut } = useAuth();
+  const { pathname } = useLocation();
 
   return (
     <div className="min-h-screen text-slate-100 flex flex-col">
@@ -61,12 +63,14 @@ export function PortalShell({
                   <>
                     <Icon className="w-4 h-4" />
                     <span>{label}</span>
-                    <span
-                      aria-hidden
-                      className={`absolute bottom-0 left-1/2 -translate-x-1/2 h-[3px] rounded-t-full bg-studio-red transition-all duration-300 ${
-                        isActive ? 'w-8 opacity-100' : 'w-0 opacity-0'
-                      }`}
-                    />
+                    {isActive && (
+                      <motion.span
+                        layoutId="portal-nav-bar"
+                        aria-hidden
+                        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-t-full bg-studio-red"
+                      />
+                    )}
                   </>
                 )}
               </NavLink>
@@ -104,7 +108,14 @@ export function PortalShell({
       </header>
 
       <main className="flex-1 px-4 pt-6 pb-28 md:px-8 md:pt-10 md:pb-12 max-w-5xl w-full mx-auto">
-        {children}
+        <motion.div
+          key={pathname}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {children}
+        </motion.div>
       </main>
 
       {/* Dock flotante Mobile */}

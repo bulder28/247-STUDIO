@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { MotionConfig } from 'motion/react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { LoginPage } from '@/pages/LoginPage';
 import { SetPasswordPage } from '@/pages/SetPasswordPage';
@@ -149,11 +150,13 @@ function AppRoutes() {
 
 export function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
+    <MotionConfig reducedMotion="user">
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </MotionConfig>
   );
 }
 

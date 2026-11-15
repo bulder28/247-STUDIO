@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
   LayoutDashboard,
   BarChart3,
@@ -72,23 +73,33 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
                 end={end}
                 onClick={onNavigate}
                 className={({ isActive }) =>
-                  `group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-xl text-sm transition ${
+                  `group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-xl text-sm transition-colors ${
                     isActive
-                      ? 'bg-white/[0.06] text-studio-cream font-semibold'
+                      ? 'text-studio-cream font-semibold'
                       : 'text-slate-400 font-medium hover:bg-white/[0.03] hover:text-slate-100'
                   }`
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <span
-                      aria-hidden
-                      className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-full bg-studio-red transition-all duration-300 ${
-                        isActive ? 'h-6 opacity-100' : 'h-0 opacity-0'
-                      }`}
-                    />
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{label}</span>
+                    {isActive && (
+                      <motion.span
+                        layoutId="admin-sidebar-pill"
+                        aria-hidden
+                        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                        className="absolute inset-0 rounded-xl bg-white/[0.07]"
+                      />
+                    )}
+                    {isActive && (
+                      <motion.span
+                        layoutId="admin-sidebar-bar"
+                        aria-hidden
+                        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-full bg-studio-red"
+                      />
+                    )}
+                    <Icon className="relative z-10 w-4 h-4 shrink-0" />
+                    <span className="relative z-10">{label}</span>
                   </>
                 )}
               </NavLink>
@@ -199,7 +210,14 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       <main
         className="flex-1 min-w-0 px-4 pt-6 pb-28 md:px-10 md:pt-10 md:pb-12 max-w-6xl w-full mx-auto"
       >
-        {children}
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {children}
+        </motion.div>
       </main>
 
       {/* Dock Mobile: accesos del día a día + menú completo */}

@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
+import { motion } from 'motion/react';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
 
 export type KpiAccent = 'emerald' | 'amber' | 'sky' | 'red' | 'purple';
@@ -163,7 +164,11 @@ export function KpiCard({
 }) {
   const a = ACCENTS[accent];
   return (
-    <div className="group relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-4 sm:p-5 flex flex-col gap-3 transition duration-300 hover:border-white/20">
+    <motion.div
+      whileHover={{ y: -3 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+      className="group relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-4 sm:p-5 flex flex-col gap-3 transition-colors duration-300 hover:border-white/20"
+    >
       <div className={`absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r ${a.bar} to-transparent`} />
 
       <div className="flex items-center justify-between gap-2">
@@ -196,6 +201,6 @@ export function KpiCard({
           <Sparkline values={trend} accent={accent} label={trendLabel} />
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
