@@ -20,7 +20,7 @@ import { exportWorkbook } from '@/lib/excel';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
 import { formatEUR, formatInt, formatMonthLong } from '@/lib/format';
-import { fetchAllRows } from '@/lib/finance';
+import { fetchAllRows, getCashMonth } from '@/lib/finance';
 import { DeltaBadge, KpiCard, Skeleton } from '@/components/KpiCard';
 import { PageHeader } from '@/components/PageHeader';
 
@@ -255,6 +255,8 @@ export function AdminKpisPage() {
   const currentMonth = getLocalMonthYear();
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
+  const [trendRange, setTrendRange] = useState<6 | 12>(6);
+  const [trendMode, setTrendMode] = useState<'revenue' | 'net' | 'growth'>('revenue');
   const [hoveredMonth, setHoveredMonth] = useState<string | null>(null);
   const [pinnedMonth, setPinnedMonth] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -265,33 +267,35 @@ export function AdminKpisPage() {
   const [payments6M, setPayments6M] = useState<PaymentRow[]>([]);
   const [pastDueAll, setPastDueAll] = useState<PaymentRow[]>([]);
   const [attendances6M, setAttendances6M] = useState<AttendanceRaw[]>([]);
+  const [cashByMonth, setCashByMonth] = useState<Record<string, number>>({});
+  const [expensesByMonth, setExpensesByMonth] = useState<Record<string, number>>({});
   const [clients, setClients] = useState<ClientProfile[]>([]);
   const [templates, setTemplates] = useState<DocTemplate[]>([]);
   const [signatures, setSignatures] = useState<(DocSignature & { user_id: string })[]>([]);
   const [packSubs, setPackSubs] = useState<PackSubRow[]>([]);
 
-  const sixMonths = useMemo(
-    () => Array.from({ length: 6 }, (_, i) => shiftMonth(selectedMonth, i - 5)),
-    [selectedMonth]
+  const trendMonths = useMemo(
+    () => Array.from({ length: trendRange }, (_, i) => shiftMonth(selectedMonth, i - (trendRange - 1))),
+    [selectedMonth, trendRange]
   );
 
   useEffect(() => {
     const loadBI = async () => {
       setLoading(true);
       setPinnedMonth(null);
-      const startMonth = sixMonths[0];
+      const startMonth = trendMonths[0];
       const { start, nextEnd } = getMonthRangeBounds(startMonth, selectedMonth);
       let incomplete = false;
 
-      const [discRes, payRows, pastDueRows, attRows, cliRes, tplRes, sigRes, packRes] =
+      const [discRes, payRows, pastDueRows, attRows, cliRes, tplRes, sigRes, packRes, cashArr, expRows] =
         await Promise.all([
           supabase.from('disciplines').select('id, name').eq('is_active', true).order('sort_order'),
-          // Paginadas: 6 meses de cuotas y asistencias superan pronto el límite de 1.000 filas
+          // Paginadas: 6–12 meses de cuotas y asistencias superan pronto el límite de 1.000 filas
           fetchAllRows<PaymentRow>((from, to) =>
             supabase
               .from('v_monthly_payment_status')
               .select('user_id, month_year, plan_name, price_eur, paid_amount_eur, payment_method, effective_status')
-              .in('month_year', sixMonths)
+              .in('month_year', trendMonths)
               .order('month_year')
               .order('user_id')
               .range(from, to)
@@ -341,13 +345,37 @@ export function AdminKpisPage() {
             .eq('month_year', selectedMonth)
             .eq('status', 'active')
             .eq('plans.is_class_pack', true),
+          Promise.all(trendMonths.map((ym) => getCashMonth(ym).then((c) => c.total).catch(() => 0))),
+          fetchAllRows<{ expense_date: string; amount_cents: number; voided_at: string | null }>((from, to) =>
+            supabase
+              .from('expenses')
+              .select('expense_date, amount_cents, voided_at')
+              .gte('expense_date', start)
+              .lt('expense_date', nextEnd)
+              .is('voided_at', null)
+              .order('expense_date')
+              .order('id')
+              .range(from, to)
+          ).catch(() => [] as { expense_date: string; amount_cents: number; voided_at: string | null }[]),
         ]);
+
+      const cashMap: Record<string, number> = {};
+      trendMonths.forEach((ym, idx) => {
+        cashMap[ym] = cashArr[idx] ?? 0;
+      });
+      const expMap: Record<string, number> = {};
+      for (const e of expRows) {
+        const ym = e.expense_date.slice(0, 7);
+        expMap[ym] = (expMap[ym] ?? 0) + Number(e.amount_cents || 0) / 100;
+      }
 
       setDisciplines((discRes.data as DisciplineItem[]) ?? []);
       setDataIncomplete(incomplete);
       setPayments6M(payRows);
       setPastDueAll(pastDueRows);
       setAttendances6M(attRows);
+      setCashByMonth(cashMap);
+      setExpensesByMonth(expMap);
       setClients((cliRes.data as ClientProfile[]) ?? []);
       setTemplates((tplRes.data as DocTemplate[]) ?? []);
       setSignatures((sigRes.data as (DocSignature & { user_id: string })[]) ?? []);
@@ -356,7 +384,7 @@ export function AdminKpisPage() {
     };
 
     loadBI();
-  }, [selectedMonth, currentMonth, sixMonths]);
+  }, [selectedMonth, currentMonth, trendMonths]);
 
   const filteredAttendances6M = useMemo(() => {
     if (selectedDiscipline === 'all') return attendances6M;
@@ -450,8 +478,8 @@ export function AdminKpisPage() {
     else otherSum += amt;
   });
 
-  // Serie 6 meses para gráfico combinado Power BI
-  const trendData = sixMonths.map((ym) => {
+  // Serie histórica (6 o 12 meses) para gráfico combinado de tendencias
+  const trendData = trendMonths.map((ym) => {
     const pRows = payments6M.filter((p) => p.month_year === ym);
     const collected = pRows
       .filter((p) => p.effective_status === 'OK' || p.effective_status === 'ADVANCE_OK')
@@ -468,13 +496,32 @@ export function AdminKpisPage() {
     const signups = clients.filter((c) => c.created_at.startsWith(ym)).length;
     const rate =
       collected + pending > 0 ? Math.round((collected / (collected + pending)) * 100) : 0;
-    return { ym, label: formatMonthLabel(ym), collected, pending, attCount, signups, rate };
+    const cashIn = cashByMonth[ym] ?? 0;
+    const expensesOut = expensesByMonth[ym] ?? 0;
+    const netResult = cashIn - expensesOut;
+    return {
+      ym,
+      label: formatMonthLabel(ym),
+      collected,
+      pending,
+      attCount,
+      signups,
+      rate,
+      cashIn,
+      expensesOut,
+      netResult,
+    };
   });
 
   const maxRev = niceCeil(Math.max(100, ...trendData.map((d) => d.collected + d.pending)));
   const maxAtt = niceCeil(Math.max(10, ...trendData.map((d) => d.attCount)));
+  const maxCashExp = niceCeil(Math.max(100, ...trendData.map((d) => Math.max(d.cashIn, d.expensesOut))));
+  const maxNetAbs = niceCeil(Math.max(100, ...trendData.map((d) => Math.abs(d.netResult))));
+  const minNet = Math.min(0, ...trendData.map((d) => d.netResult)) < 0 ? -maxNetAbs : 0;
+  const maxNet = maxNetAbs;
+  const maxSignups = niceCeil(Math.max(5, ...trendData.map((d) => d.signups)));
   const focusMonth = hoveredMonth ?? pinnedMonth ?? selectedMonth;
-  const activeTrend = trendData.find((d) => d.ym === focusMonth) ?? trendData[5];
+  const activeTrend = trendData.find((d) => d.ym === focusMonth) ?? trendData[trendData.length - 1];
 
   // Cumplimiento documental
   const sigByUser: Record<string, DocSignature[]> = {};
@@ -540,13 +587,30 @@ export function AdminKpisPage() {
   const colCenter = (idx: number) => CH.left + colW * idx + colW / 2;
   const yRev = (v: number) => CH.base - (v / maxRev) * plotH;
   const yAtt = (v: number) => CH.base - (v / maxAtt) * plotH;
+  const yCashExp = (v: number) => CH.base - (v / maxCashExp) * plotH;
+  const yNet = (v: number) => CH.base - ((v - minNet) / Math.max(1, maxNet - minNet)) * plotH;
+  const ySignups = (v: number) => CH.base - (v / maxSignups) * plotH;
+  const yRate = (v: number) => CH.base - (v / 100) * plotH;
+
   const linePoints = trendData
-    .map((d, idx) => `${colCenter(idx).toFixed(1)},${yAtt(d.attCount).toFixed(1)}`)
+    .map((d, idx) => {
+      const y =
+        trendMode === 'revenue'
+          ? yAtt(d.attCount)
+          : trendMode === 'net'
+          ? yNet(d.netResult)
+          : yRate(d.rate);
+      return `${colCenter(idx).toFixed(1)},${y.toFixed(1)}`;
+    })
     .join(' ');
   const areaPoints = `${colCenter(0).toFixed(1)},${CH.base} ${linePoints} ${colCenter(
     trendData.length - 1
   ).toFixed(1)},${CH.base}`;
-  const fmtAxisEur = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `${v}`);
+  const fmtAxisEur = (v: number) => {
+    const abs = Math.abs(v);
+    const sign = v < 0 ? '−' : '';
+    return abs >= 1000 ? `${sign}${(abs / 1000).toFixed(abs % 1000 === 0 ? 0 : 1)}k` : `${sign}${Math.round(abs)}`;
+  };
 
   const handleExportExcel = () => {
     const dayLabels: Record<number, string> = {
@@ -572,8 +636,11 @@ export function AdminKpisPage() {
 
     const evolucionRows = trendData.map((d) => ({
       Mes: d.label,
-      Cobrado_EUR: Number(d.collected.toFixed(2)),
+      Cobrado_cuotas_EUR: Number(d.collected.toFixed(2)),
       Pendiente_EUR: Number(d.pending.toFixed(2)),
+      Caja_entrada_EUR: Number(d.cashIn.toFixed(2)),
+      Gastos_EUR: Number(d.expensesOut.toFixed(2)),
+      Resultado_neto_EUR: Number(d.netResult.toFixed(2)),
       Tasa_cobro_pct: d.rate,
       Asistencias: d.attCount,
       Altas: d.signups,
@@ -594,7 +661,7 @@ export function AdminKpisPage() {
 
     exportWorkbook(`kpis_247_${selectedMonth}.xlsx`, [
       { name: 'Resumen_Mes', rows: resumenRows },
-      { name: 'Evolucion_6_Meses', rows: evolucionRows },
+      { name: `Evolucion_${trendRange}_Meses`, rows: evolucionRows },
       { name: 'Top_Clases', rows: clasesRows },
     ]);
   };
@@ -679,7 +746,7 @@ export function AdminKpisPage() {
           value={formatEUR(totalCollected)}
           delta={<DeltaBadge value={revenueMoM} suffix="" />}
           footnote={`ARPU ${formatEUR(arpu)} · ${paidMonth.length} cuotas de ${formatMonthLong(selectedMonth)}`}
-          trend={trendData.map((d) => d.collected)}
+          trend={trendData.slice(-6).map((d) => d.collected)}
           trendLabel="Evolución de cuotas cobradas en 6 meses, por mes de la cuota"
         />
         <KpiCard
@@ -697,7 +764,7 @@ export function AdminKpisPage() {
               </strong>
             </>
           }
-          trend={trendData.map((d) => d.pending)}
+          trend={trendData.slice(-6).map((d) => d.pending)}
           trendLabel="Evolución del importe pendiente en 6 meses"
         />
         <KpiCard
@@ -709,7 +776,7 @@ export function AdminKpisPage() {
           valueClassName={
             collectionRate >= 90 ? 'text-emerald-300' : collectionRate >= 70 ? 'text-white' : 'text-amber-300'
           }
-          trend={trendData.map((d) => d.rate)}
+          trend={trendData.slice(-6).map((d) => d.rate)}
           trendLabel="Evolución de la tasa de cobro en 6 meses"
         >
           <div
@@ -734,7 +801,7 @@ export function AdminKpisPage() {
           value={formatInt(monthAtt.length)}
           delta={<DeltaBadge value={attMoM} suffix="" />}
           footnote={`${avgClassesPerStudent} clases por alumno activo`}
-          trend={trendData.map((d) => d.attCount)}
+          trend={trendData.slice(-6).map((d) => d.attCount)}
           trendLabel="Evolución de asistencias en 6 meses"
         />
         <KpiCard
@@ -762,49 +829,134 @@ export function AdminKpisPage() {
         <section className="lg:col-span-7 rounded-3xl studio-panel border border-white/10 p-5 sm:p-6 flex flex-col gap-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="font-headline text-lg uppercase text-white">Tendencia 6 meses</h2>
+              <h2 className="font-headline text-lg uppercase text-white">
+                Tendencia {trendRange} meses
+              </h2>
               <p className="text-xs text-slate-400">
-                <span className="hidden sm:inline">Ingresos (€, eje izq.) frente a asistencias (eje dcho.) · </span>
+                <span className="hidden sm:inline">
+                  {trendMode === 'revenue'
+                    ? 'Cuotas (€, eje izq.) frente a asistencias (eje dcho.) · '
+                    : trendMode === 'net'
+                    ? 'Caja entrada vs gastos (€, izq.) y resultado neto (dcho.) · '
+                    : 'Altas nuevas (eje izq.) frente a tasa de cobro % (eje dcho.) · '}
+                </span>
                 Toca un mes para fijarlo
               </p>
             </div>
-            {activeTrend && !loading && (
-              <div className="rounded-xl studio-panel-inset border border-white/10 px-3 py-2 text-xs flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
-                <span className="font-bold text-white inline-flex items-center gap-1.5">
-                  {activeTrend.label}
-                  {pinnedMonth === activeTrend.ym && (
-                    <span className="text-[9px] uppercase tracking-wider text-sky-300 bg-sky-500/15 rounded px-1 py-px">
-                      fijado
-                    </span>
-                  )}
-                </span>
-                <span className="text-emerald-300">{formatEUR(activeTrend.collected)}</span>
-                <span className="text-amber-300">{formatEUR(activeTrend.pending)} pend.</span>
-                <span className="text-sky-300">{formatInt(activeTrend.attCount)} asist.</span>
-                {activeTrend.ym !== selectedMonth && (
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                className="inline-flex rounded-xl studio-panel-inset border border-white/10 p-0.5 text-[11px] font-semibold"
+                role="group"
+                aria-label="Métrica de tendencia"
+              >
+                {(
+                  [
+                    { id: 'revenue', label: 'Ingresos' },
+                    { id: 'net', label: 'Beneficio' },
+                    { id: 'growth', label: 'Altas & Cobro' },
+                  ] as const
+                ).map((m) => (
                   <button
+                    key={m.id}
                     type="button"
-                    onClick={() => setSelectedMonth(activeTrend.ym)}
-                    className="text-studio-red-text font-semibold hover:underline"
+                    onClick={() => setTrendMode(m.id)}
+                    aria-pressed={trendMode === m.id}
+                    className={`px-2.5 py-1 rounded-lg transition ${
+                      trendMode === m.id
+                        ? 'bg-studio-cream text-studio-navy-deep'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
                   >
-                    Analizar mes →
+                    {m.label}
                   </button>
-                )}
+                ))}
               </div>
-            )}
+              <div
+                className="inline-flex rounded-xl studio-panel-inset border border-white/10 p-0.5 text-[11px] font-semibold"
+                role="group"
+                aria-label="Rango de meses"
+              >
+                {([6, 12] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setTrendRange(r)}
+                    aria-pressed={trendRange === r}
+                    className={`px-2 py-1 rounded-lg transition ${
+                      trendRange === r
+                        ? 'bg-white/15 text-white'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {r}M
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+
+          {activeTrend && !loading && (
+            <div className="rounded-xl studio-panel-inset border border-white/10 px-3 py-2 text-xs flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
+              <span className="font-bold text-white inline-flex items-center gap-1.5">
+                {activeTrend.label}
+                {pinnedMonth === activeTrend.ym && (
+                  <span className="text-[9px] uppercase tracking-wider text-sky-300 bg-sky-500/15 rounded px-1 py-px">
+                    fijado
+                  </span>
+                )}
+              </span>
+              {trendMode === 'revenue' && (
+                <>
+                  <span className="text-emerald-300">{formatEUR(activeTrend.collected)}</span>
+                  <span className="text-amber-300">{formatEUR(activeTrend.pending)} pend.</span>
+                  <span className="text-sky-300">{formatInt(activeTrend.attCount)} asist.</span>
+                </>
+              )}
+              {trendMode === 'net' && (
+                <>
+                  <span className="text-emerald-300">+{formatEUR(activeTrend.cashIn)} caja</span>
+                  <span className="text-rose-300">−{formatEUR(activeTrend.expensesOut)} gastos</span>
+                  <span
+                    className={`font-semibold ${
+                      activeTrend.netResult >= 0 ? 'text-amber-300' : 'text-rose-300'
+                    }`}
+                  >
+                    Neto: {activeTrend.netResult >= 0 ? '+' : '−'}
+                    {formatEUR(Math.abs(activeTrend.netResult))}
+                  </span>
+                </>
+              )}
+              {trendMode === 'growth' && (
+                <>
+                  <span className="text-indigo-300">{formatInt(activeTrend.signups)} altas</span>
+                  <span className="text-emerald-300">{activeTrend.rate}% cobro</span>
+                  <span className="text-sky-300">{formatInt(activeTrend.attCount)} asist.</span>
+                </>
+              )}
+              {activeTrend.ym !== selectedMonth && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedMonth(activeTrend.ym)}
+                  className="text-studio-red-text font-semibold hover:underline ml-auto"
+                >
+                  Analizar mes →
+                </button>
+              )}
+            </div>
+          )}
 
           {loading ? (
             <Skeleton className="w-full h-52 !rounded-2xl" />
           ) : (
             <>
             {/* Móvil: lista vertical por mes (sin scroll horizontal) */}
-            <ul className="sm:hidden space-y-1.5" aria-label="Ingresos y asistencias de los últimos 6 meses">
+            <ul
+              className="sm:hidden space-y-1.5"
+              aria-label={`Tendencia de los últimos ${trendRange} meses`}
+            >
               {[...trendData].reverse().map((d) => {
                 const isActive = focusMonth === d.ym;
-                const colPct = (d.collected / maxRev) * 100;
-                const penPct = (d.pending / maxRev) * 100;
-                const attPct = (d.attCount / maxAtt) * 100;
                 return (
                   <li key={`m-${d.ym}`}>
                     <button
@@ -821,24 +973,88 @@ export function AdminKpisPage() {
                         <span className={`font-semibold ${isActive ? 'text-white' : 'text-slate-300'}`}>
                           {d.label}
                         </span>
-                        <span className="text-slate-400">
-                          <span className="text-emerald-300">{formatEUR(d.collected)}</span>
-                          {d.pending > 0 && (
-                            <span className="text-amber-300"> + {formatEUR(d.pending)}</span>
-                          )}
-                          <span className="text-sky-300 ml-2">{d.attCount} asist.</span>
-                        </span>
+                        {trendMode === 'revenue' && (
+                          <span className="text-slate-400">
+                            <span className="text-emerald-300">{formatEUR(d.collected)}</span>
+                            {d.pending > 0 && (
+                              <span className="text-amber-300"> + {formatEUR(d.pending)}</span>
+                            )}
+                            <span className="text-sky-300 ml-2">{d.attCount} asist.</span>
+                          </span>
+                        )}
+                        {trendMode === 'net' && (
+                          <span className="text-slate-400">
+                            <span className="text-emerald-300">{formatEUR(d.cashIn)}</span>
+                            <span className="text-rose-300 ml-1.5">−{formatEUR(d.expensesOut)}</span>
+                            <span
+                              className={`ml-2 font-semibold ${
+                                d.netResult >= 0 ? 'text-amber-300' : 'text-rose-300'
+                              }`}
+                            >
+                              {d.netResult >= 0 ? '+' : '−'}
+                              {formatEUR(Math.abs(d.netResult))}
+                            </span>
+                          </span>
+                        )}
+                        {trendMode === 'growth' && (
+                          <span className="text-slate-400">
+                            <span className="text-indigo-300">{d.signups} altas</span>
+                            <span className="text-emerald-300 ml-2">{d.rate}% cobro</span>
+                          </span>
+                        )}
                       </div>
-                      <div className="mt-1.5 h-2 w-full rounded-full bg-slate-950/70 overflow-hidden flex">
-                        <span className="h-full bg-emerald-500" style={{ width: `${colPct}%` }} />
-                        <span className="h-full bg-amber-500" style={{ width: `${penPct}%` }} />
-                      </div>
-                      <div className="mt-1 h-1 w-full rounded-full bg-slate-950/70 overflow-hidden">
-                        <span
-                          className="block h-full rounded-full bg-sky-400"
-                          style={{ width: `${attPct}%` }}
-                        />
-                      </div>
+                      {trendMode === 'revenue' && (
+                        <>
+                          <div className="mt-1.5 h-2 w-full rounded-full bg-slate-950/70 overflow-hidden flex">
+                            <span
+                              className="h-full bg-emerald-500"
+                              style={{ width: `${(d.collected / maxRev) * 100}%` }}
+                            />
+                            <span
+                              className="h-full bg-amber-500"
+                              style={{ width: `${(d.pending / maxRev) * 100}%` }}
+                            />
+                          </div>
+                          <div className="mt-1 h-1 w-full rounded-full bg-slate-950/70 overflow-hidden">
+                            <span
+                              className="block h-full rounded-full bg-sky-400"
+                              style={{ width: `${(d.attCount / maxAtt) * 100}%` }}
+                            />
+                          </div>
+                        </>
+                      )}
+                      {trendMode === 'net' && (
+                        <div className="mt-1.5 space-y-1">
+                          <div className="h-1.5 w-full rounded-full bg-slate-950/70 overflow-hidden">
+                            <span
+                              className="block h-full bg-emerald-500"
+                              style={{ width: `${(d.cashIn / maxCashExp) * 100}%` }}
+                            />
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-slate-950/70 overflow-hidden">
+                            <span
+                              className="block h-full bg-rose-400"
+                              style={{ width: `${(d.expensesOut / maxCashExp) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      {trendMode === 'growth' && (
+                        <>
+                          <div className="mt-1.5 h-2 w-full rounded-full bg-slate-950/70 overflow-hidden">
+                            <span
+                              className="block h-full bg-indigo-400"
+                              style={{ width: `${(d.signups / maxSignups) * 100}%` }}
+                            />
+                          </div>
+                          <div className="mt-1 h-1 w-full rounded-full bg-slate-950/70 overflow-hidden">
+                            <span
+                              className="block h-full rounded-full bg-emerald-400"
+                              style={{ width: `${d.rate}%` }}
+                            />
+                          </div>
+                        </>
+                      )}
                     </button>
                   </li>
                 );
@@ -850,27 +1066,66 @@ export function AdminKpisPage() {
                 viewBox={`0 0 ${CH.width} ${CH.height}`}
                 className="w-full min-w-[440px] h-auto select-none"
                 role="group"
-                aria-label="Gráfico combinado de ingresos y asistencias de los últimos 6 meses"
+                aria-label={`Gráfico combinado de tendencia de los últimos ${trendRange} meses`}
               >
                 <defs>
                   <linearGradient id="kpiAttArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.22" />
-                    <stop offset="100%" stopColor="#38BDF8" stopOpacity="0" />
+                    <stop
+                      offset="0%"
+                      stopColor={
+                        trendMode === 'revenue'
+                          ? '#38BDF8'
+                          : trendMode === 'net'
+                          ? '#FBBF24'
+                          : '#34D399'
+                      }
+                      stopOpacity="0.22"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={
+                        trendMode === 'revenue'
+                          ? '#38BDF8'
+                          : trendMode === 'net'
+                          ? '#FBBF24'
+                          : '#34D399'
+                      }
+                      stopOpacity="0"
+                    />
                   </linearGradient>
-                  {trendData.map((d, idx) => {
-                    const total = d.collected + d.pending;
-                    const h = Math.max((total / maxRev) * plotH, 2);
-                    return (
-                      <clipPath key={`clip-${d.ym}`} id={`kpiBar-${d.ym}`}>
-                        <rect x={colCenter(idx) - barW / 2} y={CH.base - h} width={barW} height={h} rx={5} />
-                      </clipPath>
-                    );
-                  })}
+                  {trendMode === 'revenue' &&
+                    trendData.map((d, idx) => {
+                      const total = d.collected + d.pending;
+                      const h = Math.max((total / maxRev) * plotH, 2);
+                      return (
+                        <clipPath key={`clip-${d.ym}`} id={`kpiBar-${d.ym}`}>
+                          <rect x={colCenter(idx) - barW / 2} y={CH.base - h} width={barW} height={h} rx={5} />
+                        </clipPath>
+                      );
+                    })}
                 </defs>
 
                 {/* Rejilla + etiquetas de ejes */}
                 {[0, 0.25, 0.5, 0.75, 1].map((step) => {
                   const y = CH.base - step * plotH;
+                  const leftLabel =
+                    trendMode === 'revenue'
+                      ? fmtAxisEur(maxRev * step)
+                      : trendMode === 'net'
+                      ? fmtAxisEur(maxCashExp * step)
+                      : `${Math.round(maxSignups * step)}`;
+                  const rightLabel =
+                    trendMode === 'revenue'
+                      ? `${Math.round(maxAtt * step)}`
+                      : trendMode === 'net'
+                      ? fmtAxisEur(minNet + (maxNet - minNet) * step)
+                      : `${Math.round(100 * step)}%`;
+                  const rightColor =
+                    trendMode === 'revenue'
+                      ? '#38BDF8'
+                      : trendMode === 'net'
+                      ? '#FBBF24'
+                      : '#34D399';
                   return (
                     <g key={step}>
                       <line
@@ -882,22 +1137,29 @@ export function AdminKpisPage() {
                         strokeDasharray={step === 0 ? undefined : '3 4'}
                       />
                       <text x={CH.left - 8} y={y + 4} textAnchor="end" fontSize="11" fill="#64748B">
-                        {fmtAxisEur(maxRev * step)}
+                        {leftLabel}
                       </text>
-                      <text x={CH.right + 8} y={y + 4} textAnchor="start" fontSize="11" fill="#38BDF8" opacity={0.7}>
-                        {Math.round(maxAtt * step)}
+                      <text x={CH.right + 8} y={y + 4} textAnchor="start" fontSize="11" fill={rightColor} opacity={0.75}>
+                        {rightLabel}
                       </text>
                     </g>
                   );
                 })}
 
-                {/* Barras apiladas Cobrado + Pendiente */}
+                {/* Barras según modo */}
                 {trendData.map((d, idx) => {
                   const cx = colCenter(idx);
                   const isActive = focusMonth === d.ym;
+                  const toggle = () => setPinnedMonth((prev) => (prev === d.ym ? null : d.ym));
+                  const shortLabel = trendRange === 12 ? d.label.split(' ')[0] : d.label;
+
                   const yCol = yRev(d.collected);
                   const yTop = yRev(d.collected + d.pending);
-                  const toggle = () => setPinnedMonth((prev) => (prev === d.ym ? null : d.ym));
+                  const yCash = yCashExp(d.cashIn);
+                  const yExp = yCashExp(d.expensesOut);
+                  const halfBar = Math.max(4, barW * 0.44);
+                  const ySig = ySignups(d.signups);
+
                   return (
                     <g
                       key={d.ym}
@@ -905,9 +1167,7 @@ export function AdminKpisPage() {
                       tabIndex={0}
                       role="button"
                       aria-pressed={pinnedMonth === d.ym}
-                      aria-label={`${formatMonthLong(d.ym)}: ${formatEUR(d.collected)} cobrado, ${formatEUR(
-                        d.pending
-                      )} pendiente, ${d.attCount} asistencias`}
+                      aria-label={`${formatMonthLong(d.ym)}: ${formatEUR(d.collected)} cobrado, ${d.attCount} asistencias`}
                       onMouseEnter={() => setHoveredMonth(d.ym)}
                       onMouseLeave={() => setHoveredMonth(null)}
                       onFocus={() => setHoveredMonth(d.ym)}
@@ -921,71 +1181,131 @@ export function AdminKpisPage() {
                       }}
                     >
                       <rect
-                        x={cx - colW / 2 + 3}
+                        x={cx - colW / 2 + 2}
                         y={CH.top - 8}
-                        width={colW - 6}
+                        width={colW - 4}
                         height={CH.base - CH.top + 30}
-                        rx={10}
+                        rx={8}
                         fill={isActive ? 'rgba(255,255,255,0.05)' : 'transparent'}
                         stroke={pinnedMonth === d.ym ? 'rgba(56,189,248,0.35)' : 'transparent'}
                       />
-                      <g clipPath={`url(#kpiBar-${d.ym})`} opacity={isActive ? 1 : 0.78}>
-                        <motion.rect
-                          x={cx - barW / 2}
-                          width={barW}
-                          initial={{ y: CH.base, height: 0 }}
-                          animate={{ y: yCol, height: Math.max(CH.base - yCol, 2) }}
-                          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                          fill="#10B981"
-                        />
-                        {d.pending > 0 && (
+
+                      {trendMode === 'revenue' && (
+                        <g clipPath={`url(#kpiBar-${d.ym})`} opacity={isActive ? 1 : 0.78}>
                           <motion.rect
                             x={cx - barW / 2}
                             width={barW}
                             initial={{ y: CH.base, height: 0 }}
-                            animate={{ y: yTop, height: yCol - yTop }}
-                            transition={{ duration: 0.55, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-                            fill="#F59E0B"
+                            animate={{ y: yCol, height: Math.max(CH.base - yCol, 2) }}
+                            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                            fill="#10B981"
                           />
-                        )}
-                      </g>
+                          {d.pending > 0 && (
+                            <motion.rect
+                              x={cx - barW / 2}
+                              width={barW}
+                              initial={{ y: CH.base, height: 0 }}
+                              animate={{ y: yTop, height: yCol - yTop }}
+                              transition={{ duration: 0.5, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+                              fill="#F59E0B"
+                            />
+                          )}
+                        </g>
+                      )}
+
+                      {trendMode === 'net' && (
+                        <g opacity={isActive ? 1 : 0.8}>
+                          <motion.rect
+                            x={cx - halfBar - 1}
+                            width={halfBar}
+                            rx={3}
+                            initial={{ y: CH.base, height: 0 }}
+                            animate={{ y: yCash, height: Math.max(CH.base - yCash, 2) }}
+                            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                            fill="#10B981"
+                          />
+                          <motion.rect
+                            x={cx + 1}
+                            width={halfBar}
+                            rx={3}
+                            initial={{ y: CH.base, height: 0 }}
+                            animate={{ y: yExp, height: Math.max(CH.base - yExp, 2) }}
+                            transition={{ duration: 0.5, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+                            fill="#FB7185"
+                          />
+                        </g>
+                      )}
+
+                      {trendMode === 'growth' && (
+                        <g opacity={isActive ? 1 : 0.8}>
+                          <motion.rect
+                            x={cx - barW / 2}
+                            width={barW}
+                            rx={5}
+                            initial={{ y: CH.base, height: 0 }}
+                            animate={{ y: ySig, height: Math.max(CH.base - ySig, 2) }}
+                            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                            fill="#818CF8"
+                          />
+                        </g>
+                      )}
+
                       <text
                         x={cx}
                         y={CH.base + 20}
                         textAnchor="middle"
-                        fontSize="12"
+                        fontSize={trendRange === 12 ? '10' : '12'}
                         fontWeight={isActive ? '700' : '500'}
                         fill={isActive ? '#FFFFFF' : '#94A3B8'}
                       >
-                        {d.label}
+                        {shortLabel}
                       </text>
                     </g>
                   );
                 })}
 
-                {/* Línea de asistencias con área */}
+                {/* Línea superpuesta */}
                 <polygon points={areaPoints} fill="url(#kpiAttArea)" className="pointer-events-none" />
                 <motion.polyline
+                  key={`${trendMode}-${trendRange}`}
                   fill="none"
-                  stroke="#38BDF8"
+                  stroke={
+                    trendMode === 'revenue'
+                      ? '#38BDF8'
+                      : trendMode === 'net'
+                      ? '#FBBF24'
+                      : '#34D399'
+                  }
                   strokeWidth="2.5"
                   strokeLinejoin="round"
                   strokeLinecap="round"
                   points={linePoints}
                   initial={{ pathLength: 0, opacity: 0.4 }}
                   animate={{ pathLength: 1, opacity: 1 }}
-                  transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
                   className="pointer-events-none"
                 />
                 {trendData.map((d, idx) => {
                   const isActive = focusMonth === d.ym;
+                  const cy =
+                    trendMode === 'revenue'
+                      ? yAtt(d.attCount)
+                      : trendMode === 'net'
+                      ? yNet(d.netResult)
+                      : yRate(d.rate);
+                  const dotColor =
+                    trendMode === 'revenue'
+                      ? '#38BDF8'
+                      : trendMode === 'net'
+                      ? '#FBBF24'
+                      : '#34D399';
                   return (
                     <circle
                       key={`pt-${d.ym}`}
                       cx={colCenter(idx)}
-                      cy={yAtt(d.attCount)}
+                      cy={cy}
                       r={isActive ? 5.5 : 3.5}
-                      fill={isActive ? '#FFFFFF' : '#38BDF8'}
+                      fill={isActive ? '#FFFFFF' : dotColor}
                       stroke="#0F172A"
                       strokeWidth="2"
                       className="pointer-events-none transition-[r,fill] duration-200"
@@ -998,15 +1318,42 @@ export function AdminKpisPage() {
           )}
 
           <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400 pt-3 border-t border-white/5">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Cobrado (€)
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-amber-500" /> Pendiente (€)
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-3.5 h-[3px] rounded-full bg-sky-400" /> Asistencias
-            </span>
+            {trendMode === 'revenue' && (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Cobrado (€)
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-amber-500" /> Pendiente (€)
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-3.5 h-[3px] rounded-full bg-sky-400" /> Asistencias
+                </span>
+              </>
+            )}
+            {trendMode === 'net' && (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Caja entrada (€)
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-rose-400" /> Gastos (€)
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-3.5 h-[3px] rounded-full bg-amber-400" /> Resultado neto (€)
+                </span>
+              </>
+            )}
+            {trendMode === 'growth' && (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-indigo-400" /> Altas nuevas
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-3.5 h-[3px] rounded-full bg-emerald-400" /> Tasa de cobro (%)
+                </span>
+              </>
+            )}
           </div>
         </section>
 
