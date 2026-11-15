@@ -67,7 +67,7 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   const { profile } = useAuth();
-  const belt = profile?.belt ?? (profile?.role === 'client' ? 'Blanco' : 'Negro');
+  const belt = profile?.role === 'client' ? profile?.belt : (profile?.belt ?? 'Negro');
 
   return (
     <header className="space-y-4">
@@ -84,7 +84,11 @@ export function PageHeader({
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2.5 shrink-0">{actions}</div>}
       </div>
-      <BeltRule belt={belt} stripes={profile?.belt_stripes ?? 0} />
+      {belt ? (
+        <BeltRule belt={belt} stripes={profile?.belt_stripes ?? 0} />
+      ) : (
+        <div className="h-[2px] w-full bg-gradient-to-r from-studio-red via-white/15 to-transparent rounded-full" />
+      )}
       {children}
     </header>
   );

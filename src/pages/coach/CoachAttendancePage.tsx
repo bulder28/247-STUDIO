@@ -534,7 +534,7 @@ export function CoachAttendancePage() {
                   {st.alias && (
                     <p className="text-[11px] text-studio-cream/80 font-medium">&ldquo;{st.alias}&rdquo;</p>
                   )}
-                  <p className="text-[11px] text-slate-400 mt-0.5">{st.belt || 'Blanco'}</p>
+                  {st.belt && <p className="text-[11px] text-slate-400 mt-0.5">{st.belt}</p>}
                   {st.is_class_pack && st.remaining_credits !== null && (
                     <span
                       className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${

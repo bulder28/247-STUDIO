@@ -42,7 +42,7 @@ interface ClassRanking {
 interface InactiveStudent {
   id: string;
   full_name: string;
-  belt: string;
+  belt: string | null;
   lastAttendance: string | null;
   daysInactive: number;
 }
@@ -395,7 +395,7 @@ export function AdminHomePage() {
           return {
             id: c.id,
             full_name: c.full_name,
-            belt: c.belt ?? 'blanco',
+            belt: c.belt ?? null,
             lastAttendance: lastAtt,
             daysInactive,
           };
@@ -931,7 +931,7 @@ export function AdminHomePage() {
                   <div className="min-w-0">
                     <p className="text-sm text-white font-medium truncate">{student.full_name}</p>
                     <p className="text-xs text-slate-400">
-                      Cinturón {student.belt} ·{' '}
+                      {student.belt ? `Cinturón ${student.belt} · ` : ''}
                       {student.lastAttendance
                         ? `Última clase: ${new Date(`${student.lastAttendance}T00:00:00`).toLocaleDateString('es-ES')}`
                         : 'Sin asistencias registradas'}

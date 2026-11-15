@@ -277,7 +277,7 @@ export function AdminStudentsPage() {
         full_name: newName.trim(),
         phone: newPhone.trim(),
         birth_date: newBirthDate || null,
-        belt: newBelt,
+        belt: newBelt || null,
         role: newRole,
         guardian_user_id: newGuardianId || null,
         father_name: newFatherName.trim() || null,
@@ -563,7 +563,7 @@ export function AdminStudentsPage() {
                     )}
                   </p>
                   <p className="text-xs text-slate-400 truncate">
-                    {p.belt || 'Blanco'} · {planName}
+                    {p.belt ? `${p.belt} · ${planName}` : planName}
                   </p>
                 </div>
               </div>
@@ -684,10 +684,18 @@ export function AdminStudentsPage() {
               <div>
                 <label className="block text-xs text-slate-400 uppercase mb-1">Cinturón</label>
                 <select
-                  value={selected.belt ?? 'Blanco'}
-                  onChange={(e) => setSelected({ ...selected, belt: e.target.value })}
+                  value={selected.belt ?? ''}
+                  onChange={(e) => {
+                    const nextBelt = e.target.value || null;
+                    setSelected({
+                      ...selected,
+                      belt: nextBelt,
+                      belt_stripes: nextBelt ? selected.belt_stripes : 0,
+                    });
+                  }}
                   className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
+                  <option value="">Sin cinturón (No-Gi / MMA / Lucha)</option>
                   <option value="Blanco">Blanco</option>
                   <option value="Azul">Azul</option>
                   <option value="Morado">Morado</option>
@@ -698,11 +706,12 @@ export function AdminStudentsPage() {
               <div>
                 <label className="block text-xs text-slate-400 uppercase mb-1">Grados (0–4)</label>
                 <select
-                  value={selected.belt_stripes ?? 0}
+                  value={selected.belt ? (selected.belt_stripes ?? 0) : 0}
+                  disabled={!selected.belt}
                   onChange={(e) =>
                     setSelected({ ...selected, belt_stripes: Number(e.target.value) })
                   }
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white disabled:opacity-45"
                 >
                   {[0, 1, 2, 3, 4].map((g) => (
                     <option key={g} value={g}>
@@ -1058,6 +1067,7 @@ export function AdminStudentsPage() {
                   onChange={(e) => setNewBelt(e.target.value)}
                   className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
+                  <option value="">Sin cinturón (No-Gi / MMA / Lucha)</option>
                   <option value="Blanco">Blanco</option>
                   <option value="Azul">Azul</option>
                   <option value="Morado">Morado</option>

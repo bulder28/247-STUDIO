@@ -270,9 +270,11 @@ export function ClientHomePage() {
   const isMinor = isMinorAge(profile?.birth_date);
   const docCompliance = getDocumentCompliance(docTemplates, docSignatures, profile?.birth_date);
 
-  const beltKey = profile?.belt || 'Blanco';
-  const beltStyle = BELT_STYLES[beltKey] ?? BELT_STYLES.Blanco;
-  const beltStripes = Math.min(4, Math.max(0, profile?.belt_stripes ?? 0));
+  const beltKey = profile?.belt || null;
+  const beltStyle = beltKey ? (BELT_STYLES[beltKey] ?? BELT_STYLES.Blanco) : null;
+  const beltAura = beltStyle?.aura ?? 'rgba(220, 38, 38, 0.14)';
+  const beltRing = beltStyle?.ring ?? 'border-white/15';
+  const beltStripes = beltKey ? Math.min(4, Math.max(0, profile?.belt_stripes ?? 0)) : 0;
 
   const classesThisMonth = attendances.filter((a) => a.attendance_date.startsWith(currentMonth)).length;
   const totalMatHours = attendances.reduce(
@@ -399,8 +401,8 @@ export function ClientHomePage() {
           className="absolute inset-0 pointer-events-none transition-opacity duration-300"
           style={{
             background: cardSpot
-              ? `radial-gradient(420px circle at ${cardSpot.x}px ${cardSpot.y}px, ${beltStyle.aura}, transparent 65%)`
-              : `radial-gradient(500px circle at 15% 20%, ${beltStyle.aura}, transparent 70%)`,
+              ? `radial-gradient(420px circle at ${cardSpot.x}px ${cardSpot.y}px, ${beltAura}, transparent 65%)`
+              : `radial-gradient(500px circle at 15% 20%, ${beltAura}, transparent 70%)`,
           }}
         />
         <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-studio-red to-transparent opacity-80 pointer-events-none" />
@@ -427,7 +429,7 @@ export function ClientHomePage() {
 
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
             <div
-              className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl studio-panel-inset border-2 ${beltStyle.ring} overflow-hidden flex items-center justify-center shrink-0 shadow-modal`}
+              className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl studio-panel-inset border-2 ${beltRing} overflow-hidden flex items-center justify-center shrink-0 shadow-modal`}
             >
               {profile?.avatar_url ? (
                 <img
@@ -445,10 +447,12 @@ export function ClientHomePage() {
                 {profile?.full_name}
               </h1>
               <div className="mt-2 flex flex-wrap justify-center sm:justify-start gap-2 text-xs">
-                <span className="px-3 py-1 rounded-full bg-white/10 border border-white/10 text-white font-semibold">
-                  Cinturón {beltKey}
-                  {beltStripes > 0 ? ` · ${beltStripes} ${beltStripes === 1 ? 'grado' : 'grados'}` : ''}
-                </span>
+                {beltKey && (
+                  <span className="px-3 py-1 rounded-full bg-white/10 border border-white/10 text-white font-semibold">
+                    Cinturón {beltKey}
+                    {beltStripes > 0 ? ` · ${beltStripes} ${beltStripes === 1 ? 'grado' : 'grados'}` : ''}
+                  </span>
+                )}
                 {age !== null && (
                   <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-200">
                     {age} años
@@ -461,27 +465,29 @@ export function ClientHomePage() {
                 )}
               </div>
 
-              {/* Cinturón tejido BJJ realista con punta y grados (0-4 tiras) */}
-              <div className="mt-4 max-w-md mx-auto sm:mx-0">
-                <div
-                  className={`relative h-6 rounded-md overflow-hidden flex shadow-modal belt-weave ${beltStyle.bar}`}
-                >
-                  <div className="w-7 h-full bg-studio-red/90 border-r border-black/30 flex items-center justify-center">
-                    <span className="font-headline text-[9px] text-white tracking-tighter">247</span>
-                  </div>
-                  <div className="flex-1 shadow-inner" />
+              {/* Cinturón tejido BJJ realista con punta y grados (solo si aplica a su disciplina) */}
+              {beltKey && beltStyle && (
+                <div className="mt-4 max-w-md mx-auto sm:mx-0">
                   <div
-                    className={`w-16 sm:w-20 h-full ${beltStyle.tip} border-l border-black/40 flex items-center justify-end gap-1.5 px-2`}
+                    className={`relative h-6 rounded-md overflow-hidden flex shadow-modal belt-weave ${beltStyle.bar}`}
                   >
-                    {Array.from({ length: beltStripes }).map((_, idx) => (
-                      <span
-                        key={idx}
-                        className={`w-1.5 h-full ${beltStyle.stripe} shadow-sm opacity-95`}
-                      />
-                    ))}
+                    <div className="w-7 h-full bg-studio-red/90 border-r border-black/30 flex items-center justify-center">
+                      <span className="font-headline text-[9px] text-white tracking-tighter">247</span>
+                    </div>
+                    <div className="flex-1 shadow-inner" />
+                    <div
+                      className={`w-16 sm:w-20 h-full ${beltStyle.tip} border-l border-black/40 flex items-center justify-end gap-1.5 px-2`}
+                    >
+                      {Array.from({ length: beltStripes }).map((_, idx) => (
+                        <span
+                          key={idx}
+                          className={`w-1.5 h-full ${beltStyle.stripe} shadow-sm opacity-95`}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -629,9 +635,14 @@ export function ClientHomePage() {
                     <div>
                       <p className="text-sm font-semibold text-white">{child.full_name}</p>
                       <p className="text-xs text-slate-400">
-                        Cinturón {child.belt || 'Blanco'}
-                        {child.belt_stripes ? ` · ${child.belt_stripes} grados` : ''}
-                        {childAge !== null ? ` · ${childAge} años` : ''}
+                        {[
+                          child.belt
+                            ? `Cinturón ${child.belt}${child.belt_stripes ? ` · ${child.belt_stripes} grados` : ''}`
+                            : null,
+                          childAge !== null ? `${childAge} años` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') || 'Alumno activo'}
                       </p>
                     </div>
                     <span
