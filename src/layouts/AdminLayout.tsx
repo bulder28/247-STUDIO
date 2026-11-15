@@ -13,8 +13,10 @@ import {
   LogOut,
   Menu,
   X,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AdminCommandPalette } from '@/components/AdminCommandPalette';
 
 const navGroups = [
   {
@@ -114,11 +116,23 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { profile, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const userChip = (
     <div className="flex items-center gap-3 min-w-0">
@@ -140,11 +154,27 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen text-slate-100 flex flex-col md:flex-row">
       {/* Sidebar Desktop */}
       <aside className="hidden md:flex md:w-60 md:flex-col bg-[#272c35]/80 backdrop-blur-xl border-r border-white/[0.07] shrink-0 sticky top-0 h-screen">
-        <div className="px-5 pt-6 pb-5 flex items-center gap-3">
+        <div className="px-5 pt-6 pb-4 flex items-center gap-3">
           <img src="/logo.webp" alt="" className="w-10 h-10 rounded-xl object-contain" />
           <p className="font-headline text-xl tracking-wide uppercase text-studio-cream leading-none">
             247 Studio
           </p>
+        </div>
+
+        <div className="px-3 mb-2">
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-xs text-slate-300 transition"
+          >
+            <span className="inline-flex items-center gap-2">
+              <Search className="w-3.5 h-3.5 text-slate-400" />
+              <span>Buscar rápido...</span>
+            </span>
+            <kbd className="px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 bg-black/25 rounded border border-white/10">
+              Ctrl K
+            </kbd>
+          </button>
         </div>
 
         <nav className="flex-1 px-3 py-2 space-y-5 overflow-y-auto" aria-label="Navegación de dirección">
@@ -170,14 +200,24 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <img src="/logo.webp" alt="" className="w-8 h-8 rounded-lg object-contain" />
           <span className="font-headline text-lg uppercase tracking-wide text-studio-cream">247 Studio</span>
         </div>
-        <button
-          onClick={() => setMobileOpen((prev) => !prev)}
-          className="p-2 rounded-lg text-slate-300 hover:bg-white/10"
-          aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
-          aria-expanded={mobileOpen}
-        >
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="p-2 rounded-lg text-slate-300 hover:bg-white/10"
+            aria-label="Buscar rápido"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setMobileOpen((prev) => !prev)}
+            className="p-2 rounded-lg text-slate-300 hover:bg-white/10"
+            aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
+            aria-expanded={mobileOpen}
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </header>
 
       {/* Drawer Mobile */}
@@ -260,6 +300,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <span>Más</span>
         </button>
       </nav>
+      <AdminCommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }

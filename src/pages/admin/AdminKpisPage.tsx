@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
   BarChart3,
   Calendar,
@@ -180,7 +181,7 @@ function PowerDonut({
                   accumulated += segLen;
                   const dim = hovered !== null && hovered !== seg.label;
                   return (
-                    <circle
+                    <motion.circle
                       key={seg.label}
                       cx="50"
                       cy="50"
@@ -188,10 +189,12 @@ function PowerDonut({
                       fill="none"
                       stroke={seg.color}
                       strokeWidth={hovered === seg.label ? 14 : 12}
-                      strokeDasharray={`${drawLen} ${c - drawLen}`}
+                      initial={{ strokeDasharray: `0 ${c}` }}
+                      animate={{ strokeDasharray: `${drawLen} ${c - drawLen}` }}
+                      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
                       strokeDashoffset={offset}
                       opacity={dim ? 0.3 : 1}
-                      className="transition-all duration-200"
+                      className="transition-opacity duration-200"
                     />
                   );
                 })}
@@ -838,15 +841,23 @@ export function AdminKpisPage() {
                         stroke={pinnedMonth === d.ym ? 'rgba(56,189,248,0.35)' : 'transparent'}
                       />
                       <g clipPath={`url(#kpiBar-${d.ym})`} opacity={isActive ? 1 : 0.78}>
-                        <rect
+                        <motion.rect
                           x={cx - barW / 2}
-                          y={yCol}
                           width={barW}
-                          height={Math.max(CH.base - yCol, 2)}
+                          initial={{ y: CH.base, height: 0 }}
+                          animate={{ y: yCol, height: Math.max(CH.base - yCol, 2) }}
+                          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                           fill="#10B981"
                         />
                         {d.pending > 0 && (
-                          <rect x={cx - barW / 2} y={yTop} width={barW} height={yCol - yTop} fill="#F59E0B" />
+                          <motion.rect
+                            x={cx - barW / 2}
+                            width={barW}
+                            initial={{ y: CH.base, height: 0 }}
+                            animate={{ y: yTop, height: yCol - yTop }}
+                            transition={{ duration: 0.55, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+                            fill="#F59E0B"
+                          />
                         )}
                       </g>
                       <text
@@ -865,13 +876,16 @@ export function AdminKpisPage() {
 
                 {/* Línea de asistencias con área */}
                 <polygon points={areaPoints} fill="url(#kpiAttArea)" className="pointer-events-none" />
-                <polyline
+                <motion.polyline
                   fill="none"
                   stroke="#38BDF8"
                   strokeWidth="2.5"
                   strokeLinejoin="round"
                   strokeLinecap="round"
                   points={linePoints}
+                  initial={{ pathLength: 0, opacity: 0.4 }}
+                  animate={{ pathLength: 1, opacity: 1 }}
+                  transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
                   className="pointer-events-none"
                 />
                 {trendData.map((d, idx) => {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Search,
@@ -17,6 +18,7 @@ import { uploadUserAvatar } from '@/lib/imageCompressor';
 import { getLocalMonthYear, calculateAge, isMinorAge } from '@/lib/dateUtils';
 import { getEffectivePlanPrice } from '@/lib/pricing';
 import { CameraCaptureModal } from '@/components/CameraCaptureModal';
+import { Skeleton } from '@/components/KpiCard';
 import {
   getDocumentCompliance,
   type DocSignature,
@@ -48,6 +50,8 @@ interface TrialGuest {
 
 export function AdminStudentsPage() {
   const currentMonth = getLocalMonthYear();
+  const [searchParams] = useSearchParams();
+  const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
@@ -55,10 +59,11 @@ export function AdminStudentsPage() {
   const [docTemplates, setDocTemplates] = useState<DocTemplate[]>([]);
   const [signaturesByUser, setSignaturesByUser] = useState<Record<string, DocSignature[]>>({});
   const [subsByUser, setSubsByUser] = useState<Record<string, string>>({});
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const [statusFilter, setStatusFilter] = useState<'all' | MemberStatus>('all');
   const [disciplineFilter, setDisciplineFilter] = useState<'all' | string>('all');
   const [docFilter, setDocFilter] = useState<'all' | 'pending' | 'complete'>('all');
+  const [quickFilter, setQuickFilter] = useState<'all' | 'pending_docs' | 'no_photo' | 'paused'>('all');
   const [selected, setSelected] = useState<Profile | null>(null);
   const [editPhotoFile, setEditPhotoFile] = useState<File | null>(null);
   const [editPhotoPreview, setEditPhotoPreview] = useState<string | null>(null);
@@ -142,11 +147,24 @@ export function AdminStudentsPage() {
       map[s.user_id] = s.plan_id;
     });
     setSubsByUser(map);
+    setLoading(false);
   };
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) setSearch(q);
+  }, [searchParams]);
 
   useEffect(() => {
     loadAll();
   }, []);
+
+  const clientsOnly = profiles.filter((p) => p.role === 'client');
+  const pendingDocsCount = clientsOnly.filter(
+    (p) => getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date).pending.length > 0
+  ).length;
+  const noPhotoCount = clientsOnly.filter((p) => !p.avatar_url).length;
+  const pausedCount = profiles.filter((p) => p.status === 'paused').length;
 
   const filtered = profiles.filter((p) => {
     const matchesSearch =
@@ -154,6 +172,13 @@ export function AdminStudentsPage() {
       p.email.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
     if (!matchesSearch || !matchesStatus) return false;
+    if (quickFilter === 'no_photo' && (p.role !== 'client' || Boolean(p.avatar_url))) return false;
+    if (quickFilter === 'paused' && p.status !== 'paused') return false;
+    if (quickFilter === 'pending_docs') {
+      if (p.role !== 'client') return false;
+      const comp = getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date);
+      if (comp.pending.length === 0) return false;
+    }
     if (disciplineFilter !== 'all') {
       const userPlan = plans.find((pl) => pl.id === subsByUser[p.id]);
       const hasDiscipline = Boolean(
@@ -487,9 +512,53 @@ export function AdminStudentsPage() {
         </select>
       </div>
 
+      {/* Chips de filtro rápido */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { id: 'all' as const, label: 'Todos', count: profiles.length },
+          { id: 'pending_docs' as const, label: 'Docs pendientes', count: pendingDocsCount },
+          { id: 'no_photo' as const, label: 'Sin foto', count: noPhotoCount },
+          { id: 'paused' as const, label: 'Pausados', count: pausedCount },
+        ].map((chip) => {
+          const active = quickFilter === chip.id;
+          return (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => setQuickFilter(chip.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition border ${
+                active
+                  ? 'bg-studio-red border-studio-red text-white shadow-sm'
+                  : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08] hover:text-white'
+              }`}
+            >
+              {chip.label} <span className="opacity-75 ml-1">({chip.count})</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Lista */}
       <div className="rounded-2xl studio-panel border border-white/10 divide-y divide-white/5">
-        {filtered.map((p) => {
+        {loading ? (
+          Array.from({ length: 6 }).map((_, idx) => (
+            <div key={idx} className="p-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <Skeleton className="w-10 h-10 !rounded-full shrink-0" />
+                <div className="space-y-2 flex-1 max-w-xs">
+                  <Skeleton className="h-4 w-44" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+              </div>
+              <Skeleton className="h-6 w-16 !rounded-full" />
+            </div>
+          ))
+        ) : filtered.length === 0 ? (
+          <div className="p-8 text-center text-sm text-slate-400">
+            No hay alumnos que coincidan con los filtros seleccionados.
+          </div>
+        ) : (
+          filtered.map((p) => {
           const planName =
             plans.find((pl) => pl.id === subsByUser[p.id])?.name ?? 'Sin tarifa este mes';
           const minorAge = isMinorAge(p.birth_date) ? calculateAge(p.birth_date) : null;
@@ -582,7 +651,8 @@ export function AdminStudentsPage() {
               </span>
             </div>
           );
-        })}
+        })
+        )}
       </div>
 
       {/* Modal edición rápida */}

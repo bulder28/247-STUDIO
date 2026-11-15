@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Check, UserPlus, User, Users, Calendar, Search } from 'lucide-react';
+import { Skeleton } from '@/components/KpiCard';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { getLocalDateISO, getLocalTimeHHMM } from '@/lib/dateUtils';
@@ -69,6 +70,14 @@ export function CoachAttendancePage() {
   const [guestDisciplineId, setGuestDisciplineId] = useState('');
   const [guestDate, setGuestDate] = useState(todayDate);
   const [loading, setLoading] = useState(true);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToastMsg(null), 2200);
+  };
 
   const isToday = selectedDay === todayDayOfWeek;
   const classesForDay = allClasses.filter((c) => c.day_of_week === selectedDay);
@@ -198,7 +207,8 @@ export function CoachAttendancePage() {
       if (existing) {
         const { error } = await supabase.from('attendances').delete().eq('id', existing.id);
         if (!error) {
-          setAttendances((prev) => prev.filter((a) => a.id !== existing.id));
+          const nextList = attendances.filter((a) => a.id !== existing.id);
+          setAttendances(nextList);
           setStudents((prev) =>
             prev.map((s) =>
               s.id === studentId && s.is_class_pack && s.remaining_credits !== null
@@ -206,6 +216,8 @@ export function CoachAttendancePage() {
                 : s
             )
           );
+          const count = nextList.filter((a) => a.user_id !== null).length;
+          showToast(`Asistencia retirada · ${count} presentes`);
         }
       } else {
         const { data, error } = await supabase
@@ -220,7 +232,8 @@ export function CoachAttendancePage() {
           .select('id, user_id, guest_name')
           .single();
         if (!error && data) {
-          setAttendances((prev) => [...prev, data as AttendanceRecord]);
+          const nextList = [...attendances, data as AttendanceRecord];
+          setAttendances(nextList);
           setStudents((prev) =>
             prev.map((s) =>
               s.id === studentId && s.is_class_pack && s.remaining_credits !== null
@@ -228,6 +241,8 @@ export function CoachAttendancePage() {
                 : s
             )
           );
+          const count = nextList.filter((a) => a.user_id !== null).length;
+          showToast(`Asistencia guardada · ${count} presentes`);
         }
       }
     } finally {
@@ -484,7 +499,18 @@ export function CoachAttendancePage() {
       )}
 
       {loading ? (
-        <p className="text-sm text-slate-400">Cargando lista de clase...</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {Array.from({ length: 8 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="rounded-2xl p-4 border border-white/10 bg-white/[0.03] flex flex-col items-center gap-2.5"
+            >
+              <Skeleton className="w-16 h-16 !rounded-full" />
+              <Skeleton className="h-3.5 w-24" />
+              <Skeleton className="h-2.5 w-14" />
+            </div>
+          ))}
+        </div>
       ) : classesForDay.length === 0 ? (
         <div className="rounded-2xl studio-panel border border-white/10 p-6 text-sm text-slate-400">
           No hay clases programadas para este día.
@@ -518,9 +544,14 @@ export function CoachAttendancePage() {
                 } ${busy ? 'opacity-60' : ''}`}
               >
                 {checked && (
-                  <span className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                    className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm"
+                  >
                     <Check className="w-4 h-4" />
-                  </span>
+                  </motion.span>
                 )}
                 <div
                   className={`w-16 h-16 rounded-full studio-panel-inset border overflow-hidden flex items-center justify-center transition-all duration-200 group-hover:scale-110 ${
@@ -582,6 +613,21 @@ export function CoachAttendancePage() {
           </div>
         </div>
       )}
+      <AnimatePresence>
+        {toastMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: 18, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+            role="status"
+            className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-40 px-4 py-2.5 rounded-full bg-emerald-600 text-white text-xs font-semibold shadow-modal border border-emerald-400/40 flex items-center gap-2 whitespace-nowrap"
+          >
+            <Check className="w-3.5 h-3.5" />
+            <span>{toastMsg}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
