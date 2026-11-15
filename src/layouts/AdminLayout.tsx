@@ -17,33 +17,35 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const navGroups = [
   {
-    label: 'Hoy',
+    label: 'Día a día',
     items: [
-      { to: '/admin', label: 'Resumen', icon: LayoutDashboard, end: true },
-      { to: '/admin/kpis', label: 'KPIs', icon: BarChart3 },
       { to: '/admin/pasar-lista', label: 'Pasar lista', icon: ClipboardCheck },
-    ],
-  },
-  {
-    label: 'Gestión',
-    items: [
-      { to: '/admin/seguimiento', label: 'Seguimiento', icon: CreditCard },
+      { to: '/admin/seguimiento', label: 'Cobros', icon: CreditCard },
       { to: '/admin/alumnos', label: 'Alumnos', icon: Users },
-      { to: '/admin/tarifas', label: 'Tarifas', icon: Tags },
-      { to: '/admin/horarios', label: 'Horarios', icon: CalendarDays },
     ],
   },
   {
     label: 'Academia',
-    items: [{ to: '/admin/comunicacion', label: 'Comunicación', icon: MessageSquare }],
+    items: [
+      { to: '/admin/horarios', label: 'Horarios', icon: CalendarDays },
+      { to: '/admin/tarifas', label: 'Tarifas', icon: Tags },
+      { to: '/admin/comunicacion', label: 'Comunicación', icon: MessageSquare },
+    ],
+  },
+  {
+    label: 'Dirección',
+    items: [
+      { to: '/admin', label: 'Resumen', icon: LayoutDashboard, end: true },
+      { to: '/admin/kpis', label: 'KPIs', icon: BarChart3 },
+    ],
   },
 ];
 
 const dockItems = [
-  { to: '/admin', label: 'Resumen', icon: LayoutDashboard, end: true },
   { to: '/admin/pasar-lista', label: 'Lista', icon: ClipboardCheck },
   { to: '/admin/seguimiento', label: 'Cobros', icon: CreditCard },
   { to: '/admin/alumnos', label: 'Alumnos', icon: Users },
+  { to: '/admin', label: 'Resumen', icon: LayoutDashboard, end: true },
 ];
 
 function initialsOf(name?: string | null): string {
