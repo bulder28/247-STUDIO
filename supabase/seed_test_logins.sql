@@ -11,6 +11,8 @@ DECLARE
   v_rec RECORD;
   v_uid UUID;
   v_plan_id UUID;
+  v_plan_price NUMERIC(8,2);
+  v_sub_id UUID;
   v_month TEXT := to_char(CURRENT_DATE, 'YYYY-MM');
 BEGIN
   FOR v_rec IN SELECT * FROM (VALUES
@@ -66,17 +68,25 @@ BEGIN
       VALUES (v_uid, 72, 68, 65, 74, 70, 62, 58, 71)
       ON CONFLICT (user_id) DO NOTHING;
 
-      SELECT id INTO v_plan_id FROM public.plans WHERE is_active = TRUE ORDER BY price_eur DESC LIMIT 1;
+      SELECT id, price_eur INTO v_plan_id, v_plan_price
+      FROM public.plans
+      WHERE is_active = TRUE
+      ORDER BY price_eur DESC
+      LIMIT 1;
+
       IF v_plan_id IS NOT NULL THEN
         INSERT INTO public.subscriptions (user_id, plan_id, month_year, status)
         VALUES (v_uid, v_plan_id, v_month, 'active')
         ON CONFLICT (user_id, month_year) DO UPDATE SET
           plan_id = EXCLUDED.plan_id,
-          status = 'active';
+          status = 'active'
+        RETURNING id INTO v_sub_id;
 
-        INSERT INTO public.payments (user_id, plan_id, month_year, status, paid_at, payment_method)
-        VALUES (v_uid, v_plan_id, v_month, 'paid_ok', NOW(), 'Bizum')
+        INSERT INTO public.payments (user_id, subscription_id, month_year, amount_eur, status, paid_at, payment_method)
+        VALUES (v_uid, v_sub_id, v_month, v_plan_price, 'paid_ok', NOW(), 'Bizum')
         ON CONFLICT (user_id, month_year) DO UPDATE SET
+          subscription_id = EXCLUDED.subscription_id,
+          amount_eur = EXCLUDED.amount_eur,
           status = 'paid_ok',
           paid_at = COALESCE(public.payments.paid_at, NOW());
       END IF;
