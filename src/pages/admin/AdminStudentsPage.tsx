@@ -503,18 +503,18 @@ export function AdminStudentsPage() {
                 setEditError(null);
                 setSelected(p);
               }}
-              className="p-4 flex items-center justify-between gap-4 hover:bg-white/5 cursor-pointer transition"
+              className="group p-4 flex items-center justify-between gap-4 hover:bg-white/[0.07] hover:shadow-[inset_3px_0_0_0_#dc2626] cursor-pointer transition-all duration-200"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full studio-panel-inset border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                <div className="w-10 h-10 rounded-full studio-panel-inset border border-white/10 flex items-center justify-center shrink-0 overflow-hidden transition-all duration-200 group-hover:scale-110 group-hover:ring-2 group-hover:ring-studio-red/75 group-hover:shadow-[0_0_16px_rgba(220,38,38,0.45)]">
                   {p.avatar_url ? (
                     <img
                       src={p.avatar_url}
                       alt={p.full_name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                     />
                   ) : (
-                    <User className="w-4 h-4 text-slate-400" />
+                    <User className="w-4 h-4 text-slate-400 transition-colors duration-200 group-hover:text-white" />
                   )}
                 </div>
                 <div className="min-w-0">

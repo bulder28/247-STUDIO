@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { Check, UserPlus, User, Users, Calendar, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -500,16 +501,19 @@ export function CoachAttendancePage() {
             const checked = attendances.some((a) => a.user_id === st.id);
             const busy = Boolean(togglingIds[st.id]);
             return (
-              <button
+              <motion.button
                 key={st.id}
                 type="button"
                 disabled={busy}
+                whileHover={isToday ? { y: -3, scale: 1.02 } : undefined}
+                whileTap={isToday ? { scale: 0.97 } : undefined}
+                transition={{ type: 'spring', stiffness: 420, damping: 24 }}
                 onClick={() => toggleStudent(st.id)}
-                className={`relative rounded-2xl p-4 border text-left transition flex flex-col items-center text-center gap-2.5 ${
+                className={`group relative rounded-2xl p-4 border text-left transition-all duration-200 flex flex-col items-center text-center gap-2.5 ${
                   checked
-                    ? 'bg-emerald-500/15 border-emerald-500 text-white'
+                    ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-[0_10px_24px_-10px_rgba(16,185,129,0.45)]'
                     : isToday
-                      ? 'bg-white/[0.04] border-white/10 text-slate-200 hover:border-white/30'
+                      ? 'bg-white/[0.04] border-white/10 text-slate-200 hover:border-studio-red/70 hover:bg-white/[0.09] hover:shadow-[0_12px_28px_-10px_rgba(220,38,38,0.4)]'
                       : 'bg-studio-navy/70 border-white/10 text-slate-200 cursor-default'
                 } ${busy ? 'opacity-60' : ''}`}
               >
@@ -518,15 +522,21 @@ export function CoachAttendancePage() {
                     <Check className="w-4 h-4" />
                   </span>
                 )}
-                <div className="w-16 h-16 rounded-full studio-panel-inset border border-white/10 overflow-hidden flex items-center justify-center">
+                <div
+                  className={`w-16 h-16 rounded-full studio-panel-inset border overflow-hidden flex items-center justify-center transition-all duration-200 group-hover:scale-110 ${
+                    checked
+                      ? 'border-emerald-400/70 ring-2 ring-emerald-400/40'
+                      : 'border-white/10 group-hover:ring-2 group-hover:ring-studio-red/75 group-hover:shadow-[0_0_18px_rgba(220,38,38,0.4)]'
+                  }`}
+                >
                   {st.avatar_url ? (
                     <img
                       src={st.avatar_url}
                       alt={st.full_name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                     />
                   ) : (
-                    <User className="w-7 h-7 text-slate-500" />
+                    <User className="w-7 h-7 text-slate-500 transition-colors duration-200 group-hover:text-white" />
                   )}
                 </div>
                 <div>
@@ -549,7 +559,7 @@ export function CoachAttendancePage() {
                     </span>
                   )}
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>

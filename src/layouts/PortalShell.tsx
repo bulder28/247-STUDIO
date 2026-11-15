@@ -52,16 +52,15 @@ export function PortalShell({
                 to={to}
                 end={end}
                 className={({ isActive }) =>
-                  `relative inline-flex items-center gap-2 px-3.5 text-sm transition ${
-                    isActive
-                      ? 'text-studio-cream font-semibold'
-                      : 'text-slate-400 font-medium hover:text-slate-100'
+                  `group relative inline-flex items-center gap-2 px-3.5 text-sm transition-all duration-200 ${isActive
+                    ? 'text-studio-cream font-semibold'
+                    : 'text-slate-400 font-medium hover:text-white hover:bg-white/[0.06] rounded-xl'
                   }`
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:text-studio-red" />
                     <span>{label}</span>
                     {isActive && (
                       <motion.span
@@ -84,10 +83,9 @@ export function PortalShell({
                 to={to}
                 title={label}
                 className={({ isActive }) =>
-                  `inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium transition ${
-                    isActive
-                      ? 'bg-studio-cream text-slate-950'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                  `inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium transition ${isActive
+                    ? 'bg-studio-cream text-slate-950'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
                   }`
                 }
               >
@@ -130,8 +128,7 @@ export function PortalShell({
             to={to}
             end={end}
             className={({ isActive }) =>
-              `relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${
-                isActive ? 'text-studio-cream' : 'text-slate-500 hover:text-slate-200'
+              `relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${isActive ? 'text-studio-cream' : 'text-slate-500 hover:text-slate-200'
               }`
             }
           >
@@ -139,9 +136,8 @@ export function PortalShell({
               <>
                 <span
                   aria-hidden
-                  className={`absolute -top-1.5 h-[3px] rounded-full bg-studio-red transition-all duration-300 ${
-                    isActive ? 'w-6 opacity-100' : 'w-0 opacity-0'
-                  }`}
+                  className={`absolute -top-1.5 h-[3px] rounded-full bg-studio-red transition-all duration-300 ${isActive ? 'w-6 opacity-100' : 'w-0 opacity-0'
+                    }`}
                 />
                 <Icon className="w-5 h-5" />
                 <span>{label}</span>

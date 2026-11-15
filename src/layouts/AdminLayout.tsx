@@ -73,10 +73,10 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
                 end={end}
                 onClick={onNavigate}
                 className={({ isActive }) =>
-                  `group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-xl text-sm transition-colors ${
+                  `group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
                     isActive
                       ? 'text-studio-cream font-semibold'
-                      : 'text-slate-400 font-medium hover:bg-white/[0.03] hover:text-slate-100'
+                      : 'text-slate-400 font-medium hover:bg-white/[0.08] hover:text-white hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]'
                   }`
                 }
               >
@@ -98,8 +98,8 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
                         className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-full bg-studio-red"
                       />
                     )}
-                    <Icon className="relative z-10 w-4 h-4 shrink-0" />
-                    <span className="relative z-10">{label}</span>
+                    <Icon className="relative z-10 w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110 group-hover:text-studio-red" />
+                    <span className="relative z-10 transition-transform duration-200 group-hover:translate-x-0.5">{label}</span>
                   </>
                 )}
               </NavLink>
