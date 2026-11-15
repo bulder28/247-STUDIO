@@ -460,7 +460,7 @@ export function AdminSchedulePage() {
                           className="w-11 h-11 rounded-lg object-cover shrink-0 border border-white/10"
                         />
                         <div className="min-w-0">
-                          <p className="text-xs text-studio-red font-semibold">
+                          <p className="text-xs text-studio-red-text font-semibold">
                             {c.start_time.slice(0, 5)} – {c.end_time.slice(0, 5)}
                           </p>
                           <p className="text-sm font-medium text-white truncate">{c.title}</p>

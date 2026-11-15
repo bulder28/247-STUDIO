@@ -516,7 +516,7 @@ export function AdminHomePage() {
               <button
                 type="button"
                 onClick={() => setSelectedMonth(currentMonth)}
-                className="text-[11px] text-studio-red hover:underline ml-1"
+                className="text-[11px] text-studio-red-text hover:underline ml-1"
               >
                 Hoy
               </button>
@@ -821,7 +821,7 @@ export function AdminHomePage() {
                 Franjas con mayor asistencia total y media por sesión
               </p>
             </div>
-            <Link to="/admin/horarios" className="text-xs text-studio-red hover:underline shrink-0">
+            <Link to="/admin/horarios" className="text-xs text-studio-red-text hover:underline shrink-0">
               Ver horarios
             </Link>
           </div>
@@ -1028,7 +1028,7 @@ export function AdminHomePage() {
                 </div>
                 <Link
                   to="/admin/alumnos"
-                  className="shrink-0 text-xs font-semibold text-studio-red hover:underline"
+                  className="shrink-0 text-xs font-semibold text-studio-red-text hover:underline"
                 >
                   Revisar
                 </Link>

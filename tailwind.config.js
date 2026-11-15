@@ -19,6 +19,7 @@ export default {
           'navy-deep': '#1E293B',
           red: '#E11D2E',
           'red-dark': '#B91C1C',
+          'red-text': '#FF8A8F', // rojo claro solo para texto pequeño sobre fondo oscuro (contraste >= 4.5:1)
           cream: '#DDD6B8',
           'cream-light': '#F5F2E6',
           white: '#FFFFFF',

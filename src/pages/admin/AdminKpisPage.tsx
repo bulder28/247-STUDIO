@@ -759,7 +759,7 @@ export function AdminKpisPage() {
                   <button
                     type="button"
                     onClick={() => setSelectedMonth(activeTrend.ym)}
-                    className="text-studio-red font-semibold hover:underline"
+                    className="text-studio-red-text font-semibold hover:underline"
                   >
                     Analizar mes →
                   </button>
@@ -1027,7 +1027,7 @@ export function AdminKpisPage() {
             <h3 className="font-headline text-base uppercase text-white flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" /> Salud Legal y Altas
             </h3>
-            <Link to="/admin/alumnos" className="text-xs text-studio-red hover:underline">
+            <Link to="/admin/alumnos" className="text-xs text-studio-red-text hover:underline">
               Ver alumnos
             </Link>
           </div>
@@ -1066,7 +1066,7 @@ export function AdminKpisPage() {
             <h3 className="font-headline text-base uppercase text-white flex items-center gap-2">
               <Ticket className="w-4 h-4 text-sky-400" /> Bonos de Clases
             </h3>
-            <Link to="/admin/seguimiento" className="text-xs text-studio-red hover:underline">
+            <Link to="/admin/seguimiento" className="text-xs text-studio-red-text hover:underline">
               Gestionar
             </Link>
           </div>

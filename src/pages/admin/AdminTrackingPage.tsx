@@ -844,7 +844,7 @@ export function AdminTrackingPage() {
                           ).sort()
                         )
                       }
-                      className="text-xs text-studio-red hover:underline font-medium"
+                      className="text-xs text-studio-red-text hover:underline font-medium"
                     >
                       Seleccionar todos los vencidos
                     </button>

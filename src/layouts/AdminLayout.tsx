@@ -262,7 +262,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Dock Mobile: accesos del día a día + menú completo */}
       <nav
-        className="md:hidden fixed bottom-3 inset-x-3 rounded-2xl bg-[#272c35]/92 backdrop-blur-xl border border-white/10 shadow-modal flex justify-around py-1.5 px-1 z-30"
+        className="md:hidden fixed bottom-3 inset-x-3 rounded-2xl bg-[#272c35]/[0.97] backdrop-blur-xl border border-white/10 shadow-modal flex justify-around py-1.5 px-1 z-30"
         style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
         aria-label="Accesos rápidos"
       >
@@ -273,7 +273,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             end={end}
             className={({ isActive }) =>
               `relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${
-                isActive ? 'text-studio-cream' : 'text-slate-500 hover:text-slate-200'
+                isActive ? 'text-studio-cream' : 'text-slate-300 hover:text-white'
               }`
             }
           >

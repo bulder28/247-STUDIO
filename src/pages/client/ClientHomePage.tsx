@@ -289,18 +289,21 @@ export function ClientHomePage() {
   }, {});
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Aviso de documentación obligatoria pendiente */}
       {docCompliance.totalRequired > 0 && docCompliance.pending.length > 0 && (
-        <div className="rounded-2xl border border-amber-500/50 bg-amber-500/15 text-amber-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="rounded-2xl border border-amber-500/50 bg-amber-500/15 text-amber-100 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-3">
             <FileSignature className="w-6 h-6 text-amber-300 shrink-0 mt-0.5" />
             <div>
-              <p className="font-headline text-base uppercase tracking-wide">
+              <p className="font-headline text-sm sm:text-base uppercase tracking-wide">
                 Documentación obligatoria pendiente ({docCompliance.signedCount}/
                 {docCompliance.totalRequired})
               </p>
-              <p className="text-xs opacity-90">
+              <p className="text-xs opacity-90 sm:hidden">
+                Faltan {docCompliance.pending.length} por firmar.
+              </p>
+              <p className="hidden sm:block text-xs opacity-90">
                 Es imprescindible firmar: {docCompliance.pending.map((d) => d.title).join(', ')}.
               </p>
             </div>
@@ -333,7 +336,7 @@ export function ClientHomePage() {
       {/* Indicador visual de Pago OK / Factura pendiente / Pago adelantado */}
       {(payment || coveredUntilMonth) && (
         <div
-          className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${payment?.effective_status === 'OK' ||
+          className={`rounded-2xl border p-3 sm:p-4 flex items-center justify-between gap-3 ${payment?.effective_status === 'OK' ||
               payment?.effective_status === 'ADVANCE_OK' ||
               (!payment && coveredUntilMonth)
               ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200'
@@ -725,12 +728,12 @@ export function ClientHomePage() {
                     >
                       <div className="w-12 h-12 rounded-xl bg-studio-red/15 border border-studio-red/35 flex flex-col items-center justify-center shrink-0">
                         <span className="font-headline text-lg text-white leading-none">{dayNum}</span>
-                        <span className="text-[10px] uppercase font-bold text-studio-red leading-tight mt-0.5">
+                        <span className="text-[10px] uppercase font-bold text-studio-red-text leading-tight mt-0.5">
                           {monthShort}
                         </span>
                       </div>
                       <div className="min-w-0">
-                        <span className="inline-block text-[10px] text-studio-red font-bold uppercase tracking-wider">
+                        <span className="inline-block text-[10px] text-studio-red-text font-bold uppercase tracking-wider">
                           {ev.event_type}
                         </span>
                         <p className="text-sm font-semibold text-white truncate">{ev.title}</p>
