@@ -64,8 +64,10 @@ export function PageHeader({
   actions?: ReactNode;
   children?: ReactNode;
 }) {
-  const { profile } = useAuth();
-  const belt = profile?.role === 'client' ? profile?.belt : (profile?.belt ?? 'Negro');
+  const { profile, beltApplies } = useAuth();
+  // Alumnos: cinturón solo si su disciplina del mes lo usa (BJJ y Grappling); si no, ni rastro.
+  const belt =
+    profile?.role === 'client' ? (beltApplies ? profile?.belt : null) : (profile?.belt ?? 'Negro');
 
   return (
     <header className="space-y-4">

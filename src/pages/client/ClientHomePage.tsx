@@ -20,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { calculateAge, getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
 import { FighterRadarChart } from '@/components/FighterRadarChart';
+import { usersWithBeltThisMonth } from '@/lib/belts';
 
 interface PaymentSummary {
   month_year: string;
@@ -151,7 +152,7 @@ function calcSessionHours(start?: string, end?: string): number {
 }
 
 export function ClientHomePage() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, beltApplies, refreshProfile } = useAuth();
   const currentMonth = getLocalMonthYear();
 
   const [paymentRows, setPaymentRows] = useState<PaymentSummary[]>([]);
@@ -162,6 +163,8 @@ export function ClientHomePage() {
   const [activeSub, setActiveSub] = useState<ActiveSubInfo | null>(null);
   const [attendances, setAttendances] = useState<AttendanceHistoryItem[]>([]);
   const [linkedChildren, setLinkedChildren] = useState<LinkedChildProfile[]>([]);
+  // Hijos vinculados cuya tarifa del mes tiene cinturón (BJJ y Grappling)
+  const [childrenWithBelt, setChildrenWithBelt] = useState<Set<string>>(new Set());
   const [goals, setGoals] = useState(profile?.personal_goals ?? '');
   const [savingGoals, setSavingGoals] = useState(false);
   const [cardSpot, setCardSpot] = useState<{ x: number; y: number } | null>(null);
@@ -224,7 +227,9 @@ export function ClientHomePage() {
       setDocSignatures((sigRes.data as DocSignature[]) ?? []);
       setActiveSub((subRes.data as unknown as ActiveSubInfo) ?? null);
       setAttendances((attRes.data as unknown as AttendanceHistoryItem[]) ?? []);
-      setLinkedChildren((kidsRes.data as LinkedChildProfile[]) ?? []);
+      const kids = (kidsRes.data as LinkedChildProfile[]) ?? [];
+      setLinkedChildren(kids);
+      setChildrenWithBelt(await usersWithBeltThisMonth(kids.map((k) => k.id), currentMonth));
     };
     loadHome();
   }, [user, currentMonth]);
@@ -271,7 +276,8 @@ export function ClientHomePage() {
   const isMinor = isMinorAge(profile?.birth_date);
   const docCompliance = getDocumentCompliance(docTemplates, docSignatures, profile?.birth_date);
 
-  const beltKey = profile?.belt || null;
+  // Solo se muestra si su tarifa de este mes es de BJJ o Grappling; el cinturón sigue guardado en la BD
+  const beltKey = beltApplies ? profile?.belt || null : null;
   const beltStyle = beltKey ? (BELT_STYLES[beltKey] ?? BELT_STYLES.Blanco) : null;
   const beltAura = beltStyle?.aura ?? 'rgba(220, 38, 38, 0.14)';
   const beltRing = beltStyle?.ring ?? 'border-white/15';
@@ -644,7 +650,7 @@ export function ClientHomePage() {
                       <p className="text-sm font-semibold text-white">{child.full_name}</p>
                       <p className="text-xs text-slate-400">
                         {[
-                          child.belt
+                          child.belt && childrenWithBelt.has(child.id)
                             ? `Cinturón ${child.belt}${child.belt_stripes ? ` · ${child.belt_stripes} grados` : ''}`
                             : null,
                           childAge !== null ? `${childAge} años` : null,

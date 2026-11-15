@@ -10,6 +10,7 @@ export interface Profile {
   email: string;
   phone: string | null;
   birth_date: string | null;
+  gender: 'hombre' | 'mujer' | null;
   avatar_url: string | null;
   belt: string | null;
   belt_stripes: number;

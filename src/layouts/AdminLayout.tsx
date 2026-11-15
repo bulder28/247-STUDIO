@@ -16,6 +16,8 @@ import {
   Minimize,
   Wallet,
   Receipt,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -124,7 +126,27 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const { profile, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(() => Boolean(document.fullscreenElement));
+  // Panel lateral (escritorio): se puede ocultar y la elección se recuerda en este navegador
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try {
+      return localStorage.getItem('admin-sidebar-open') !== 'false';
+    } catch {
+      return true;
+    }
+  });
   const location = useLocation();
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('admin-sidebar-open', String(next));
+      } catch {
+        // sin almacenamiento disponible: el panel funciona igual, solo no se recuerda
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     setMobileOpen(false);
@@ -167,29 +189,38 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen text-slate-100 flex flex-col md:flex-row">
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex md:w-60 md:flex-col bg-[#272c35]/80 backdrop-blur-xl border-r border-white/[0.07] shrink-0 sticky top-0 h-screen">
+      <aside className={`hidden ${sidebarOpen ? 'md:flex' : ''} md:w-60 md:flex-col bg-[#272c35]/80 backdrop-blur-xl border-r border-white/[0.07] shrink-0 sticky top-0 h-screen`}>
         <div className="px-5 pt-6 pb-4 flex items-center gap-3">
-          <img src="/logo.webp" alt="" className="w-10 h-10 rounded-xl object-contain" />
+          <img src="/logo.webp" alt="" className="w-16 h-16 rounded-xl object-contain" />
           <p className="font-headline text-xl tracking-wide uppercase text-studio-cream leading-none">
             247 Studio
           </p>
         </div>
 
-        <div className="px-3 mb-2">
+        <div className="px-3 mb-2 flex items-center gap-2">
           <button
             type="button"
             onClick={toggleFullscreen}
             title={isFullscreen ? 'Salir de pantalla completa (Esc)' : 'Pantalla completa'}
             aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
             aria-pressed={isFullscreen}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-xs text-slate-300 transition"
+            className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-xs text-slate-300 transition"
           >
             {isFullscreen ? (
-              <Minimize className="w-3.5 h-3.5 text-slate-400" />
+              <Minimize className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             ) : (
-              <Maximize className="w-3.5 h-3.5 text-slate-400" />
+              <Maximize className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             )}
-            <span>{isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}</span>
+            <span className="truncate">{isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            title="Ocultar panel lateral"
+            aria-label="Ocultar panel lateral"
+            className="shrink-0 p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-slate-300 transition"
+          >
+            <PanelLeftClose className="w-4 h-4" />
           </button>
         </div>
 
@@ -210,10 +241,23 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
+      {/* Botón para volver a mostrar el panel lateral (escritorio) */}
+      {!sidebarOpen && (
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          title="Mostrar panel lateral"
+          aria-label="Mostrar panel lateral"
+          className="hidden md:flex fixed top-4 left-4 z-30 p-2.5 rounded-xl bg-[#272c35]/90 backdrop-blur-xl hover:bg-[#2f3540] border border-white/10 text-slate-200 shadow-modal transition"
+        >
+          <PanelLeftOpen className="w-5 h-5" />
+        </button>
+      )}
+
       {/* Topbar Mobile */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 bg-[#272c35]/85 backdrop-blur-xl border-b border-white/[0.07] sticky top-0 z-30">
         <div className="flex items-center gap-2.5">
-          <img src="/logo.webp" alt="" className="w-8 h-8 rounded-lg object-contain" />
+          <img src="/logo.webp" alt="" className="w-12 h-12 rounded-lg object-contain" />
           <span className="font-headline text-lg uppercase tracking-wide text-studio-cream">247 Studio</span>
         </div>
         <div className="flex items-center gap-1">

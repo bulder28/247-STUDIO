@@ -21,6 +21,7 @@ import { getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils'
 import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
 import { formatEUR, formatEURExact, formatMonthLong } from '@/lib/format';
 import { getCashMonth, type CashMonth } from '@/lib/finance';
+import { usersWithBeltThisMonth } from '@/lib/belts';
 import { DeltaBadge, KpiCard } from '@/components/KpiCard';
 import { PageHeader } from '@/components/PageHeader';
 
@@ -420,7 +421,12 @@ export function AdminHomePage() {
         })
         .filter((item) => item.daysInactive > 15)
         .sort((a, b) => b.daysInactive - a.daysInactive);
-      setInactiveStudents(inactive);
+      // El cinturón solo se muestra si su tarifa de este mes es de BJJ o Grappling
+      const withBelt = await usersWithBeltThisMonth(
+        inactive.map((i) => i.id),
+        currentMonth
+      );
+      setInactiveStudents(inactive.map((i) => ({ ...i, belt: withBelt.has(i.id) ? i.belt : null })));
 
       type LowCreditRow = {
         id: string;

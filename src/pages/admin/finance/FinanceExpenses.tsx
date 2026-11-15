@@ -15,7 +15,6 @@ function minus(cents: number): string {
   return cents === 0 ? formatEURExact(0) : `−${formatEURExact(centsToEur(cents))}`;
 }
 
-type Tab = 'all' | 'fixed' | 'variable';
 
 /** Nodo raíz del árbol (Fijos / Variables): desplegable con su resumen. */
 function TreeRoot({
@@ -103,7 +102,6 @@ export function FinanceExpenses({
   const { categories, expenses, fixedOfMonth } = data;
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showVoided, setShowVoided] = useState(false);
-  const [tab, setTab] = useState<Tab>('all');
 
   const catName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
   const fixedExpenseIds = useMemo(
@@ -118,9 +116,6 @@ export function FinanceExpenses({
     (e) => !fixedExpenseIds.has(e.id) && (showVoided || !e.voided_at) && matches(e.category_id)
   );
   const voidedCount = expenses.filter((e) => e.voided_at).length;
-  const variableActive = otherRows.filter((e) => !e.voided_at).length;
-  const showFixed = tab !== 'variable';
-  const showVariable = tab !== 'fixed';
   const fixedGroups = groupByCategory(fixedRows, (f) => f.expense?.category_id ?? f.template.category_id, catName);
   const variableGroups = groupByCategory(otherRows, (e) => e.category_id, catName);
 
@@ -221,34 +216,8 @@ export function FinanceExpenses({
         )}
       </p>
 
-      {/* Pestañas: todo / fijos / variables */}
-      <div role="tablist" aria-label="Tipo de gasto" className="flex flex-wrap gap-2">
-        {(
-          [
-            { id: 'all', label: 'Todos', count: fixedRows.length + variableActive },
-            { id: 'fixed', label: 'Fijos', count: fixedRows.length },
-            { id: 'variable', label: 'Variables', count: variableActive },
-          ] as { id: Tab; label: string; count: number }[]
-        ).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={`min-h-[44px] rounded-xl px-4 text-sm font-semibold border transition ${
-              tab === t.id
-                ? 'border-studio-cream/60 text-studio-cream bg-studio-cream/10'
-                : 'border-white/15 text-slate-300 hover:bg-white/5'
-            }`}
-          >
-            {t.label} <span className="tabular-nums text-xs opacity-70">({t.count})</span>
-          </button>
-        ))}
-      </div>
-
       {/* Árbol: Fijos */}
-      {showFixed && fixedOfMonth.length > 0 && (
+      {fixedOfMonth.length > 0 && (
         <TreeRoot
           id="exp-fixed"
           icon={<Repeat className="w-4 h-4 text-slate-400" aria-hidden />}
@@ -314,7 +283,7 @@ export function FinanceExpenses({
       )}
 
       {/* Árbol: Variables (puntuales) */}
-      {showVariable && (
+      {(
         <TreeRoot
           id="exp-variable"
           icon={<Plus className="w-4 h-4 text-slate-400" aria-hidden />}

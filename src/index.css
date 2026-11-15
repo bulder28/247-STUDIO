@@ -463,8 +463,24 @@
   animation: studioShimmer 1.4s ease-in-out infinite;
 }
 
+/* Saludo al abrir la ficha de un alumno: el avatar se inclina como si saludara. */
+@keyframes avatarWave {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-12deg); }
+  30% { transform: rotate(10deg); }
+  45% { transform: rotate(-8deg); }
+  60% { transform: rotate(6deg); }
+  75% { transform: rotate(0deg); }
+}
+
+.avatar-wave {
+  transform-origin: 70% 90%;
+  animation: avatarWave 1.1s ease-in-out 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
 
+  .avatar-wave,
   .animate-studio-in,
   .studio-shimmer,
   .belt-rule,

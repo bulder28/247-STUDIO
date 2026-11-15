@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { getLocalDateISO, getLocalTimeHHMM } from '@/lib/dateUtils';
 import { PageHeader } from '@/components/PageHeader';
+import { BELT_DISCIPLINE_SLUGS } from '@/lib/belts';
 
 const DAYS = [
   { value: 1, label: 'Lunes' },
@@ -44,6 +45,7 @@ interface AttendanceRecord {
 interface Discipline {
   id: string;
   name: string;
+  slug: string;
 }
 
 export function CoachAttendancePage() {
@@ -91,7 +93,7 @@ export function CoachAttendancePage() {
           .eq('is_active', true)
           .order('day_of_week')
           .order('start_time'),
-        supabase.from('disciplines').select('id, name').order('sort_order'),
+        supabase.from('disciplines').select('id, name, slug').order('sort_order'),
       ]);
 
       const list = (clsRes.data as ScheduleClass[]) ?? [];
@@ -195,6 +197,12 @@ export function CoachAttendancePage() {
 
     loadRosterAndAttendances();
   }, [selectedClassId, allClasses, currentMonth, todayDate, todayDayOfWeek]);
+
+  // El cinturón solo se muestra en las clases de BJJ y Grappling
+  const classDisciplineId = allClasses.find((c) => c.id === selectedClassId)?.discipline_id;
+  const classUsesBelt = disciplines.some(
+    (d) => d.id === classDisciplineId && BELT_DISCIPLINE_SLUGS.includes(d.slug)
+  );
 
   const toggleStudent = async (studentId: string) => {
     if (!isToday || togglingIds[studentId]) return;
@@ -574,7 +582,7 @@ export function CoachAttendancePage() {
                   {st.alias && (
                     <p className="text-[11px] text-studio-cream/80 font-medium">&ldquo;{st.alias}&rdquo;</p>
                   )}
-                  {st.belt && <p className="text-[11px] text-slate-400 mt-0.5">{st.belt}</p>}
+                  {classUsesBelt && st.belt && <p className="text-[11px] text-slate-400 mt-0.5">{st.belt}</p>}
                   {st.is_class_pack && st.remaining_credits !== null && (
                     <span
                       className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${

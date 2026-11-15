@@ -34,7 +34,7 @@ export function PortalShell({
       <header className="bg-[#272c35]/80 backdrop-blur-xl border-b border-white/[0.07] px-4 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <img src="/logo.webp" alt="" className="w-9 h-9 rounded-xl object-contain shrink-0" />
+            <img src="/logo.webp" alt="" className="w-14 h-14 rounded-xl object-contain shrink-0" />
             <div className="min-w-0">
               <span className="font-headline text-lg uppercase tracking-wide text-studio-cream leading-none block">
                 247 Studio

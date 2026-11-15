@@ -27,6 +27,8 @@ import {
   type DocTemplate,
 } from '@/lib/documents';
 import type { MemberStatus, Profile, UserRole } from '@/types/database';
+import { displayAvatar } from '@/lib/demoAvatars';
+import { BELT_DISCIPLINE_SLUGS } from '@/lib/belts';
 import { PageHeader } from '@/components/PageHeader';
 
 interface Plan {
@@ -39,6 +41,7 @@ interface Plan {
 interface Discipline {
   id: string;
   name: string;
+  slug: string;
 }
 
 interface TrialGuest {
@@ -92,7 +95,19 @@ export function AdminStudentsPage() {
   const [newGuardianId, setNewGuardianId] = useState('');
   const [newPlanId, setNewPlanId] = useState('');
   const [newIsFounder, setNewIsFounder] = useState(false);
+  const [newGender, setNewGender] = useState<'hombre' | 'mujer' | null>(null);
   const isClient = newRole === 'client';
+
+  // El cinturón solo se usa en las disciplinas de BJJ y Grappling (ver lib/belts.ts).
+  const beltDisciplineIds = new Set(
+    disciplines.filter((d) => BELT_DISCIPLINE_SLUGS.includes(d.slug)).map((d) => d.id)
+  );
+  /** ¿La tarifa incluye una disciplina con cinturón? Sin tarifa se devuelve `whenNoPlan`. */
+  const planUsesBelt = (planId: string | null | undefined, whenNoPlan: boolean): boolean => {
+    if (!planId) return whenNoPlan;
+    const plan = plans.find((pl) => pl.id === planId);
+    return Boolean(plan?.plan_disciplines?.some((pd) => beltDisciplineIds.has(pd.discipline_id)));
+  };
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [paidNow, setPaidNow] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<'Efectivo' | 'Bizum'>('Efectivo');
@@ -115,7 +130,7 @@ export function AdminStudentsPage() {
         .select('id, name, price_eur, plan_disciplines(discipline_id)')
         .eq('is_active', true)
         .order('price_eur'),
-      supabase.from('disciplines').select('id, name').eq('is_active', true).order('sort_order'),
+      supabase.from('disciplines').select('id, name, slug').eq('is_active', true).order('sort_order'),
       supabase
         .from('subscriptions')
         .select('user_id, plan_id')
@@ -167,34 +182,35 @@ export function AdminStudentsPage() {
   const clientsOnly = profiles.filter((p) => p.role === 'client');
   const staffOnly = profiles.filter((p) => p.role !== 'client');
   const scope = group === 'clients' ? clientsOnly : staffOnly;
-  const pendingDocsCount = clientsOnly.filter(
-    (p) => getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date).pending.length > 0
-  ).length;
-  const noPhotoCount = clientsOnly.filter((p) => !p.avatar_url).length;
-  const activeCount = scope.filter((p) => p.status === 'active').length;
-  const pausedCount = scope.filter((p) => p.status === 'paused').length;
-  const inactiveCount = scope.filter((p) => p.status === 'inactive').length;
-
-  const filtered = scope.filter((p) => {
+  // Base: pestaña + búsqueda + disciplina. Los chips cuentan sobre esta base.
+  const base = scope.filter((p) => {
     const matchesSearch =
       p.full_name.toLowerCase().includes(search.toLowerCase()) ||
       p.email.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
-    if (quickFilter === 'active' || quickFilter === 'paused' || quickFilter === 'inactive') {
-      if (p.status !== quickFilter) return false;
-    }
-    if (quickFilter === 'no_photo' && Boolean(p.avatar_url)) return false;
-    if (quickFilter === 'pending_docs') {
-      const comp = getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date);
-      if (comp.pending.length === 0) return false;
-    }
-    if (disciplineFilter !== 'all') {
+    if (group === 'clients' && disciplineFilter !== 'all') {
       const userPlan = plans.find((pl) => pl.id === subsByUser[p.id]);
       const hasDiscipline = Boolean(
         userPlan?.plan_disciplines?.some((pd) => pd.discipline_id === disciplineFilter)
       );
       if (!hasDiscipline) return false;
     }
+    return true;
+  });
+  const hasPendingDocs = (p: Profile) =>
+    getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date).pending.length > 0;
+  const pendingDocsCount = base.filter((p) => p.role === 'client' && hasPendingDocs(p)).length;
+  const noPhotoCount = base.filter((p) => p.role === 'client' && !p.avatar_url).length;
+  const activeCount = base.filter((p) => p.status === 'active').length;
+  const pausedCount = base.filter((p) => p.status === 'paused').length;
+  const inactiveCount = base.filter((p) => p.status === 'inactive').length;
+
+  const filtered = base.filter((p) => {
+    if (quickFilter === 'active' || quickFilter === 'paused' || quickFilter === 'inactive') {
+      if (p.status !== quickFilter) return false;
+    }
+    if (quickFilter === 'no_photo' && (p.role !== 'client' || Boolean(p.avatar_url))) return false;
+    if (quickFilter === 'pending_docs' && (p.role !== 'client' || !hasPendingDocs(p))) return false;
     return true;
   });
 
@@ -232,6 +248,7 @@ export function AdminStudentsPage() {
         alias: selected.alias || null,
         phone: selected.phone,
         birth_date: selected.birth_date || null,
+        gender: selected.gender ?? null,
         role: selected.role,
         status: selected.status,
         belt: selected.belt,
@@ -309,7 +326,8 @@ export function AdminStudentsPage() {
         full_name: newName.trim(),
         phone: newPhone.trim(),
         birth_date: newBirthDate || null,
-        belt: isClient ? newBelt || null : null,
+        gender: newGender,
+        belt: isClient && planUsesBelt(newPlanId, true) ? newBelt || null : null,
         role: newRole,
         guardian_user_id: isClient ? newGuardianId || null : null,
         father_name: newFatherName.trim() || null,
@@ -527,18 +545,20 @@ export function AdminStudentsPage() {
             className="w-full rounded-xl studio-field pl-10 pr-4 py-2.5 text-sm text-white"
           />
         </div>
-        <select
-          value={disciplineFilter}
-          onChange={(e) => setDisciplineFilter(e.target.value)}
-          className="rounded-xl studio-field px-3 py-2.5 text-sm text-white"
-        >
-          <option value="all">Todas las disciplinas</option>
-          {disciplines.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </select>
+        {group === 'clients' && (
+          <select
+            value={disciplineFilter}
+            onChange={(e) => setDisciplineFilter(e.target.value)}
+            className="rounded-xl studio-field px-3 py-2.5 text-sm text-white"
+          >
+            <option value="all">Todas las disciplinas</option>
+            {disciplines.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Alumnos / Staff */}
@@ -570,7 +590,7 @@ export function AdminStudentsPage() {
       {/* Chips de filtro rápido */}
       <div className="flex flex-wrap items-center gap-2">
         {[
-          { id: 'all' as const, label: 'Todos', count: scope.length },
+          { id: 'all' as const, label: 'Todos', count: base.length },
           { id: 'active' as const, label: 'Activos', count: activeCount },
           { id: 'paused' as const, label: 'Pausados', count: pausedCount },
           { id: 'inactive' as const, label: 'Bajas', count: inactiveCount },
@@ -600,10 +620,10 @@ export function AdminStudentsPage() {
       </div>
 
       {/* Lista */}
-      <div className="rounded-2xl studio-panel border border-white/10 divide-y divide-white/5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-2 rounded-2xl studio-panel border border-white/10 p-2">
         {loading ? (
           Array.from({ length: 6 }).map((_, idx) => (
-            <div key={idx} className="p-4 flex items-center justify-between gap-4">
+            <div key={idx} className="p-3 flex items-center justify-between gap-4 rounded-xl border border-white/5">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <Skeleton className="w-10 h-10 !rounded-full shrink-0" />
                 <div className="space-y-2 flex-1 max-w-xs">
@@ -615,7 +635,7 @@ export function AdminStudentsPage() {
             </div>
           ))
         ) : filtered.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-400">
+          <div className="col-span-full p-8 text-center text-sm text-slate-400">
             No hay alumnos que coincidan con los filtros seleccionados.
           </div>
         ) : (
@@ -634,13 +654,13 @@ export function AdminStudentsPage() {
                 setEditError(null);
                 setSelected(p);
               }}
-              className="group p-4 flex items-center justify-between gap-4 hover:bg-white/[0.07] hover:shadow-[inset_3px_0_0_0_#dc2626] cursor-pointer transition-[background-color,box-shadow] duration-200"
+              className="group p-3 flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.07] hover:shadow-[inset_3px_0_0_0_#dc2626] cursor-pointer transition-[background-color,box-shadow] duration-200"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-full studio-panel-inset border border-white/10 flex items-center justify-center shrink-0 overflow-hidden transition-[transform,box-shadow] duration-200 group-hover:scale-110 group-hover:ring-2 group-hover:ring-studio-red/75 group-hover:shadow-[0_0_16px_rgba(220,38,38,0.45)]">
-                  {p.avatar_url ? (
+                  {displayAvatar(p) ? (
                     <img
-                      src={p.avatar_url}
+                      src={displayAvatar(p) ?? undefined}
                       alt={p.full_name}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                     />
@@ -685,22 +705,25 @@ export function AdminStudentsPage() {
                     )}
                   </p>
                   <p className="text-xs text-slate-400 truncate">
-                    {p.belt ? `${p.belt} · ${planName}` : planName}
+                    {p.belt && planUsesBelt(subsByUser[p.id], false) ? `${p.belt} · ${planName}` : planName}
                   </p>
                 </div>
               </div>
 
-              <span
-                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                  p.status === 'active'
-                    ? 'bg-emerald-500/15 text-emerald-300'
-                    : p.status === 'paused'
-                      ? 'bg-amber-500/15 text-amber-300'
-                      : 'bg-slate-500/20 text-slate-400'
-                }`}
-              >
-                {p.status === 'active' ? 'Activo' : p.status === 'paused' ? 'Pausado' : 'Baja'}
-              </span>
+              {/* Con un filtro de estado activo, la etiqueta sería redundante: se oculta. */}
+              {quickFilter !== 'active' && quickFilter !== 'paused' && quickFilter !== 'inactive' && (
+                <span
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${
+                    p.status === 'active'
+                      ? 'bg-emerald-500/15 text-emerald-300'
+                      : p.status === 'paused'
+                        ? 'bg-amber-500/15 text-amber-300'
+                        : 'bg-slate-500/20 text-slate-400'
+                  }`}
+                >
+                  {p.status === 'active' ? 'Activo' : p.status === 'paused' ? 'Pausado' : 'Baja'}
+                </span>
+              )}
             </div>
           );
         })
@@ -726,6 +749,22 @@ export function AdminStudentsPage() {
               className="w-full max-w-lg rounded-2xl studio-panel border border-white/15 p-6 space-y-4 shadow-modal max-h-[90vh] overflow-y-auto"
             >
             <h2 className="font-headline text-xl uppercase text-white">Editar Ficha</h2>
+            {(() => {
+              const plan = plans.find((pl) => pl.id === subsByUser[selected.id]);
+              const names = (plan?.plan_disciplines ?? [])
+                .map((pd) => disciplines.find((d) => d.id === pd.discipline_id)?.name)
+                .filter((n): n is string => Boolean(n));
+              return (
+                <p className="text-sm text-slate-300 -mt-2">
+                  Disciplina de este mes:{' '}
+                  {names.length > 0 ? (
+                    <span className="font-semibold text-white">{names.join(' · ')}</span>
+                  ) : (
+                    <span className="text-slate-500">sin tarifa asignada</span>
+                  )}
+                </p>
+              );
+            })()}
 
             {editError && (
               <div className="rounded-xl bg-studio-red/20 border border-studio-red/50 px-3 py-2 text-xs text-red-200">
@@ -735,11 +774,12 @@ export function AdminStudentsPage() {
 
             <div className="flex flex-wrap items-center gap-3">
               <div className="w-14 h-14 rounded-full studio-panel-inset border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
-                {editPhotoPreview || selected.avatar_url ? (
+                {editPhotoPreview || displayAvatar(selected) ? (
                   <img
-                    src={editPhotoPreview || selected.avatar_url || ''}
+                    key={selected.id}
+                    src={editPhotoPreview || displayAvatar(selected) || ''}
                     alt={selected.full_name}
-                    className="w-full h-full object-cover"
+                    className="avatar-wave w-full h-full object-cover"
                   />
                 ) : (
                   <User className="w-6 h-6 text-slate-500" />
@@ -815,6 +855,8 @@ export function AdminStudentsPage() {
                   <option value="admin">Administrador (admin)</option>
                 </select>
               </div>
+              {planUsesBelt(subsByUser[selected.id], true) && (
+              <>
               <div>
                 <label className="block text-xs text-slate-400 uppercase mb-1">Cinturón</label>
                 <select
@@ -854,6 +896,8 @@ export function AdminStudentsPage() {
                   ))}
                 </select>
               </div>
+              </>
+              )}
               <div>
                 <label className="block text-xs text-slate-400 uppercase mb-1">
                   Alias / Apodo tatami
@@ -875,6 +919,23 @@ export function AdminStudentsPage() {
                   onChange={(e) => setSelected({ ...selected, birth_date: e.target.value })}
                   className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 uppercase mb-1">Sexo</label>
+                <select
+                  value={selected.gender ?? ''}
+                  onChange={(e) =>
+                    setSelected({
+                      ...selected,
+                      gender: e.target.value ? (e.target.value as 'hombre' | 'mujer') : null,
+                    })
+                  }
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                >
+                  <option value="">Sin indicar</option>
+                  <option value="mujer">Mujer</option>
+                  <option value="hombre">Hombre</option>
+                </select>
               </div>
 
               {(isMinorAge(selected.birth_date) ||
@@ -1152,6 +1213,18 @@ export function AdminStudentsPage() {
                   className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
+              <div>
+                <label className="block text-xs text-slate-400 uppercase mb-1">Sexo</label>
+                <select
+                  value={newGender ?? ''}
+                  onChange={(e) => setNewGender(e.target.value ? (e.target.value as 'hombre' | 'mujer') : null)}
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                >
+                  <option value="">Sin indicar</option>
+                  <option value="mujer">Mujer</option>
+                  <option value="hombre">Hombre</option>
+                </select>
+              </div>
 
               {isClient && isMinorAge(newBirthDate) && (
                 <div className="sm:col-span-2 rounded-xl bg-sky-500/10 border border-sky-400/25 p-3.5 space-y-3">
@@ -1208,6 +1281,7 @@ export function AdminStudentsPage() {
               )}
               {isClient && (
               <>
+              {planUsesBelt(newPlanId, true) && (
               <div>
                 <label className="block text-xs text-slate-400 uppercase mb-1">Cinturón</label>
                 <select
@@ -1215,7 +1289,7 @@ export function AdminStudentsPage() {
                   onChange={(e) => setNewBelt(e.target.value)}
                   className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 >
-                  <option value="">Sin cinturón (No-Gi / MMA / Lucha)</option>
+                  <option value="">Sin cinturón</option>
                   <option value="Blanco">Blanco</option>
                   <option value="Azul">Azul</option>
                   <option value="Morado">Morado</option>
@@ -1223,6 +1297,7 @@ export function AdminStudentsPage() {
                   <option value="Negro">Negro</option>
                 </select>
               </div>
+              )}
               <div>
                 <label className="block text-xs text-slate-400 uppercase mb-1">
                   Tutor / Hermano vinculado (opcional)

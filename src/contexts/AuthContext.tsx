@@ -2,11 +2,15 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/types/database';
+import { usersWithBeltThisMonth } from '@/lib/belts';
+import { getLocalMonthYear } from '@/lib/dateUtils';
 
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  /** ¿Se debe mostrar el cinturón de este usuario este mes? (solo BJJ y Grappling) */
+  beltApplies: boolean;
   loading: boolean;
   isPasswordRecovery: boolean;
   clearRecoveryMode: () => void;
@@ -19,6 +23,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [beltApplies, setBeltApplies] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
@@ -30,8 +35,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     if (!error && data) {
-      setProfile(data as Profile);
+      const loaded = data as Profile;
+      // Staff: sin restricción. Alumnos: solo si su tarifa del mes incluye una disciplina con cinturón.
+      const applies =
+        loaded.role !== 'client' ||
+        (await usersWithBeltThisMonth([loaded.id], getLocalMonthYear())).has(loaded.id);
+      setBeltApplies(applies);
+      setProfile(loaded);
     } else {
+      setBeltApplies(false);
       setProfile(null);
     }
   };
@@ -83,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         user: session?.user ?? null,
         profile,
+        beltApplies,
         loading,
         isPasswordRecovery,
         clearRecoveryMode: () => setIsPasswordRecovery(false),
