@@ -39,3 +39,6 @@ dist-ssr
 *.pptx
 *.ppt
 
+# Supabase CLI local temp state
+supabase/.temp/
+
