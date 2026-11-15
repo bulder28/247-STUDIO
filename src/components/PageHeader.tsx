@@ -57,12 +57,10 @@ export function BeltRule({
 /** Cabecera de página: título condensado en arena + cinturón del usuario. */
 export function PageHeader({
   title,
-  subtitle,
   actions,
   children,
 }: {
   title: ReactNode;
-  subtitle?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
 }) {
@@ -78,9 +76,6 @@ export function PageHeader({
               <span>{title}</span>
             </span>
           </h1>
-          {subtitle && (
-            <p className="mt-2 text-sm text-slate-400 max-w-2xl leading-relaxed">{subtitle}</p>
-          )}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2.5 shrink-0">{actions}</div>}
       </div>

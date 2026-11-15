@@ -60,7 +60,6 @@ export function AdminFinancePage({ tab }: { tab: 'resumen' | 'gastos' }) {
     <div className="space-y-6 pb-20 md:pb-0">
       <PageHeader
         title="Finanzas"
-        subtitle="Lo que entra, lo que sale y lo que queda cada mes. Los ingresos se cuentan por fecha de cobro."
         actions={
           <div className="flex items-center gap-1 rounded-xl studio-panel-inset border border-white/10 p-1">
             <button

@@ -69,7 +69,6 @@ export function ForumViewPage({ embedded = false }: { embedded?: boolean } = {})
       {!embedded && (
         <PageHeader
           title="Foro"
-          subtitle="Comunicados oficiales de la academia, filtrados por disciplina."
         />
       )}
 

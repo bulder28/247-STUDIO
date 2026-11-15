@@ -70,7 +70,6 @@ export function ClientPlansPage() {
     <div className="space-y-8">
       <PageHeader
         title="Tarifas"
-        subtitle="Cuotas y bonos oficiales de la academia. Precios finales, se abonan en recepción en efectivo o Bizum."
       />
 
       {isFounder && (

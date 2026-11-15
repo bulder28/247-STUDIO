@@ -193,7 +193,6 @@ export function ClientProfilePage() {
     <div className="space-y-6">
       <PageHeader
         title="Perfil y documentos"
-        subtitle={<>Tus datos de contacto, contraseña y firma de documentos de la academia.</>}
       />
 
       {feedback && (

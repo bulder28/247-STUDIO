@@ -306,7 +306,6 @@ export function CoachAttendancePage() {
     <div className="space-y-6">
       <PageHeader
         title={<>{isToday ? 'Pasar lista' : `Previsión del ${selectedDayLabel}`}</>}
-        subtitle={<>{isToday ? 'Toca a cada alumno presente en el tatami para validar su asistencia.' : 'Vista previa de los alumnos previstos para la próxima sesión (el fichaje se habilita el día de la clase).'}</>}
         actions={
           <>
             <button

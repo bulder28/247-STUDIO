@@ -9,22 +9,20 @@ import {
   Tags,
   CalendarDays,
   MessageSquare,
-  ClipboardCheck,
   LogOut,
   Menu,
   X,
-  Search,
+  Maximize,
+  Minimize,
   Wallet,
   Receipt,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { AdminCommandPalette } from '@/components/AdminCommandPalette';
 
 const navGroups = [
   {
     label: 'Día a día',
     items: [
-      { to: '/admin/pasar-lista', label: 'Pasar lista', icon: ClipboardCheck },
       { to: '/admin/seguimiento', label: 'Cobros', icon: CreditCard },
       { to: '/admin/alumnos', label: 'Alumnos', icon: Users },
     ],
@@ -39,9 +37,9 @@ const navGroups = [
   {
     label: 'Academia',
     items: [
-      { to: '/admin/horarios', label: 'Horarios', icon: CalendarDays },
-      { to: '/admin/tarifas', label: 'Tarifas', icon: Tags },
-      { to: '/admin/comunicacion', label: 'Comunicación', icon: MessageSquare },
+      { to: '/admin/horarios', label: 'Editor de horarios', icon: CalendarDays },
+      { to: '/admin/tarifas', label: 'Editor de tarifas', icon: Tags },
+      { to: '/admin/comunicacion', label: 'Crear comunicaciones', icon: MessageSquare },
     ],
   },
   {
@@ -54,7 +52,6 @@ const navGroups = [
 ];
 
 const dockItems: { to: string; label: string; icon: typeof Users; end?: boolean }[] = [
-  { to: '/admin/pasar-lista', label: 'Lista', icon: ClipboardCheck },
   { to: '/admin/seguimiento', label: 'Cobros', icon: CreditCard },
   { to: '/admin/alumnos', label: 'Alumnos', icon: Users },
   // Finanzas sustituye a "Resumen" en el dock; el inicio de dirección sigue en el menú "Más"
@@ -126,7 +123,7 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { profile, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(() => Boolean(document.fullscreenElement));
   const location = useLocation();
 
   useEffect(() => {
@@ -134,15 +131,22 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   }, [location.pathname]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setPaletteOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const sync = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
   }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch {
+      // El navegador puede bloquear la petición; el botón simplemente no hace nada
+    }
+  };
 
   const userChip = (
     <div className="flex items-center gap-3 min-w-0">
@@ -174,16 +178,18 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         <div className="px-3 mb-2">
           <button
             type="button"
-            onClick={() => setPaletteOpen(true)}
-            className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-xs text-slate-300 transition"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Salir de pantalla completa (Esc)' : 'Pantalla completa'}
+            aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+            aria-pressed={isFullscreen}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-xs text-slate-300 transition"
           >
-            <span className="inline-flex items-center gap-2">
-              <Search className="w-3.5 h-3.5 text-slate-400" />
-              <span>Buscar rápido...</span>
-            </span>
-            <kbd className="px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 bg-black/25 rounded border border-white/10">
-              Ctrl K
-            </kbd>
+            {isFullscreen ? (
+              <Minimize className="w-3.5 h-3.5 text-slate-400" />
+            ) : (
+              <Maximize className="w-3.5 h-3.5 text-slate-400" />
+            )}
+            <span>{isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}</span>
           </button>
         </div>
 
@@ -211,14 +217,6 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <span className="font-headline text-lg uppercase tracking-wide text-studio-cream">247 Studio</span>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setPaletteOpen(true)}
-            className="p-2 rounded-lg text-slate-300 hover:bg-white/10"
-            aria-label="Buscar rápido"
-          >
-            <Search className="w-5 h-5" />
-          </button>
           <button
             onClick={() => setMobileOpen((prev) => !prev)}
             className="p-2 rounded-lg text-slate-300 hover:bg-white/10"
@@ -312,7 +310,6 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <span>Más</span>
         </button>
       </nav>
-      <AdminCommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }

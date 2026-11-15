@@ -50,11 +50,6 @@ export function ClientForumChatPage() {
     <div className="space-y-6">
       <PageHeader
         title={tab === 'forum' ? 'Foro' : 'Chat con dirección'}
-        subtitle={
-          tab === 'forum'
-            ? 'Comunicados oficiales de la academia, filtrados por disciplina.'
-            : 'Conversación privada con Mario y David. Solo la veis tú y dirección.'
-        }
       />
       <div className="inline-flex gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/10">
         <button

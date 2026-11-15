@@ -12,7 +12,6 @@ import {
   Upload,
   Download,
   FileWarning,
-  CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { uploadUserAvatar } from '@/lib/imageCompressor';
@@ -63,10 +62,11 @@ export function AdminStudentsPage() {
   const [signaturesByUser, setSignaturesByUser] = useState<Record<string, DocSignature[]>>({});
   const [subsByUser, setSubsByUser] = useState<Record<string, string>>({});
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
-  const [statusFilter, setStatusFilter] = useState<'all' | MemberStatus>('all');
+  const [group, setGroup] = useState<'clients' | 'staff'>('clients');
   const [disciplineFilter, setDisciplineFilter] = useState<'all' | string>('all');
-  const [docFilter, setDocFilter] = useState<'all' | 'pending' | 'complete'>('all');
-  const [quickFilter, setQuickFilter] = useState<'all' | 'pending_docs' | 'no_photo' | 'paused'>('all');
+  const [quickFilter, setQuickFilter] = useState<
+    'all' | 'active' | 'paused' | 'inactive' | 'pending_docs' | 'no_photo'
+  >('all');
   const [selected, setSelected] = useState<Profile | null>(null);
   const [editPhotoFile, setEditPhotoFile] = useState<File | null>(null);
   const [editPhotoPreview, setEditPhotoPreview] = useState<string | null>(null);
@@ -92,6 +92,7 @@ export function AdminStudentsPage() {
   const [newGuardianId, setNewGuardianId] = useState('');
   const [newPlanId, setNewPlanId] = useState('');
   const [newIsFounder, setNewIsFounder] = useState(false);
+  const isClient = newRole === 'client';
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [paidNow, setPaidNow] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<'Efectivo' | 'Bizum'>('Efectivo');
@@ -164,22 +165,26 @@ export function AdminStudentsPage() {
   }, []);
 
   const clientsOnly = profiles.filter((p) => p.role === 'client');
+  const staffOnly = profiles.filter((p) => p.role !== 'client');
+  const scope = group === 'clients' ? clientsOnly : staffOnly;
   const pendingDocsCount = clientsOnly.filter(
     (p) => getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date).pending.length > 0
   ).length;
   const noPhotoCount = clientsOnly.filter((p) => !p.avatar_url).length;
-  const pausedCount = profiles.filter((p) => p.status === 'paused').length;
+  const activeCount = scope.filter((p) => p.status === 'active').length;
+  const pausedCount = scope.filter((p) => p.status === 'paused').length;
+  const inactiveCount = scope.filter((p) => p.status === 'inactive').length;
 
-  const filtered = profiles.filter((p) => {
+  const filtered = scope.filter((p) => {
     const matchesSearch =
       p.full_name.toLowerCase().includes(search.toLowerCase()) ||
       p.email.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-    if (!matchesSearch || !matchesStatus) return false;
-    if (quickFilter === 'no_photo' && (p.role !== 'client' || Boolean(p.avatar_url))) return false;
-    if (quickFilter === 'paused' && p.status !== 'paused') return false;
+    if (!matchesSearch) return false;
+    if (quickFilter === 'active' || quickFilter === 'paused' || quickFilter === 'inactive') {
+      if (p.status !== quickFilter) return false;
+    }
+    if (quickFilter === 'no_photo' && Boolean(p.avatar_url)) return false;
     if (quickFilter === 'pending_docs') {
-      if (p.role !== 'client') return false;
       const comp = getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date);
       if (comp.pending.length === 0) return false;
     }
@@ -190,10 +195,7 @@ export function AdminStudentsPage() {
       );
       if (!hasDiscipline) return false;
     }
-    if (docFilter === 'all') return true;
-    if (p.role !== 'client') return docFilter === 'complete';
-    const comp = getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date);
-    return docFilter === 'pending' ? comp.pending.length > 0 : comp.isComplete;
+    return true;
   });
 
   const handleSaveSelected = async (e: React.FormEvent) => {
@@ -288,7 +290,7 @@ export function AdminStudentsPage() {
     e.preventDefault();
     setCreateError(null);
 
-    if (isMinorAge(newBirthDate)) {
+    if (isClient && isMinorAge(newBirthDate)) {
       const hasFather = Boolean(newFatherName.trim() && newFatherPhone.trim());
       const hasMother = Boolean(newMotherName.trim() && newMotherPhone.trim());
       if (!hasFather && !hasMother) {
@@ -307,17 +309,17 @@ export function AdminStudentsPage() {
         full_name: newName.trim(),
         phone: newPhone.trim(),
         birth_date: newBirthDate || null,
-        belt: newBelt || null,
+        belt: isClient ? newBelt || null : null,
         role: newRole,
-        guardian_user_id: newGuardianId || null,
+        guardian_user_id: isClient ? newGuardianId || null : null,
         father_name: newFatherName.trim() || null,
         father_phone: newFatherPhone.trim() || null,
         mother_name: newMotherName.trim() || null,
         mother_phone: newMotherPhone.trim() || null,
-        is_founder: newIsFounder,
-        plan_id: newPlanId || null,
+        is_founder: isClient && newIsFounder,
+        plan_id: isClient ? newPlanId || null : null,
         month_year: currentMonth,
-        paid_now: newPlanId ? paidNow : false,
+        paid_now: isClient && newPlanId ? paidNow : false,
         payment_method: paymentMethod,
         first_training_at: trialDateRef,
         trial_guest_id: trialGuestId,
@@ -411,7 +413,6 @@ export function AdminStudentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Alumnos y staff"
-        subtitle={<>Gestiona altas, bajas, pausas, cinturones, roles y la tarifa mensual ({currentMonth}).</>}
         actions={
           <>
             <div className="flex flex-wrap items-center gap-2">
@@ -527,16 +528,6 @@ export function AdminStudentsPage() {
           />
         </div>
         <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as 'all' | MemberStatus)}
-          className="rounded-xl studio-field px-3 py-2.5 text-sm text-white"
-        >
-          <option value="all">Todos los estados</option>
-          <option value="active">Activos</option>
-          <option value="paused">Pausados</option>
-          <option value="inactive">Bajas</option>
-        </select>
-        <select
           value={disciplineFilter}
           onChange={(e) => setDisciplineFilter(e.target.value)}
           className="rounded-xl studio-field px-3 py-2.5 text-sm text-white"
@@ -548,24 +539,47 @@ export function AdminStudentsPage() {
             </option>
           ))}
         </select>
-        <select
-          value={docFilter}
-          onChange={(e) => setDocFilter(e.target.value as 'all' | 'pending' | 'complete')}
-          className="rounded-xl studio-field px-3 py-2.5 text-sm text-white"
-        >
-          <option value="all">Docs: Todos</option>
-          <option value="pending">Con docs pendientes</option>
-          <option value="complete">Docs completos</option>
-        </select>
+      </div>
+
+      {/* Alumnos / Staff */}
+      <div role="tablist" aria-label="Grupo" className="flex gap-2">
+        {[
+          { id: 'clients' as const, label: 'Alumnos', count: clientsOnly.length },
+          { id: 'staff' as const, label: 'Staff', count: staffOnly.length },
+        ].map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={group === t.id}
+            onClick={() => {
+              setGroup(t.id);
+              setQuickFilter('all');
+            }}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition border ${
+              group === t.id
+                ? 'bg-studio-cream text-slate-900 border-studio-cream'
+                : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08] hover:text-white'
+            }`}
+          >
+            {t.label} <span className="opacity-75 ml-1">({t.count})</span>
+          </button>
+        ))}
       </div>
 
       {/* Chips de filtro rápido */}
       <div className="flex flex-wrap items-center gap-2">
         {[
-          { id: 'all' as const, label: 'Todos', count: profiles.length },
-          { id: 'pending_docs' as const, label: 'Docs pendientes', count: pendingDocsCount },
-          { id: 'no_photo' as const, label: 'Sin foto', count: noPhotoCount },
+          { id: 'all' as const, label: 'Todos', count: scope.length },
+          { id: 'active' as const, label: 'Activos', count: activeCount },
           { id: 'paused' as const, label: 'Pausados', count: pausedCount },
+          { id: 'inactive' as const, label: 'Bajas', count: inactiveCount },
+          ...(group === 'clients'
+            ? [
+                { id: 'pending_docs' as const, label: 'Docs pendientes', count: pendingDocsCount },
+                { id: 'no_photo' as const, label: 'Sin foto', count: noPhotoCount },
+              ]
+            : []),
         ].map((chip) => {
           const active = quickFilter === chip.id;
           return (
@@ -650,27 +664,18 @@ export function AdminStudentsPage() {
                         Menor · {minorAge}a
                       </span>
                     )}
-                    {comp && comp.totalRequired > 0 && (
+                    {comp && (comp.pending.length > 0 || !p.avatar_url) && (
                       <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                          comp.isComplete
-                            ? 'bg-emerald-500/15 text-emerald-300'
-                            : 'bg-studio-red/20 text-red-200 border border-studio-red/30'
-                        }`}
+                        title={[
+                          comp.pending.length > 0 ? `Faltan ${comp.pending.length} docs` : null,
+                          !p.avatar_url ? 'Sin foto' : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-400/30"
                       >
-                        {comp.isComplete ? (
-                          <CheckCircle2 className="w-3 h-3" />
-                        ) : (
-                          <FileWarning className="w-3 h-3" />
-                        )}
-                        {comp.isComplete
-                          ? `Docs ${comp.signedCount}/${comp.totalRequired}`
-                          : `Faltan ${comp.pending.length} docs`}
-                      </span>
-                    )}
-                    {!p.avatar_url && p.role === 'client' && (
-                      <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
-                        Sin foto
+                        <FileWarning className="w-3 h-3" />
+                        Ficha incompleta
                       </span>
                     )}
                     {p.role !== 'client' && (
@@ -1092,6 +1097,18 @@ export function AdminStudentsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="sm:col-span-2">
+                <label className="block text-xs text-slate-400 uppercase mb-1">Rol</label>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value as UserRole)}
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                >
+                  <option value="client">Alumno (client)</option>
+                  <option value="coach">Profesor (coach)</option>
+                  <option value="admin">Administrador (admin)</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs text-slate-400 uppercase mb-1">
                   Nombre y apellidos *
                 </label>
@@ -1136,7 +1153,7 @@ export function AdminStudentsPage() {
                 />
               </div>
 
-              {isMinorAge(newBirthDate) && (
+              {isClient && isMinorAge(newBirthDate) && (
                 <div className="sm:col-span-2 rounded-xl bg-sky-500/10 border border-sky-400/25 p-3.5 space-y-3">
                   <p className="text-xs font-semibold text-sky-300 uppercase">
                     Datos de Padre y Madre (Menor ≤ 14 años) *
@@ -1189,18 +1206,8 @@ export function AdminStudentsPage() {
                   </div>
                 </div>
               )}
-              <div>
-                <label className="block text-xs text-slate-400 uppercase mb-1">Rol</label>
-                <select
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value as UserRole)}
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-                >
-                  <option value="client">Alumno (client)</option>
-                  <option value="coach">Profesor (coach)</option>
-                  <option value="admin">Administrador (admin)</option>
-                </select>
-              </div>
+              {isClient && (
+              <>
               <div>
                 <label className="block text-xs text-slate-400 uppercase mb-1">Cinturón</label>
                 <select
@@ -1233,6 +1240,8 @@ export function AdminStudentsPage() {
                   ))}
                 </select>
               </div>
+              </>
+              )}
               <div className="sm:col-span-2">
                 <label className="block text-xs text-slate-400 uppercase mb-1">
                   Foto del alumno (opcional)
@@ -1271,6 +1280,8 @@ export function AdminStudentsPage() {
                 </div>
               </div>
 
+              {isClient && (
+              <>
               <div className="sm:col-span-2">
                 <label className="flex items-center justify-between gap-3 rounded-xl studio-panel-inset border border-amber-400/25 px-3.5 py-2.5 cursor-pointer">
                   <div>
@@ -1335,6 +1346,8 @@ export function AdminStudentsPage() {
                     </select>
                   )}
                 </div>
+              )}
+              </>
               )}
             </div>
 

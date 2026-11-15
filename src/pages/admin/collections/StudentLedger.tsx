@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { X, CalendarPlus } from 'lucide-react';
+import { X, CalendarPlus, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { formatEURExact } from '@/lib/format';
 import { shiftMonth } from '@/lib/finance';
@@ -197,10 +197,11 @@ export function StudentLedger({
           </ol>
         </section>
 
-        <section aria-labelledby={`${titleId}-paid`}>
-          <h3 id={`${titleId}-paid`} className="text-sm font-semibold text-slate-200 mb-2">
-            Pagos
-          </h3>
+        <details className="group/led">
+          <summary className="list-none cursor-pointer flex items-center gap-2 text-sm font-semibold text-slate-200 mb-2 [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400 transition-transform group-open/led:rotate-90" aria-hidden />
+            Pagos <span className="text-xs font-normal text-slate-500">({paidRows.length})</span>
+          </summary>
           {paidRows.length === 0 ? (
             <p className="text-sm text-slate-400">Sin pagos registrados.</p>
           ) : (
@@ -217,12 +218,13 @@ export function StudentLedger({
               ))}
             </ul>
           )}
-        </section>
+        </details>
 
-        <section aria-labelledby={`${titleId}-hist`}>
-          <h3 id={`${titleId}-hist`} className="text-sm font-semibold text-slate-200 mb-2">
+        <details className="group/led">
+          <summary className="list-none cursor-pointer flex items-center gap-2 text-sm font-semibold text-slate-200 mb-2 [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400 transition-transform group-open/led:rotate-90" aria-hidden />
             Historial de cambios
-          </h3>
+          </summary>
           {eventsError ? (
             <p className="text-sm text-amber-200">No se ha podido cargar el historial.</p>
           ) : events === null ? (
@@ -245,7 +247,7 @@ export function StudentLedger({
               ))}
             </ul>
           )}
-        </section>
+        </details>
       </aside>
     </div>
   );

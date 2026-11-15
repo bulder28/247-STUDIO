@@ -63,7 +63,6 @@ export function ClientNoticesPage() {
     <div className="space-y-8">
       <PageHeader
         title="Avisos"
-        subtitle="Lo que la academia te ha dicho a ti y lo que ha comunicado a todo el tatami."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -166,7 +165,6 @@ export function ClientFaqsPage() {
     <div className="space-y-8">
       <PageHeader
         title="Preguntas frecuentes"
-        subtitle="Lo que más nos preguntan en recepción antes y después del primer entrenamiento."
       />
 
       {faqs.length === 0 ? (

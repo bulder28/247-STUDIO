@@ -95,7 +95,6 @@ export function ScheduleViewPage() {
     <div className="space-y-6">
       <PageHeader
         title="Horario"
-        subtitle="Parrilla oficial de clases y profesores, de lunes a sábado."
         actions={
           <div
             className="inline-flex flex-wrap gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/10"

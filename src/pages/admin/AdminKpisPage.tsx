@@ -603,17 +603,6 @@ export function AdminKpisPage() {
     <div className="space-y-6">
       <PageHeader
         title="Panel de KPIs"
-        subtitle={
-          <>
-            {formatMonthLong(selectedMonth)}
-            {selectedDiscipline !== 'all' && (
-              <span className="text-sky-300">
-                {', '}
-                {disciplines.find((d) => d.id === selectedDiscipline)?.name ?? 'Disciplina'}
-              </span>
-            )}
-          </>
-        }
         actions={
           <>
           <div className="flex items-center gap-2 rounded-xl studio-panel-inset border border-white/10 px-3 py-2">

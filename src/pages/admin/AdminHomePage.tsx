@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import CollapsibleCard from '@/components/CollapsibleCard';
 import { Link } from 'react-router-dom';
 import {
   Users,
@@ -508,7 +509,6 @@ export function AdminHomePage() {
     <div className="space-y-6">
       <PageHeader
         title={formatMonthLong(selectedMonth)}
-        subtitle="Resumen de gestión del mes: cobros, alumnos, ocupación y alertas."
         actions={
           <>
           <div className="flex items-center gap-2 rounded-xl studio-panel-inset border border-white/10 px-3 py-1.5">
@@ -829,21 +829,14 @@ export function AdminHomePage() {
         </div>
 
         {/* Ranking de Franjas Horarias */}
-        <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-studio-red" /> Ranking de Clases del Mes
-              </h2>
-              <p className="text-xs text-slate-400">
-                Franjas con mayor asistencia total y media por sesión
-              </p>
-            </div>
-            <Link to="/admin/horarios" className="text-xs text-studio-red-text hover:underline shrink-0">
-              Ver horarios
-            </Link>
-          </div>
-
+        <CollapsibleCard
+          title={<><TrendingUp className="w-4 h-4 text-studio-red" /> Ranking de Clases del Mes</>}
+          meta={classRankings.length > 0 ? `${classRankings.length} clases` : undefined}
+          className="rounded-3xl studio-panel border border-white/10 self-start"
+        >
+          <Link to="/admin/horarios" className="text-xs text-studio-red-text hover:underline">
+            Ver horarios
+          </Link>
           {loading ? (
             <p className="text-sm text-slate-400">Cargando...</p>
           ) : classRankings.length === 0 ? (
@@ -886,7 +879,7 @@ export function AdminHomePage() {
               })}
             </div>
           )}
-        </section>
+        </CollapsibleCard>
       </div>
 
       {/* Centro de Alertas Accionables Unificado */}

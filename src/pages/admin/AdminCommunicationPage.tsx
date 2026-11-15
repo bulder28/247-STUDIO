@@ -3,6 +3,7 @@ import { Megaphone, Bell, HelpCircle, MessageCircle, FileSignature, Send, Calend
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeader } from '@/components/PageHeader';
+import CollapsibleCard from '@/components/CollapsibleCard';
 
 interface Discipline {
   id: string;
@@ -272,8 +273,7 @@ export function AdminCommunicationPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Comunicación"
-        subtitle={<>Foro, Avisos, Chats privados con alumnos, Firmas legales, Eventos y FAQs.</>}
+        title="Crear comunicaciones"
       />
 
       {feedback && (
@@ -483,8 +483,7 @@ export function AdminCommunicationPage() {
             </button>
           </form>
 
-          <div className="rounded-2xl studio-panel border border-white/10 p-5 space-y-3">
-            <h2 className="font-headline text-lg uppercase text-white">Avisos publicados</h2>
+          <CollapsibleCard title="Avisos publicados" meta={`${noticesList.length}`}>
             {noticesList.length === 0 ? (
               <p className="text-sm text-slate-400">No hay avisos recientes.</p>
             ) : (
@@ -518,7 +517,7 @@ export function AdminCommunicationPage() {
                 ))}
               </div>
             )}
-          </div>
+          </CollapsibleCard>
         </div>
       )}
 
@@ -590,8 +589,7 @@ export function AdminCommunicationPage() {
             </button>
           </form>
 
-          <div className="rounded-2xl studio-panel border border-white/10 p-5 space-y-3">
-            <h2 className="font-headline text-lg uppercase text-white">Eventos y Seminarios activos</h2>
+          <CollapsibleCard title="Eventos y Seminarios activos" meta={`${eventsList.length}`}>
             {eventsList.length === 0 ? (
               <p className="text-sm text-slate-400">No hay eventos publicados todavía.</p>
             ) : (
@@ -631,7 +629,7 @@ export function AdminCommunicationPage() {
                 ))}
               </div>
             )}
-          </div>
+          </CollapsibleCard>
         </div>
       )}
 
@@ -669,8 +667,7 @@ export function AdminCommunicationPage() {
             </button>
           </form>
 
-          <div className="rounded-2xl studio-panel border border-white/10 p-5 space-y-3">
-            <h2 className="font-headline text-lg uppercase text-white">Preguntas Frecuentes publicadas</h2>
+          <CollapsibleCard title="Preguntas Frecuentes publicadas" meta={`${faqsList.length}`}>
             {faqsList.length === 0 ? (
               <p className="text-sm text-slate-400">
                 No hay FAQs en base de datos (los alumnos ven las 6 FAQs oficiales por defecto).
@@ -698,7 +695,7 @@ export function AdminCommunicationPage() {
                 ))}
               </div>
             )}
-          </div>
+          </CollapsibleCard>
         </div>
       )}
 

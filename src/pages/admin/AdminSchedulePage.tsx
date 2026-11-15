@@ -225,13 +225,7 @@ export function AdminSchedulePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Horarios"
-        subtitle={
-          <>
-            Configura la parrilla de clases semanales (Lunes a Sábado), sustituciones de profesores e
-            icono de cada clase.
-          </>
-        }
+        title="Editor de horarios"
       />
 
       <form

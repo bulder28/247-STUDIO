@@ -118,8 +118,7 @@ export function AdminPlansPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Tarifas"
-        subtitle={<>Define las tarifas, ofertas y qué disciplinas incluye cada una (ej. BJJ + MMA o Pack Unlimited).</>}
+        title="Editor de tarifas"
       />
 
       {feedback && (

@@ -498,7 +498,6 @@ export function AdminTrackingPage() {
     <div className="space-y-6">
       <PageHeader
         title="Cobros"
-        subtitle={<>Busca a un alumno para cobrarle, o trabaja la lista de pendientes por urgencia.</>}
         actions={
           <>
             <div className="flex flex-wrap items-center gap-2">

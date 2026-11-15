@@ -34,7 +34,7 @@ function TreeRoot({
   children: ReactNode;
 }) {
   return (
-    <details open aria-labelledby={id} className="group/root rounded-3xl studio-panel border border-white/10 overflow-hidden">
+    <details aria-labelledby={id} className="group/root rounded-3xl studio-panel border border-white/10 overflow-hidden">
       <summary className="list-none cursor-pointer flex flex-wrap items-center justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
         <h2 id={id} className="font-headline text-lg uppercase text-white flex items-center gap-2">
           <ChevronRight className="w-4 h-4 text-slate-400 transition-transform group-open/root:rotate-90" aria-hidden />
@@ -63,7 +63,7 @@ function TreeGroup({
   children: ReactNode;
 }) {
   return (
-    <details open className="group/cat border-t border-white/[0.06]">
+    <details className="group/cat border-t border-white/[0.06]">
       <summary className="list-none cursor-pointer flex items-center justify-between gap-3 pl-5 pr-5 py-2.5 hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
         <span className="flex items-center gap-2 text-sm font-semibold text-slate-200">
           <ChevronRight className="w-3.5 h-3.5 text-slate-500 transition-transform group-open/cat:rotate-90" aria-hidden />

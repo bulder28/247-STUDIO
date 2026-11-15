@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { X, Repeat, Ban } from 'lucide-react';
+import { X, Repeat, Ban, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 import { formatEURExact, formatMonthLong } from '@/lib/format';
@@ -399,6 +399,47 @@ export function ExpenseFormModal({
               </p>
             )}
 
+            {target.kind === 'new' && (
+              <fieldset>
+                <legend className={fieldLabel}>Tipo de gasto</legend>
+                <div role="radiogroup" aria-label="Tipo de gasto" className="grid grid-cols-2 gap-2">
+                  {[
+                    { fixed: false, label: 'Variable', hint: 'Una sola vez (material, reparación)', icon: Plus },
+                    { fixed: true, label: 'Fijo', hint: 'Se repite cada mes (alquiler, seguro)', icon: Repeat },
+                  ].map(({ fixed, label, hint, icon: Icon }) => {
+                    const active = repeatMonthly === fixed;
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setRepeatMonthly(fixed)}
+                        className={`text-left rounded-xl border px-3.5 py-2.5 transition-colors ${
+                          active
+                            ? 'border-studio-cream bg-studio-cream text-studio-navy-deep'
+                            : 'border-white/15 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5 text-sm font-semibold">
+                          <Icon className="w-4 h-4" aria-hidden /> {label}
+                        </span>
+                        <span className={`block text-xs mt-0.5 leading-snug ${active ? 'opacity-80' : 'text-slate-400'}`}>
+                          {hint}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {repeatMonthly && (
+                  <p className="text-xs text-slate-400 mt-2">
+                    Cada mes aparecerá pendiente de confirmar. El día de la fecha será el día habitual de pago.
+                  </p>
+                )}
+              </fieldset>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor={`${titleId}-amount`} className={fieldLabel}>
                 Importe (€)
@@ -420,17 +461,32 @@ export function ExpenseFormModal({
                 className="w-full rounded-xl studio-field px-3.5 py-3 text-2xl font-headline text-white tabular-nums"
               />
             </div>
+            <div>
+              <label htmlFor={`${titleId}-date`} className={fieldLabel}>
+                Fecha del pago
+              </label>
+              <input
+                id={`${titleId}-date`}
+                ref={dateRef}
+                type="date"
+                value={date}
+                max={getLocalDateISO()}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full rounded-xl studio-field px-3.5 py-3.5 text-sm text-white"
+              />
+            </div>
+            </div>
 
             <fieldset aria-describedby={!categoryId && error ? errorId : undefined}>
               <legend className={fieldLabel}>Categoría</legend>
-              <div ref={categoriesRef} className="flex flex-wrap gap-2">
+              <div ref={categoriesRef} className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {categories.map((c) => (
                   <button
                     key={c.id}
                     type="button"
                     aria-pressed={categoryId === c.id}
                     onClick={() => setCategoryId(c.id)}
-                    className={chip(categoryId === c.id)}
+                    className={`${chip(categoryId === c.id)} w-full text-left leading-tight py-2`}
                   >
                     {c.name}
                   </button>
@@ -438,73 +494,38 @@ export function ExpenseFormModal({
               </div>
             </fieldset>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor={`${titleId}-date`} className={fieldLabel}>
-                  Fecha del pago
-                </label>
-                <input
-                  id={`${titleId}-date`}
-                  ref={dateRef}
-                  type="date"
-                  value={date}
-                  max={getLocalDateISO()}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full rounded-xl studio-field px-3.5 py-2.5 text-sm text-white"
-                />
-              </div>
-              <div>
-                <label htmlFor={`${titleId}-concept`} className={fieldLabel}>
-                  Concepto <span className="text-slate-400 font-normal">(opcional)</span>
-                </label>
-                <input
-                  id={`${titleId}-concept`}
-                  type="text"
-                  value={concept}
-                  onChange={(e) => setConcept(e.target.value)}
-                  placeholder={category?.name ?? 'Ej. Tatamis nuevos'}
-                  className="w-full rounded-xl studio-field px-3.5 py-2.5 text-sm text-white"
-                />
-              </div>
+            <div>
+              <label htmlFor={`${titleId}-concept`} className={fieldLabel}>
+                Concepto <span className="text-slate-400 font-normal">(opcional)</span>
+              </label>
+              <input
+                id={`${titleId}-concept`}
+                type="text"
+                value={concept}
+                onChange={(e) => setConcept(e.target.value)}
+                placeholder={category?.name ?? 'Ej. Tatamis nuevos'}
+                className="w-full rounded-xl studio-field px-3.5 py-2.5 text-sm text-white"
+              />
             </div>
 
             <fieldset>
               <legend className={fieldLabel}>
                 Cómo se pagó <span className="text-slate-400 font-normal">(opcional)</span>
               </legend>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {EXPENSE_METHODS.map((m) => (
                   <button
                     key={m}
                     type="button"
                     aria-pressed={method === m}
                     onClick={() => setMethod(method === m ? null : m)}
-                    className={chip(method === m)}
+                    className={`${chip(method === m)} w-full`}
                   >
                     {m}
                   </button>
                 ))}
               </div>
             </fieldset>
-
-            {target.kind === 'new' && (
-              <label className="flex items-start gap-3 rounded-xl studio-panel-inset border border-white/10 p-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={repeatMonthly}
-                  onChange={(e) => setRepeatMonthly(e.target.checked)}
-                  className="mt-0.5 w-5 h-5 accent-red-600"
-                />
-                <span className="text-sm text-slate-200">
-                  <span className="flex items-center gap-1.5 font-semibold">
-                    <Repeat className="w-4 h-4" aria-hidden /> Se repite cada mes
-                  </span>
-                  <span className="block text-slate-400 mt-0.5">
-                    Gasto fijo (alquiler, seguro…). Cada mes aparecerá pendiente de confirmar.
-                  </span>
-                </span>
-              </label>
-            )}
 
             {editing && fixedTemplate && (
               <label className="flex items-start gap-3 rounded-xl studio-panel-inset border border-white/10 p-3 cursor-pointer">

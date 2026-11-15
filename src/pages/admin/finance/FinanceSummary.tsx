@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import CollapsibleCard from '@/components/CollapsibleCard';
 import { Plus, Info } from 'lucide-react';
 import { formatEURExact, formatMonthLong } from '@/lib/format';
 import { centsToEur } from '@/lib/finance';
@@ -140,10 +141,11 @@ export function FinanceSummary({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Gastos por categoría */}
-        <section aria-labelledby="fin-cats" className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6">
-          <h2 id="fin-cats" className="font-headline text-lg uppercase text-white mb-3">
-            Gastos por categoría
-          </h2>
+        <CollapsibleCard
+          title="Gastos por categoría"
+          meta={byCategory.length > 0 ? `${byCategory.length}` : undefined}
+          className="rounded-3xl studio-panel border border-white/10 self-start"
+        >
           {byCategory.length === 0 ? (
             <p className="text-sm text-slate-400">Sin gastos en {monthName}.</p>
           ) : (
@@ -170,7 +172,7 @@ export function FinanceSummary({
               ))}
             </ul>
           )}
-        </section>
+        </CollapsibleCard>
 
         <div className="space-y-5">
           {/* Fijos del mes */}
