@@ -1,50 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
-  RefreshCw,
-  CalendarPlus,
-  CalendarClock,
-  Wallet,
-  X,
-  Download,
-} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshCw, CalendarPlus, X, Download, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { exportWorkbook } from '@/lib/excel';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 import { fetchAllRows, getCashMonth, type CashMonth } from '@/lib/finance';
 import { formatEURExact } from '@/lib/format';
 import { PageHeader } from '@/components/PageHeader';
-
-type EffectiveStatus =
-  | 'OK'
-  | 'ADVANCE_OK'
-  | 'FUTURE_UPCOMING'
-  | 'PAST_DUE'
-  | 'NOK_OVERDUE'
-  | 'GRACE_7_DAYS'
-  | 'PENDING';
-
-type PaymentMethod = 'Efectivo' | 'Bizum';
-
-interface PaymentRow {
-  user_id: string;
-  full_name: string;
-  member_status: string;
-  is_founder?: boolean;
-  month_year: string;
-  plan_id: string;
-  plan_name: string;
-  base_price_eur?: number;
-  price_eur: number;
-  recorded_payment_status: 'paid_ok' | 'pending_nok' | null;
-  paid_at: string | null;
-  effective_status: EffectiveStatus;
-  payment_method: string | null;
-  paid_amount_eur: number | null;
-  payment_notes: string | null;
-}
+import { Skeleton } from '@/components/KpiCard';
+import { CollectionsBoard } from './collections/CollectionsBoard';
+import { StudentLedger } from './collections/StudentLedger';
+import {
+  formatMonthLabel,
+  isPaidStatus,
+  isUnpaidOverdue,
+  type EffectiveStatus,
+  type PaymentMethod,
+  type PaymentRow,
+} from './collections/types';
 
 interface StudentLatestPlan {
   user_id: string;
@@ -55,44 +27,10 @@ interface StudentLatestPlan {
   price_eur: number;
 }
 
-const MONTH_NAMES_ES = [
-  'Ene',
-  'Feb',
-  'Mar',
-  'Abr',
-  'May',
-  'Jun',
-  'Jul',
-  'Ago',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dic',
-];
-
-function formatMonthLabel(ym: string): string {
-  const [y, m] = ym.split('-').map(Number);
-  if (!y || !m) return ym;
-  return `${MONTH_NAMES_ES[m - 1]} ${y}`;
-}
-
 function addMonths(ym: string, offset: number): string {
   const [y, m] = ym.split('-').map(Number);
   const d = new Date(y, m - 1 + offset, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function isUnpaidOverdue(status: EffectiveStatus): boolean {
-  return (
-    status === 'PAST_DUE' ||
-    status === 'NOK_OVERDUE' ||
-    status === 'GRACE_7_DAYS' ||
-    status === 'PENDING'
-  );
-}
-
-function isPaidStatus(status: EffectiveStatus): boolean {
-  return status === 'OK' || status === 'ADVANCE_OK';
 }
 
 export function AdminTrackingPage() {
@@ -102,8 +40,10 @@ export function AdminTrackingPage() {
     const m = new URLSearchParams(window.location.search).get('mes');
     return m && /^\d{4}-(0[1-9]|1[0-2])$/.test(m) ? m : currentMonth;
   });
-  const [tab, setTab] = useState<'person' | 'product'>('person');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'future'>('all');
+  // Ficha del alumno abierta, alumno con un cobro en curso y aviso tras cobrar (con "Deshacer")
+  const [ledgerUserId, setLedgerUserId] = useState<string | null>(null);
+  const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; undo?: PaymentRow } | null>(null);
 
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [allMemberStatuses, setAllMemberStatuses] = useState<PaymentRow[]>([]);
@@ -188,31 +128,16 @@ export function AdminTrackingPage() {
     loadTracking();
   }, [loadTracking]);
 
-  // Resumen por alumno de facturas pendientes y cobertura futura
-  const studentSummaryMap = useMemo(() => {
-    const summary: Record<string, { overdueCount: number; maxAdvanceMonth: string | null }> = {};
-    for (const r of allMemberStatuses) {
-      if (!summary[r.user_id]) {
-        summary[r.user_id] = { overdueCount: 0, maxAdvanceMonth: null };
-      }
-      if (isUnpaidOverdue(r.effective_status) && r.month_year <= currentMonth) {
-        summary[r.user_id].overdueCount += 1;
-      }
-      if (r.effective_status === 'ADVANCE_OK') {
-        const prev = summary[r.user_id].maxAdvanceMonth;
-        if (!prev || r.month_year > prev) {
-          summary[r.user_id].maxAdvanceMonth = r.month_year;
-        }
-      }
-    }
-    return summary;
-  }, [allMemberStatuses, currentMonth]);
+  const toastTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+  }, []);
 
   const markSinglePayment = async (
     row: PaymentRow,
     status: 'paid_ok' | 'pending_nok',
     method?: PaymentMethod
-  ) => {
+  ): Promise<boolean> => {
     setActionError(null);
     const { error } =
       status === 'paid_ok'
@@ -240,6 +165,27 @@ export function AdminTrackingPage() {
       );
     }
     await loadTracking();
+    return !error;
+  };
+
+  const showToast = (text: string, undo?: PaymentRow) => {
+    setToast({ text, undo });
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 7000);
+  };
+
+  const handleCharge = async (row: PaymentRow, method: PaymentMethod) => {
+    setBusyUserId(row.user_id);
+    const ok = await markSinglePayment(row, 'paid_ok', method);
+    setBusyUserId(null);
+    if (ok) showToast(`Cobrado: ${row.full_name} · ${formatEURExact(Number(row.price_eur || 0))} por ${method}`, row);
+  };
+
+  const handleUndo = async (row: PaymentRow) => {
+    setBusyUserId(row.user_id);
+    const ok = await markSinglePayment(row, 'pending_nok');
+    setBusyUserId(null);
+    if (ok) showToast(`Cobro deshecho: ${row.full_name}`);
   };
 
   const generateMonthFromPrevious = async () => {
@@ -474,13 +420,6 @@ export function AdminTrackingPage() {
   };
 
   // --- Cálculos de resumen y filtrado ---
-  const filteredRows = useMemo(() => {
-    if (statusFilter === 'all') return rows;
-    if (statusFilter === 'pending') return rows.filter((r) => isUnpaidOverdue(r.effective_status));
-    if (statusFilter === 'paid') return rows.filter((r) => isPaidStatus(r.effective_status));
-    return rows.filter((r) => r.effective_status === 'FUTURE_UPCOMING');
-  }, [rows, statusFilter]);
-
   const monthQuotaPaidTotal = rows
     .filter((r) => isPaidStatus(r.effective_status))
     .reduce((sum, r) => sum + Number(r.paid_amount_eur ?? r.price_eur ?? 0), 0);
@@ -503,48 +442,6 @@ export function AdminTrackingPage() {
     {}
   );
 
-  const badgeFor = (status: EffectiveStatus) => {
-    switch (status) {
-      case 'OK':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Pago OK
-          </span>
-        );
-      case 'ADVANCE_OK':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-500/15 text-teal-300">
-            <CalendarPlus className="w-3.5 h-3.5" /> Pago adelantado
-          </span>
-        );
-      case 'FUTURE_UPCOMING':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-500/20 text-slate-300">
-            <CalendarClock className="w-3.5 h-3.5" /> Próximo vencimiento
-          </span>
-        );
-      case 'NOK_OVERDUE':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-studio-red/20 text-red-300">
-            <AlertTriangle className="w-3.5 h-3.5" /> Cuota pendiente (+7d)
-          </span>
-        );
-      case 'GRACE_7_DAYS':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/15 text-sky-300">
-            <Clock className="w-3.5 h-3.5" /> En plazo 7 días
-          </span>
-        );
-      case 'PAST_DUE':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300">
-            <AlertTriangle className="w-3.5 h-3.5" /> Cuota pendiente
-          </span>
-        );
-    }
-  };
-
   const handleExportExcel = () => {
     const statusLabel = (s: EffectiveStatus) => {
       if (s === 'OK') return 'Pagado';
@@ -555,7 +452,7 @@ export function AdminTrackingPage() {
       return 'Pendiente';
     };
 
-    const detailRows = filteredRows.map((r) => ({
+    const detailRows = rows.map((r) => ({
       Alumno: r.full_name,
       Mes: r.month_year,
       Tarifa: r.plan_name,
@@ -585,8 +482,8 @@ export function AdminTrackingPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Seguimiento"
-        subtitle={<>Cuotas pendientes, próximos vencimientos, pagos adelantados y lo cobrado en el mes (Efectivo / Bizum).</>}
+        title="Cobros"
+        subtitle={<>Busca a un alumno para cobrarle, o trabaja la lista de pendientes por urgencia.</>}
         actions={
           <>
             <div className="flex flex-wrap items-center gap-2">
@@ -599,7 +496,7 @@ export function AdminTrackingPage() {
               <button
                 type="button"
                 onClick={handleExportExcel}
-                disabled={filteredRows.length === 0}
+                disabled={rows.length === 0}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] hover:bg-white/10 disabled:opacity-50 px-3 py-2 text-xs font-medium text-slate-200"
               >
                 <Download className="w-3.5 h-3.5 text-emerald-400" />
@@ -639,215 +536,67 @@ export function AdminTrackingPage() {
         </div>
       )}
 
-      {/* Resumen económico del mes vs Caja real */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-2xl studio-panel border border-white/10 p-4">
-          <p className="text-xs uppercase tracking-wider text-slate-400">
-            Cuotas de {formatMonthLabel(monthYear)}
-          </p>
-          <p className="mt-1 font-headline text-2xl text-emerald-400">
-            {formatEURExact(monthQuotaPaidTotal)}
-          </p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {rows.filter((r) => isPaidStatus(r.effective_status)).length} de {rows.length} alumnos cubiertos
-          </p>
-        </div>
-
-        <div className="rounded-2xl studio-panel border border-white/10 p-4">
-          <p className="text-xs uppercase tracking-wider text-slate-400">
-            Cuotas pendientes ({formatMonthLabel(monthYear)})
-          </p>
-          <p className="mt-1 font-headline text-2xl text-amber-300">
-            {formatEURExact(monthPendingTotal)}
-          </p>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {rows.filter((r) => isUnpaidOverdue(r.effective_status)).length} alumnos por cobrar
-          </p>
-        </div>
-
-        <div className="rounded-2xl studio-panel border border-white/10 p-4">
-          <div className="flex items-center justify-between text-xs uppercase tracking-wider text-slate-400">
-            <span>Cobrado en {formatMonthLabel(monthYear)}</span>
-            <Wallet className="w-4 h-4 text-sky-400" />
-          </div>
-          {cashError ? (
-            <p className="mt-2 text-sm text-amber-200">
-              No se ha podido calcular lo cobrado. Revisa la conexión y recarga.
-            </p>
-          ) : !cashMonth ? (
-            <p className="mt-1 font-headline text-2xl text-slate-500" aria-label="Cargando">…</p>
-          ) : (
-            <>
-              <p className="mt-1 font-headline text-2xl text-white">{formatEURExact(cashMonth.total)}</p>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Bizum: {formatEURExact(cashMonth.bizum)} · Efectivo: {formatEURExact(cashMonth.cash)}
-                {cashMonth.other > 0 ? ` · Otros: ${formatEURExact(cashMonth.other)}` : ''}
-              </p>
-              {cashMonth.advance > 0 && (
-                <p className="text-xs text-sky-300 mt-0.5">
-                  {formatEURExact(cashMonth.advance)} son cuotas de meses siguientes
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs Por Persona / Por Producto */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setTab('person')}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
-              tab === 'person'
-                ? 'bg-studio-cream text-slate-950'
-                : 'bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08]'
-            }`}
-          >
-            Por Persona ({rows.length})
-          </button>
-          <button
-            onClick={() => setTab('product')}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
-              tab === 'product'
-                ? 'bg-studio-cream text-slate-950'
-                : 'bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08]'
-            }`}
-          >
-            Por Producto / Tarifa
-          </button>
-        </div>
-
-        {tab === 'person' && (
-          <div className="flex flex-wrap gap-1.5 text-xs">
-            {[
-              { id: 'all', label: 'Todos' },
-              { id: 'pending', label: 'Cuotas pendientes' },
-              { id: 'paid', label: 'OK / Adelantados' },
-              { id: 'future', label: 'Próximo vencimiento' },
-            ].map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setStatusFilter(f.id as typeof statusFilter)}
-                className={`px-3 py-1.5 rounded-lg font-medium transition ${
-                  statusFilter === f.id
-                    ? 'bg-white/15 text-white'
-                    : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08]'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
       {loading ? (
-        <p className="text-sm text-slate-400">Cargando seguimiento...</p>
-      ) : tab === 'person' ? (
-        <div className="rounded-2xl studio-panel border border-white/10 overflow-hidden">
-          {filteredRows.length === 0 ? (
-            <p className="p-6 text-sm text-slate-400">
-              No hay registros en {formatMonthLabel(monthYear)} para este filtro. Puedes usar
-              &quot;Generar mes&quot; o &quot;Cobrar varios meses&quot;.
-            </p>
-          ) : (
-            <div className="divide-y divide-white/5">
-              {filteredRows.map((r) => {
-                const paid = isPaidStatus(r.effective_status);
-                const info = studentSummaryMap[r.user_id];
-                const shownPrice =
-                  paid && r.paid_amount_eur != null ? Number(r.paid_amount_eur) : Number(r.price_eur);
-
-                return (
-                  <div
-                    key={r.user_id}
-                    className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
-                  >
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-white">{r.full_name}</p>
-                        {r.is_founder && (
-                          <span
-                            title="Socio Fundador (-10%)"
-                            className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-400/30"
-                          >
-                            SF
-                          </span>
-                        )}
-                        {info && info.overdueCount > 1 && (
-                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-studio-red/20 text-red-300">
-                            {info.overdueCount} cuotas pendientes
-                          </span>
-                        )}
-                        {info?.maxAdvanceMonth && (
-                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teal-500/15 text-teal-300">
-                            Cubierto hasta {formatMonthLabel(info.maxAdvanceMonth)}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {r.plan_name} · {shownPrice.toFixed(2).replace(/\.00$/, '')} €
-                        {paid && r.payment_method ? ` · ${r.payment_method}` : ''}
-                        {r.payment_notes ? ` · ${r.payment_notes}` : ''}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {badgeFor(r.effective_status)}
-
-                      {paid ? (
-                        <button
-                          onClick={() => markSinglePayment(r, 'pending_nok')}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-slate-300 hover:bg-white/10 transition"
-                        >
-                          Deshacer pago
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => markSinglePayment(r, 'paid_ok', 'Bizum')}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition"
-                          >
-                            Bizum
-                          </button>
-                          <button
-                            onClick={() => markSinglePayment(r, 'paid_ok', 'Efectivo')}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-700 hover:bg-emerald-600 text-white transition"
-                          >
-                            Efectivo
-                          </button>
-                        </>
-                      )}
-
-                      <button
-                        onClick={() => openMultiModal(r.user_id)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-slate-200 hover:bg-white/10 transition"
-                      >
-                        Varios meses
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        <div className="space-y-4" aria-busy="true" aria-label="Cargando cobros">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-12 w-full" />
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Object.entries(byProduct).map(([planName, stats]) => (
-            <div key={planName} className="rounded-2xl studio-panel border border-white/10 p-5">
-              <h3 className="font-headline text-xl uppercase text-white">{planName}</h3>
-              <div className="mt-3 flex items-baseline justify-between">
-                <span className="text-sm text-slate-300">
-                  {stats.paid} de {stats.count} alumnos cubiertos
-                </span>
-                <span className="font-headline text-2xl text-emerald-400">
-                  {stats.amount.toFixed(0)} €
-                </span>
-              </div>
-            </div>
-          ))}
+        <CollectionsBoard
+          rows={rows}
+          allRows={allMemberStatuses}
+          month={monthYear}
+          currentMonth={currentMonth}
+          cash={cashMonth}
+          cashError={cashError}
+          busyUserId={busyUserId}
+          onCharge={handleCharge}
+          onUndo={handleUndo}
+          onMultiple={(uid) => {
+            setLedgerUserId(null);
+            openMultiModal(uid);
+          }}
+          onOpenLedger={setLedgerUserId}
+        />
+      )}
+
+      {ledgerUserId && (
+        <StudentLedger
+          userId={ledgerUserId}
+          allRows={allMemberStatuses}
+          currentMonth={currentMonth}
+          onClose={() => setLedgerUserId(null)}
+          onMultiple={(uid) => {
+            setLedgerUserId(null);
+            openMultiModal(uid);
+          }}
+        />
+      )}
+
+      {/* Aviso tras cobrar, con deshacer; región viva siempre montada */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {toast?.text ?? ''}
+      </p>
+      {toast && (
+        <div className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 rounded-full bg-emerald-700 border border-emerald-400/40 shadow-modal pl-4 pr-1.5 py-1.5 text-sm font-semibold text-white max-w-[calc(100vw-2rem)]">
+          <Check className="w-4 h-4 shrink-0" aria-hidden />
+          <span className="truncate" aria-hidden="true">{toast.text}</span>
+          {toast.undo && (
+            <button
+              type="button"
+              onClick={() => {
+                const row = toast.undo!;
+                setToast(null);
+                void handleUndo(row);
+              }}
+              className="min-h-[40px] shrink-0 rounded-full bg-white/15 hover:bg-white/25 px-4 text-sm font-semibold"
+            >
+              Deshacer
+            </button>
+          )}
         </div>
       )}
 
