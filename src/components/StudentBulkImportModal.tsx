@@ -145,12 +145,13 @@ const PLAN_ALIASES: Record<string, string> = {
 };
 
 function resolvePlanMatch(rawPlan: string, plans: ImportPlanOption[]): ImportPlanOption | undefined {
-  const norm = normalizePlanText(rawPlan);
+  const cleaned = rawPlan.trim().replace(/(?:\s*[_-]\s*fam|\s+fam)$/i, '');
+  const norm = normalizePlanText(cleaned);
   if (!norm) return undefined;
 
   // 1. Por product_code exacto (ej. 247s_01)
   const byCode = plans.find(
-    (p) => p.product_code && p.product_code.trim().toLowerCase() === rawPlan.trim().toLowerCase()
+    (p) => p.product_code && p.product_code.trim().toLowerCase() === cleaned.toLowerCase()
   );
   if (byCode) return byCode;
 
