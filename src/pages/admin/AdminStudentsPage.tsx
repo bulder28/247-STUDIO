@@ -35,6 +35,7 @@ interface Plan {
   id: string;
   name: string;
   price_eur: number;
+  sf_price_eur?: number | null;
   plan_disciplines?: { discipline_id: string }[];
 }
 
@@ -418,7 +419,7 @@ export function AdminStudentsPage() {
         Cinturon: p.belt ?? 'Sin cinturón',
         Grados: p.belt_stripes ?? 0,
         Tarifa_mes: plan ? plan.name : 'Sin tarifa',
-        Cuota_EUR: plan ? getEffectivePlanPrice(plan.price_eur, p.is_founder) : 0,
+        Cuota_EUR: plan ? getEffectivePlanPrice(plan.price_eur, p.is_founder, plan.sf_price_eur) : 0,
         Socio_fundador: p.is_founder ? 'Sí' : 'No',
         Documentos: docs.isComplete ? 'Al día' : `Pendientes (${docs.pending.length})`,
       };
@@ -1050,7 +1051,7 @@ export function AdminStudentsPage() {
                 >
                   <option value="">— Sin tarifa —</option>
                   {plans.map((pl) => {
-                    const effective = getEffectivePlanPrice(pl.price_eur, selected.is_founder);
+                    const effective = getEffectivePlanPrice(pl.price_eur, selected.is_founder, pl.sf_price_eur);
                     return (
                       <option key={pl.id} value={pl.id}>
                         {pl.name} ({effective} €{selected.is_founder ? ' · SF -10%' : ''})
@@ -1387,7 +1388,7 @@ export function AdminStudentsPage() {
                 >
                   <option value="">— Asignar más tarde —</option>
                   {plans.map((pl) => {
-                    const effective = getEffectivePlanPrice(pl.price_eur, newIsFounder);
+                    const effective = getEffectivePlanPrice(pl.price_eur, newIsFounder, pl.sf_price_eur);
                     return (
                       <option key={pl.id} value={pl.id}>
                         {pl.name} ({effective} €{newIsFounder ? ' · SF -10%' : ''})

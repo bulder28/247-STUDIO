@@ -20,6 +20,9 @@ export interface PaymentRow {
   plan_name: string;
   base_price_eur?: number;
   price_eur: number;
+  sf_price_eur?: number | null;
+  family_price_eur?: number | null;
+  product_code?: string | null;
   recorded_payment_status: 'paid_ok' | 'pending_nok' | null;
   paid_at: string | null;
   first_attendance_in_month?: string | null;

@@ -159,7 +159,7 @@ export function CollectionsBoard({
             {r.is_founder && <span className="text-xs text-amber-300">Socio fundador</span>}
             {r.payment_notes?.toLowerCase().includes('familiar') && (
               <span className="text-[10px] uppercase font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-md">
-                Familiar (-10%)
+                Familiar
               </span>
             )}
             {due && due.length > 0 && (

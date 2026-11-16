@@ -10,6 +10,8 @@ interface Plan {
   id: string;
   name: string;
   price_eur: number;
+  sf_price_eur?: number | null;
+  family_price_eur?: number | null;
   promo_text: string | null;
   is_class_pack: boolean;
   pack_credits: number | null;
@@ -17,7 +19,8 @@ interface Plan {
 
 function PriceRow({ plan, isFounder }: { plan: Plan; isFounder: boolean }) {
   const basePrice = Number(plan.price_eur);
-  const sfPrice = getFounderPrice(basePrice);
+  const sfPrice = getFounderPrice(basePrice, plan.sf_price_eur);
+  const hasDiscount = isFounder && sfPrice < basePrice;
   return (
     <li className="group py-4 first:pt-0 last:pb-0">
       <div className="flex items-baseline gap-3">
@@ -26,12 +29,12 @@ function PriceRow({ plan, isFounder }: { plan: Plan; isFounder: boolean }) {
         </h3>
         <span className="studio-leader" aria-hidden />
         <p className="font-headline text-3xl sm:text-4xl leading-none tabular-nums text-studio-cream shrink-0">
-          {isFounder && (
+          {hasDiscount && (
             <span className="text-base text-slate-500 line-through mr-2 align-middle">
               {basePrice.toFixed(0)} €
             </span>
           )}
-          {isFounder ? sfPrice : basePrice.toFixed(0)}
+          {hasDiscount ? sfPrice : basePrice.toFixed(0)}
           <span className="text-lg ml-1">€</span>
         </p>
       </div>
@@ -63,8 +66,9 @@ export function ClientPlansPage() {
       .then(({ data }) => setPlans((data as Plan[]) ?? []));
   }, []);
 
-  const monthly = (plans ?? []).filter((p) => !p.is_class_pack);
-  const packs = (plans ?? []).filter((p) => p.is_class_pack);
+  const visiblePlans = (plans ?? []).filter((p) => Number(p.price_eur) > 0);
+  const monthly = visiblePlans.filter((p) => !p.is_class_pack);
+  const packs = visiblePlans.filter((p) => p.is_class_pack);
 
   return (
     <div className="space-y-8">

@@ -11,8 +11,11 @@ interface Discipline {
 
 interface Plan {
   id: string;
+  product_code?: string | null;
   name: string;
   price_eur: number;
+  sf_price_eur?: number | null;
+  family_price_eur?: number | null;
   is_class_pack: boolean;
   pack_credits: number | null;
   promo_text: string | null;
@@ -25,6 +28,8 @@ export function AdminPlansPage() {
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [sfPrice, setSfPrice] = useState('');
+  const [familyPrice, setFamilyPrice] = useState('');
   const [promo, setPromo] = useState('');
   const [isClassPack, setIsClassPack] = useState(false);
   const [packCredits, setPackCredits] = useState('1');
@@ -64,6 +69,8 @@ export function AdminPlansPage() {
       .insert({
         name: name.trim(),
         price_eur: Number(price),
+        sf_price_eur: sfPrice !== '' ? Number(sfPrice) : null,
+        family_price_eur: familyPrice !== '' ? Number(familyPrice) : null,
         promo_text: promo.trim() || null,
         is_class_pack: isClassPack,
         pack_credits: isClassPack ? Number(packCredits) : null,
@@ -90,6 +97,8 @@ export function AdminPlansPage() {
 
       setName('');
       setPrice('');
+      setSfPrice('');
+      setFamilyPrice('');
       setPromo('');
       setIsClassPack(false);
       setSelectedDisciplines([]);
@@ -137,19 +146,19 @@ export function AdminPlansPage() {
           Nueva Tarifa / Programa
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs text-slate-400 uppercase mb-1">Nombre tarifa</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ej. BJJ & Grappling + MMA"
+              placeholder="Ej. BJJ Gi | NoGi + MMA"
               required
               className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 uppercase mb-1">Precio (€)</label>
+            <label className="block text-xs text-slate-400 uppercase mb-1">PVP STD (€)</label>
             <input
               type="number"
               step="0.01"
@@ -159,13 +168,30 @@ export function AdminPlansPage() {
               required
               className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
             />
-            {price && Number(price) > 0 && (
-              <p className="text-[11px] text-amber-300 mt-1">
-                Socio Fundador (SF -10%): {getFounderPrice(Number(price))} €
-              </p>
-            )}
           </div>
           <div>
+            <label className="block text-xs text-slate-400 uppercase mb-1">PVP SF (€ opcional)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={sfPrice}
+              onChange={(e) => setSfPrice(e.target.value)}
+              placeholder={price ? String(getFounderPrice(Number(price))) : '62'}
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 uppercase mb-1">PVP FAM (€ opcional)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={familyPrice}
+              onChange={(e) => setFamilyPrice(e.target.value)}
+              placeholder="62 (vacío si no aplica)"
+              className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+            />
+          </div>
+          <div className="md:col-span-4">
             <label className="block text-xs text-slate-400 uppercase mb-1">Oferta (opcional)</label>
             <input
               value={promo}
@@ -263,18 +289,34 @@ export function AdminPlansPage() {
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-headline text-xl text-white uppercase">{plan.name}</h3>
+                    <div className="flex items-center gap-2">
+                      {plan.product_code && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-slate-300">
+                          {plan.product_code}
+                        </span>
+                      )}
+                      <h3 className="font-headline text-xl text-white uppercase">{plan.name}</h3>
+                    </div>
                     {plan.promo_text && (
                       <p className="text-xs text-amber-300 mt-0.5">{plan.promo_text}</p>
                     )}
                   </div>
                   <div className="text-right shrink-0">
                     <span className="font-headline text-2xl text-studio-red">
-                      {Number(plan.price_eur).toFixed(0)} €
+                      {Number(plan.price_eur) > 0 ? `${Number(plan.price_eur).toFixed(0)} €` : 'Variable'}
                     </span>
-                    <p className="text-[11px] text-amber-300 font-semibold">
-                      SF: {getFounderPrice(Number(plan.price_eur))} €
-                    </p>
+                    {Number(plan.price_eur) > 0 && (
+                      <div className="text-[11px] space-y-0.5 mt-0.5">
+                        <p className="text-amber-300 font-semibold">
+                          SF: {getFounderPrice(Number(plan.price_eur), plan.sf_price_eur)} €
+                        </p>
+                        {plan.family_price_eur !== null && plan.family_price_eur !== undefined && (
+                          <p className="text-emerald-300 font-semibold">
+                            FAM: {Number(plan.family_price_eur).toFixed(0)} €
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-3">

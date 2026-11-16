@@ -26,6 +26,8 @@ interface StudentLatestPlan {
   plan_id: string;
   plan_name: string;
   price_eur: number;
+  sf_price_eur?: number | null;
+  family_price_eur?: number | null;
 }
 
 interface QuickChargeState {
@@ -132,6 +134,8 @@ export function AdminTrackingPage() {
         plan_id: r.plan_id,
         plan_name: r.plan_name,
         price_eur: Number(r.price_eur || 0),
+        sf_price_eur: r.sf_price_eur,
+        family_price_eur: r.family_price_eur,
       });
     }
     setStudentsCatalog(
@@ -237,7 +241,7 @@ export function AdminTrackingPage() {
     setSubmittingQuickCharge(true);
     setQuickChargeError(null);
 
-    const discountTag = applyFamilyDiscount ? 'Descuento familiar (-10%)' : '';
+    const discountTag = applyFamilyDiscount ? 'Descuento familiar' : '';
     const finalNotes = notes.trim()
       ? discountTag
         ? `${discountTag} · ${notes.trim()}`
@@ -385,7 +389,7 @@ export function AdminTrackingPage() {
   useEffect(() => {
     if (!modalOpen || customAmountTouched || !selectedStudent) return;
     const unitPrice = multiFamilyDiscount
-      ? getFamilyDiscountPrice(selectedStudent.price_eur)
+      ? getFamilyDiscountPrice(selectedStudent.price_eur, selectedStudent.family_price_eur)
       : Number(selectedStudent.price_eur || 0);
     const total = selectedMonths.length * unitPrice;
     setTotalAmountInput(total > 0 ? total.toFixed(2) : '');
@@ -481,7 +485,7 @@ export function AdminTrackingPage() {
           ? new Date().toISOString()
           : new Date(`${paidDate}T12:00:00`).toISOString();
 
-      const discountTag = multiFamilyDiscount ? 'Descuento familiar (-10%)' : '';
+      const discountTag = multiFamilyDiscount ? 'Descuento familiar' : '';
       const autoNote =
         n > 1
           ? `Cobro múltiple (${n} meses: ${formatMonthLabel(sortedMonths[0])} – ${formatMonthLabel(
@@ -866,16 +870,27 @@ export function AdminTrackingPage() {
                   <Users className="w-4 h-4 text-emerald-400 shrink-0" />
                   <div>
                     <span className="text-xs font-semibold text-emerald-300 block">
-                      Descuento por familiar (-10%)
+                      Descuento por familiar
                     </span>
                     <span className="text-[11px] text-slate-400 block">
-                      Aplica un 10 % de descuento en cada mensualidad seleccionada
-                      {selectedStudent && (
+                      {selectedStudent?.family_price_eur === null ? (
+                        'Esta tarifa no tiene PVP familiar predefinido (puedes ajustar el importe manualmente)'
+                      ) : (
                         <>
-                          {' '}({formatEURExact(Number(selectedStudent.price_eur || 0))} &rarr;{' '}
-                          <strong className="text-white">
-                            {formatEURExact(getFamilyDiscountPrice(Number(selectedStudent.price_eur || 0)))}
-                          </strong>/mes)
+                          Aplica la tarifa familiar en cada mensualidad seleccionada
+                          {selectedStudent && (
+                            <>
+                              {' '}({formatEURExact(Number(selectedStudent.price_eur || 0))} &rarr;{' '}
+                              <strong className="text-white">
+                                {formatEURExact(
+                                  getFamilyDiscountPrice(
+                                    Number(selectedStudent.price_eur || 0),
+                                    selectedStudent.family_price_eur
+                                  )
+                                )}
+                              </strong>/mes)
+                            </>
+                          )}
                         </>
                       )}
                     </span>
@@ -1042,13 +1057,24 @@ export function AdminTrackingPage() {
                 <Users className="w-4 h-4 text-emerald-400 shrink-0" />
                 <div>
                   <span className="text-xs font-semibold text-emerald-300 block">
-                    Descuento por familiar (-10%)
+                    Descuento por familiar
                   </span>
                   <span className="text-[11px] text-slate-400 block">
-                    Reduce la cuota de {formatEURExact(Number(quickCharge.row.price_eur || 0))} a{' '}
-                    <strong className="text-white">
-                      {formatEURExact(getFamilyDiscountPrice(Number(quickCharge.row.price_eur || 0)))}
-                    </strong>
+                    {quickCharge.row.family_price_eur === null ? (
+                      'Esta tarifa no tiene PVP familiar predefinido (ajusta el importe si aplica)'
+                    ) : (
+                      <>
+                        Aplica tarifa familiar de {formatEURExact(Number(quickCharge.row.price_eur || 0))} a{' '}
+                        <strong className="text-white">
+                          {formatEURExact(
+                            getFamilyDiscountPrice(
+                              Number(quickCharge.row.price_eur || 0),
+                              quickCharge.row.family_price_eur
+                            )
+                          )}
+                        </strong>
+                      </>
+                    )}
                   </span>
                 </div>
               </div>
@@ -1058,7 +1084,10 @@ export function AdminTrackingPage() {
                 onChange={(e) => {
                   const checked = e.target.checked;
                   const newAmount = checked
-                    ? getFamilyDiscountPrice(Number(quickCharge.row.price_eur || 0))
+                    ? getFamilyDiscountPrice(
+                        Number(quickCharge.row.price_eur || 0),
+                        quickCharge.row.family_price_eur
+                      )
                     : Number(quickCharge.row.price_eur || 0);
                   setQuickCharge({
                     ...quickCharge,
