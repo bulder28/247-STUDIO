@@ -344,9 +344,11 @@ export function StudentBulkImportModal({
 
         const rawNameCell = getStr(row, 'nombre_apellidos', 'nombre', 'full_name', 'alumno');
         const parsedName = splitNameAndAlias(rawNameCell);
-        const fullName = parsedName.fullName;
+        const rawLastName = getStr(row, 'apellidos', 'apellido', 'last_name');
+        const parsedLast = splitNameAndAlias(rawLastName);
+        const fullName = [parsedName.fullName, parsedLast.fullName].filter(Boolean).join(' ').trim();
         const explicitAlias = getStr(row, 'alias', 'apodo');
-        const alias = explicitAlias || parsedName.alias;
+        const alias = explicitAlias || parsedName.alias || parsedLast.alias;
         const rawEmail = getStr(row, 'email', 'correo').toLowerCase();
         const phone = getStr(row, 'telefono', 'phone', 'movil');
         const rawBirth = row['fecha_nacimiento'] ?? row['birth_date'] ?? '';
