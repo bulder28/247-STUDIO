@@ -30,6 +30,7 @@ interface StudentBulkImportModalProps {
 interface ParsedStudentRow {
   rowNumber: number;
   fullName: string;
+  alias: string | null;
   email: string;
   emailProvisional: boolean;
   phone: string;
@@ -164,6 +165,13 @@ function resolvePlanMatch(rawPlan: string, plans: ImportPlanOption[]): ImportPla
   // 3. Coincidencia parcial única si el cliente escribió abreviado
   const partial = plans.filter((p) => normalizePlanText(p.name).includes(norm));
   return partial.length === 1 ? partial[0] : undefined;
+}
+
+function splitNameAndAlias(rawName: string): { fullName: string; alias: string | null } {
+  const matches = [...rawName.matchAll(/\(([^)]+)\)/g)];
+  const alias = matches.map((m) => m[1].trim()).filter(Boolean).join(' ') || null;
+  const fullName = rawName.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  return { fullName, alias };
 }
 
 function buildProvisionalEmail(
@@ -334,7 +342,11 @@ export function StudentBulkImportModal({
         const rowNumber = idx + 2;
         const errors: string[] = [];
 
-        const fullName = getStr(row, 'nombre_apellidos', 'nombre', 'full_name', 'alumno');
+        const rawNameCell = getStr(row, 'nombre_apellidos', 'nombre', 'full_name', 'alumno');
+        const parsedName = splitNameAndAlias(rawNameCell);
+        const fullName = parsedName.fullName;
+        const explicitAlias = getStr(row, 'alias', 'apodo');
+        const alias = explicitAlias || parsedName.alias;
         const rawEmail = getStr(row, 'email', 'correo').toLowerCase();
         const phone = getStr(row, 'telefono', 'phone', 'movil');
         const rawBirth = row['fecha_nacimiento'] ?? row['birth_date'] ?? '';
@@ -400,6 +412,7 @@ export function StudentBulkImportModal({
         return {
           rowNumber,
           fullName,
+          alias,
           email,
           emailProvisional,
           phone,
@@ -447,6 +460,7 @@ export function StudentBulkImportModal({
           body: {
             email: r.email,
             full_name: r.fullName,
+            alias: r.alias,
             phone: r.phone,
             birth_date: r.birthDate,
             belt: r.belt,
@@ -477,6 +491,9 @@ export function StudentBulkImportModal({
             Detalle: data?.error ?? error?.message ?? 'Error al crear alumno',
           });
         } else {
+          if (r.alias && data?.user_id) {
+            await supabase.from('profiles').update({ alias: r.alias }).eq('id', data.user_id);
+          }
           out.push({
             Fila: r.rowNumber,
             Nombre: r.fullName,
@@ -674,8 +691,20 @@ export function StudentBulkImportModal({
                     {parsedRows.map((r) => (
                       <tr key={r.rowNumber} className="hover:bg-white/[0.02]">
                         <td className="px-3 py-2 text-slate-400">{r.rowNumber}</td>
-                        <td className="px-3 py-2 text-white font-medium">{r.fullName || '—'}</td>
-                        <td className="px-3 py-2 text-slate-300">{r.email || '—'}</td>
+                        <td className="px-3 py-2 text-white font-medium">
+                          <span>{r.fullName || '—'}</span>
+                          {r.alias && (
+                            <span className="ml-1.5 text-[11px] text-amber-300 font-normal">
+                              «{r.alias}»
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-slate-300">
+                          {r.email || '—'}
+                          {r.emailProvisional && (
+                            <span className="ml-1 text-[10px] text-slate-500">(provisional)</span>
+                          )}
+                        </td>
                         <td className="px-3 py-2 text-slate-300">{r.planName || 'Sin tarifa'}</td>
                         <td className="px-3 py-2">
                           {r.errors.length === 0 ? (

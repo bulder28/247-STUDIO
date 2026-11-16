@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
     const {
       email,
       full_name,
+      alias = null,
       phone,
       birth_date,
       gender = null,
@@ -116,6 +117,7 @@ Deno.serve(async (req) => {
       id: newUserId,
       email: normalizedEmail,
       full_name: normalizedName,
+      alias: alias ? String(alias).trim() : null,
       phone: phone || null,
       birth_date: birth_date || null,
       gender: gender === 'hombre' || gender === 'mujer' ? gender : null,
