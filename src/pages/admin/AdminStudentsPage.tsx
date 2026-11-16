@@ -321,9 +321,28 @@ export function AdminStudentsPage() {
 
     setCreating(true);
 
+    let resolvedEmail = newEmail.trim().toLowerCase();
+    if (!resolvedEmail) {
+      const existing = new Set(profiles.map((p) => p.email.toLowerCase()));
+      const slug = newName
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '.')
+        .replace(/^\.+|\.+$/g, '') || 'alumno';
+      let candidate = `${slug}@pendiente.247.local`;
+      let counter = 2;
+      while (existing.has(candidate)) {
+        candidate = `${slug}.${counter}@pendiente.247.local`;
+        counter += 1;
+      }
+      resolvedEmail = candidate;
+    }
+
     const { data, error } = await supabase.functions.invoke('create-student', {
       body: {
-        email: newEmail.trim().toLowerCase(),
+        email: resolvedEmail,
         full_name: newName.trim(),
         phone: newPhone.trim(),
         birth_date: newBirthDate || null,
@@ -369,7 +388,7 @@ export function AdminStudentsPage() {
 
     setCreatedCredentials({
       name: newName.trim(),
-      email: newEmail.trim(),
+      email: resolvedEmail,
       tempPassword: data.tempPassword,
     });
     setNewName('');
@@ -1184,14 +1203,13 @@ export function AdminStudentsPage() {
               </div>
               <div>
                 <label className="block text-xs text-slate-400 uppercase mb-1">
-                  Email acceso *
+                  Email acceso (opcional)
                 </label>
                 <input
                   type="email"
-                  required
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="laura@email.com"
+                  placeholder="Vacío = se genera automático"
                   className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
