@@ -20,6 +20,7 @@ import {
   type DocSignature,
   type DocTemplate,
 } from '@/lib/documents';
+import { notifyDocsUpdated } from '@/lib/noticeRead';
 import { PageHeader } from '@/components/PageHeader';
 
 export function ClientProfilePage() {
@@ -169,6 +170,7 @@ export function ClientProfilePage() {
     setHasDrawn(false);
     setFeedback(`Documento "${signingDoc.title}" firmado y guardado.`);
     await loadDocs();
+    notifyDocsUpdated();
   };
 
   const handlePhotoSelected = async (file: File) => {

@@ -74,6 +74,7 @@ interface GymEvent {
   event_type: string;
   event_date: string;
   location: string | null;
+  description: string | null;
 }
 
 interface ActiveSubInfo {
@@ -190,7 +191,7 @@ export function ClientHomePage() {
         supabase.from('fighter_stats').select('*').eq('user_id', user.id).maybeSingle(),
         supabase
           .from('events')
-          .select('id, title, event_type, event_date, location')
+          .select('id, title, event_type, event_date, location, description')
           .eq('is_active', true)
           .gte('event_date', new Date().toISOString())
           .order('event_date')
@@ -744,6 +745,9 @@ export function ClientHomePage() {
                         </span>
                         <p className="text-sm font-semibold text-white truncate">{ev.title}</p>
                         {ev.location && <p className="text-xs text-slate-400 truncate">{ev.location}</p>}
+                        {ev.description && (
+                          <p className="text-xs text-slate-300/90 mt-1 line-clamp-2">{ev.description}</p>
+                        )}
                       </div>
                     </div>
                   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, HelpCircle } from 'lucide-react';
+import { Bell, Calendar, HelpCircle, MapPin } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeader } from '@/components/PageHeader';
@@ -13,6 +13,16 @@ interface Notice {
   created_at: string;
 }
 
+interface GymEventItem {
+  id: string;
+  title: string;
+  event_type: string;
+  event_date: string;
+  location: string | null;
+  description: string | null;
+  created_at: string;
+}
+
 interface FaqItem {
   id: string;
   question: string;
@@ -22,22 +32,36 @@ interface FaqItem {
 export function ClientNoticesPage() {
   const { user } = useAuth();
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [events, setEvents] = useState<GymEventItem[]>([]);
   const [prevSeenAt] = useState<string | null>(() =>
     user?.id ? getNoticesSeenAt(user.id) : null
   );
 
   useEffect(() => {
-    supabase
-      .from('notices')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        const list = (data as Notice[]) ?? [];
-        setNotices(list);
-        if (user?.id) {
-          markNoticesSeen(user.id, list[0]?.created_at);
-        }
-      });
+    Promise.all([
+      supabase.from('notices').select('*').order('created_at', { ascending: false }),
+      supabase
+        .from('events')
+        .select('id, title, event_type, event_date, location, description, created_at')
+        .eq('is_active', true)
+        .gte('event_date', new Date().toISOString())
+        .order('event_date'),
+    ]).then(([noticesRes, eventsRes]) => {
+      const noticeList = (noticesRes.data as Notice[]) ?? [];
+      const eventList = (eventsRes.data as GymEventItem[]) ?? [];
+      setNotices(noticeList);
+      setEvents(eventList);
+
+      if (user?.id) {
+        const latestNotice = noticeList[0]?.created_at ?? '';
+        const latestEvent = eventList.reduce(
+          (max, ev) => (ev.created_at > max ? ev.created_at : max),
+          ''
+        );
+        const latest = latestNotice > latestEvent ? latestNotice : latestEvent;
+        markNoticesSeen(user.id, latest || undefined);
+      }
+    });
   }, [user]);
 
   const personal = notices.filter((n) => n.target_user_id !== null);
@@ -118,6 +142,80 @@ export function ClientNoticesPage() {
           )}
         </section>
       </div>
+
+      {/* Eventos próximos publicados por Dirección */}
+      <section className="rounded-3xl studio-panel border border-white/10 p-6 sm:p-7">
+        <h2 className="text-sm font-semibold text-slate-300 mb-5 flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-studio-red" />
+          Próximos eventos
+          {events.length > 0 && (
+            <span className="ml-auto text-xs font-normal text-slate-500 tabular-nums">
+              {events.length}
+            </span>
+          )}
+        </h2>
+        {events.length === 0 ? (
+          <p className="text-sm text-slate-400">
+            No hay seminarios, competiciones ni eventos próximos publicados.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {events.map((ev) => {
+              const d = new Date(ev.event_date);
+              const dayNum = Number.isNaN(d.getTime()) ? '--' : String(d.getDate()).padStart(2, '0');
+              const monthShort = Number.isNaN(d.getTime())
+                ? ''
+                : d.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+              const timeStr = Number.isNaN(d.getTime())
+                ? ''
+                : d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+              const isUnread = !prevSeenAt || ev.created_at > prevSeenAt;
+              return (
+                <article
+                  key={ev.id}
+                  className="rounded-2xl studio-panel-inset border border-white/10 p-4 flex items-start gap-4 hover:border-studio-red/40 transition"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-studio-red/15 border border-studio-red/35 flex flex-col items-center justify-center shrink-0">
+                    <span className="font-headline text-lg text-white leading-none">{dayNum}</span>
+                    <span className="text-[10px] uppercase font-bold text-studio-red-text leading-tight mt-0.5">
+                      {monthShort}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] text-studio-red-text font-bold uppercase tracking-wider">
+                        {ev.event_type}
+                      </span>
+                      {timeStr && (
+                        <span className="text-[11px] text-slate-500 tabular-nums">{timeStr}</span>
+                      )}
+                      {isUnread && (
+                        <span className="inline-flex items-center rounded-full bg-studio-red/20 border border-studio-red/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-studio-red">
+                          Nuevo
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-headline text-lg uppercase text-white leading-tight">
+                      {ev.title}
+                    </h3>
+                    {ev.location && (
+                      <p className="text-xs text-slate-400 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        <span className="truncate">{ev.location}</span>
+                      </p>
+                    )}
+                    {ev.description && (
+                      <p className="text-sm text-slate-300 leading-relaxed pt-1 whitespace-pre-line">
+                        {ev.description}
+                      </p>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

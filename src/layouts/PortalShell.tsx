@@ -10,6 +10,7 @@ export interface PortalNavItem {
   icon: ComponentType<{ className?: string }>;
   end?: boolean;
   badgeCount?: number;
+  ringBell?: boolean;
 }
 
 /**
@@ -47,7 +48,7 @@ export function PortalShell({
           </div>
 
           <nav className="hidden md:flex items-stretch h-full gap-1" aria-label="Navegación principal">
-            {primaryNav.map(({ to, label, icon: Icon, end, badgeCount }) => {
+            {primaryNav.map(({ to, label, icon: Icon, end, badgeCount, ringBell }) => {
               const hasBadge = (badgeCount ?? 0) > 0;
               return (
                 <NavLink
@@ -67,7 +68,7 @@ export function PortalShell({
                       <span className="relative inline-flex shrink-0">
                         <Icon
                           className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:text-studio-red ${
-                            hasBadge ? 'bell-ring text-studio-cream' : ''
+                            hasBadge && ringBell ? 'bell-ring text-studio-cream' : hasBadge ? 'text-studio-cream' : ''
                           }`}
                         />
                         {hasBadge && (
@@ -139,7 +140,7 @@ export function PortalShell({
         style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
         aria-label="Navegación principal"
       >
-        {primaryNav.map(({ to, label, icon: Icon, end, badgeCount }) => {
+        {primaryNav.map(({ to, label, icon: Icon, end, badgeCount, ringBell }) => {
           const hasBadge = (badgeCount ?? 0) > 0;
           return (
             <NavLink
@@ -160,7 +161,11 @@ export function PortalShell({
                       }`}
                   />
                   <span className="relative inline-flex shrink-0">
-                    <Icon className={`w-5 h-5 ${hasBadge ? 'bell-ring text-studio-cream' : ''}`} />
+                    <Icon
+                      className={`w-5 h-5 ${
+                        hasBadge && ringBell ? 'bell-ring text-studio-cream' : hasBadge ? 'text-studio-cream' : ''
+                      }`}
+                    />
                     {hasBadge && (
                       <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5" aria-hidden>
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-studio-red opacity-80" />
