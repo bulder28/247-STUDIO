@@ -12,6 +12,7 @@ import {
   Upload,
   Download,
   FileWarning,
+  ChevronDown,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { uploadUserAvatar } from '@/lib/imageCompressor';
@@ -82,6 +83,7 @@ export function AdminStudentsPage() {
 
   // Alta nuevo usuario
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showNewAdvanced, setShowNewAdvanced] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -1201,247 +1203,271 @@ export function AdminStudentsPage() {
                   className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-slate-400 uppercase mb-1">
-                  Email acceso (opcional)
-                </label>
-                <input
-                  type="email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="Vacío = se genera automático"
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 uppercase mb-1">Teléfono</label>
-                <input
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 uppercase mb-1">
-                  Fecha nacimiento
-                </label>
-                <input
-                  type="date"
-                  value={newBirthDate}
-                  onChange={(e) => setNewBirthDate(e.target.value)}
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 uppercase mb-1">Sexo</label>
-                <select
-                  value={newGender ?? ''}
-                  onChange={(e) => setNewGender(e.target.value ? (e.target.value as 'hombre' | 'mujer') : null)}
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-                >
-                  <option value="">Sin indicar</option>
-                  <option value="mujer">Mujer</option>
-                  <option value="hombre">Hombre</option>
-                </select>
-              </div>
-
-              {isClient && isMinorAge(newBirthDate) && (
-                <div className="sm:col-span-2 rounded-xl bg-sky-500/10 border border-sky-400/25 p-3.5 space-y-3">
-                  <p className="text-xs font-semibold text-sky-300 uppercase">
-                    Datos de Padre y Madre (Menor ≤ 14 años) *
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
-                        Nombre del padre
-                      </label>
-                      <input
-                        value={newFatherName}
-                        onChange={(e) => setNewFatherName(e.target.value)}
-                        placeholder="Nombre y apellidos"
-                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
-                        Teléfono del padre
-                      </label>
-                      <input
-                        value={newFatherPhone}
-                        onChange={(e) => setNewFatherPhone(e.target.value)}
-                        placeholder="600 000 000"
-                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
-                        Nombre de la madre
-                      </label>
-                      <input
-                        value={newMotherName}
-                        onChange={(e) => setNewMotherName(e.target.value)}
-                        placeholder="Nombre y apellidos"
-                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-slate-300 uppercase mb-1">
-                        Teléfono de la madre
-                      </label>
-                      <input
-                        value={newMotherPhone}
-                        onChange={(e) => setNewMotherPhone(e.target.value)}
-                        placeholder="600 000 000"
-                        className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-              {isClient && (
-              <>
-              {planUsesBelt(newPlanId, true) && (
-              <div>
-                <label className="block text-xs text-slate-400 uppercase mb-1">Cinturón</label>
-                <select
-                  value={newBelt}
-                  onChange={(e) => setNewBelt(e.target.value)}
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-                >
-                  <option value="">Sin cinturón</option>
-                  <option value="Blanco">Blanco</option>
-                  <option value="Azul">Azul</option>
-                  <option value="Morado">Morado</option>
-                  <option value="Marrón">Marrón</option>
-                  <option value="Negro">Negro</option>
-                </select>
-              </div>
-              )}
-              <div>
-                <label className="block text-xs text-slate-400 uppercase mb-1">
-                  Tutor / Hermano vinculado (opcional)
-                </label>
-                <select
-                  value={newGuardianId}
-                  onChange={(e) => setNewGuardianId(e.target.value)}
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-                >
-                  <option value="">— Ninguno —</option>
-                  {profiles.map((other) => (
-                    <option key={other.id} value={other.id}>
-                      {other.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              </>
-              )}
-              <div className="sm:col-span-2">
-                <label className="block text-xs text-slate-400 uppercase mb-1">
-                  Foto del alumno (opcional)
-                </label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="w-12 h-12 rounded-full studio-panel-inset border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
-                    {newPhotoPreview ? (
-                      <img src={newPhotoPreview} alt="Vista previa" className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-5 h-5 text-slate-500" />
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setCameraTarget('new')}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
-                  >
-                    <Camera className="w-4 h-4 text-studio-red" />
-                    Realizar foto
-                  </button>
-                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
-                    <Upload className="w-4 h-4 text-slate-400" />
-                    <span>{newPhotoFile ? newPhotoFile.name : 'Subir archivo / galería'}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] ?? null;
-                        setNewPhotoFile(f);
-                        if (newPhotoPreview) URL.revokeObjectURL(newPhotoPreview);
-                        setNewPhotoPreview(f ? URL.createObjectURL(f) : null);
-                      }}
-                    />
-                  </label>
-                </div>
-              </div>
 
               {isClient && (
-              <>
-              <div className="sm:col-span-2">
-                <label className="flex items-center justify-between gap-3 rounded-xl studio-panel-inset border border-amber-400/25 px-3.5 py-2.5 cursor-pointer">
-                  <div>
-                    <p className="text-xs font-semibold text-amber-300 uppercase">
-                      Socio Fundador (SF · -10%)
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      Descuento del 10% sobre el precio final de la tarifa (revocable por Admin).
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={newIsFounder}
-                    onChange={(e) => setNewIsFounder(e.target.checked)}
-                    className="rounded w-4 h-4 accent-amber-400 shrink-0"
-                  />
-                </label>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-xs text-slate-400 uppercase mb-1">
-                  Tarifa ({currentMonth})
-                </label>
-                <select
-                  value={newPlanId}
-                  onChange={(e) => setNewPlanId(e.target.value)}
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-                >
-                  <option value="">— Asignar más tarde —</option>
-                  {plans.map((pl) => {
-                    const effective = getEffectivePlanPrice(pl.price_eur, newIsFounder, pl.sf_price_eur);
-                    return (
-                      <option key={pl.id} value={pl.id}>
-                        {pl.name} ({effective} €{newIsFounder ? ' · SF -10%' : ''})
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              {newPlanId && (
-                <div className="sm:col-span-2 rounded-xl studio-panel-inset border border-white/10 p-3 flex flex-wrap items-center justify-between gap-3">
-                  <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={paidNow}
-                      onChange={(e) => setPaidNow(e.target.checked)}
-                      className="rounded"
-                    />
-                    ¿Ha abonado ya el primer mes?
-                  </label>
-                  {paidNow && (
+                <>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs text-slate-400 uppercase mb-1">
+                      Tarifa ({currentMonth})
+                    </label>
                     <select
-                      value={paymentMethod}
-                      onChange={(e) =>
-                        setPaymentMethod(e.target.value as 'Efectivo' | 'Bizum')
-                      }
-                      className="rounded-lg bg-white/[0.04] border border-white/10 px-2.5 py-1.5 text-xs text-white"
+                      value={newPlanId}
+                      onChange={(e) => setNewPlanId(e.target.value)}
+                      className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                     >
-                      <option value="Efectivo">Efectivo</option>
-                      <option value="Bizum">Bizum</option>
+                      <option value="">— Asignar más tarde —</option>
+                      {plans.map((pl) => {
+                        const effective = getEffectivePlanPrice(pl.price_eur, newIsFounder, pl.sf_price_eur);
+                        return (
+                          <option key={pl.id} value={pl.id}>
+                            {pl.name} ({effective} €{newIsFounder ? ' · SF' : ''})
+                          </option>
+                        );
+                      })}
                     </select>
+                  </div>
+
+                  {newPlanId && (
+                    <div className="sm:col-span-2 rounded-xl studio-panel-inset border border-white/10 p-3 flex flex-wrap items-center justify-between gap-3">
+                      <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={paidNow}
+                          onChange={(e) => setPaidNow(e.target.checked)}
+                          className="rounded"
+                        />
+                        ¿Ha abonado ya el primer mes?
+                      </label>
+                      {paidNow && (
+                        <select
+                          value={paymentMethod}
+                          onChange={(e) =>
+                            setPaymentMethod(e.target.value as 'Efectivo' | 'Bizum')
+                          }
+                          className="rounded-lg bg-white/[0.04] border border-white/10 px-2.5 py-1.5 text-xs text-white"
+                        >
+                          <option value="Efectivo">Efectivo</option>
+                          <option value="Bizum">Bizum</option>
+                        </select>
+                      )}
+                    </div>
                   )}
-                </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="flex items-center justify-between gap-3 rounded-xl studio-panel-inset border border-amber-400/25 px-3.5 py-2.5 cursor-pointer">
+                      <div>
+                        <p className="text-xs font-semibold text-amber-300 uppercase">
+                          Socio Fundador (SF)
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          Aplica la tarifa de Socio Fundador cuando exista en el producto.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={newIsFounder}
+                        onChange={(e) => setNewIsFounder(e.target.checked)}
+                        className="rounded w-4 h-4 accent-amber-400 shrink-0"
+                      />
+                    </label>
+                  </div>
+                </>
               )}
-              </>
+
+              {/* Campos opcionales agrupados */}
+              <div className="sm:col-span-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowNewAdvanced((v) => !v)}
+                  aria-expanded={showNewAdvanced}
+                  className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] px-3.5 py-2.5 text-xs font-semibold text-slate-200 transition"
+                >
+                  <span>Completar más datos (opcional)</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-400 transition-transform ${
+                      showNewAdvanced ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {showNewAdvanced && (
+                <>
+                  <div>
+                    <label className="block text-xs text-slate-400 uppercase mb-1">
+                      Email acceso (opcional)
+                    </label>
+                    <input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="Vacío = se genera automático"
+                      className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 uppercase mb-1">Teléfono</label>
+                    <input
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                      className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 uppercase mb-1">
+                      Fecha nacimiento
+                    </label>
+                    <input
+                      type="date"
+                      value={newBirthDate}
+                      onChange={(e) => setNewBirthDate(e.target.value)}
+                      className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 uppercase mb-1">Sexo</label>
+                    <select
+                      value={newGender ?? ''}
+                      onChange={(e) => setNewGender(e.target.value ? (e.target.value as 'hombre' | 'mujer') : null)}
+                      className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                    >
+                      <option value="">Sin indicar</option>
+                      <option value="mujer">Mujer</option>
+                      <option value="hombre">Hombre</option>
+                    </select>
+                  </div>
+
+                  {isClient && isMinorAge(newBirthDate) && (
+                    <div className="sm:col-span-2 rounded-xl bg-sky-500/10 border border-sky-400/25 p-3.5 space-y-3">
+                      <p className="text-xs font-semibold text-sky-300 uppercase">
+                        Datos de Padre y Madre (Menor ≤ 14 años) *
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                            Nombre del padre
+                          </label>
+                          <input
+                            value={newFatherName}
+                            onChange={(e) => setNewFatherName(e.target.value)}
+                            placeholder="Nombre y apellidos"
+                            className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                            Teléfono del padre
+                          </label>
+                          <input
+                            value={newFatherPhone}
+                            onChange={(e) => setNewFatherPhone(e.target.value)}
+                            placeholder="600 000 000"
+                            className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                            Nombre de la madre
+                          </label>
+                          <input
+                            value={newMotherName}
+                            onChange={(e) => setNewMotherName(e.target.value)}
+                            placeholder="Nombre y apellidos"
+                            className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                            Teléfono de la madre
+                          </label>
+                          <input
+                            value={newMotherPhone}
+                            onChange={(e) => setNewMotherPhone(e.target.value)}
+                            placeholder="600 000 000"
+                            className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {isClient && (
+                    <>
+                      {planUsesBelt(newPlanId, true) && (
+                        <div>
+                          <label className="block text-xs text-slate-400 uppercase mb-1">Cinturón</label>
+                          <select
+                            value={newBelt}
+                            onChange={(e) => setNewBelt(e.target.value)}
+                            className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                          >
+                            <option value="">Sin cinturón</option>
+                            <option value="Blanco">Blanco</option>
+                            <option value="Azul">Azul</option>
+                            <option value="Morado">Morado</option>
+                            <option value="Marrón">Marrón</option>
+                            <option value="Negro">Negro</option>
+                          </select>
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-xs text-slate-400 uppercase mb-1">
+                          Tutor / Hermano vinculado (opcional)
+                        </label>
+                        <select
+                          value={newGuardianId}
+                          onChange={(e) => setNewGuardianId(e.target.value)}
+                          className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                        >
+                          <option value="">— Ninguno —</option>
+                          {profiles.map((other) => (
+                            <option key={other.id} value={other.id}>
+                              {other.full_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs text-slate-400 uppercase mb-1">
+                      Foto del alumno (opcional)
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="w-12 h-12 rounded-full studio-panel-inset border border-white/15 overflow-hidden flex items-center justify-center shrink-0">
+                        {newPhotoPreview ? (
+                          <img src={newPhotoPreview} alt="Vista previa" className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-5 h-5 text-slate-500" />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCameraTarget('new')}
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
+                      >
+                        <Camera className="w-4 h-4 text-studio-red" />
+                        Realizar foto
+                      </button>
+                      <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
+                        <Upload className="w-4 h-4 text-slate-400" />
+                        <span>{newPhotoFile ? newPhotoFile.name : 'Subir archivo / galería'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] ?? null;
+                            setNewPhotoFile(f);
+                            if (newPhotoPreview) URL.revokeObjectURL(newPhotoPreview);
+                            setNewPhotoPreview(f ? URL.createObjectURL(f) : null);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 

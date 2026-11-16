@@ -9,6 +9,7 @@ import {
   Upload,
   User,
   AlertTriangle,
+  ChevronDown,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,6 +42,7 @@ export function ClientProfilePage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showExtraDetails, setShowExtraDetails] = useState(false);
 
   // Documentos y firma en pantalla
   const [templates, setTemplates] = useState<DocTemplate[]>([]);
@@ -300,27 +302,6 @@ export function ClientProfilePage() {
                 className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
-            <div>
-              <label className="block text-xs text-slate-400 uppercase mb-1">
-                Contacto Emergencia
-              </label>
-              <input
-                value={emergencyName}
-                onChange={(e) => setEmergencyName(e.target.value)}
-                placeholder="Nombre"
-                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs text-slate-400 uppercase mb-1">
-                Teléfono Emergencia
-              </label>
-              <input
-                value={emergencyPhone}
-                onChange={(e) => setEmergencyPhone(e.target.value)}
-                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-              />
-            </div>
 
             {isMinor && (
               <div className="sm:col-span-2 rounded-xl bg-sky-500/10 border border-sky-400/25 p-3.5 space-y-3">
@@ -372,17 +353,58 @@ export function ClientProfilePage() {
               </div>
             )}
 
-            <div className="sm:col-span-2">
-              <label className="block text-xs text-slate-400 uppercase mb-1">
-                Otros datos / Lesiones / Alergias
-              </label>
-              <textarea
-                rows={2}
-                value={medicalNotes}
-                onChange={(e) => setMedicalNotes(e.target.value)}
-                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-              />
+            <div className="sm:col-span-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowExtraDetails((v) => !v)}
+                aria-expanded={showExtraDetails}
+                className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] px-3.5 py-2.5 text-xs font-semibold text-slate-200 transition"
+              >
+                <span>Contacto de emergencia y datos médicos (opcional)</span>
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-400 transition-transform ${
+                    showExtraDetails ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
             </div>
+
+            {showExtraDetails && (
+              <>
+                <div>
+                  <label className="block text-xs text-slate-400 uppercase mb-1">
+                    Contacto Emergencia
+                  </label>
+                  <input
+                    value={emergencyName}
+                    onChange={(e) => setEmergencyName(e.target.value)}
+                    placeholder="Nombre"
+                    className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 uppercase mb-1">
+                    Teléfono Emergencia
+                  </label>
+                  <input
+                    value={emergencyPhone}
+                    onChange={(e) => setEmergencyPhone(e.target.value)}
+                    className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs text-slate-400 uppercase mb-1">
+                    Otros datos / Lesiones / Alergias
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={medicalNotes}
+                    onChange={(e) => setMedicalNotes(e.target.value)}
+                    className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                  />
+                </div>
+              </>
+            )}
           </div>
           <button
             type="submit"
