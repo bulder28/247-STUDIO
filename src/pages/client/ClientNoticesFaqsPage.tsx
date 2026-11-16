@@ -3,6 +3,7 @@ import { Bell, HelpCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeader } from '@/components/PageHeader';
+import { getNoticesSeenAt, markNoticesSeen } from '@/lib/noticeRead';
 
 interface Notice {
   id: string;
@@ -21,13 +22,22 @@ interface FaqItem {
 export function ClientNoticesPage() {
   const { user } = useAuth();
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [prevSeenAt] = useState<string | null>(() =>
+    user?.id ? getNoticesSeenAt(user.id) : null
+  );
 
   useEffect(() => {
     supabase
       .from('notices')
       .select('*')
       .order('created_at', { ascending: false })
-      .then(({ data }) => setNotices((data as Notice[]) ?? []));
+      .then(({ data }) => {
+        const list = (data as Notice[]) ?? [];
+        setNotices(list);
+        if (user?.id) {
+          markNoticesSeen(user.id, list[0]?.created_at);
+        }
+      });
   }, [user]);
 
   const personal = notices.filter((n) => n.target_user_id !== null);
@@ -35,6 +45,7 @@ export function ClientNoticesPage() {
 
   const renderNotice = (n: Notice, personalNotice: boolean) => {
     const d = new Date(n.created_at);
+    const isUnread = !prevSeenAt || n.created_at > prevSeenAt;
     return (
       <li key={n.id} className="relative pl-8 pb-7 last:pb-0">
         {/* Línea de tiempo: nudo del cinturón por cada aviso */}
@@ -48,9 +59,16 @@ export function ClientNoticesPage() {
             personalNotice ? 'bg-studio-red' : 'bg-studio-cream/80'
           }`}
         />
-        <time className="block text-xs text-slate-500 tabular-nums" dateTime={n.created_at}>
-          {d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
-        </time>
+        <div className="flex items-center gap-2">
+          <time className="block text-xs text-slate-500 tabular-nums" dateTime={n.created_at}>
+            {d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </time>
+          {isUnread && (
+            <span className="inline-flex items-center rounded-full bg-studio-red/20 border border-studio-red/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-studio-red">
+              Nuevo
+            </span>
+          )}
+        </div>
         <h3 className="font-headline text-xl uppercase text-white leading-tight mt-0.5">{n.title}</h3>
         <p className="text-sm text-slate-300 mt-1.5 leading-relaxed max-w-2xl whitespace-pre-line">
           {n.message}

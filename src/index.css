@@ -478,8 +478,24 @@
   animation: avatarWave 1.1s ease-in-out 1;
 }
 
+/* Campanita de aviso: se balancea suavemente cuando hay notificaciones sin leer */
+@keyframes bellRing {
+  0%, 68%, 100% { transform: rotate(0deg); }
+  72% { transform: rotate(16deg); }
+  77% { transform: rotate(-14deg); }
+  82% { transform: rotate(10deg); }
+  87% { transform: rotate(-8deg); }
+  92% { transform: rotate(4deg); }
+}
+
+.bell-ring {
+  transform-origin: 50% 15%;
+  animation: bellRing 2.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
 
+  .bell-ring,
   .avatar-wave,
   .animate-studio-in,
   .studio-shimmer,

@@ -9,6 +9,7 @@ export interface PortalNavItem {
   label: string;
   icon: ComponentType<{ className?: string }>;
   end?: boolean;
+  badgeCount?: number;
 }
 
 /**
@@ -46,34 +47,50 @@ export function PortalShell({
           </div>
 
           <nav className="hidden md:flex items-stretch h-full gap-1" aria-label="Navegación principal">
-            {primaryNav.map(({ to, label, icon: Icon, end }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                className={({ isActive }) =>
-                  `group relative inline-flex items-center gap-2 px-3.5 text-sm transition-[color,background-color] duration-200 ${isActive
-                    ? 'text-studio-cream font-semibold'
-                    : 'text-slate-400 font-medium hover:text-white hover:bg-white/[0.06] rounded-xl'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <Icon className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:text-studio-red" />
-                    <span>{label}</span>
-                    {isActive && (
-                      <motion.span
-                        layoutId="portal-nav-bar"
-                        aria-hidden
-                        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-t-full bg-studio-red"
-                      />
-                    )}
-                  </>
-                )}
-              </NavLink>
-            ))}
+            {primaryNav.map(({ to, label, icon: Icon, end, badgeCount }) => {
+              const hasBadge = (badgeCount ?? 0) > 0;
+              return (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  aria-label={hasBadge ? `${label} (${badgeCount} sin leer)` : label}
+                  className={({ isActive }) =>
+                    `group relative inline-flex items-center gap-2 px-3.5 text-sm transition-[color,background-color] duration-200 ${isActive
+                      ? 'text-studio-cream font-semibold'
+                      : 'text-slate-400 font-medium hover:text-white hover:bg-white/[0.06] rounded-xl'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span className="relative inline-flex shrink-0">
+                        <Icon
+                          className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:text-studio-red ${
+                            hasBadge ? 'bell-ring text-studio-cream' : ''
+                          }`}
+                        />
+                        {hasBadge && (
+                          <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5" aria-hidden>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-studio-red opacity-80" />
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-studio-red ring-2 ring-[#272c35]" />
+                          </span>
+                        )}
+                      </span>
+                      <span>{label}</span>
+                      {isActive && (
+                        <motion.span
+                          layoutId="portal-nav-bar"
+                          aria-hidden
+                          transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-t-full bg-studio-red"
+                        />
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
           </nav>
 
           <div className="flex items-center gap-1.5 shrink-0">
@@ -122,29 +139,41 @@ export function PortalShell({
         style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
         aria-label="Navegación principal"
       >
-        {primaryNav.map(({ to, label, icon: Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            className={({ isActive }) =>
-              `relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${isActive ? 'text-studio-cream' : 'text-slate-300 hover:text-white'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <span
-                  aria-hidden
-                  className={`absolute -top-1.5 h-[3px] rounded-full bg-studio-red w-6 transition-[transform,opacity] duration-300 ${isActive ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'
-                    }`}
-                />
-                <Icon className="w-5 h-5" />
-                <span>{label}</span>
-              </>
-            )}
-          </NavLink>
-        ))}
+        {primaryNav.map(({ to, label, icon: Icon, end, badgeCount }) => {
+          const hasBadge = (badgeCount ?? 0) > 0;
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              aria-label={hasBadge ? `${label} (${badgeCount} sin leer)` : label}
+              className={({ isActive }) =>
+                `relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${isActive ? 'text-studio-cream' : 'text-slate-300 hover:text-white'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <span
+                    aria-hidden
+                    className={`absolute -top-1.5 h-[3px] rounded-full bg-studio-red w-6 transition-[transform,opacity] duration-300 ${isActive ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'
+                      }`}
+                  />
+                  <span className="relative inline-flex shrink-0">
+                    <Icon className={`w-5 h-5 ${hasBadge ? 'bell-ring text-studio-cream' : ''}`} />
+                    {hasBadge && (
+                      <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5" aria-hidden>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-studio-red opacity-80" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-studio-red ring-2 ring-[#272c35]" />
+                      </span>
+                    )}
+                  </span>
+                  <span>{label}</span>
+                </>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
     </div>
   );
