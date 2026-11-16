@@ -18,6 +18,7 @@ import {
   Receipt,
   PanelLeftClose,
   PanelLeftOpen,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,6 +26,7 @@ const navGroups = [
   {
     label: 'Día a día',
     items: [
+      { to: '/admin/pasar-lista', label: 'Pasar lista', icon: ClipboardCheck },
       { to: '/admin/seguimiento', label: 'Cobros', icon: CreditCard },
       { to: '/admin/alumnos', label: 'Alumnos', icon: Users },
     ],
@@ -54,6 +56,7 @@ const navGroups = [
 ];
 
 const dockItems: { to: string; label: string; icon: typeof Users; end?: boolean }[] = [
+  { to: '/admin/pasar-lista', label: 'Lista', icon: ClipboardCheck },
   { to: '/admin/seguimiento', label: 'Cobros', icon: CreditCard },
   { to: '/admin/alumnos', label: 'Alumnos', icon: Users },
   // Finanzas sustituye a "Resumen" en el dock; el inicio de dirección sigue en el menú "Más"
