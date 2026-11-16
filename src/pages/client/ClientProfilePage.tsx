@@ -25,6 +25,9 @@ import { PageHeader } from '@/components/PageHeader';
 
 export function ClientProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
+  const [fullName, setFullName] = useState(profile?.full_name ?? '');
+  const [birthDate, setBirthDate] = useState(profile?.birth_date ?? '');
+  const [gender, setGender] = useState<'hombre' | 'mujer' | ''>(profile?.gender ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [emergencyName, setEmergencyName] = useState(profile?.emergency_contact_name ?? '');
   const [emergencyPhone, setEmergencyPhone] = useState(profile?.emergency_contact_phone ?? '');
@@ -75,6 +78,9 @@ export function ClientProfilePage() {
     await supabase
       .from('profiles')
       .update({
+        full_name: fullName.trim() || profile?.full_name,
+        birth_date: birthDate || null,
+        gender: gender || null,
         phone,
         emergency_contact_name: emergencyName,
         emergency_contact_phone: emergencyPhone,
@@ -251,6 +257,41 @@ export function ClientProfilePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-xs text-slate-400 uppercase mb-1">
+                Nombre y apellidos
+              </label>
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                placeholder="Tu nombre y apellidos completos"
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 uppercase mb-1">
+                Fecha de nacimiento
+              </label>
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 uppercase mb-1">Sexo</label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value as 'hombre' | 'mujer' | '')}
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+              >
+                <option value="">— Seleccionar —</option>
+                <option value="hombre">Hombre</option>
+                <option value="mujer">Mujer</option>
+              </select>
+            </div>
             <div>
               <label className="block text-xs text-slate-400 uppercase mb-1">Teléfono</label>
               <input

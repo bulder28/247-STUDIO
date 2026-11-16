@@ -15,6 +15,7 @@ export interface ImportPlanOption {
   id: string;
   name: string;
   price_eur: number;
+  product_code?: string | null;
 }
 
 interface StudentBulkImportModalProps {
@@ -30,6 +31,7 @@ interface ParsedStudentRow {
   rowNumber: number;
   fullName: string;
   email: string;
+  emailProvisional: boolean;
   phone: string;
   birthDate: string | null;
   belt: string | null;
@@ -73,7 +75,8 @@ function normalizeKeyMap(raw: Record<string, unknown>): Record<string, unknown> 
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, '_');
+      .replace(/[\/\s]+/g, '_')
+      .replace(/^_+|_+$/g, '');
     out[norm] = v;
   }
   return out;
@@ -96,6 +99,94 @@ function parseYesNo(raw: string): boolean {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
   return norm === 'si' || norm === 'yes' || norm === '1' || norm === 'true' || norm === 'x';
+}
+
+function parseFounder(raw: string): boolean {
+  const norm = raw
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return (
+    norm === 'sf' ||
+    norm === 'socio fundador' ||
+    norm === 'fundador' ||
+    parseYesNo(raw)
+  );
+}
+
+function normalizePlanText(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s*\|\s*/g, '|')
+    .replace(/\s*\+\s*/g, '+')
+    .replace(/\s+/g, ' ');
+}
+
+const PLAN_ALIASES: Record<string, string> = {
+  bjj: 'bjj gi|nogi',
+  'bjj & grappling': 'bjj gi|nogi',
+  'bjj gi nogi': 'bjj gi|nogi',
+  'kids 1': 'bjj kids 1 (7 a 14 anos)',
+  'kids 1 (+7 anos)': 'bjj kids 1 (7 a 14 anos)',
+  'kids 2': 'bjj kids 2 (3 a 6 anos)',
+  'kids 2 (3 a 6 anos)': 'bjj kids 2 (3 a 6 anos)',
+  'bjj & grappling+lucha': 'bjj gi|nogi+lucha',
+  'bjj & grappling+mma': 'bjj gi|nogi+mma',
+  'pack unlimited': 'pack unlimitted',
+  unlimited: 'pack unlimitted',
+  unlimitted: 'pack unlimitted',
+  'bono clase suelta': 'clase suelta / utilizacion de la instalacion 1 dia',
+  'clase suelta': 'clase suelta / utilizacion de la instalacion 1 dia',
+};
+
+function resolvePlanMatch(rawPlan: string, plans: ImportPlanOption[]): ImportPlanOption | undefined {
+  const norm = normalizePlanText(rawPlan);
+  if (!norm) return undefined;
+
+  // 1. Por product_code exacto (ej. 247s_01)
+  const byCode = plans.find(
+    (p) => p.product_code && p.product_code.trim().toLowerCase() === rawPlan.trim().toLowerCase()
+  );
+  if (byCode) return byCode;
+
+  // 2. Por nombre normalizado o alias
+  const aliased = PLAN_ALIASES[norm] ?? norm;
+  const byName = plans.find((p) => {
+    const pn = normalizePlanText(p.name);
+    return pn === norm || pn === aliased;
+  });
+  if (byName) return byName;
+
+  // 3. Coincidencia parcial única si el cliente escribió abreviado
+  const partial = plans.filter((p) => normalizePlanText(p.name).includes(norm));
+  return partial.length === 1 ? partial[0] : undefined;
+}
+
+function buildProvisionalEmail(
+  fullName: string,
+  existingEmails: Set<string>,
+  seenInFile: Set<string>,
+  fallbackRow: number
+): string {
+  const slug = fullName
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '');
+  const base = slug || `alumno.${fallbackRow}`;
+  let candidate = `${base}@pendiente.247.local`;
+  let counter = 2;
+  while (existingEmails.has(candidate) || seenInFile.has(candidate)) {
+    candidate = `${base}.${counter}@pendiente.247.local`;
+    counter += 1;
+  }
+  return candidate;
 }
 
 function getAgeYears(birthDate: string): number | null {
@@ -237,7 +328,6 @@ export function StudentBulkImportModal({
       }
 
       const seenInFile = new Set<string>();
-      const planMap = new Map(plans.map((p) => [p.name.trim().toLowerCase(), p]));
 
       const mapped: ParsedStudentRow[] = rawRows.map((raw, idx) => {
         const row = normalizeKeyMap(raw);
@@ -245,20 +335,28 @@ export function StudentBulkImportModal({
         const errors: string[] = [];
 
         const fullName = getStr(row, 'nombre_apellidos', 'nombre', 'full_name', 'alumno');
-        const email = getStr(row, 'email', 'correo').toLowerCase();
+        const rawEmail = getStr(row, 'email', 'correo').toLowerCase();
         const phone = getStr(row, 'telefono', 'phone', 'movil');
         const rawBirth = row['fecha_nacimiento'] ?? row['birth_date'] ?? '';
         const birthDate = normalizeExcelDate(rawBirth);
         const rawBelt = getStr(row, 'cinturon', 'belt');
-        const rawPlan = getStr(row, 'tarifa', 'plan');
+        const rawPlan = getStr(row, 'tarifa', 'plan', 'programa', 'producto', 'idproducto', 'codigo');
         const rawPaid = getStr(row, 'pagado', 'paid');
         const rawMethod = getStr(row, 'metodo_pago', 'payment_method', 'metodo');
-        const rawFounder = getStr(row, 'socio_fundador', 'fundador', 'is_founder');
+        const rawFounder = getStr(row, 'socio_fundador', 'fundador', 'is_founder', 'sf_std', 'sf', 'tipo');
         const tutorName = getStr(row, 'tutor_nombre', 'father_name', 'tutor');
         const tutorPhone = getStr(row, 'tutor_telefono', 'father_phone');
 
         if (!fullName) errors.push('Falta nombre');
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+
+        let email = rawEmail;
+        let emailProvisional = false;
+        if (!email) {
+          if (fullName) {
+            email = buildProvisionalEmail(fullName, existingEmails, seenInFile, rowNumber);
+            emailProvisional = true;
+          }
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
           errors.push('Email inválido');
         } else if (existingEmails.has(email)) {
           errors.push('Email ya registrado');
@@ -284,7 +382,7 @@ export function StudentBulkImportModal({
         let planId: string | null = null;
         let planName = '';
         if (rawPlan) {
-          const matchedPlan = planMap.get(rawPlan.toLowerCase());
+          const matchedPlan = resolvePlanMatch(rawPlan, plans);
           if (!matchedPlan) {
             errors.push(`Tarifa no encontrada (${rawPlan})`);
           } else {
@@ -297,12 +395,13 @@ export function StudentBulkImportModal({
         const paymentMethod: 'Efectivo' | 'Bizum' = rawMethod.toLowerCase().includes('bizum')
           ? 'Bizum'
           : 'Efectivo';
-        const isFounder = parseYesNo(rawFounder);
+        const isFounder = parseFounder(rawFounder);
 
         return {
           rowNumber,
           fullName,
           email,
+          emailProvisional,
           phone,
           birthDate,
           belt: beltRes.belt,
