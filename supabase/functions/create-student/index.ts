@@ -59,6 +59,35 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+
+    if (body?.action === 'reset_password') {
+      const targetUserId = typeof body.user_id === 'string' ? body.user_id.trim() : '';
+      if (!targetUserId) {
+        return new Response(JSON.stringify({ error: 'Falta user_id' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const tempPassword = generateTempPassword();
+      const { error: updErr } = await adminClient.auth.admin.updateUserById(targetUserId, {
+        password: tempPassword,
+      });
+      if (updErr) {
+        return new Response(JSON.stringify({ error: updErr.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      await adminClient
+        .from('profiles')
+        .update({ must_change_password: true })
+        .eq('id', targetUserId);
+      return new Response(JSON.stringify({ ok: true, tempPassword }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const {
       email,
       full_name,

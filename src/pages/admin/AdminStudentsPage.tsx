@@ -80,6 +80,7 @@ export function AdminStudentsPage() {
   const [photoUploadWarning, setPhotoUploadWarning] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [resettingKey, setResettingKey] = useState(false);
 
   // Alta nuevo usuario
   const [showNewModal, setShowNewModal] = useState(false);
@@ -216,6 +217,33 @@ export function AdminStudentsPage() {
     if (quickFilter === 'pending_docs' && (p.role !== 'client' || !hasPendingDocs(p))) return false;
     return true;
   });
+
+  const handleResetTempPassword = async () => {
+    if (!selected || resettingKey) return;
+    setEditError(null);
+    setResettingKey(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-student', {
+        body: { action: 'reset_password', user_id: selected.id },
+      });
+      if (error || data?.error || !data?.tempPassword) {
+        setEditError(
+          data?.error ??
+            error?.message ??
+            'No se pudo generar la clave temporal. Comprueba el despliegue de create-student.'
+        );
+        return;
+      }
+      setCreatedCredentials({
+        name: selected.full_name,
+        email: selected.email,
+        tempPassword: String(data.tempPassword),
+      });
+      setSelected(null);
+    } finally {
+      setResettingKey(false);
+    }
+  };
 
   const handleSaveSelected = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1128,21 +1156,31 @@ export function AdminStudentsPage() {
               })()}
             </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10">
               <button
                 type="button"
-                onClick={() => setSelected(null)}
-                className="px-4 py-2 rounded-xl border border-white/10 text-sm text-slate-300"
+                onClick={handleResetTempPassword}
+                disabled={resettingKey || saving}
+                className="px-3.5 py-2 rounded-xl border border-amber-400/35 bg-amber-400/10 hover:bg-amber-400/20 disabled:opacity-50 text-xs font-semibold text-amber-200 transition"
               >
-                Cancelar
+                {resettingKey ? 'Generando clave...' : 'Generar clave temporal'}
               </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-5 py-2 rounded-xl studio-btn text-sm font-semibold text-white"
-              >
-                {saving ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
+              <div className="flex items-center gap-3 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setSelected(null)}
+                  className="px-4 py-2 rounded-xl border border-white/10 text-sm text-slate-300"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2 rounded-xl studio-btn text-sm font-semibold text-white"
+                >
+                  {saving ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
             </div>
             </motion.form>
           </motion.div>
