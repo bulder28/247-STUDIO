@@ -157,6 +157,11 @@ export function CollectionsBoard({
           <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="text-sm font-semibold text-white">{r.full_name}</span>
             {r.is_founder && <span className="text-xs text-amber-300">Socio fundador</span>}
+            {r.payment_notes?.toLowerCase().includes('familiar') && (
+              <span className="text-[10px] uppercase font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-md">
+                Familiar (-10%)
+              </span>
+            )}
             {due && due.length > 0 && (
               <span className="text-xs font-semibold text-red-300">
                 también debe {due.map((d) => formatMonthLabel(d.month_year)).join(', ')}

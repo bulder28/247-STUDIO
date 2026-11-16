@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, CalendarPlus, X, Download, Check } from 'lucide-react';
+import { RefreshCw, CalendarPlus, X, Download, Check, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { exportWorkbook } from '@/lib/excel';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 import { fetchAllRows, getCashMonth, type CashMonth } from '@/lib/finance';
 import { formatEURExact } from '@/lib/format';
+import { getFamilyDiscountPrice } from '@/lib/pricing';
 import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/KpiCard';
 import { CollectionsBoard } from './collections/CollectionsBoard';
@@ -25,6 +26,15 @@ interface StudentLatestPlan {
   plan_id: string;
   plan_name: string;
   price_eur: number;
+}
+
+interface QuickChargeState {
+  row: PaymentRow;
+  method: PaymentMethod;
+  applyFamilyDiscount: boolean;
+  amount: string;
+  paidDate: string;
+  notes: string;
 }
 
 function addMonths(ym: string, offset: number): string {
@@ -63,10 +73,16 @@ export function AdminTrackingPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Bizum');
   const [totalAmountInput, setTotalAmountInput] = useState('');
   const [customAmountTouched, setCustomAmountTouched] = useState(false);
+  const [multiFamilyDiscount, setMultiFamilyDiscount] = useState(false);
   const [paymentNotes, setPaymentNotes] = useState('');
   const [paidDate, setPaidDate] = useState(() => getLocalDateISO());
   const [savingMulti, setSavingMulti] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+
+  // Diálogo rápido de confirmación de cobro individual
+  const [quickCharge, setQuickCharge] = useState<QuickChargeState | null>(null);
+  const [submittingQuickCharge, setSubmittingQuickCharge] = useState(false);
+  const [quickChargeError, setQuickChargeError] = useState<string | null>(null);
 
   const loadTracking = useCallback(async () => {
     setLoading(true);
@@ -136,19 +152,31 @@ export function AdminTrackingPage() {
   const markSinglePayment = async (
     row: PaymentRow,
     status: 'paid_ok' | 'pending_nok',
-    method?: PaymentMethod
+    method?: PaymentMethod,
+    customAmount?: number,
+    notes?: string,
+    customPaidDate?: string
   ): Promise<boolean> => {
     setActionError(null);
+    const todayISO = getLocalDateISO();
+    const paidAtIso =
+      customPaidDate && customPaidDate !== todayISO
+        ? new Date(`${customPaidDate}T12:00:00`).toISOString()
+        : new Date().toISOString();
+
+    const amountEur = customAmount !== undefined ? customAmount : Number(row.price_eur || 0);
+
     const { error } =
       status === 'paid_ok'
         ? await supabase.from('payments').upsert(
             {
               user_id: row.user_id,
               month_year: monthYear,
-              amount_eur: row.price_eur,
+              amount_eur: amountEur,
               status,
               payment_method: method ?? 'Bizum',
-              paid_at: new Date().toISOString(),
+              paid_at: paidAtIso,
+              notes: notes || null,
             },
             { onConflict: 'user_id,month_year' }
           )
@@ -177,16 +205,67 @@ export function AdminTrackingPage() {
   // Bloqueo síncrono por alumno: un doble clic no lanza dos cobros antes de que el botón se desactive
   const inFlight = useRef(new Set<string>());
 
-  const handleCharge = async (row: PaymentRow, method: PaymentMethod) => {
+  const handleCharge = (row: PaymentRow, method: PaymentMethod) => {
+    setQuickChargeError(null);
+    setQuickCharge({
+      row,
+      method,
+      applyFamilyDiscount: false,
+      amount: Number(row.price_eur || 0).toFixed(2),
+      paidDate: getLocalDateISO(),
+      notes: '',
+    });
+  };
+
+  const confirmQuickCharge = async () => {
+    if (!quickCharge) return;
+    const { row, method, applyFamilyDiscount, amount, notes, paidDate: pDate } = quickCharge;
+    const numAmount = Number(amount.replace(',', '.'));
+    if (Number.isNaN(numAmount) || numAmount < 0) {
+      setQuickChargeError('Introduce un importe válido.');
+      return;
+    }
+    const todayISO = getLocalDateISO();
+    if (!pDate || pDate > todayISO) {
+      setQuickChargeError('La fecha de cobro no puede ser futura.');
+      return;
+    }
+
     if (inFlight.current.has(row.user_id)) return;
     inFlight.current.add(row.user_id);
     setBusyUserId(row.user_id);
+    setSubmittingQuickCharge(true);
+    setQuickChargeError(null);
+
+    const discountTag = applyFamilyDiscount ? 'Descuento familiar (-10%)' : '';
+    const finalNotes = notes.trim()
+      ? discountTag
+        ? `${discountTag} · ${notes.trim()}`
+        : notes.trim()
+      : discountTag || undefined;
+
     try {
-      const ok = await markSinglePayment(row, 'paid_ok', method);
-      if (ok) showToast(`Cobrado: ${row.full_name} · ${formatEURExact(Number(row.price_eur || 0))} por ${method}`, row);
+      const ok = await markSinglePayment(
+        row,
+        'paid_ok',
+        method,
+        numAmount,
+        finalNotes,
+        pDate
+      );
+      if (ok) {
+        showToast(
+          `Cobrado: ${row.full_name} · ${formatEURExact(numAmount)} por ${method}${
+            applyFamilyDiscount ? ' (con descuento familiar)' : ''
+          }`,
+          row
+        );
+        setQuickCharge(null);
+      }
     } finally {
       inFlight.current.delete(row.user_id);
       setBusyUserId(null);
+      setSubmittingQuickCharge(false);
     }
   };
 
@@ -282,6 +361,7 @@ export function AdminTrackingPage() {
     setModalUserId(targetId);
     setPaymentMethod('Bizum');
     setCustomAmountTouched(false);
+    setMultiFamilyDiscount(false);
     setPaymentNotes('');
     setPaidDate(getLocalDateISO());
     setModalError(null);
@@ -304,9 +384,12 @@ export function AdminTrackingPage() {
 
   useEffect(() => {
     if (!modalOpen || customAmountTouched || !selectedStudent) return;
-    const total = selectedMonths.length * Number(selectedStudent.price_eur || 0);
+    const unitPrice = multiFamilyDiscount
+      ? getFamilyDiscountPrice(selectedStudent.price_eur)
+      : Number(selectedStudent.price_eur || 0);
+    const total = selectedMonths.length * unitPrice;
     setTotalAmountInput(total > 0 ? total.toFixed(2) : '');
-  }, [modalOpen, selectedMonths, selectedStudent, customAmountTouched]);
+  }, [modalOpen, selectedMonths, selectedStudent, customAmountTouched, multiFamilyDiscount]);
 
   const toggleMonthSelection = (ym: string) => {
     setSelectedMonths((prev) =>
@@ -398,13 +481,18 @@ export function AdminTrackingPage() {
           ? new Date().toISOString()
           : new Date(`${paidDate}T12:00:00`).toISOString();
 
+      const discountTag = multiFamilyDiscount ? 'Descuento familiar (-10%)' : '';
       const autoNote =
         n > 1
           ? `Cobro múltiple (${n} meses: ${formatMonthLabel(sortedMonths[0])} – ${formatMonthLabel(
               sortedMonths[n - 1]
-            )})`
-          : 'Pago mensual';
-      const finalNotes = paymentNotes.trim() ? `${autoNote} · ${paymentNotes.trim()}` : autoNote;
+            )})${discountTag ? ` · ${discountTag}` : ''}`
+          : discountTag || 'Pago mensual';
+      const finalNotes = paymentNotes.trim()
+        ? autoNote
+          ? `${autoNote} · ${paymentNotes.trim()}`
+          : paymentNotes.trim()
+        : autoNote;
 
       const payPayloads = sortedMonths.map((ym, idx) => {
         const cents = idx === n - 1 ? baseCents + remainderCents : baseCents;
@@ -772,6 +860,39 @@ export function AdminTrackingPage() {
                 </div>
               </div>
 
+              {/* Opción Descuento por familiar */}
+              <label className="flex items-center justify-between gap-3 rounded-xl studio-panel-inset border border-emerald-500/25 bg-emerald-500/[0.04] p-3.5 cursor-pointer hover:border-emerald-500/40 transition">
+                <div className="flex items-center gap-2.5">
+                  <Users className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div>
+                    <span className="text-xs font-semibold text-emerald-300 block">
+                      Descuento por familiar (-10%)
+                    </span>
+                    <span className="text-[11px] text-slate-400 block">
+                      Aplica un 10 % de descuento en cada mensualidad seleccionada
+                      {selectedStudent && (
+                        <>
+                          {' '}({formatEURExact(Number(selectedStudent.price_eur || 0))} &rarr;{' '}
+                          <strong className="text-white">
+                            {formatEURExact(getFamilyDiscountPrice(Number(selectedStudent.price_eur || 0)))}
+                          </strong>/mes)
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={multiFamilyDiscount}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setMultiFamilyDiscount(checked);
+                    setCustomAmountTouched(false);
+                  }}
+                  className="rounded w-4 h-4 accent-emerald-500 shrink-0"
+                />
+              </label>
+
               {/* Método de pago (Solo Efectivo o Bizum) + Importe Total */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -872,6 +993,180 @@ export function AdminTrackingPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Diálogo rápido de confirmación de cobro individual */}
+      {quickCharge && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl studio-panel border border-white/15 p-6 space-y-5 animate-studio-in">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-headline text-xl uppercase text-white">
+                  Confirmar cobro
+                </h2>
+                <p className="text-xs text-slate-400">
+                  {formatMonthLabel(monthYear)} · {quickCharge.row.plan_name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickCharge(null)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="rounded-xl studio-panel-inset border border-white/10 p-3.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-white truncate">
+                  {quickCharge.row.full_name}
+                </span>
+                {quickCharge.row.is_founder && (
+                  <span className="text-xs text-amber-300 font-medium">Socio fundador</span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400">
+                Cuota mensual base:{' '}
+                <span className="tabular-nums font-medium text-slate-300">
+                  {formatEURExact(Number(quickCharge.row.price_eur || 0))}
+                </span>
+              </p>
+            </div>
+
+            {/* Opción Descuento por familiar */}
+            <label className="flex items-center justify-between gap-3 rounded-xl studio-panel-inset border border-emerald-500/25 bg-emerald-500/[0.04] p-3.5 cursor-pointer hover:border-emerald-500/40 transition">
+              <div className="flex items-center gap-2.5">
+                <Users className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div>
+                  <span className="text-xs font-semibold text-emerald-300 block">
+                    Descuento por familiar (-10%)
+                  </span>
+                  <span className="text-[11px] text-slate-400 block">
+                    Reduce la cuota de {formatEURExact(Number(quickCharge.row.price_eur || 0))} a{' '}
+                    <strong className="text-white">
+                      {formatEURExact(getFamilyDiscountPrice(Number(quickCharge.row.price_eur || 0)))}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={quickCharge.applyFamilyDiscount}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  const newAmount = checked
+                    ? getFamilyDiscountPrice(Number(quickCharge.row.price_eur || 0))
+                    : Number(quickCharge.row.price_eur || 0);
+                  setQuickCharge({
+                    ...quickCharge,
+                    applyFamilyDiscount: checked,
+                    amount: newAmount.toFixed(2),
+                  });
+                }}
+                className="rounded w-4 h-4 accent-emerald-500 shrink-0"
+              />
+            </label>
+
+            {/* Método de pago e Importe */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1.5">
+                  Método de pago
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(['Bizum', 'Efectivo'] as PaymentMethod[]).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setQuickCharge({ ...quickCharge, method: m })}
+                      className={`rounded-xl border py-2 text-xs font-semibold transition ${
+                        quickCharge.method === m
+                          ? 'border-emerald-400 bg-emerald-500/20 text-white'
+                          : 'border-white/10 studio-panel-inset text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1.5">
+                  Importe (€)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={quickCharge.amount}
+                  onChange={(e) => setQuickCharge({ ...quickCharge, amount: e.target.value })}
+                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+                />
+              </div>
+            </div>
+
+            {/* Fecha de cobro */}
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1.5">
+                Fecha de cobro
+              </label>
+              <input
+                type="date"
+                value={quickCharge.paidDate}
+                max={getLocalDateISO()}
+                onChange={(e) => setQuickCharge({ ...quickCharge, paidDate: e.target.value })}
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+              />
+            </div>
+
+            {/* Nota opcional */}
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1.5">
+                Nota opcional
+              </label>
+              <input
+                type="text"
+                value={quickCharge.notes}
+                onChange={(e) => setQuickCharge({ ...quickCharge, notes: e.target.value })}
+                placeholder={quickCharge.applyFamilyDiscount ? 'Descuento familiar aplicado' : 'Ej. Pagado en recepción'}
+                className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
+              />
+            </div>
+
+            {quickChargeError && (
+              <p className="text-xs text-red-300 bg-studio-red/20 border border-studio-red/40 rounded-xl px-3 py-2">
+                {quickChargeError}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setQuickCharge(null)}
+                className="px-4 py-2 rounded-xl text-sm text-slate-300 hover:bg-white/5"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={submittingQuickCharge}
+                onClick={confirmQuickCharge}
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm font-semibold text-white transition flex items-center gap-2"
+              >
+                {submittingQuickCharge ? (
+                  'Guardando...'
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Confirmar cobro ({formatEURExact(Number(quickCharge.amount || 0))})
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

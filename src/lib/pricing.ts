@@ -1,4 +1,5 @@
 export const FOUNDER_DISCOUNT_RATE = 0.10;
+export const FAMILY_DISCOUNT_RATE = 0.10;
 
 /**
  * Calcula el precio final de Socio Fundador (SF): 10% de descuento redondeado a euro entero
@@ -7,6 +8,15 @@ export const FOUNDER_DISCOUNT_RATE = 0.10;
 export function getFounderPrice(basePriceEur: number): number {
   const numeric = Number(basePriceEur || 0);
   return Math.round(numeric * (1 - FOUNDER_DISCOUNT_RATE));
+}
+
+/**
+ * Calcula el precio final con descuento por familiar (-10%): redondeado a euro entero
+ * (ej. 69 € -> 62 €).
+ */
+export function getFamilyDiscountPrice(basePriceEur: number): number {
+  const numeric = Number(basePriceEur || 0);
+  return Math.round(numeric * (1 - FAMILY_DISCOUNT_RATE));
 }
 
 /**
