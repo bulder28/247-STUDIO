@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
-import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
+import { countPendingSignatures, fetchSignatureTasksByUser } from '@/lib/studentDocuments';
 import { formatEUR, formatEURExact, formatMonthLong } from '@/lib/format';
 import { getCashMonth, type CashMonth } from '@/lib/finance';
 import { usersWithBeltThisMonth } from '@/lib/belts';
@@ -182,8 +182,7 @@ export function AdminHomePage() {
         studentsRes,
         attendanceRes,
         clientsRes,
-        tplRes,
-        sigRes,
+        signTasks,
         discRes,
         monthAttRes,
         lastAttRes,
@@ -220,10 +219,7 @@ export function AdminHomePage() {
           )
           .eq('role', 'client')
           .in('status', ['active', 'paused']),
-        supabase.from('document_templates').select('*').eq('is_active', true),
-        supabase
-          .from('document_signatures')
-          .select('user_id, template_id, template_version, signed_at'),
+        fetchSignatureTasksByUser(),
         supabase
           .from('disciplines')
           .select('id, name')
@@ -257,14 +253,6 @@ export function AdminHomePage() {
       setActiveStudentsCount(studentsRes.count ?? 0);
       setTodayList((attendanceRes.data as unknown as TodayAttendance[]) ?? []);
 
-      const templates = (tplRes.data as DocTemplate[]) ?? [];
-      const sigMap: Record<string, DocSignature[]> = {};
-      ((sigRes.data as DocSignature[]) ?? []).forEach((s) => {
-        if (!s.user_id) return;
-        if (!sigMap[s.user_id]) sigMap[s.user_id] = [];
-        sigMap[s.user_id].push(s);
-      });
-
       const clients =
         (clientsRes.data as {
           id: string;
@@ -283,10 +271,10 @@ export function AdminHomePage() {
       let pendingDocUsers = 0;
       clients.forEach((c) => {
         const reasons: string[] = [];
-        const docRes = getDocumentCompliance(templates, sigMap[c.id] ?? [], c.birth_date);
-        if (docRes.pending.length > 0) {
+        const pendingSign = countPendingSignatures(signTasks[c.id]);
+        if (pendingSign > 0) {
           pendingDocUsers += 1;
-          reasons.push(`${docRes.pending.length} firma(s) pendiente(s)`);
+          reasons.push(`${pendingSign} firma(s) pendiente(s)`);
         }
         if (isMinorAge(c.birth_date)) {
           const hasParent = Boolean(c.father_name?.trim() || c.mother_name?.trim());
@@ -551,8 +539,8 @@ export function AdminHomePage() {
           <div className="flex items-center gap-3">
             <FileWarning className="w-5 h-5 text-amber-300 shrink-0" />
             <p className="text-xs sm:text-sm">
-              <strong>{pendingDocsCount}</strong> alumno(s) con documentación obligatoria pendiente
-              de firma (privacidad, imagen, exención o normas).
+              <strong>{pendingDocsCount}</strong> alumno(s) con documentos de la academia pendientes
+              de firma.
             </p>
           </div>
           <Link
@@ -565,7 +553,7 @@ export function AdminHomePage() {
       )}
 
       {/* 4 KPIs Principales con MoM, ARPU y Deuda */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="studio-stagger grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KpiCard
           label="Cuotas cobradas"
           icon={CheckCircle2}

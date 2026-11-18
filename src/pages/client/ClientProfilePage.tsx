@@ -1,28 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  PenTool,
-  CheckCircle2,
-  Lock,
-  Save,
-  RotateCcw,
-  Camera,
-  Upload,
-  User,
-  AlertTriangle,
-  ChevronDown,
-} from 'lucide-react';
+import { useState } from 'react';
+import { Lock, Save, Camera, Upload, User, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { isMinorAge } from '@/lib/dateUtils';
 import { uploadUserAvatar } from '@/lib/imageCompressor';
 import { CameraCaptureModal } from '@/components/CameraCaptureModal';
-import {
-  getDocumentCompliance,
-  type DocSignature,
-  type DocTemplate,
-} from '@/lib/documents';
-import { notifyDocsUpdated } from '@/lib/noticeRead';
 import { PageHeader } from '@/components/PageHeader';
+import { StudentDocumentsSection } from '@/components/StudentDocumentsSection';
 
 export function ClientProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
@@ -43,36 +27,6 @@ export function ClientProfilePage() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showExtraDetails, setShowExtraDetails] = useState(false);
-
-  // Documentos y firma en pantalla
-  const [templates, setTemplates] = useState<DocTemplate[]>([]);
-  const [signatures, setSignatures] = useState<DocSignature[]>([]);
-  const [signingDoc, setSigningDoc] = useState<DocTemplate | null>(null);
-  const [signerName, setSignerName] = useState(
-    isMinor ? (profile?.father_name || profile?.mother_name || '') : (profile?.full_name ?? '')
-  );
-  const [signerDni, setSignerDni] = useState('');
-  const [hasDrawn, setHasDrawn] = useState(false);
-
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const isDrawing = useRef(false);
-
-  const loadDocs = async () => {
-    if (!user) return;
-    const [tplRes, sigRes] = await Promise.all([
-      supabase.from('document_templates').select('*').eq('is_active', true),
-      supabase
-        .from('document_signatures')
-        .select('template_id, template_version, signed_at')
-        .eq('user_id', user.id),
-    ]);
-    setTemplates((tplRes.data as DocTemplate[]) ?? []);
-    setSignatures((sigRes.data as DocSignature[]) ?? []);
-  };
-
-  useEffect(() => {
-    loadDocs();
-  }, [user]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,75 +66,6 @@ export function ClientProfilePage() {
     }
   };
 
-  // Dibujo en Canvas (ratón y táctil)
-  const getCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: ((e.clientX - rect.left) / rect.width) * canvas.width,
-      y: ((e.clientY - rect.top) / rect.height) * canvas.height,
-    };
-  };
-
-  const startDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    isDrawing.current = true;
-    const { x, y } = getCoords(e);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-  };
-
-  const draw = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing.current) return;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const { x, y } = getCoords(e);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    setHasDrawn(true);
-  };
-
-  const endDraw = () => {
-    isDrawing.current = false;
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx?.clearRect(0, 0, canvas.width, canvas.height);
-    setHasDrawn(false);
-  };
-
-  const submitSignature = async () => {
-    if (!user || !signingDoc || !canvasRef.current || !signerName.trim()) return;
-    if (!hasDrawn) {
-      setFeedback('Por favor, traza tu firma en el recuadro antes de confirmar.');
-      return;
-    }
-    const dataUrl = canvasRef.current.toDataURL('image/png');
-
-    await supabase.from('document_signatures').insert({
-      user_id: user.id,
-      template_id: signingDoc.id,
-      template_version: signingDoc.version,
-      signature_image_url: dataUrl,
-      signer_name: signerName.trim(),
-      signer_dni: signerDni.trim() || null,
-    });
-
-    setSigningDoc(null);
-    setSignerDni('');
-    setHasDrawn(false);
-    setFeedback(`Documento "${signingDoc.title}" firmado y guardado.`);
-    await loadDocs();
-    notifyDocsUpdated();
-  };
-
   const handlePhotoSelected = async (file: File) => {
     if (!user) return;
     setUploadingPhoto(true);
@@ -196,8 +81,6 @@ export function ClientProfilePage() {
       setUploadingPhoto(false);
     }
   };
-
-  const docCompliance = getDocumentCompliance(templates, signatures, profile?.birth_date);
 
   return (
     <div className="space-y-6">
@@ -441,83 +324,13 @@ export function ClientProfilePage() {
         </form>
       </div>
 
-      {/* Documentación y Firmas en pantalla (Slide 5) */}
-      <section className="rounded-2xl studio-panel border border-white/10 p-5 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="font-headline text-lg uppercase text-white">
-              Documentación Obligatoria para Entrenar
-            </h2>
-            <p className="text-xs text-slate-400">
-              Es imprescindible tener firmados todos los documentos para poder practicar en la academia.
-            </p>
-          </div>
-          {docCompliance.totalRequired > 0 && (
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                docCompliance.isComplete
-                  ? 'bg-emerald-500/15 text-emerald-300'
-                  : 'bg-studio-red/20 text-red-200 border border-studio-red/40'
-              }`}
-            >
-              {docCompliance.signedCount} / {docCompliance.totalRequired} firmados
-            </span>
-          )}
-        </div>
-
-        {!docCompliance.isComplete && docCompliance.totalRequired > 0 && (
-          <div className="rounded-xl bg-studio-red/15 border border-studio-red/40 px-3.5 py-2.5 text-xs text-red-200 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-studio-red shrink-0" />
-            <span>
-              Tienes <strong>{docCompliance.pending.length}</strong> documento(s) pendiente(s) de
-              firma.
-              {isMinor
-                ? ' Al ser menor (≤ 14 años), debe firmarlos el padre, madre o tutor legal.'
-                : ''}
-            </span>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {docCompliance.required.map((doc) => {
-            const signed = signatures.find(
-              (s) => s.template_id === doc.id && s.template_version === doc.version
-            );
-            return (
-              <div
-                key={doc.id}
-                className="rounded-xl studio-panel-inset border border-white/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-              >
-                <div>
-                  <h3 className="text-sm font-semibold text-white">{doc.title}</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{doc.body_text}</p>
-                </div>
-                {signed ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-300 text-xs font-semibold shrink-0">
-                    <CheckCircle2 className="w-4 h-4" /> Firmado (
-                    {new Date(signed.signed_at).toLocaleDateString('es-ES')})
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setHasDrawn(false);
-                      setSignerName(
-                        isMinor
-                          ? profile?.father_name || profile?.mother_name || ''
-                          : (profile?.full_name ?? '')
-                      );
-                      setSigningDoc(doc);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl studio-btn text-xs font-semibold text-white shrink-0"
-                  >
-                    <PenTool className="w-3.5 h-3.5" /> Firmar en pantalla
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      {user && (
+        <StudentDocumentsSection
+          userId={user.id}
+          fullName={profile?.full_name ?? ''}
+          isMinor={isMinor}
+        />
+      )}
 
       <CameraCaptureModal
         open={cameraOpen}
@@ -525,86 +338,6 @@ export function ClientProfilePage() {
         onCapture={handlePhotoSelected}
       />
 
-      {/* Modal Firma Táctil */}
-      {signingDoc && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl studio-panel border border-white/15 p-6 space-y-4 shadow-modal">
-            <h3 className="font-headline text-xl uppercase text-white">{signingDoc.title}</h3>
-            <p className="text-xs text-slate-300 leading-relaxed">{signingDoc.body_text}</p>
-            {isMinor && (
-              <p className="rounded-xl bg-sky-500/15 border border-sky-400/30 px-3 py-2 text-xs text-sky-200">
-                Alumno menor (≤ 14 años): este documento debe ser firmado por el padre, madre o
-                tutor legal.
-              </p>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-slate-400 uppercase mb-1">
-                  Nombre firmante (o tutor)
-                </label>
-                <input
-                  value={signerName}
-                  onChange={(e) => setSignerName(e.target.value)}
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 uppercase mb-1">
-                  DNI (opcional / menores)
-                </label>
-                <input
-                  value={signerDni}
-                  onChange={(e) => setSignerDni(e.target.value)}
-                  className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-slate-400 uppercase">Firma aquí con el dedo</span>
-                <button
-                  type="button"
-                  onClick={clearCanvas}
-                  className="inline-flex items-center gap-1 text-xs text-slate-300 hover:text-white"
-                >
-                  <RotateCcw className="w-3 h-3" /> Limpiar
-                </button>
-              </div>
-              <canvas
-                aria-label="Área de firma: dibuja tu firma con el dedo o el ratón"
-                ref={canvasRef}
-                width={440}
-                height={180}
-                onPointerDown={startDraw}
-                onPointerMove={draw}
-                onPointerUp={endDraw}
-                onPointerLeave={endDraw}
-                className="w-full h-44 rounded-xl studio-panel-inset border border-white/20 touch-none cursor-crosshair"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setSigningDoc(null)}
-                className="px-4 py-2 rounded-xl border border-white/10 text-sm text-slate-300"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={submitSignature}
-                disabled={!hasDrawn}
-                className="px-5 py-2 rounded-xl studio-btn disabled:opacity-45 text-sm font-semibold text-white"
-              >
-                Confirmar Firma
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

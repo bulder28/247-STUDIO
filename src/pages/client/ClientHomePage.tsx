@@ -18,7 +18,8 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateAge, getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
-import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
+import EmptyState from '@/components/EmptyState';
+import { CalendarCheck } from 'lucide-react';
 import { FighterRadarChart } from '@/components/FighterRadarChart';
 import { usersWithBeltThisMonth } from '@/lib/belts';
 
@@ -159,8 +160,7 @@ export function ClientHomePage() {
   const [paymentRows, setPaymentRows] = useState<PaymentSummary[]>([]);
   const [stats, setStats] = useState<FighterStats | null>(null);
   const [events, setEvents] = useState<GymEvent[]>([]);
-  const [docTemplates, setDocTemplates] = useState<DocTemplate[]>([]);
-  const [docSignatures, setDocSignatures] = useState<DocSignature[]>([]);
+  const [pendingSignTitles, setPendingSignTitles] = useState<string[]>([]);
   const [activeSub, setActiveSub] = useState<ActiveSubInfo | null>(null);
   const [attendances, setAttendances] = useState<AttendanceHistoryItem[]>([]);
   const [linkedChildren, setLinkedChildren] = useState<LinkedChildProfile[]>([]);
@@ -182,7 +182,7 @@ export function ClientHomePage() {
   useEffect(() => {
     if (!user) return;
     const loadHome = async () => {
-      const [payRes, statsRes, evRes, tplRes, sigRes, subRes, attRes, kidsRes] = await Promise.all([
+      const [payRes, statsRes, evRes, signRes, subRes, attRes, kidsRes] = await Promise.all([
         supabase
           .from('v_monthly_payment_status')
           .select('month_year, plan_name, price_eur, effective_status')
@@ -196,11 +196,12 @@ export function ClientHomePage() {
           .gte('event_date', new Date().toISOString())
           .order('event_date')
           .limit(4),
-        supabase.from('document_templates').select('*').eq('is_active', true),
         supabase
-          .from('document_signatures')
-          .select('template_id, template_version, signed_at')
-          .eq('user_id', user.id),
+          .from('document_assignments')
+          .select('academy_documents!inner(title, requires_signature)')
+          .eq('user_id', user.id)
+          .in('status', ['pending', 'rejected'])
+          .eq('academy_documents.requires_signature', true),
         supabase
           .from('subscriptions')
           .select('remaining_credits, plans(name, is_class_pack, pack_credits)')
@@ -224,8 +225,11 @@ export function ClientHomePage() {
       setPaymentRows((payRes.data as PaymentSummary[]) ?? []);
       setStats((statsRes.data as FighterStats) ?? null);
       setEvents((evRes.data as GymEvent[]) ?? []);
-      setDocTemplates((tplRes.data as DocTemplate[]) ?? []);
-      setDocSignatures((sigRes.data as DocSignature[]) ?? []);
+      setPendingSignTitles(
+        ((signRes.data as unknown as { academy_documents: { title: string } | null }[]) ?? [])
+          .map((r) => r.academy_documents?.title)
+          .filter((t): t is string => Boolean(t))
+      );
       setActiveSub((subRes.data as unknown as ActiveSubInfo) ?? null);
       setAttendances((attRes.data as unknown as AttendanceHistoryItem[]) ?? []);
       const kids = (kidsRes.data as LinkedChildProfile[]) ?? [];
@@ -275,7 +279,6 @@ export function ClientHomePage() {
 
   const age = calculateAge(profile?.birth_date);
   const isMinor = isMinorAge(profile?.birth_date);
-  const docCompliance = getDocumentCompliance(docTemplates, docSignatures, profile?.birth_date);
 
   // Solo se muestra si su tarifa de este mes es de BJJ o Grappling; el cinturón sigue guardado en la BD
   const beltKey = beltApplies ? profile?.belt || null : null;
@@ -298,20 +301,18 @@ export function ClientHomePage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Aviso de documentación obligatoria pendiente */}
-      {docCompliance.totalRequired > 0 && docCompliance.pending.length > 0 && (
+      {pendingSignTitles.length > 0 && (
         <div className="rounded-2xl border border-amber-500/50 bg-amber-500/15 text-amber-100 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-3">
             <FileSignature className="w-6 h-6 text-amber-300 shrink-0 mt-0.5" />
             <div>
               <p className="font-headline text-sm sm:text-base uppercase tracking-wide">
-                Documentación obligatoria pendiente ({docCompliance.signedCount}/
-                {docCompliance.totalRequired})
+                {pendingSignTitles.length === 1
+                  ? 'Tienes 1 documento por firmar'
+                  : `Tienes ${pendingSignTitles.length} documentos por firmar`}
               </p>
-              <p className="text-xs opacity-90 sm:hidden">
-                Faltan {docCompliance.pending.length} por firmar.
-              </p>
-              <p className="hidden sm:block text-xs opacity-90">
-                Es imprescindible firmar: {docCompliance.pending.map((d) => d.title).join(', ')}.
+              <p className="text-xs opacity-90">
+                La academia te pide firmar: {pendingSignTitles.join(', ')}.
               </p>
             </div>
           </div>
@@ -560,7 +561,7 @@ export function ClientHomePage() {
           <span className="text-xs text-slate-400">Historial real validado en clase</span>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="studio-stagger grid grid-cols-3 gap-3">
           <div className="relative overflow-hidden rounded-2xl studio-panel-inset border border-white/10 p-3.5 text-center">
             <div className="absolute inset-x-0 top-0 h-0.5 bg-white/30" />
             <p className="font-headline text-2xl sm:text-3xl text-white">{classesThisMonth}</p>
@@ -594,9 +595,9 @@ export function ClientHomePage() {
         )}
 
         {attendances.length === 0 ? (
-          <p className="text-xs text-slate-400">
+          <EmptyState icon={CalendarCheck} compact>
             Cuando el profesor pase lista en clase aparecerán aquí tus sesiones y horas acumuladas.
-          </p>
+          </EmptyState>
         ) : (
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-wider text-slate-400">

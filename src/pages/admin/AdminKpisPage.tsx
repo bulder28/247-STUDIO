@@ -18,7 +18,11 @@ import {
 import { supabase } from '@/lib/supabase';
 import { exportWorkbook } from '@/lib/excel';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
-import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
+import {
+  countPendingSignatures,
+  fetchSignatureTasksByUser,
+  type SignatureTask,
+} from '@/lib/studentDocuments';
 import { formatEUR, formatInt, formatMonthLong } from '@/lib/format';
 import { fetchAllRows, getCashMonth } from '@/lib/finance';
 import { DeltaBadge, KpiCard, Skeleton } from '@/components/KpiCard';
@@ -270,8 +274,7 @@ export function AdminKpisPage() {
   const [cashByMonth, setCashByMonth] = useState<Record<string, number>>({});
   const [expensesByMonth, setExpensesByMonth] = useState<Record<string, number>>({});
   const [clients, setClients] = useState<ClientProfile[]>([]);
-  const [templates, setTemplates] = useState<DocTemplate[]>([]);
-  const [signatures, setSignatures] = useState<(DocSignature & { user_id: string })[]>([]);
+  const [signTasksByUser, setSignTasksByUser] = useState<Record<string, SignatureTask[]>>({});
   const [packSubs, setPackSubs] = useState<PackSubRow[]>([]);
 
   const trendMonths = useMemo(
@@ -287,7 +290,7 @@ export function AdminKpisPage() {
       const { start, nextEnd } = getMonthRangeBounds(startMonth, selectedMonth);
       let incomplete = false;
 
-      const [discRes, payRows, pastDueRows, attRows, cliRes, tplRes, sigRes, packRes, cashArr, expRows] =
+      const [discRes, payRows, pastDueRows, attRows, cliRes, signTasks, packRes, cashArr, expRows] =
         await Promise.all([
           supabase.from('disciplines').select('id, name').eq('is_active', true).order('sort_order'),
           // Paginadas: 6–12 meses de cuotas y asistencias superan pronto el límite de 1.000 filas
@@ -335,10 +338,7 @@ export function AdminKpisPage() {
             .from('profiles')
             .select('id, status, belt, birth_date, is_founder, created_at, first_training_at')
             .eq('role', 'client'),
-          supabase.from('document_templates').select('*').eq('is_active', true),
-          supabase
-            .from('document_signatures')
-            .select('user_id, template_id, template_version, signed_at'),
+          fetchSignatureTasksByUser(),
           supabase
             .from('subscriptions')
             .select('id, user_id, remaining_credits, plans!inner(name, is_class_pack, pack_credits)')
@@ -377,8 +377,7 @@ export function AdminKpisPage() {
       setCashByMonth(cashMap);
       setExpensesByMonth(expMap);
       setClients((cliRes.data as ClientProfile[]) ?? []);
-      setTemplates((tplRes.data as DocTemplate[]) ?? []);
-      setSignatures((sigRes.data as (DocSignature & { user_id: string })[]) ?? []);
+      setSignTasksByUser(signTasks);
       setPackSubs((packRes.data as unknown as PackSubRow[]) ?? []);
       setLoading(false);
     };
@@ -524,15 +523,10 @@ export function AdminKpisPage() {
   const activeTrend = trendData.find((d) => d.ym === focusMonth) ?? trendData[trendData.length - 1];
 
   // Cumplimiento documental
-  const sigByUser: Record<string, DocSignature[]> = {};
-  signatures.forEach((s) => {
-    if (!sigByUser[s.user_id]) sigByUser[s.user_id] = [];
-    sigByUser[s.user_id].push(s);
-  });
   const compliantUsers = clients.filter(
     (c) =>
       (c.status === 'active' || c.status === 'paused') &&
-      getDocumentCompliance(templates, sigByUser[c.id] ?? [], c.birth_date).pending.length === 0
+      countPendingSignatures(signTasksByUser[c.id]) === 0
   ).length;
   const totalManagedClients = clients.filter(
     (c) => c.status === 'active' || c.status === 'paused'
@@ -1407,7 +1401,7 @@ export function AdminKpisPage() {
 
           <div className="rounded-2xl studio-panel-inset border border-white/5 p-3.5 space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-300">Firmas obligatorias al día</span>
+              <span className="text-slate-300">Documentos firmados al día</span>
               <span className="font-headline text-base text-emerald-300">{docCompliancePct}%</span>
             </div>
             <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">

@@ -22,11 +22,13 @@ import { getEffectivePlanPrice } from '@/lib/pricing';
 import { CameraCaptureModal } from '@/components/CameraCaptureModal';
 import { StudentBulkImportModal } from '@/components/StudentBulkImportModal';
 import { Skeleton } from '@/components/KpiCard';
+import EmptyState from '@/components/EmptyState';
+import { SearchX } from 'lucide-react';
 import {
-  getDocumentCompliance,
-  type DocSignature,
-  type DocTemplate,
-} from '@/lib/documents';
+  countPendingSignatures,
+  fetchSignatureTasksByUser,
+  type SignatureTask,
+} from '@/lib/studentDocuments';
 import type { MemberStatus, Profile, UserRole } from '@/types/database';
 import { displayAvatar } from '@/lib/demoAvatars';
 import { BELT_DISCIPLINE_SLUGS } from '@/lib/belts';
@@ -63,8 +65,7 @@ export function AdminStudentsPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
   const [trials, setTrials] = useState<TrialGuest[]>([]);
-  const [docTemplates, setDocTemplates] = useState<DocTemplate[]>([]);
-  const [signaturesByUser, setSignaturesByUser] = useState<Record<string, DocSignature[]>>({});
+  const [signTasksByUser, setSignTasksByUser] = useState<Record<string, SignatureTask[]>>({});
   const [subsByUser, setSubsByUser] = useState<Record<string, string>>({});
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const [group, setGroup] = useState<'clients' | 'staff'>('clients');
@@ -127,7 +128,7 @@ export function AdminStudentsPage() {
   const [copied, setCopied] = useState(false);
 
   const loadAll = async () => {
-    const [profRes, planRes, discRes, subRes, trialRes, tplRes, sigRes] = await Promise.all([
+    const [profRes, planRes, discRes, subRes, trialRes, signTasks] = await Promise.all([
       supabase.from('profiles').select('*').order('full_name'),
       supabase
         .from('plans')
@@ -146,25 +147,14 @@ export function AdminStudentsPage() {
         .is('converted_user_id', null)
         .order('trial_date', { ascending: false })
         .limit(10),
-      supabase.from('document_templates').select('*').eq('is_active', true),
-      supabase
-        .from('document_signatures')
-        .select('user_id, template_id, template_version, signed_at'),
+      fetchSignatureTasksByUser(),
     ]);
 
     setProfiles((profRes.data as Profile[]) ?? []);
     setPlans((planRes.data as Plan[]) ?? []);
     setDisciplines((discRes.data as Discipline[]) ?? []);
     setTrials((trialRes.data as unknown as TrialGuest[]) ?? []);
-    setDocTemplates((tplRes.data as DocTemplate[]) ?? []);
-
-    const sigMap: Record<string, DocSignature[]> = {};
-    ((sigRes.data as DocSignature[]) ?? []).forEach((s) => {
-      if (!s.user_id) return;
-      if (!sigMap[s.user_id]) sigMap[s.user_id] = [];
-      sigMap[s.user_id].push(s);
-    });
-    setSignaturesByUser(sigMap);
+    setSignTasksByUser(signTasks);
 
     const map: Record<string, string> = {};
     (subRes.data ?? []).forEach((s: { user_id: string; plan_id: string }) => {
@@ -201,8 +191,7 @@ export function AdminStudentsPage() {
     }
     return true;
   });
-  const hasPendingDocs = (p: Profile) =>
-    getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date).pending.length > 0;
+  const hasPendingDocs = (p: Profile) => countPendingSignatures(signTasksByUser[p.id]) > 0;
   const pendingDocsCount = base.filter((p) => p.role === 'client' && hasPendingDocs(p)).length;
   const noPhotoCount = base.filter((p) => p.role === 'client' && !p.avatar_url).length;
   const activeCount = base.filter((p) => p.status === 'active').length;
@@ -457,7 +446,7 @@ export function AdminStudentsPage() {
     const rows = filtered.map((p) => {
       const planId = subsByUser[p.id];
       const plan = plans.find((pl) => pl.id === planId);
-      const docs = getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date);
+      const pendingSign = countPendingSignatures(signTasksByUser[p.id]);
       return {
         Nombre: p.full_name,
         Email: p.email,
@@ -470,7 +459,7 @@ export function AdminStudentsPage() {
         Tarifa_mes: plan ? plan.name : 'Sin tarifa',
         Cuota_EUR: plan ? getEffectivePlanPrice(plan.price_eur, p.is_founder, plan.sf_price_eur) : 0,
         Socio_fundador: p.is_founder ? 'Sí' : 'No',
-        Documentos: docs.isComplete ? 'Al día' : `Pendientes (${docs.pending.length})`,
+        Documentos: pendingSign === 0 ? 'Al día' : `Pendientes de firma (${pendingSign})`,
       };
     });
 
@@ -685,18 +674,18 @@ export function AdminStudentsPage() {
             </div>
           ))
         ) : filtered.length === 0 ? (
-          <div className="col-span-full p-8 text-center text-sm text-slate-400">
-            No hay alumnos que coincidan con los filtros seleccionados.
+          <div className="col-span-full">
+            <EmptyState icon={SearchX} bare>
+              No hay alumnos que coincidan con los filtros seleccionados.
+            </EmptyState>
           </div>
         ) : (
           filtered.map((p) => {
           const planName =
             plans.find((pl) => pl.id === subsByUser[p.id])?.name ?? 'Sin tarifa este mes';
           const minorAge = isMinorAge(p.birth_date) ? calculateAge(p.birth_date) : null;
-          const comp =
-            p.role === 'client'
-              ? getDocumentCompliance(docTemplates, signaturesByUser[p.id] ?? [], p.birth_date)
-              : null;
+          const pendingSign =
+            p.role === 'client' ? countPendingSignatures(signTasksByUser[p.id]) : null;
           return (
             <div
               key={p.id}
@@ -734,10 +723,10 @@ export function AdminStudentsPage() {
                         Menor · {minorAge}a
                       </span>
                     )}
-                    {comp && (comp.pending.length > 0 || !p.avatar_url) && (
+                    {pendingSign !== null && (pendingSign > 0 || !p.avatar_url) && (
                       <span
                         title={[
-                          comp.pending.length > 0 ? `Faltan ${comp.pending.length} docs` : null,
+                          pendingSign > 0 ? `Faltan ${pendingSign} firmas` : null,
                           !p.avatar_url ? 'Sin foto' : null,
                         ]
                           .filter(Boolean)
@@ -1110,46 +1099,45 @@ export function AdminStudentsPage() {
                 </select>
               </div>
 
-              {selected.role === 'client' && docTemplates.length > 0 && (() => {
-                const sigs = signaturesByUser[selected.id] ?? [];
-                const comp = getDocumentCompliance(docTemplates, sigs, selected.birth_date);
+              {selected.role === 'client' && (signTasksByUser[selected.id]?.length ?? 0) > 0 && (() => {
+                const tasks = signTasksByUser[selected.id] ?? [];
+                const pending = countPendingSignatures(tasks);
                 return (
                   <div className="sm:col-span-2 rounded-xl studio-panel-inset border border-white/10 p-3.5 space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-semibold text-white uppercase">
-                        Documentación Obligatoria
+                        Documentos con firma
                       </p>
                       <span
                         className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                          comp.isComplete
+                          pending === 0
                             ? 'bg-emerald-500/15 text-emerald-300'
                             : 'bg-studio-red/20 text-red-200'
                         }`}
                       >
-                        {comp.signedCount} / {comp.totalRequired} firmados
+                        {tasks.length - pending} / {tasks.length} firmados
                       </span>
                     </div>
                     <div className="space-y-1.5">
-                      {comp.required.map((doc) => {
-                        const signed = sigs.find(
-                          (s) => s.template_id === doc.id && s.template_version === doc.version
-                        );
-                        return (
-                          <div
-                            key={doc.id}
-                            className="flex items-center justify-between gap-2 text-xs"
-                          >
-                            <span className="text-slate-300 truncate">{doc.title}</span>
-                            {signed ? (
-                              <span className="text-emerald-300 shrink-0">
-                                Firmado ({new Date(signed.signed_at).toLocaleDateString('es-ES')})
-                              </span>
-                            ) : (
-                              <span className="text-red-300 font-semibold shrink-0">Pendiente</span>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {tasks.map((t, i) => (
+                        <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                          <span className="text-slate-300 truncate">{t.title}</span>
+                          {t.status === 'validated' ? (
+                            <span className="text-emerald-300 shrink-0">Validado</span>
+                          ) : t.status === 'signed' ? (
+                            <span className="text-sky-300 shrink-0">
+                              Firmado
+                              {t.signed_at
+                                ? ` (${new Date(t.signed_at).toLocaleDateString('es-ES')})`
+                                : ''}
+                            </span>
+                          ) : (
+                            <span className="text-red-300 font-semibold shrink-0">
+                              {t.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                            </span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );

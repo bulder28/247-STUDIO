@@ -3,7 +3,6 @@ import { Home, CalendarDays, MessageSquare, Bell, User, Tags, HelpCircle } from 
 import { PortalShell } from '@/layouts/PortalShell';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { getDocumentCompliance, type DocSignature, type DocTemplate } from '@/lib/documents';
 import {
   CHAT_SEEN_EVENT,
   DOCS_UPDATED_EVENT,
@@ -20,11 +19,11 @@ const secondaryNav = [
 ];
 
 export function ClientLayout({ children }: { children: ReactNode }) {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [unreadAvisos, setUnreadAvisos] = useState(0);
   const [unreadForum, setUnreadForum] = useState(0);
   const [unreadChat, setUnreadChat] = useState(0);
-  const [pendingDocs, setPendingDocs] = useState(0);
+  const [pendingSignDocs, setPendingSignDocs] = useState(0);
 
   const fetchAvisosBadge = useCallback(async () => {
     if (!user?.id) {
@@ -82,23 +81,18 @@ export function ClientLayout({ children }: { children: ReactNode }) {
 
   const fetchDocsBadge = useCallback(async () => {
     if (!user?.id) {
-      setPendingDocs(0);
+      setPendingSignDocs(0);
       return;
     }
-    const [tplRes, sigRes] = await Promise.all([
-      supabase.from('document_templates').select('*').eq('is_active', true),
-      supabase
-        .from('document_signatures')
-        .select('template_id, template_version, signed_at')
-        .eq('user_id', user.id),
-    ]);
-    const compliance = getDocumentCompliance(
-      (tplRes.data as DocTemplate[]) ?? [],
-      (sigRes.data as DocSignature[]) ?? [],
-      profile?.birth_date
-    );
-    setPendingDocs(compliance.pending.length);
-  }, [user?.id, profile?.birth_date]);
+    // Documentos que sube la academia y exigen firma (pendientes o rechazados).
+    const { count } = await supabase
+      .from('document_assignments')
+      .select('id, academy_documents!inner(requires_signature)', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .in('status', ['pending', 'rejected'])
+      .eq('academy_documents.requires_signature', true);
+    setPendingSignDocs(count ?? 0);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchAvisosBadge();
@@ -136,10 +130,9 @@ export function ClientLayout({ children }: { children: ReactNode }) {
             { event: '*', schema: 'public', table: 'private_messages', filter: `client_id=eq.${user.id}` },
             fetchChatBadge
           )
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'document_templates' }, fetchDocsBadge)
           .on(
             'postgres_changes',
-            { event: '*', schema: 'public', table: 'document_signatures', filter: `user_id=eq.${user.id}` },
+            { event: '*', schema: 'public', table: 'document_assignments', filter: `user_id=eq.${user.id}` },
             fetchDocsBadge
           )
           .subscribe()
@@ -161,9 +154,18 @@ export function ClientLayout({ children }: { children: ReactNode }) {
       { to: '/app/horario', label: 'Horario', icon: CalendarDays },
       { to: '/app/foro', label: 'Foro', icon: MessageSquare, badgeCount: unreadForum + unreadChat },
       { to: '/app/avisos', label: 'Avisos', icon: Bell, badgeCount: unreadAvisos, ringBell: true },
-      { to: '/app/perfil', label: 'Perfil', icon: User, badgeCount: pendingDocs },
+      // Con documentos pendientes de firma, Perfil pasa a ser una campana que vibra.
+      pendingSignDocs > 0
+        ? {
+            to: '/app/perfil',
+            label: 'Firmar',
+            icon: Bell,
+            badgeCount: pendingSignDocs,
+            ringBell: true,
+          }
+        : { to: '/app/perfil', label: 'Perfil', icon: User },
     ],
-    [unreadForum, unreadChat, unreadAvisos, pendingDocs]
+    [unreadForum, unreadChat, unreadAvisos, pendingSignDocs]
   );
 
   return (

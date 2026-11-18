@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Megaphone, Bell, HelpCircle, MessageCircle, FileSignature, Send, Calendar, Trash2 } from 'lucide-react';
+import { Megaphone, Bell, HelpCircle, MessageCircle, FileSignature, FolderOpen, Send, Calendar, Trash2 } from 'lucide-react';
+import { AdminStudentDocuments } from '@/pages/admin/AdminStudentDocuments';
+import { AdminSignatureValidation } from '@/pages/admin/AdminSignatureValidation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeader } from '@/components/PageHeader';
@@ -17,16 +19,6 @@ interface ChatMessage {
   body: string;
   created_at: string;
   client?: { full_name: string } | null;
-}
-
-interface SignedDocRow {
-  id: string;
-  signer_name: string;
-  signer_dni: string | null;
-  signature_image_url: string;
-  signed_at: string;
-  profiles?: { full_name: string } | null;
-  document_templates?: { title: string } | null;
 }
 
 interface EventItem {
@@ -55,7 +47,9 @@ interface FaqItem {
 
 export function AdminCommunicationPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<'forum' | 'notices' | 'chats' | 'docs' | 'events' | 'faqs'>('forum');
+  const [tab, setTab] = useState<
+    'forum' | 'notices' | 'chats' | 'docs' | 'uploads' | 'events' | 'faqs'
+  >('forum');
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
 
   // Foro
@@ -87,8 +81,6 @@ export function AdminCommunicationPage() {
   const [replyText, setReplyText] = useState('');
 
   // Documentos Firmados
-  const [signedDocs, setSignedDocs] = useState<SignedDocRow[]>([]);
-  const [previewSig, setPreviewSig] = useState<SignedDocRow | null>(null);
 
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -110,14 +102,6 @@ export function AdminCommunicationPage() {
     if (!activeClientId && msgs.length > 0) {
       setActiveClientId(msgs[0].client_id);
     }
-  };
-
-  const loadSignedDocs = async () => {
-    const { data } = await supabase
-      .from('document_signatures')
-      .select('id, signer_name, signer_dni, signature_image_url, signed_at, profiles(full_name), document_templates(title)')
-      .order('signed_at', { ascending: false });
-    setSignedDocs((data as unknown as SignedDocRow[]) ?? []);
   };
 
   const loadEvents = async () => {
@@ -149,7 +133,6 @@ export function AdminCommunicationPage() {
 
   useEffect(() => {
     if (tab === 'chats') loadChats();
-    if (tab === 'docs') loadSignedDocs();
     if (tab === 'events') loadEvents();
     if (tab === 'notices') loadNotices();
     if (tab === 'faqs') loadFaqs();
@@ -287,6 +270,7 @@ export function AdminCommunicationPage() {
           { id: 'forum', label: 'Foro', icon: Megaphone },
           { id: 'chats', label: 'Chats Privados', icon: MessageCircle },
           { id: 'docs', label: 'Firmas', icon: FileSignature },
+          { id: 'uploads', label: 'Subir documentos', icon: FolderOpen },
           { id: 'notices', label: 'Avisos', icon: Bell },
           { id: 'events', label: 'Eventos', icon: Calendar },
           { id: 'faqs', label: 'FAQs', icon: HelpCircle },
@@ -418,36 +402,9 @@ export function AdminCommunicationPage() {
         </div>
       )}
 
-      {tab === 'docs' && (
-        <div className="rounded-2xl studio-panel border border-white/10 divide-y divide-white/5">
-          {signedDocs.length === 0 ? (
-            <p className="p-6 text-sm text-slate-400">Aún no hay documentos firmados por alumnos.</p>
-          ) : (
-            signedDocs.map((doc) => (
-              <div
-                key={doc.id}
-                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-white">
-                    {doc.profiles?.full_name} — {doc.document_templates?.title}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    Firmante: {doc.signer_name} {doc.signer_dni ? `(${doc.signer_dni})` : ''} ·{' '}
-                    {new Date(doc.signed_at).toLocaleDateString('es-ES')}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setPreviewSig(doc)}
-                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-medium text-white"
-                >
-                  Ver Firma
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      {tab === 'docs' && <AdminSignatureValidation />}
+
+      {tab === 'uploads' && <AdminStudentDocuments />}
 
       {tab === 'notices' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -699,32 +656,6 @@ export function AdminCommunicationPage() {
         </div>
       )}
 
-      {previewSig && (
-        <div
-          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
-          onClick={() => setPreviewSig(null)}
-        >
-          <div
-            className="rounded-2xl studio-panel border border-white/15 p-6 max-w-md w-full space-y-3"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="font-headline text-lg uppercase text-white">
-              Firma de {previewSig.signer_name}
-            </h3>
-            <img
-              src={previewSig.signature_image_url}
-              alt="Firma"
-              className="w-full rounded-xl studio-panel-inset border border-white/10"
-            />
-            <button
-              onClick={() => setPreviewSig(null)}
-              className="w-full rounded-xl bg-studio-red py-2 text-sm font-semibold text-white"
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
