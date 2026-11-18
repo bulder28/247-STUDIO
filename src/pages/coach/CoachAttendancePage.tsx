@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, UserPlus, User, Users, Calendar, Search, CalendarX, WifiOff, AlertTriangle } from 'lucide-react';
+import { Check, UserPlus, User, Users, Calendar, Search, CalendarX, WifiOff, AlertTriangle, ChevronDown, Star } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { Skeleton } from '@/components/KpiCard';
 import { supabase } from '@/lib/supabase';
@@ -8,6 +8,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getLocalDateISO, getLocalTimeHHMM } from '@/lib/dateUtils';
 import { PageHeader } from '@/components/PageHeader';
 import { BELT_DISCIPLINE_SLUGS } from '@/lib/belts';
+
+/** Días sin venir a una clase para dejar de ser habitual de esa franja. */
+const REGULAR_WINDOW_DAYS = 21;
 
 const DAYS = [
   { value: 1, label: 'Lunes' },
@@ -67,6 +70,9 @@ export function CoachAttendancePage() {
   const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
   const [togglingIds, setTogglingIds] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
+  // Habituales: user_id -> nº de asistencias a ESTA clase en las últimas 3 semanas
+  const [regularCounts, setRegularCounts] = useState<Record<string, number>>({});
+  const [showOthers, setShowOthers] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
@@ -196,6 +202,23 @@ export function CoachAttendancePage() {
           })
           .sort((a, b) => a.full_name.localeCompare(b.full_name));
       }
+
+      // Historial de esta clase (franja y disciplina) en las últimas 3 semanas, sin contar hoy
+      const since = new Date();
+      since.setDate(since.getDate() - REGULAR_WINDOW_DAYS);
+      const { data: histData } = await supabase
+        .from('attendances')
+        .select('user_id')
+        .eq('schedule_class_id', selected.id)
+        .gte('attendance_date', getLocalDateISO(since))
+        .lt('attendance_date', todayDate)
+        .not('user_id', 'is', null);
+      const counts: Record<string, number> = {};
+      ((histData as { user_id: string }[]) ?? []).forEach((r) => {
+        counts[r.user_id] = (counts[r.user_id] ?? 0) + 1;
+      });
+      setRegularCounts(counts);
+      setShowOthers(false);
 
       if (selected.day_of_week === todayDayOfWeek) {
         const { data: attData } = await supabase
@@ -337,6 +360,90 @@ export function CoachAttendancePage() {
           (s.alias && s.alias.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     : students;
+
+  // Habituales de la franja arriba; el resto plegado. Sin historial (primera vez) se ve todo.
+  // Se calcula solo con el historial: marcar hoy a alguien de "Otros" no lo mueve de sitio.
+  const hasRegulars = students.some((s) => regularCounts[s.id]);
+  const splitByRegulars = hasRegulars && !searchTerm.trim();
+  const regularStudents = students
+    .filter((s) => regularCounts[s.id])
+    .sort(
+      (a, b) =>
+        (regularCounts[b.id] ?? 0) - (regularCounts[a.id] ?? 0) || a.full_name.localeCompare(b.full_name)
+    );
+  const otherStudents = students.filter((s) => !regularCounts[s.id]);
+  const othersMarked = otherStudents.filter((s) => attendances.some((a) => a.user_id === s.id)).length;
+
+  const renderCard = (st: StudentCard) => {
+    const checked = attendances.some((a) => a.user_id === st.id);
+    const busy = Boolean(togglingIds[st.id]);
+    return (
+      <motion.button
+        key={st.id}
+        type="button"
+        disabled={busy}
+        whileHover={isToday ? { y: -3, scale: 1.02 } : undefined}
+        whileTap={isToday ? { scale: 0.97 } : undefined}
+        transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+        onClick={() => toggleStudent(st.id)}
+        className={`group relative rounded-2xl p-2.5 sm:p-4 border text-left transition-[color,background-color,border-color,box-shadow,opacity] duration-200 flex flex-col items-center text-center gap-2.5 ${
+          checked
+            ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-[0_10px_24px_-10px_rgba(16,185,129,0.45)]'
+            : isToday
+              ? 'bg-white/[0.04] border-white/10 text-slate-200 hover:border-studio-red/70 hover:bg-white/[0.09] hover:shadow-[0_12px_28px_-10px_rgba(220,38,38,0.4)]'
+              : 'bg-studio-navy/70 border-white/10 text-slate-200 cursor-default'
+        } ${busy ? 'opacity-60' : ''}`}
+      >
+        {checked && (
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+            className="absolute top-1.5 right-1.5 sm:top-2.5 sm:right-2.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm"
+          >
+            <Check className="w-4 h-4" />
+          </motion.span>
+        )}
+        <div
+          className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full studio-panel-inset border overflow-hidden flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 group-hover:scale-110 ${
+            checked
+              ? 'border-emerald-400/70 ring-2 ring-emerald-400/40'
+              : 'border-white/10 group-hover:ring-2 group-hover:ring-studio-red/75 group-hover:shadow-[0_0_18px_rgba(220,38,38,0.4)]'
+          }`}
+        >
+          {st.avatar_url ? (
+            <img
+              src={st.avatar_url}
+              alt={st.full_name}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+            />
+          ) : (
+            <User className="w-7 h-7 text-slate-500 transition-colors duration-200 group-hover:text-white" />
+          )}
+        </div>
+        <div>
+          <p className="text-xs sm:text-sm font-semibold leading-tight break-words">{st.full_name}</p>
+          {st.alias && (
+            <p className="text-[11px] text-studio-cream/80 font-medium">&ldquo;{st.alias}&rdquo;</p>
+          )}
+          {classUsesBelt && st.belt && <p className="text-[11px] text-slate-400 mt-0.5">{st.belt}</p>}
+          {st.is_class_pack && st.remaining_credits !== null && (
+            <span
+              className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                st.remaining_credits > 0
+                  ? 'bg-sky-500/15 text-sky-300'
+                  : 'bg-studio-red/20 text-red-300'
+              }`}
+            >
+              {st.remaining_credits > 0
+                ? `Bono: ${st.remaining_credits} ${st.remaining_credits === 1 ? 'clase' : 'clases'}`
+                : 'Bono agotado (0)'}
+            </span>
+          )}
+        </div>
+      </motion.button>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -568,77 +675,54 @@ export function CoachAttendancePage() {
             : 'Ningún alumno coincide con la búsqueda.'}
         </EmptyState>
       ) : (
-        <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
-          {visibleStudents.map((st) => {
-            const checked = attendances.some((a) => a.user_id === st.id);
-            const busy = Boolean(togglingIds[st.id]);
-            return (
-              <motion.button
-                key={st.id}
-                type="button"
-                disabled={busy}
-                whileHover={isToday ? { y: -3, scale: 1.02 } : undefined}
-                whileTap={isToday ? { scale: 0.97 } : undefined}
-                transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-                onClick={() => toggleStudent(st.id)}
-                className={`group relative rounded-2xl p-2.5 sm:p-4 border text-left transition-[color,background-color,border-color,box-shadow,opacity] duration-200 flex flex-col items-center text-center gap-2.5 ${
-                  checked
-                    ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-[0_10px_24px_-10px_rgba(16,185,129,0.45)]'
-                    : isToday
-                      ? 'bg-white/[0.04] border-white/10 text-slate-200 hover:border-studio-red/70 hover:bg-white/[0.09] hover:shadow-[0_12px_28px_-10px_rgba(220,38,38,0.4)]'
-                      : 'bg-studio-navy/70 border-white/10 text-slate-200 cursor-default'
-                } ${busy ? 'opacity-60' : ''}`}
-              >
-                {checked && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                    className="absolute top-1.5 right-1.5 sm:top-2.5 sm:right-2.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm"
+        <div className="space-y-4">
+          {splitByRegulars ? (
+            <>
+              <section aria-label="Habituales de esta clase" className="space-y-2">
+                <h3 className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-slate-300">
+                  <Star className="w-3.5 h-3.5 text-amber-300" aria-hidden />
+                  Habituales de esta clase ({regularStudents.length})
+                </h3>
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                  {regularStudents.map(renderCard)}
+                </div>
+              </section>
+              {otherStudents.length > 0 && (
+                <section aria-label="Otros alumnos de la disciplina" className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowOthers((v) => !v)}
+                    aria-expanded={showOthers}
+                    className="w-full min-h-11 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] px-4 text-sm font-semibold text-slate-200"
                   >
-                    <Check className="w-4 h-4" />
-                  </motion.span>
-                )}
-                <div
-                  className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full studio-panel-inset border overflow-hidden flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 group-hover:scale-110 ${
-                    checked
-                      ? 'border-emerald-400/70 ring-2 ring-emerald-400/40'
-                      : 'border-white/10 group-hover:ring-2 group-hover:ring-studio-red/75 group-hover:shadow-[0_0_18px_rgba(220,38,38,0.4)]'
-                  }`}
-                >
-                  {st.avatar_url ? (
-                    <img
-                      src={st.avatar_url}
-                      alt={st.full_name}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                    />
-                  ) : (
-                    <User className="w-7 h-7 text-slate-500 transition-colors duration-200 group-hover:text-white" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs sm:text-sm font-semibold leading-tight break-words">{st.full_name}</p>
-                  {st.alias && (
-                    <p className="text-[11px] text-studio-cream/80 font-medium">&ldquo;{st.alias}&rdquo;</p>
-                  )}
-                  {classUsesBelt && st.belt && <p className="text-[11px] text-slate-400 mt-0.5">{st.belt}</p>}
-                  {st.is_class_pack && st.remaining_credits !== null && (
-                    <span
-                      className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        st.remaining_credits > 0
-                          ? 'bg-sky-500/15 text-sky-300'
-                          : 'bg-studio-red/20 text-red-300'
-                      }`}
-                    >
-                      {st.remaining_credits > 0
-                        ? `Bono: ${st.remaining_credits} ${st.remaining_credits === 1 ? 'clase' : 'clases'}`
-                        : 'Bono agotado (0)'}
+                    <span>
+                      Otros alumnos de la disciplina ({otherStudents.length})
+                      {othersMarked > 0 && (
+                        <span className="ml-2 text-emerald-300">· {othersMarked} marcado{othersMarked === 1 ? '' : 's'} hoy</span>
+                      )}
                     </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showOthers ? 'rotate-180' : ''}`} aria-hidden />
+                  </button>
+                  {showOthers && (
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                      {otherStudents.map(renderCard)}
+                    </div>
                   )}
-                </div>
-              </motion.button>
-            );
-          })}
+                </section>
+              )}
+            </>
+          ) : (
+            <>
+              {!hasRegulars && !searchTerm.trim() && (
+                <p className="text-xs text-slate-300">
+                  Primera vez en esta clase: cuando pases lista, la próxima vez verás arriba solo a los habituales de esta franja.
+                </p>
+              )}
+              <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                {visibleStudents.map(renderCard)}
+              </div>
+            </>
+          )}
         </div>
       )}
 
