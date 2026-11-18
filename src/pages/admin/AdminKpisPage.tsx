@@ -673,7 +673,7 @@ export function AdminKpisPage() {
               value={selectedMonth}
               onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
               aria-label="Mes de análisis"
-              className="bg-transparent text-xs font-semibold text-white focus:outline-none"
+              className="bg-transparent text-xs font-semibold text-white rounded"
             />
           </div>
 
@@ -683,7 +683,7 @@ export function AdminKpisPage() {
               value={selectedDiscipline}
               onChange={(e) => setSelectedDiscipline(e.target.value)}
               aria-label="Filtrar por disciplina"
-              className="bg-transparent text-xs font-semibold text-white focus:outline-none"
+              className="bg-transparent text-xs font-semibold text-white rounded"
             >
               <option value="all" className="bg-slate-900">
                 Todas las disciplinas

@@ -84,11 +84,11 @@ export function ClientNoticesPage() {
           }`}
         />
         <div className="flex items-center gap-2">
-          <time className="block text-xs text-slate-500 tabular-nums" dateTime={n.created_at}>
+          <time className="block text-xs text-slate-400 tabular-nums" dateTime={n.created_at}>
             {d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
           </time>
           {isUnread && (
-            <span className="inline-flex items-center rounded-full bg-studio-red/20 border border-studio-red/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-studio-red">
+            <span className="inline-flex items-center rounded-full bg-studio-red/20 border border-studio-red/40 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-studio-red-text">
               Nuevo
             </span>
           )}
@@ -112,7 +112,7 @@ export function ClientNoticesPage() {
           <h2 className="text-sm font-semibold text-slate-300 mb-5 flex items-center gap-2">
             <Bell className="w-4 h-4 text-studio-red" /> Para ti
             {personal.length > 0 && (
-              <span className="ml-auto text-xs font-normal text-slate-500 tabular-nums">
+              <span className="ml-auto text-xs font-normal text-slate-400 tabular-nums">
                 {personal.length}
               </span>
             )}
@@ -130,7 +130,7 @@ export function ClientNoticesPage() {
           <h2 className="text-sm font-semibold text-slate-300 mb-5 flex items-center">
             Para toda la academia
             {general.length > 0 && (
-              <span className="ml-auto text-xs font-normal text-slate-500 tabular-nums">
+              <span className="ml-auto text-xs font-normal text-slate-400 tabular-nums">
                 {general.length}
               </span>
             )}
@@ -149,7 +149,7 @@ export function ClientNoticesPage() {
           <Calendar className="w-4 h-4 text-studio-red" />
           Próximos eventos
           {events.length > 0 && (
-            <span className="ml-auto text-xs font-normal text-slate-500 tabular-nums">
+            <span className="ml-auto text-xs font-normal text-slate-400 tabular-nums">
               {events.length}
             </span>
           )}
@@ -187,10 +187,10 @@ export function ClientNoticesPage() {
                         {ev.event_type}
                       </span>
                       {timeStr && (
-                        <span className="text-[11px] text-slate-500 tabular-nums">{timeStr}</span>
+                        <span className="text-[11px] text-slate-400 tabular-nums">{timeStr}</span>
                       )}
                       {isUnread && (
-                        <span className="inline-flex items-center rounded-full bg-studio-red/20 border border-studio-red/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-studio-red">
+                        <span className="inline-flex items-center rounded-full bg-studio-red/20 border border-studio-red/40 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-studio-red-text">
                           Nuevo
                         </span>
                       )}

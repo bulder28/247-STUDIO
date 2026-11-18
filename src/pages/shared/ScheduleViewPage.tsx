@@ -175,13 +175,13 @@ export function ScheduleViewPage() {
                   {isToday ? (
                     <span className="text-xs font-sans font-semibold normal-case text-red-700">Hoy</span>
                   ) : (
-                    <span className="text-xs font-sans font-normal normal-case text-slate-500 tabular-nums">
+                    <span className="text-xs font-sans font-normal normal-case text-slate-400 tabular-nums">
                       {list.length > 0 && `${list.length} ${list.length === 1 ? 'clase' : 'clases'}`}
                     </span>
                   )}
                 </h2>
                 {list.length === 0 ? (
-                  <p className={`text-sm pt-3 ${isToday ? 'text-[#141a2b]/60' : 'text-slate-500'}`}>
+                  <p className={`text-sm pt-3 ${isToday ? 'text-[#141a2b]/80' : 'text-slate-400'}`}>
                     Día de descanso, sin clases.
                   </p>
                 ) : (
@@ -194,7 +194,7 @@ export function ScheduleViewPage() {
                           key={c.id}
                           className={`group flex items-center gap-3.5 py-3 px-2 -mx-2 rounded-xl transition-[background-color,opacity] duration-200 ${
                             isToday ? 'hover:bg-[#141a2b]/[0.06]' : 'hover:bg-white/[0.06]'
-                          } ${isPast ? 'opacity-45' : ''}`}
+                          } ${isPast ? 'opacity-75' : ''}`}
                         >
                           <div className="w-14 shrink-0">
                             <p
@@ -206,7 +206,7 @@ export function ScheduleViewPage() {
                             </p>
                             <p
                               className={`text-[11px] tabular-nums mt-0.5 ${
-                                isToday ? 'text-[#141a2b]/55' : 'text-slate-500'
+                                isToday ? 'text-[#141a2b]/80' : 'text-slate-400'
                               }`}
                             >
                               {c.end_time.slice(0, 5)}
@@ -225,7 +225,7 @@ export function ScheduleViewPage() {
                             </p>
                             <p
                               className={`text-xs truncate ${
-                                isToday ? 'text-[#141a2b]/65' : 'text-slate-400'
+                                isToday ? 'text-[#141a2b]/85' : 'text-slate-300'
                               }`}
                             >
                               Prof. {c.coach_name}

@@ -480,6 +480,12 @@ export function AdminHomePage() {
   const bizumTotal = cashMonth?.bizum ?? 0;
   const otherMethodTotal = cashMonth?.other ?? 0;
   const historicalDebtTotal = pastDueHistory.reduce((sum, r) => sum + Number(r.price_eur || 0), 0);
+  // Moroso = alumno que debe el mes actual fuera de plazo O algún mes anterior (mismo criterio que el alumno ve).
+  const debtorCount = new Set([
+    ...overdueRows.map((r) => r.user_id),
+    ...pastDueHistory.map((r) => r.user_id),
+  ]).size;
+  const overdueThisMonthTotal = overdueRows.reduce((sum, r) => sum + Number(r.price_eur || 0), 0);
 
   // Agrupación de cuotas por programa
   const byProgram = rows.reduce<Record<string, { total: number; paid: number }>>((acc, r) => {
@@ -512,7 +518,7 @@ export function AdminHomePage() {
               value={selectedMonth}
               onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
               aria-label="Seleccionar mes"
-              className="bg-transparent text-xs font-semibold text-white focus:outline-none"
+              className="bg-transparent text-xs font-semibold text-white rounded"
             />
             {selectedMonth !== currentMonth && (
               <button
@@ -577,13 +583,15 @@ export function AdminHomePage() {
           icon={AlertTriangle}
           accent="red"
           loading={loading}
-          value={overdueRows.length}
-          valueClassName={overdueRows.length > 0 ? 'text-rose-400' : 'text-white'}
+          value={debtorCount}
+          valueClassName={debtorCount > 0 ? 'text-rose-400' : 'text-white'}
           footnote={
             <>
-              Deuda histórica:{' '}
-              <strong className="text-slate-200">{formatEUR(historicalDebtTotal)}</strong> (
-              {pastDueHistory.length})
+              Deben{' '}
+              <strong className="text-slate-200">
+                {formatEUR(historicalDebtTotal + overdueThisMonthTotal)}
+              </strong>{' '}
+              · {formatEUR(historicalDebtTotal)} de meses anteriores
             </>
           }
         />

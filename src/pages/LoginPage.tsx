@@ -6,6 +6,9 @@ import { z } from 'zod';
 import { Lock, Mail, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { BeltRule } from '@/components/PageHeader';
+import { isProvisionalEmail } from '@/lib/provisionalEmail';
+
+const OFFLINE_MSG = 'Sin conexión a internet. Conéctate a una red y vuelve a intentarlo.';
 
 const loginSchema = z.object({
   email: z.string().email('Introduce un correo válido'),
@@ -40,12 +43,21 @@ export function LoginPage() {
 
   const onSubmit = async (data: LoginForm) => {
     setServerError(null);
+    if (!navigator.onLine) {
+      setServerError(OFFLINE_MSG);
+      return;
+    }
     const { error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     });
     if (error) {
-      setServerError('Correo o contraseña incorrectos.');
+      // Solo un 400 de Supabase significa credenciales malas; lo demás es red o servidor.
+      setServerError(
+        error.status === 400 || /invalid login/i.test(error.message)
+          ? 'Correo o contraseña incorrectos.'
+          : 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'
+      );
     }
   };
 
@@ -56,11 +68,25 @@ export function LoginPage() {
       setServerError('Introduce primero tu correo para enviarte el enlace.');
       return;
     }
+    if (isProvisionalEmail(email)) {
+      setServerError(
+        'Tu cuenta usa un email provisional que no recibe correos. Pide a dirección una contraseña temporal: la generan desde tu ficha en un momento.'
+      );
+      return;
+    }
+    if (!navigator.onLine) {
+      setServerError(OFFLINE_MSG);
+      return;
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/login`,
     });
     if (error) {
-      setServerError('No se pudo enviar el correo de recuperación.');
+      setServerError(
+        error.status === 429
+          ? 'Has pedido varios enlaces seguidos. Espera unos minutos e inténtalo de nuevo.'
+          : 'No se pudo enviar el correo de recuperación. Inténtalo de nuevo o pide ayuda a dirección.'
+      );
     } else {
       setResetSent(true);
     }

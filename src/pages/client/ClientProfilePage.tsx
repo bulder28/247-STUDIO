@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Lock, Save, Camera, Upload, User, ChevronDown } from 'lucide-react';
+import { Lock, Save, Camera, Upload, User, ChevronDown, Mail } from 'lucide-react';
+import { isProvisionalEmail } from '@/lib/provisionalEmail';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { isMinorAge } from '@/lib/dateUtils';
@@ -88,6 +89,17 @@ export function ClientProfilePage() {
         title="Perfil y documentos"
       />
 
+      {isProvisionalEmail(profile?.email) && (
+        <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 text-sky-100 px-4 py-3 flex items-start gap-3">
+          <Mail className="w-5 h-5 text-sky-300 shrink-0 mt-0.5" aria-hidden />
+          <p className="text-sm">
+            <strong>Tu cuenta no tiene un email real.</strong> Si olvidas la contraseña no podremos
+            enviarte un enlace. Pide a dirección que añada tu email, o que te genere una contraseña
+            temporal si la necesitas.
+          </p>
+        </div>
+      )}
+
       {feedback && (
         <div className="rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-4 py-2.5 text-sm text-emerald-200">
           {feedback}
@@ -143,10 +155,10 @@ export function ClientProfilePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
-              <label className="block text-xs text-slate-400 uppercase mb-1">
+              <label className="block text-xs text-slate-300 uppercase mb-1" htmlFor="pf-1">
                 Nombre y apellidos
               </label>
-              <input
+              <input id="pf-1"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
@@ -155,10 +167,10 @@ export function ClientProfilePage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 uppercase mb-1">
+              <label className="block text-xs text-slate-300 uppercase mb-1" htmlFor="pf-2">
                 Fecha de nacimiento
               </label>
-              <input
+              <input id="pf-2"
                 type="date"
                 value={birthDate}
                 onChange={(e) => setBirthDate(e.target.value)}
@@ -166,8 +178,8 @@ export function ClientProfilePage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 uppercase mb-1">Sexo</label>
-              <select
+              <label className="block text-xs text-slate-300 uppercase mb-1" htmlFor="pf-3">Sexo</label>
+              <select id="pf-3"
                 value={gender}
                 onChange={(e) => setGender(e.target.value as 'hombre' | 'mujer' | '')}
                 className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
@@ -178,8 +190,8 @@ export function ClientProfilePage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-slate-400 uppercase mb-1">Teléfono</label>
-              <input
+              <label className="block text-xs text-slate-300 uppercase mb-1" htmlFor="pf-4">Teléfono</label>
+              <input id="pf-4"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
@@ -193,40 +205,40 @@ export function ClientProfilePage() {
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                    <label className="block text-[11px] text-slate-300 uppercase mb-1" htmlFor="pf-5">
                       Nombre del padre
                     </label>
-                    <input
+                    <input id="pf-5"
                       value={fatherName}
                       onChange={(e) => setFatherName(e.target.value)}
                       className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                    <label className="block text-[11px] text-slate-300 uppercase mb-1" htmlFor="pf-6">
                       Teléfono del padre
                     </label>
-                    <input
+                    <input id="pf-6"
                       value={fatherPhone}
                       onChange={(e) => setFatherPhone(e.target.value)}
                       className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                    <label className="block text-[11px] text-slate-300 uppercase mb-1" htmlFor="pf-7">
                       Nombre de la madre
                     </label>
-                    <input
+                    <input id="pf-7"
                       value={motherName}
                       onChange={(e) => setMotherName(e.target.value)}
                       className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] text-slate-300 uppercase mb-1">
+                    <label className="block text-[11px] text-slate-300 uppercase mb-1" htmlFor="pf-8">
                       Teléfono de la madre
                     </label>
-                    <input
+                    <input id="pf-8"
                       value={motherPhone}
                       onChange={(e) => setMotherPhone(e.target.value)}
                       className="w-full rounded-lg studio-field px-2.5 py-1.5 text-sm text-white"
@@ -255,10 +267,10 @@ export function ClientProfilePage() {
             {showExtraDetails && (
               <>
                 <div>
-                  <label className="block text-xs text-slate-400 uppercase mb-1">
+                  <label className="block text-xs text-slate-300 uppercase mb-1" htmlFor="pf-9">
                     Contacto Emergencia
                   </label>
-                  <input
+                  <input id="pf-9"
                     value={emergencyName}
                     onChange={(e) => setEmergencyName(e.target.value)}
                     placeholder="Nombre"
@@ -266,20 +278,20 @@ export function ClientProfilePage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 uppercase mb-1">
+                  <label className="block text-xs text-slate-300 uppercase mb-1" htmlFor="pf-10">
                     Teléfono Emergencia
                   </label>
-                  <input
+                  <input id="pf-10"
                     value={emergencyPhone}
                     onChange={(e) => setEmergencyPhone(e.target.value)}
                     className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs text-slate-400 uppercase mb-1">
+                  <label className="block text-xs text-slate-300 uppercase mb-1" htmlFor="pf-11">
                     Otros datos / Lesiones / Alergias
                   </label>
-                  <textarea
+                  <textarea id="pf-11"
                     rows={2}
                     value={medicalNotes}
                     onChange={(e) => setMedicalNotes(e.target.value)}
@@ -306,8 +318,8 @@ export function ClientProfilePage() {
             <Lock className="w-4 h-4 text-studio-red" /> Cambiar Contraseña
           </h2>
           <div>
-            <label className="block text-xs text-slate-400 uppercase mb-1">Nueva contraseña</label>
-            <input
+            <label className="block text-xs text-slate-300 uppercase mb-1" htmlFor="pf-12">Nueva contraseña</label>
+            <input id="pf-12"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
