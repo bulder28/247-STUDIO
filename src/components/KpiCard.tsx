@@ -204,13 +204,14 @@ export function KpiCard({
   return (
     <motion.div
       whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-      className="group relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-4 sm:p-5 flex flex-col gap-3 transition-colors duration-300 hover:border-white/20"
+      className="group relative overflow-hidden rounded-3xl studio-panel border border-white/10 p-3.5 sm:p-5 flex flex-col gap-2.5 sm:gap-3 min-w-0 transition-colors duration-300 hover:border-white/20"
     >
       <div className={`absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r ${a.bar} to-transparent`} />
 
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13px] font-medium text-slate-400">
+        <span className="text-[13px] font-medium text-slate-300 leading-tight min-w-0">
           {label}
         </span>
         <span className={`grid place-items-center w-8 h-8 rounded-xl ring-1 ${a.iconBg}`}>
@@ -231,7 +232,7 @@ export function KpiCard({
             </p>
             {delta}
           </div>
-          {footnote && <p className="text-xs text-slate-400 leading-snug">{footnote}</p>}
+          {footnote && <p className="text-xs text-slate-300 leading-snug">{footnote}</p>}
           {children}
         </div>
       )}

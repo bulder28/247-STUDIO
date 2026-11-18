@@ -78,7 +78,7 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
     <>
       {navGroups.map((group) => (
         <div key={group.label}>
-          <p className="px-3 mb-1.5 text-[11px] font-medium text-slate-500">{group.label}</p>
+          <p className="px-3 mb-1.5 text-[11px] font-medium text-slate-400">{group.label}</p>
           <div className="space-y-0.5">
             {group.items.map(({ to, label, icon: Icon, end }) => (
               <NavLink
@@ -184,7 +184,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       </span>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-white truncate leading-tight">{profile?.full_name}</p>
-        <p className="text-[11px] text-slate-500 leading-tight">Dirección</p>
+        <p className="text-[11px] text-slate-400 leading-tight">Dirección</p>
       </div>
     </div>
   );
@@ -237,7 +237,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             onClick={signOut}
             title="Cerrar sesión"
             aria-label="Cerrar sesión"
-            className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition shrink-0"
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition shrink-0"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -329,8 +329,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             to={to}
             end={end}
             className={({ isActive }) =>
-              `relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${
-                isActive ? 'text-studio-cream' : 'text-slate-300 hover:text-white'
+              `relative flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[52px] px-3 py-1.5 rounded-xl text-[11px] font-medium active:scale-95 transition ${
+                isActive ? 'text-studio-cream bg-white/[0.07]' : 'text-slate-300 hover:text-white'
               }`
             }
           >
@@ -351,7 +351,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-500 hover:text-slate-200"
+          className="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[52px] px-3 py-1.5 rounded-xl text-[11px] font-medium active:scale-95 text-slate-400 hover:text-slate-200"
         >
           <Menu className="w-5 h-5" />
           <span>Más</span>

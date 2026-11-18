@@ -41,7 +41,7 @@ export function PortalShell({
               <span className="font-headline text-lg uppercase tracking-wide text-studio-cream leading-none block">
                 247 Studio
               </span>
-              <span className="block text-[11px] text-slate-500 truncate leading-tight mt-0.5">
+              <span className="block text-[11px] text-slate-400 truncate leading-tight mt-0.5">
                 {roleLabel}
               </span>
             </div>
@@ -115,7 +115,7 @@ export function PortalShell({
               onClick={signOut}
               title="Cerrar sesión"
               aria-label="Cerrar sesión"
-              className="p-2 rounded-xl text-slate-500 hover:text-white hover:bg-white/[0.06] transition"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] transition"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -149,7 +149,7 @@ export function PortalShell({
               end={end}
               aria-label={hasBadge ? `${label} (${badgeCount} sin leer)` : label}
               className={({ isActive }) =>
-                `relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${isActive ? 'text-studio-cream' : 'text-slate-300 hover:text-white'
+                `relative flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[52px] px-3 py-1.5 rounded-xl text-[11px] font-medium active:scale-95 transition ${isActive ? 'text-studio-cream bg-white/[0.07]' : 'text-slate-300 hover:text-white'
                 }`
               }
             >

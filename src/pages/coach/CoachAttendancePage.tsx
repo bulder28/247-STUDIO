@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, UserPlus, User, Users, Calendar, Search } from 'lucide-react';
+import { Check, UserPlus, User, Users, Calendar, Search, CalendarX } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
 import { Skeleton } from '@/components/KpiCard';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -519,15 +520,13 @@ export function CoachAttendancePage() {
           ))}
         </div>
       ) : classesForDay.length === 0 ? (
-        <div className="rounded-2xl studio-panel border border-white/10 p-6 text-sm text-slate-400">
-          No hay clases programadas para este día.
-        </div>
+        <EmptyState icon={CalendarX}>No hay clases programadas para este día.</EmptyState>
       ) : visibleStudents.length === 0 ? (
-        <div className="rounded-2xl studio-panel border border-white/10 p-6 text-sm text-slate-400">
+        <EmptyState icon={Users}>
           {students.length === 0
             ? `No hay alumnos activos con tarifa compatible para esta disciplina este mes (${currentMonth}).`
             : 'Ningún alumno coincide con la búsqueda.'}
-        </div>
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {visibleStudents.map((st) => {
