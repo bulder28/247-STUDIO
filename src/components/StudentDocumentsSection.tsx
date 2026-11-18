@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FileText, Eye, PenTool, FolderOpen, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import EmptyState from '@/components/EmptyState';
@@ -206,7 +207,8 @@ export function StudentDocumentsSection({
         </div>
       )}
 
-      {signing?.academy_documents && (
+      {/* Portal a <body>: dentro de la página el modal quedaba bajo el dock fijo en móvil. */}
+      {signing?.academy_documents && createPortal(
         <div
           role="dialog"
           aria-modal="true"
@@ -270,7 +272,8 @@ export function StudentDocumentsSection({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </section>
   );

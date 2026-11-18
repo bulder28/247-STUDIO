@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, X, Eye, Search, PenTool } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -196,7 +197,7 @@ export function AdminSignatureValidation() {
         </div>
       )}
 
-      {preview && (
+      {preview && createPortal(
         <div
           role="dialog"
           aria-modal="true"
@@ -227,7 +228,8 @@ export function AdminSignatureValidation() {
               Cerrar
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
