@@ -158,6 +158,7 @@ export function ClientHomePage() {
   const currentMonth = getLocalMonthYear();
 
   const [paymentRows, setPaymentRows] = useState<PaymentSummary[]>([]);
+  const [paymentsLoaded, setPaymentsLoaded] = useState(false);
   const [stats, setStats] = useState<FighterStats | null>(null);
   const [events, setEvents] = useState<GymEvent[]>([]);
   const [pendingSignTitles, setPendingSignTitles] = useState<string[]>([]);
@@ -223,6 +224,7 @@ export function ClientHomePage() {
       ]);
 
       setPaymentRows((payRes.data as PaymentSummary[]) ?? []);
+      setPaymentsLoaded(true);
       setStats((statsRes.data as FighterStats) ?? null);
       setEvents((evRes.data as GymEvent[]) ?? []);
       setPendingSignTitles(
@@ -252,6 +254,20 @@ export function ClientHomePage() {
   const coveredUntilMonth =
     advancePaidRows.length > 0 ? advancePaidRows[advancePaidRows.length - 1].month_year : null;
 
+  // Deuda unificada: meses anteriores sin pagar + el mes actual si no está pagado.
+  const currentIsPaid =
+    payment?.effective_status === 'OK' || payment?.effective_status === 'ADVANCE_OK';
+  const debtRows = [
+    ...pastDueRows,
+    ...(payment && !currentIsPaid && payment.effective_status !== 'FUTURE_UPCOMING' ? [payment] : []),
+  ];
+  const debtTotal = debtRows.reduce((sum, r) => sum + Number(r.price_eur || 0), 0);
+  const debtOverdue =
+    pastDueRows.length > 0 ||
+    payment?.effective_status === 'NOK_OVERDUE' ||
+    payment?.effective_status === 'PAST_DUE';
+  const hasNoPlan = paymentsLoaded && !payment && !coveredUntilMonth && pastDueRows.length === 0;
+
   const handleSaveGoals = async () => {
     if (!user) return;
     setSavingGoals(true);
@@ -276,6 +292,9 @@ export function ClientHomePage() {
     { key: 'leglocks', label: 'Leglocks' },
     { key: 'finalizacion', label: 'Finalización' },
   ];
+
+  // Sin fila o con todos los valores por defecto (50) = nadie lo ha evaluado aún.
+  const radarEvaluated = Boolean(stats) && statItems.some(({ key }) => stats?.[key] !== 50);
 
   const age = calculateAge(profile?.birth_date);
   const isMinor = isMinorAge(profile?.birth_date);
@@ -324,25 +343,91 @@ export function ClientHomePage() {
           </Link>
         </div>
       )}
-      {/* Aviso de facturas pendientes anteriores si existieran */}
-      {pastDueRows.length > 0 && (
-        <div className="rounded-2xl border border-studio-red bg-studio-red/20 text-red-100 p-4 flex items-center gap-3">
-          <AlertTriangle className="w-6 h-6 text-studio-red shrink-0" />
-          <div>
-            <p className="font-headline text-base uppercase tracking-wide">
-              {pastDueRows.length === 1
-                ? 'Tienes 1 cuota pendiente anterior'
-                : `Tienes ${pastDueRows.length} cuotas pendientes anteriores`}
-            </p>
-            <p className="text-xs opacity-85">
-              Meses pendientes: {pastDueRows.map((r) => formatLongMonth(r.month_year)).join(', ')}
-            </p>
+      {/* Cuotas pendientes: un único aviso con total, desglose y cómo pagar */}
+      {debtRows.length > 0 && (
+        <div
+          className={`rounded-2xl border p-4 space-y-3 ${
+            debtOverdue
+              ? 'border-studio-red bg-studio-red/20 text-red-100'
+              : 'border-amber-500/40 bg-amber-500/15 text-amber-100'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            {debtOverdue ? (
+              <AlertTriangle className="w-6 h-6 text-studio-red shrink-0" />
+            ) : (
+              <Clock className="w-6 h-6 text-amber-400 shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="font-headline text-base uppercase tracking-wide">
+                Pendiente de pago: {debtTotal.toFixed(0)} €
+              </p>
+              <ul className="mt-1 text-xs space-y-0.5 opacity-90">
+                {debtRows.map((r) => (
+                  <li key={r.month_year} className="flex flex-wrap gap-x-2">
+                    <span className="capitalize">{formatLongMonth(r.month_year)}</span>
+                    <span>·</span>
+                    <span>
+                      {r.plan_name} · {Number(r.price_eur).toFixed(0)} €
+                    </span>
+                    {r.effective_status === 'GRACE_7_DAYS' && <span>(en plazo)</span>}
+                  </li>
+                ))}
+              </ul>
+              {profile?.is_founder && (
+                <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase">
+                  SF · -10% aplicado
+                </span>
+              )}
+            </div>
+          </div>
+          <p className="text-xs opacity-90">
+            Puedes abonarlo en recepción, en efectivo o por Bizum. Si ya lo has pagado o necesitas
+            organizarlo de otra forma, escribe a dirección.
+          </p>
+          <Link
+            to="/app/foro?tab=chat"
+            className="inline-flex items-center justify-center min-h-11 rounded-xl bg-white/10 hover:bg-white/15 px-4 text-xs font-semibold text-white transition"
+          >
+            Escribir a dirección
+          </Link>
+        </div>
+      )}
+
+      {/* Sin tarifa este mes (p. ej. tras la clase de prueba) */}
+      {hasNoPlan && (
+        <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 text-sky-100 p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <Ticket className="w-6 h-6 text-sky-300 shrink-0" />
+            <div>
+              <p className="font-headline text-base uppercase tracking-wide">
+                Aún no tienes tarifa este mes
+              </p>
+              <p className="text-xs opacity-90">
+                Para seguir entrenando, elige la tarifa que mejor te encaje y abónala en recepción
+                (efectivo o Bizum). Si tienes dudas, dirección te ayuda a elegir.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/app/tarifas"
+              className="inline-flex items-center justify-center min-h-11 rounded-xl studio-btn px-4 text-xs font-semibold text-white"
+            >
+              Ver tarifas
+            </Link>
+            <Link
+              to="/app/foro?tab=chat"
+              className="inline-flex items-center justify-center min-h-11 rounded-xl bg-white/10 hover:bg-white/15 px-4 text-xs font-semibold text-white transition"
+            >
+              Preguntar a dirección
+            </Link>
           </div>
         </div>
       )}
 
-      {/* Indicador visual de Pago OK / Factura pendiente / Pago adelantado */}
-      {(payment || coveredUntilMonth) && (
+      {/* Pago al día / adelantado */}
+      {debtRows.length === 0 && (currentIsPaid || (!payment && coveredUntilMonth)) && (
         <div
           className={`rounded-2xl border p-3 sm:p-4 flex items-center justify-between gap-3 ${payment?.effective_status === 'OK' ||
               payment?.effective_status === 'ADVANCE_OK' ||
@@ -701,15 +786,24 @@ export function ClientHomePage() {
             <h2 className="font-headline text-lg uppercase tracking-wide text-white">
               Radar de Combate
             </h2>
-            <span className="text-[11px] text-slate-400">Toca un eje para inspeccionar</span>
+            {radarEvaluated && (
+              <span className="text-[11px] text-slate-400">Toca un eje para inspeccionar</span>
+            )}
           </div>
-          <FighterRadarChart
-            items={statItems.map(({ key, label }) => ({
-              key,
-              label,
-              value: stats?.[key] ?? 50,
-            }))}
-          />
+          {radarEvaluated ? (
+            <FighterRadarChart
+              items={statItems.map(({ key, label }) => ({
+                key,
+                label,
+                value: stats?.[key] ?? 50,
+              }))}
+            />
+          ) : (
+            <EmptyState icon={Target}>
+              Tu radar aún está sin evaluar. Tu profesor lo completará cuando valore tu técnica,
+              guardia, pases y el resto de atributos.
+            </EmptyState>
+          )}
         </section>
 
         <div className="space-y-6">

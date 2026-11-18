@@ -59,6 +59,8 @@ export function AdminCommunicationPage() {
 
   // Avisos
   const [noticeTitle, setNoticeTitle] = useState('');
+  const [sendingNotice, setSendingNotice] = useState(false);
+  const [noticeResult, setNoticeResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [noticeMessage, setNoticeMessage] = useState('');
   const [noticesList, setNoticesList] = useState<NoticeItem[]>([]);
 
@@ -154,20 +156,41 @@ export function AdminCommunicationPage() {
 
   const publishNotice = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!noticeTitle.trim() || !noticeMessage.trim()) return;
-    await supabase.from('notices').insert({
+    if (!noticeTitle.trim() || !noticeMessage.trim() || sendingNotice) return;
+    // Un aviso general llega a todos: se confirma con el número real de destinatarios.
+    const { count } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'client')
+      .eq('status', 'active');
+    const total = count ?? 0;
+    const ok = window.confirm(
+      `¿Enviar el aviso "${noticeTitle.trim()}" a ${total} alumno${total === 1 ? '' : 's'} activo${
+        total === 1 ? '' : 's'
+      }?\n\nTodos lo verán en su app. No se puede deshacer, solo borrar después.`
+    );
+    if (!ok) return;
+    setSendingNotice(true);
+    setNoticeResult(null);
+    const { error } = await supabase.from('notices').insert({
       target_user_id: null,
       notice_type: 'general',
       title: noticeTitle.trim(),
       message: noticeMessage.trim(),
     });
+    setSendingNotice(false);
+    if (error) {
+      setNoticeResult({ ok: false, text: 'No se pudo enviar el aviso. Revisa la conexión.' });
+      return;
+    }
     setNoticeTitle('');
     setNoticeMessage('');
-    setFeedback('Aviso general enviado a todos los alumnos.');
+    setNoticeResult({ ok: true, text: `Aviso enviado a ${total} alumnos.` });
     await loadNotices();
   };
 
   const deleteNotice = async (id: string) => {
+    if (!window.confirm('¿Borrar este aviso? Los alumnos dejarán de verlo.')) return;
     await supabase.from('notices').delete().eq('id', id);
     setFeedback('Aviso eliminado.');
     await loadNotices();
@@ -432,12 +455,28 @@ export function AdminCommunicationPage() {
                 className="w-full rounded-xl studio-field px-3 py-2 text-sm text-white"
               />
             </div>
+            <p className="text-xs text-slate-300">
+              Llega a todos los alumnos activos. Te pediremos confirmación antes de enviarlo.
+            </p>
             <button
               type="submit"
-              className="rounded-xl studio-btn px-5 py-2.5 text-sm font-semibold text-white"
+              disabled={sendingNotice}
+              className="min-h-11 rounded-xl studio-btn px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
-              Enviar Aviso General
+              {sendingNotice ? 'Enviando…' : 'Enviar Aviso General'}
             </button>
+            {noticeResult && (
+              <p
+                role={noticeResult.ok ? 'status' : 'alert'}
+                className={`rounded-xl px-3 py-2 text-sm border ${
+                  noticeResult.ok
+                    ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-200'
+                    : 'bg-studio-red/15 border-studio-red/40 text-red-200'
+                }`}
+              >
+                {noticeResult.text}
+              </p>
+            )}
           </form>
 
           <CollapsibleCard title="Avisos publicados" meta={`${noticesList.length}`}>

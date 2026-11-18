@@ -15,7 +15,10 @@ interface PrivateMessage {
 
 export function ClientForumChatPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<'forum' | 'chat'>('forum');
+  // ?tab=chat abre directamente el chat con dirección (p. ej. desde el aviso de pago).
+  const [tab, setTab] = useState<'forum' | 'chat'>(() =>
+    new URLSearchParams(window.location.search).get('tab') === 'chat' ? 'chat' : 'forum'
+  );
   const [messages, setMessages] = useState<PrivateMessage[]>([]);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const [body, setBody] = useState('');
