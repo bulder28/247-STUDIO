@@ -402,12 +402,12 @@ export function AdminSchedulePage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-white/10">
-          <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+          <label className="flex items-center gap-2.5 min-h-11 text-xs text-slate-300 cursor-pointer">
             <input
               type="checkbox"
               checked={notifyStudents}
               onChange={(e) => setNotifyStudents(e.target.checked)}
-              className="rounded"
+              className="w-5 h-5 rounded accent-red-600"
             />
             <Bell className="w-3.5 h-3.5 text-amber-400" />
             Notificar cambio a los alumnos
@@ -475,7 +475,7 @@ export function AdminSchedulePage() {
                         <button
                           type="button"
                           onClick={() => handleDelete(c.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-400"
+                          className="grid place-items-center min-h-11 min-w-11 rounded-lg text-slate-400 hover:text-red-400 hover:bg-white/5"
                           title="Eliminar clase"
                         >
                           <Trash2 className="w-4 h-4" />

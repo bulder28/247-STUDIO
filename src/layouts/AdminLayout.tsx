@@ -237,7 +237,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             onClick={signOut}
             title="Cerrar sesión"
             aria-label="Cerrar sesión"
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition shrink-0"
+            className="grid place-items-center min-h-11 min-w-11 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition shrink-0"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -266,7 +266,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setMobileOpen((prev) => !prev)}
-            className="p-2 rounded-lg text-slate-300 hover:bg-white/10"
+            className="grid place-items-center min-h-11 min-w-11 rounded-lg text-slate-300 hover:bg-white/10"
             aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
             aria-expanded={mobileOpen}
           >

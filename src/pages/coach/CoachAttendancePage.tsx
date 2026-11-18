@@ -15,6 +15,7 @@ const DAYS = [
   { value: 3, label: 'Miércoles' },
   { value: 4, label: 'Jueves' },
   { value: 5, label: 'Viernes' },
+  { value: 6, label: 'Sábado' },
 ];
 
 interface ScheduleClass {
@@ -59,7 +60,7 @@ export function CoachAttendancePage() {
   const [allClasses, setAllClasses] = useState<ScheduleClass[]>([]);
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
   const [selectedDay, setSelectedDay] = useState<number>(
-    todayDayOfWeek >= 1 && todayDayOfWeek <= 5 ? todayDayOfWeek : 1
+    todayDayOfWeek >= 1 && todayDayOfWeek <= 6 ? todayDayOfWeek : 1
   );
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [students, setStudents] = useState<StudentCard[]>([]);
@@ -117,7 +118,7 @@ export function CoachAttendancePage() {
       setDisciplines((discRes.data as Discipline[]) ?? []);
 
       // Si hoy es fin de semana o no hay clases hoy, salta al próximo día con clases (ej. Lunes)
-      let targetDay = todayDayOfWeek >= 1 && todayDayOfWeek <= 5 ? todayDayOfWeek : 1;
+      let targetDay = todayDayOfWeek >= 1 && todayDayOfWeek <= 6 ? todayDayOfWeek : 1;
       if (!list.some((c) => c.day_of_week === targetDay) && list.length > 0) {
         targetDay = list[0].day_of_week;
       }
@@ -350,7 +351,7 @@ export function CoachAttendancePage() {
                 else if (disciplines[0]) setGuestDisciplineId(disciplines[0].id);
                 setShowGuestModal(true);
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white hover:bg-white/5 shrink-0"
+              className="inline-flex items-center justify-center gap-2 min-h-11 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white hover:bg-white/5 shrink-0"
             >
               <UserPlus className="w-4 h-4 text-studio-red" />
               + Invitado / Clase Prueba
@@ -376,11 +377,12 @@ export function CoachAttendancePage() {
         <span className="inline-flex items-center gap-1.5 text-xs text-slate-400 mr-1">
           <Calendar className="w-3.5 h-3.5" /> Día:
         </span>
-        {DAYS.map((d) => (
+        {/* El sábado solo aparece si hay clases ese día */}
+        {DAYS.filter((d) => d.value <= 5 || allClasses.some((c) => c.day_of_week === d.value)).map((d) => (
           <button
             key={d.value}
             onClick={() => setSelectedDay(d.value)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+            className={`min-h-11 px-3.5 rounded-xl text-xs font-semibold border transition ${
               selectedDay === d.value
                 ? 'bg-white text-studio-navy-deep border-white'
                 : 'bg-white/[0.04] border-white/10 text-slate-300 hover:border-white/25'
@@ -514,7 +516,7 @@ export function CoachAttendancePage() {
 
       {/* Contador y búsqueda rápida */}
       {classesForDay.length > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="sticky top-[4.5rem] z-20 -mx-2 px-2 py-2 rounded-2xl bg-[#272c35]/90 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
           <div className="flex items-center gap-2 text-sm text-slate-300">
             <Users className="w-4 h-4 text-emerald-400" />
             {isToday ? (
@@ -537,7 +539,7 @@ export function CoachAttendancePage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar alumno..."
-                className="w-full rounded-xl studio-field pl-9 pr-3 py-1.5 text-xs text-white"
+                className="w-full min-h-11 rounded-xl studio-field pl-9 pr-3 py-2 text-sm text-white"
               />
             </div>
           )}
@@ -545,13 +547,13 @@ export function CoachAttendancePage() {
       )}
 
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
           {Array.from({ length: 8 }).map((_, idx) => (
             <div
               key={idx}
               className="rounded-2xl p-4 border border-white/10 bg-white/[0.03] flex flex-col items-center gap-2.5"
             >
-              <Skeleton className="w-16 h-16 !rounded-full" />
+              <Skeleton className="w-12 h-12 sm:w-16 sm:h-16 !rounded-full" />
               <Skeleton className="h-3.5 w-24" />
               <Skeleton className="h-2.5 w-14" />
             </div>
@@ -566,7 +568,7 @@ export function CoachAttendancePage() {
             : 'Ningún alumno coincide con la búsqueda.'}
         </EmptyState>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
           {visibleStudents.map((st) => {
             const checked = attendances.some((a) => a.user_id === st.id);
             const busy = Boolean(togglingIds[st.id]);
@@ -579,7 +581,7 @@ export function CoachAttendancePage() {
                 whileTap={isToday ? { scale: 0.97 } : undefined}
                 transition={{ type: 'spring', stiffness: 420, damping: 24 }}
                 onClick={() => toggleStudent(st.id)}
-                className={`group relative rounded-2xl p-4 border text-left transition-[color,background-color,border-color,box-shadow,opacity] duration-200 flex flex-col items-center text-center gap-2.5 ${
+                className={`group relative rounded-2xl p-2.5 sm:p-4 border text-left transition-[color,background-color,border-color,box-shadow,opacity] duration-200 flex flex-col items-center text-center gap-2.5 ${
                   checked
                     ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-[0_10px_24px_-10px_rgba(16,185,129,0.45)]'
                     : isToday
@@ -592,13 +594,13 @@ export function CoachAttendancePage() {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-                    className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm"
+                    className="absolute top-1.5 right-1.5 sm:top-2.5 sm:right-2.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm"
                   >
                     <Check className="w-4 h-4" />
                   </motion.span>
                 )}
                 <div
-                  className={`w-16 h-16 rounded-full studio-panel-inset border overflow-hidden flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 group-hover:scale-110 ${
+                  className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full studio-panel-inset border overflow-hidden flex items-center justify-center transition-[transform,box-shadow,border-color] duration-200 group-hover:scale-110 ${
                     checked
                       ? 'border-emerald-400/70 ring-2 ring-emerald-400/40'
                       : 'border-white/10 group-hover:ring-2 group-hover:ring-studio-red/75 group-hover:shadow-[0_0_18px_rgba(220,38,38,0.4)]'
@@ -615,7 +617,7 @@ export function CoachAttendancePage() {
                   )}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold leading-tight">{st.full_name}</p>
+                  <p className="text-xs sm:text-sm font-semibold leading-tight break-words">{st.full_name}</p>
                   {st.alias && (
                     <p className="text-[11px] text-studio-cream/80 font-medium">&ldquo;{st.alias}&rdquo;</p>
                   )}

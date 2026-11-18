@@ -68,6 +68,26 @@
     -webkit-touch-callout: none;
   }
 
+  /* Pantallas táctiles: objetivos de al menos 44px (WCAG 2.5.5). Con ratón no cambia nada.
+     Para excepciones puntuales (p. ej. botones dentro de un campo) usar data-compact. */
+  @media (pointer: coarse) {
+    button:not([data-compact]),
+    select,
+    .studio-field,
+    input[type='month'],
+    input[type='date'],
+    input[type='time'] {
+      min-height: 44px;
+    }
+  }
+
+  /* Buscadores: sin la X nativa del navegador (ya hay un botón propio para borrar) */
+  input[type='search']::-webkit-search-cancel-button,
+  input[type='search']::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
   /* El lienzo de firma necesita gestos propios */
   canvas {
     touch-action: none;

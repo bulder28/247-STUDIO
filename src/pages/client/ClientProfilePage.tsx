@@ -132,12 +132,12 @@ export function ClientProfilePage() {
                 type="button"
                 disabled={uploadingPhoto}
                 onClick={() => setCameraOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl studio-panel-inset border border-white/15 hover:bg-white/5 px-3 py-1.5 text-xs font-semibold text-white"
+                className="inline-flex items-center gap-1.5 min-h-11 rounded-xl studio-panel-inset border border-white/15 hover:bg-white/5 px-3 py-1.5 text-xs font-semibold text-white"
               >
                 <Camera className="w-3.5 h-3.5 text-studio-red" />
                 {uploadingPhoto ? 'Subiendo...' : 'Realizar foto'}
               </button>
-              <label className="inline-flex items-center gap-1.5 rounded-xl studio-panel-inset border border-white/15 hover:bg-white/5 px-3 py-1.5 text-xs text-slate-200 cursor-pointer">
+              <label className="inline-flex items-center gap-1.5 min-h-11 rounded-xl studio-panel-inset border border-white/15 hover:bg-white/5 px-3 py-1.5 text-xs text-slate-200 cursor-pointer">
                 <Upload className="w-3.5 h-3.5 text-slate-400" />
                 <span>Subir archivo</span>
                 <input

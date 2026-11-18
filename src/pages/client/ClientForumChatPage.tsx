@@ -73,7 +73,7 @@ export function ClientForumChatPage() {
       <div className="inline-flex gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/10">
         <button
           onClick={() => setTab('forum')}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold ${
+          className={`inline-flex items-center gap-2 min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${
             tab === 'forum' ? 'bg-studio-cream text-slate-950' : 'bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08]'
           }`}
         >
@@ -81,7 +81,7 @@ export function ClientForumChatPage() {
         </button>
         <button
           onClick={() => setTab('chat')}
-          className={`relative inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold ${
+          className={`relative inline-flex items-center gap-2 min-h-11 px-4 py-2 rounded-xl text-sm font-semibold ${
             tab === 'chat' ? 'bg-studio-cream text-slate-950' : 'bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08]'
           }`}
         >
@@ -135,7 +135,7 @@ export function ClientForumChatPage() {
             />
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 rounded-xl studio-btn px-4 py-2 text-sm font-semibold text-white"
+              className="inline-flex items-center gap-1.5 min-h-11 rounded-xl studio-btn px-4 py-2 text-sm font-semibold text-white"
             >
               <Send className="w-4 h-4" />
             </button>

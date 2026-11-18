@@ -229,12 +229,12 @@ export function AdminPlansPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-white/10">
           <div className="flex flex-wrap items-center gap-5">
-            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+            <label className="flex items-center gap-2.5 min-h-11 text-xs text-slate-300 cursor-pointer">
               <input
                 type="checkbox"
                 checked={isClassPack}
                 onChange={(e) => setIsClassPack(e.target.checked)}
-                className="rounded"
+                className="w-5 h-5 rounded accent-red-600"
               />
               Es Bono de Clases Sueltas
             </label>
@@ -248,12 +248,12 @@ export function AdminPlansPage() {
                 placeholder="Clases"
               />
             )}
-            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+            <label className="flex items-center gap-2.5 min-h-11 text-xs text-slate-300 cursor-pointer">
               <input
                 type="checkbox"
                 checked={notifyStudents}
                 onChange={(e) => setNotifyStudents(e.target.checked)}
-                className="rounded"
+                className="w-5 h-5 rounded accent-red-600"
               />
               <Bell className="w-3.5 h-3.5 text-amber-400" />
               Notificar cambio a los alumnos
@@ -339,13 +339,13 @@ export function AdminPlansPage() {
               <div className="flex items-center justify-between pt-3 border-t border-white/10 text-xs">
                 <button
                   onClick={() => toggleActive(plan)}
-                  className="text-slate-300 hover:text-white underline-offset-2 hover:underline"
+                  className="min-h-11 px-2 -mx-2 text-slate-300 hover:text-white underline-offset-2 hover:underline"
                 >
                   {plan.is_active ? 'Desactivar' : 'Activar'}
                 </button>
                 <button
                   onClick={() => deletePlan(plan.id)}
-                  className="inline-flex items-center gap-1 text-red-400 hover:text-red-300"
+                  className="inline-flex items-center gap-1 min-h-11 px-2 -mx-2 text-red-400 hover:text-red-300"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Eliminar

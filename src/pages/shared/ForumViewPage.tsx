@@ -76,7 +76,7 @@ export function ForumViewPage({ embedded = false }: { embedded?: boolean } = {})
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setFilterId('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+          className={`min-h-11 px-3.5 rounded-xl text-xs font-medium border ${
             filterId === 'all'
               ? 'bg-studio-cream border-studio-cream text-slate-950'
               : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:border-white/25'
@@ -88,7 +88,7 @@ export function ForumViewPage({ embedded = false }: { embedded?: boolean } = {})
           <button
             key={d.id}
             onClick={() => setFilterId(d.id)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+            className={`min-h-11 px-3.5 rounded-xl text-xs font-medium border ${
               filterId === d.id
                 ? 'bg-studio-cream border-studio-cream text-slate-950'
                 : 'bg-white/[0.04] border-white/10 text-slate-300 hover:text-white hover:border-white/25'
@@ -138,7 +138,7 @@ export function ForumViewPage({ embedded = false }: { embedded?: boolean } = {})
           />
           <button
             type="submit"
-            className="rounded-xl studio-btn px-4 py-2 text-xs font-semibold text-white"
+            className="min-h-11 rounded-xl studio-btn px-4 py-2 text-xs font-semibold text-white"
           >
             Publicar
           </button>

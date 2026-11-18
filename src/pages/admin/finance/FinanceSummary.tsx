@@ -113,7 +113,7 @@ export function FinanceSummary({
             <div className="flex items-baseline justify-between gap-3 mb-1.5">
               <span className="text-sm font-semibold text-white">
                 {row.label}{' '}
-                <Link to={row.link} className="ml-1 text-xs font-normal text-slate-400 underline underline-offset-2 hover:text-white">
+                <Link to={row.link} className="ml-1 inline-flex items-center min-h-11 px-1 text-xs font-normal text-slate-300 underline underline-offset-2 hover:text-white">
                   {row.linkLabel}
                 </Link>
               </span>

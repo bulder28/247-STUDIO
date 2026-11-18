@@ -550,7 +550,7 @@ export function AdminStudentsPage() {
                 </div>
                 <button
                   onClick={() => openNewFromTrial(t)}
-                  className="px-3 py-1.5 rounded-lg studio-btn text-xs font-semibold text-white shrink-0"
+                  className="min-h-11 px-4 rounded-xl studio-btn text-xs font-semibold text-white shrink-0"
                 >
                   Dar de alta
                 </button>
@@ -827,12 +827,12 @@ export function AdminStudentsPage() {
               <button
                 type="button"
                 onClick={() => setCameraTarget('edit')}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
+                className="inline-flex items-center gap-2 min-h-11 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
               >
                 <Camera className="w-4 h-4 text-studio-red" />
                 Realizar foto
               </button>
-              <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
+              <label className="inline-flex items-center gap-2 min-h-11 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
                 <Upload className="w-4 h-4 text-slate-400" />
                 <span>{editPhotoFile ? editPhotoFile.name : 'Subir archivo'}</span>
                 <input
@@ -1471,12 +1471,12 @@ export function AdminStudentsPage() {
                       <button
                         type="button"
                         onClick={() => setCameraTarget('new')}
-                        className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
+                        className="inline-flex items-center gap-2 min-h-11 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs font-semibold text-white hover:bg-white/5"
                       >
                         <Camera className="w-4 h-4 text-studio-red" />
                         Realizar foto
                       </button>
-                      <label className="inline-flex items-center gap-2 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
+                      <label className="inline-flex items-center gap-2 min-h-11 rounded-xl border border-white/15 studio-panel-inset px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-white/5">
                         <Upload className="w-4 h-4 text-slate-400" />
                         <span>{newPhotoFile ? newPhotoFile.name : 'Subir archivo / galería'}</span>
                         <input
