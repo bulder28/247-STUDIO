@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
-import { ClipboardCheck, CalendarDays, Megaphone } from 'lucide-react';
+import { ClipboardCheck, CalendarDays, Megaphone, Target } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PortalShell } from '@/layouts/PortalShell';
 
 const coachNav = [
   { to: '/coach', label: 'Pasar lista', icon: ClipboardCheck, end: true },
+  { to: '/coach/valorar', label: 'Valorar', icon: Target },
   { to: '/coach/horario', label: 'Horario', icon: CalendarDays },
   { to: '/coach/foro', label: 'Foro', icon: Megaphone },
 ];

@@ -67,7 +67,16 @@ export function CoachAttendancePage() {
   );
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [students, setStudents] = useState<StudentCard[]>([]);
-  const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
+  const [attendances, setAttendancesState] = useState<AttendanceRecord[]>([]);
+  // Copia siempre al día de la lista de presentes. Con toques rápidos varios guardados terminan a la vez:
+  // si cada uno rehiciera la lista desde la copia que vio al tocar, se pisarían y algunos alumnos
+  // quedarían guardados en la BD pero sin marcar en pantalla.
+  const attendancesRef = useRef<AttendanceRecord[]>([]);
+  const setAttendances = (next: AttendanceRecord[] | ((prev: AttendanceRecord[]) => AttendanceRecord[])) => {
+    const value = typeof next === 'function' ? next(attendancesRef.current) : next;
+    attendancesRef.current = value;
+    setAttendancesState(value);
+  };
   const [togglingIds, setTogglingIds] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   // Habituales: user_id -> nº de asistencias a ESTA clase en las últimas 3 semanas
@@ -256,14 +265,14 @@ export function CoachAttendancePage() {
 
     setTogglingIds((prev) => ({ ...prev, [studentId]: true }));
     try {
-      const existing = attendances.find((a) => a.user_id === studentId);
+      const existing = attendancesRef.current.find((a) => a.user_id === studentId);
       if (existing) {
         const { error } = await supabase.from('attendances').delete().eq('id', existing.id);
         if (error) {
           showToast(`No se pudo quitar a ${studentName}. Revisa la conexión y vuelve a tocar.`, true);
         } else {
-          const nextList = attendances.filter((a) => a.id !== existing.id);
-          setAttendances(nextList);
+          setAttendances((prev) => prev.filter((a) => a.id !== existing.id));
+          const nextList = attendancesRef.current;
           setStudents((prev) =>
             prev.map((s) =>
               s.id === studentId && s.is_class_pack && s.remaining_credits !== null
@@ -286,11 +295,22 @@ export function CoachAttendancePage() {
           })
           .select('id, user_id, guest_name')
           .single();
-        if (error || !data) {
+        if (error?.code === '23505') {
+          // Ya estaba guardado (otro dispositivo o un toque anterior): se sincroniza en vez de dar error
+          const { data: fresh } = await supabase
+            .from('attendances')
+            .select('id, user_id, guest_name')
+            .eq('schedule_class_id', selected.id)
+            .eq('attendance_date', todayDate);
+          setAttendances((fresh as AttendanceRecord[]) ?? attendancesRef.current);
+          showToast(`${studentName} ya estaba marcado · ${attendancesRef.current.filter((a) => a.user_id !== null).length} presentes`);
+        } else if (error || !data) {
           showToast(`No se guardó la asistencia de ${studentName}. Revisa la conexión y vuelve a tocar.`, true);
         } else {
-          const nextList = [...attendances, data as AttendanceRecord];
-          setAttendances(nextList);
+          setAttendances((prev) =>
+            prev.some((a) => a.id === (data as AttendanceRecord).id) ? prev : [...prev, data as AttendanceRecord]
+          );
+          const nextList = attendancesRef.current;
           setStudents((prev) =>
             prev.map((s) =>
               s.id === studentId && s.is_class_pack && s.remaining_credits !== null

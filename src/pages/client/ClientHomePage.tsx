@@ -67,6 +67,8 @@ interface FighterStats {
   derribos: number;
   leglocks: number;
   finalizacion: number;
+  /** Fecha de la última valoración del profesor (null si nadie lo ha valorado). */
+  evaluated_at?: string | null;
 }
 
 interface GymEvent {
@@ -282,7 +284,7 @@ export function ClientHomePage() {
     setGoals((prev) => (prev.trim() ? `${prev.trimEnd()}\n${line}` : line));
   };
 
-  const statItems: { key: keyof FighterStats; label: string }[] = [
+  const statItems: { key: Exclude<keyof FighterStats, 'evaluated_at'>; label: string }[] = [
     { key: 'tecnica', label: 'Técnica' },
     { key: 'fuerza', label: 'Fuerza' },
     { key: 'elasticidad', label: 'Elasticidad' },
@@ -294,7 +296,8 @@ export function ClientHomePage() {
   ];
 
   // Sin fila o con todos los valores por defecto (50) = nadie lo ha evaluado aún.
-  const radarEvaluated = Boolean(stats) && statItems.some(({ key }) => stats?.[key] !== 50);
+  const radarEvaluated =
+    Boolean(stats) && (Boolean(stats?.evaluated_at) || statItems.some(({ key }) => stats?.[key] !== 50));
 
   const age = calculateAge(profile?.birth_date);
   const isMinor = isMinorAge(profile?.birth_date);

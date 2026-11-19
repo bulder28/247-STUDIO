@@ -16,6 +16,7 @@ import { AdminSchedulePage } from '@/pages/admin/AdminSchedulePage';
 import { AdminCommunicationPage } from '@/pages/admin/AdminCommunicationPage';
 import { AdminFinancePage } from '@/pages/admin/finance/AdminFinancePage';
 import { CoachAttendancePage } from '@/pages/coach/CoachAttendancePage';
+import { CoachRatingsPage } from '@/pages/coach/CoachRatingsPage';
 import { ScheduleViewPage } from '@/pages/shared/ScheduleViewPage';
 import { ForumViewPage } from '@/pages/shared/ForumViewPage';
 import { ClientHomePage } from '@/pages/client/ClientHomePage';
@@ -122,6 +123,7 @@ function AppRoutes() {
                 <Route path="" element={<CoachAttendancePage />} />
                 <Route path="horario" element={<ScheduleViewPage />} />
                 <Route path="foro" element={<ForumViewPage />} />
+                <Route path="valorar" element={<CoachRatingsPage />} />
                 <Route path="*" element={<Navigate to="/coach" replace />} />
               </Routes>
             </CoachLayout>
