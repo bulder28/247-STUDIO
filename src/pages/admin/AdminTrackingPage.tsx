@@ -5,7 +5,7 @@ import { exportWorkbook } from '@/lib/excel';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 import { fetchAllRows, getCashMonth, type CashMonth } from '@/lib/finance';
 import { formatEURExact } from '@/lib/format';
-import { getFamilyDiscountPrice } from '@/lib/pricing';
+import { getEffectivePlanPrice, getFamilyDiscountPrice } from '@/lib/pricing';
 import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/KpiCard';
 import { CollectionsBoard } from './collections/CollectionsBoard';
@@ -30,8 +30,19 @@ interface StudentLatestPlan {
   family_price_eur?: number | null;
 }
 
+interface PlanOption {
+  id: string;
+  name: string;
+  price_eur: number;
+  sf_price_eur: number | null;
+  family_price_eur: number | null;
+  is_active: boolean;
+}
+
 interface QuickChargeState {
   row: PaymentRow;
+  /** Tarifa a cobrar: por defecto la del mes (sugerida), editable si el alumno cambia de tarifa. */
+  planId: string;
   method: PaymentMethod;
   applyFamilyDiscount: boolean;
   amount: string;
@@ -85,6 +96,30 @@ export function AdminTrackingPage() {
   const [quickCharge, setQuickCharge] = useState<QuickChargeState | null>(null);
   const [submittingQuickCharge, setSubmittingQuickCharge] = useState(false);
   const [quickChargeError, setQuickChargeError] = useState<string | null>(null);
+
+  // Catálogo de tarifas para poder cambiar la tarifa en el momento del cobro
+  const [plans, setPlans] = useState<PlanOption[]>([]);
+  const [multiPlanId, setMultiPlanId] = useState('');
+  useEffect(() => {
+    supabase
+      .from('plans')
+      .select('id, name, price_eur, sf_price_eur, family_price_eur, is_active')
+      .order('name')
+      .then(({ data }) => setPlans((data as PlanOption[]) ?? []));
+  }, []);
+  const planById = (id?: string | null) => plans.find((p) => p.id === id);
+  /** Precio que paga este alumno con esa tarifa (mismo cálculo de fundador que la vista de pagos). */
+  const priceForPlan = (planId: string, isFounder: boolean | undefined, fallback: number) => {
+    const p = planById(planId);
+    return p ? getEffectivePlanPrice(Number(p.price_eur), isFounder, p.sf_price_eur) : fallback;
+  };
+  /** PVP familiar de la tarifa: null = la tarifa no tiene precio familiar. */
+  const familyRawForPlan = (planId: string, fallback: number | null | undefined) => {
+    const p = planById(planId);
+    return p ? p.family_price_eur : fallback;
+  };
+  /** Tarifas activas, más la actual del alumno aunque ya no esté activa. */
+  const planChoices = (currentId: string) => plans.filter((p) => p.is_active || p.id === currentId);
 
   const loadTracking = useCallback(async () => {
     setLoading(true);
@@ -213,6 +248,7 @@ export function AdminTrackingPage() {
     setQuickChargeError(null);
     setQuickCharge({
       row,
+      planId: row.plan_id,
       method,
       applyFamilyDiscount: false,
       amount: Number(row.price_eur || 0).toFixed(2),
@@ -248,7 +284,20 @@ export function AdminTrackingPage() {
         : notes.trim()
       : discountTag || undefined;
 
+    // Cambio de tarifa en el cobro: se guarda en la suscripción de este mes
+    const planChanged = Boolean(quickCharge.planId) && quickCharge.planId !== row.plan_id;
     try {
+      if (planChanged) {
+        const { error: subErr } = await supabase
+          .from('subscriptions')
+          .update({ plan_id: quickCharge.planId })
+          .eq('user_id', row.user_id)
+          .eq('month_year', monthYear);
+        if (subErr) {
+          setQuickChargeError('No se pudo cambiar la tarifa. No se ha cobrado nada.');
+          return;
+        }
+      }
       const ok = await markSinglePayment(
         row,
         'paid_ok',
@@ -261,7 +310,7 @@ export function AdminTrackingPage() {
         showToast(
           `Cobrado: ${row.full_name} · ${formatEURExact(numAmount)} por ${method}${
             applyFamilyDiscount ? ' (con descuento familiar)' : ''
-          }`,
+          }${planChanged ? ` · nueva tarifa: ${planById(quickCharge.planId)?.name ?? ''}` : ''}`,
           row
         );
         setQuickCharge(null);
@@ -317,6 +366,14 @@ export function AdminTrackingPage() {
     () => studentsCatalog.find((s) => s.user_id === modalUserId) ?? null,
     [studentsCatalog, modalUserId]
   );
+  const multiPlanEffectiveId = multiPlanId || selectedStudent?.plan_id || '';
+  const multiPlanChanged = Boolean(selectedStudent && multiPlanEffectiveId !== selectedStudent.plan_id);
+  const multiPrice = selectedStudent
+    ? priceForPlan(multiPlanEffectiveId, selectedStudent.is_founder, Number(selectedStudent.price_eur || 0))
+    : 0;
+  const multiFamilyRaw = selectedStudent
+    ? familyRawForPlan(multiPlanEffectiveId, selectedStudent.family_price_eur)
+    : null;
 
   const studentRowsAllMonths = useMemo(
     () => allMemberStatuses.filter((r) => r.user_id === modalUserId),
@@ -363,6 +420,7 @@ export function AdminTrackingPage() {
   const openMultiModal = (userId?: string) => {
     const targetId = userId ?? studentsCatalog[0]?.user_id ?? '';
     setModalUserId(targetId);
+    setMultiPlanId(studentsCatalog.find((s) => s.user_id === targetId)?.plan_id ?? '');
     setPaymentMethod('Bizum');
     setCustomAmountTouched(false);
     setMultiFamilyDiscount(false);
@@ -389,11 +447,11 @@ export function AdminTrackingPage() {
   useEffect(() => {
     if (!modalOpen || customAmountTouched || !selectedStudent) return;
     const unitPrice = multiFamilyDiscount
-      ? getFamilyDiscountPrice(selectedStudent.price_eur, selectedStudent.family_price_eur)
-      : Number(selectedStudent.price_eur || 0);
+      ? getFamilyDiscountPrice(multiPrice, multiFamilyRaw)
+      : multiPrice;
     const total = selectedMonths.length * unitPrice;
     setTotalAmountInput(total > 0 ? total.toFixed(2) : '');
-  }, [modalOpen, selectedMonths, selectedStudent, customAmountTouched, multiFamilyDiscount]);
+  }, [modalOpen, selectedMonths, selectedStudent, customAmountTouched, multiFamilyDiscount, multiPrice, multiFamilyRaw]);
 
   const toggleMonthSelection = (ym: string) => {
     setSelectedMonths((prev) =>
@@ -463,14 +521,15 @@ export function AdminTrackingPage() {
       // 1. Asegurar suscripción activa en cada mes seleccionado
       const subPayloads = sortedMonths.map((ym) => ({
         user_id: selectedStudent.user_id,
-        plan_id: selectedStudent.plan_id,
+        plan_id: multiPlanEffectiveId,
         month_year: ym,
         status: 'active',
       }));
 
+      // Sin cambio de tarifa se respeta la de cada mes; con cambio, se fija la nueva en los meses cobrados
       const { error: subError } = await supabase
         .from('subscriptions')
-        .upsert(subPayloads, { onConflict: 'user_id,month_year', ignoreDuplicates: true });
+        .upsert(subPayloads, { onConflict: 'user_id,month_year', ignoreDuplicates: !multiPlanChanged });
 
       if (subError) throw subError;
 
@@ -737,6 +796,7 @@ export function AdminTrackingPage() {
                   onChange={(e) => {
                     const nextId = e.target.value;
                     setModalUserId(nextId);
+                    setMultiPlanId(studentsCatalog.find((s) => s.user_id === nextId)?.plan_id ?? '');
                     setCustomAmountTouched(false);
                     const due = allMemberStatuses
                       .filter(
@@ -757,6 +817,35 @@ export function AdminTrackingPage() {
                   ))}
                 </select>
               </div>
+
+              {selectedStudent && (
+                <div>
+                  <label htmlFor="multi-plan" className="block text-xs uppercase tracking-wider text-slate-400 mb-1.5">
+                    Tarifa
+                  </label>
+                  <select
+                    id="multi-plan"
+                    value={multiPlanEffectiveId}
+                    onChange={(e) => {
+                      setMultiPlanId(e.target.value);
+                      setCustomAmountTouched(false);
+                    }}
+                    className="w-full rounded-xl studio-panel-inset border border-white/15 px-3.5 py-2.5 text-sm text-white"
+                  >
+                    {planChoices(selectedStudent.plan_id).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} · {priceForPlan(p.id, selectedStudent.is_founder, 0).toFixed(0)} €
+                        {p.id === selectedStudent.plan_id ? ' (sugerida: la actual)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {multiPlanChanged && (
+                    <p className="mt-1.5 text-xs text-amber-300">
+                      Nueva tarifa: se guardará en los meses que cobres y los meses siguientes la heredarán al generarlos.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Bloque 1: Facturas pendientes (Vencidos / Actual) */}
               <div className="space-y-2">
@@ -873,19 +962,19 @@ export function AdminTrackingPage() {
                       Descuento por familiar
                     </span>
                     <span className="text-[11px] text-slate-400 block">
-                      {selectedStudent?.family_price_eur === null ? (
+                      {multiFamilyRaw === null ? (
                         'Esta tarifa no tiene PVP familiar predefinido (puedes ajustar el importe manualmente)'
                       ) : (
                         <>
                           Aplica la tarifa familiar en cada mensualidad seleccionada
                           {selectedStudent && (
                             <>
-                              {' '}({formatEURExact(Number(selectedStudent.price_eur || 0))} &rarr;{' '}
+                              {' '}({formatEURExact(multiPrice)} &rarr;{' '}
                               <strong className="text-white">
                                 {formatEURExact(
                                   getFamilyDiscountPrice(
-                                    Number(selectedStudent.price_eur || 0),
-                                    selectedStudent.family_price_eur
+                                    multiPrice,
+                                    multiFamilyRaw
                                   )
                                 )}
                               </strong>/mes)
@@ -1013,7 +1102,18 @@ export function AdminTrackingPage() {
       )}
 
       {/* Diálogo rápido de confirmación de cobro individual */}
-      {quickCharge && (
+      {quickCharge && (() => {
+        const basePrice = Number(quickCharge.row.price_eur || 0);
+        const baseFam = quickCharge.row.family_price_eur;
+        const qcPrice = priceForPlan(quickCharge.planId, quickCharge.row.is_founder, basePrice);
+        const qcFamRaw = familyRawForPlan(quickCharge.planId, baseFam);
+        const qcChanged = quickCharge.planId !== quickCharge.row.plan_id;
+        const recalc = (planId: string, family: boolean) => {
+          const price = priceForPlan(planId, quickCharge.row.is_founder, basePrice);
+          const fam = familyRawForPlan(planId, baseFam);
+          return (family ? getFamilyDiscountPrice(price, fam) : price).toFixed(2);
+        };
+        return (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-2xl studio-panel border border-white/15 p-6 space-y-5 animate-studio-in">
             <div className="flex items-start justify-between gap-3">
@@ -1022,7 +1122,7 @@ export function AdminTrackingPage() {
                   Confirmar cobro
                 </h2>
                 <p className="text-xs text-slate-400">
-                  {formatMonthLabel(monthYear)} · {quickCharge.row.plan_name}
+                  {formatMonthLabel(monthYear)} · {planById(quickCharge.planId)?.name ?? quickCharge.row.plan_name}
                 </p>
               </div>
               <button
@@ -1046,9 +1146,39 @@ export function AdminTrackingPage() {
               <p className="text-xs text-slate-400">
                 Cuota mensual base:{' '}
                 <span className="tabular-nums font-medium text-slate-300">
-                  {formatEURExact(Number(quickCharge.row.price_eur || 0))}
+                  {formatEURExact(qcPrice)}
                 </span>
               </p>
+            </div>
+
+            <div>
+              <label htmlFor="qc-plan" className="block text-xs uppercase tracking-wider text-slate-400 mb-1.5">
+                Tarifa
+              </label>
+              <select
+                id="qc-plan"
+                value={quickCharge.planId}
+                onChange={(e) =>
+                  setQuickCharge({
+                    ...quickCharge,
+                    planId: e.target.value,
+                    amount: recalc(e.target.value, quickCharge.applyFamilyDiscount),
+                  })
+                }
+                className="w-full rounded-xl studio-panel-inset border border-white/15 px-3.5 py-2.5 text-sm text-white"
+              >
+                {planChoices(quickCharge.row.plan_id).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {priceForPlan(p.id, quickCharge.row.is_founder, 0).toFixed(0)} €
+                    {p.id === quickCharge.row.plan_id ? ' (sugerida: la del mes)' : ''}
+                  </option>
+                ))}
+              </select>
+              {qcChanged && (
+                <p className="mt-1.5 text-xs text-amber-300">
+                  Nueva tarifa para {formatMonthLabel(monthYear)}. Los meses siguientes la heredarán al generarlos.
+                </p>
+              )}
             </div>
 
             {/* Opción Descuento por familiar */}
@@ -1060,16 +1190,16 @@ export function AdminTrackingPage() {
                     Descuento por familiar
                   </span>
                   <span className="text-[11px] text-slate-400 block">
-                    {quickCharge.row.family_price_eur === null ? (
+                    {qcFamRaw === null ? (
                       'Esta tarifa no tiene PVP familiar predefinido (ajusta el importe si aplica)'
                     ) : (
                       <>
-                        Aplica tarifa familiar de {formatEURExact(Number(quickCharge.row.price_eur || 0))} a{' '}
+                        Aplica tarifa familiar de {formatEURExact(qcPrice)} a{' '}
                         <strong className="text-white">
                           {formatEURExact(
                             getFamilyDiscountPrice(
-                              Number(quickCharge.row.price_eur || 0),
-                              quickCharge.row.family_price_eur
+                              qcPrice,
+                              qcFamRaw
                             )
                           )}
                         </strong>
@@ -1085,10 +1215,10 @@ export function AdminTrackingPage() {
                   const checked = e.target.checked;
                   const newAmount = checked
                     ? getFamilyDiscountPrice(
-                        Number(quickCharge.row.price_eur || 0),
-                        quickCharge.row.family_price_eur
+                        qcPrice,
+                        qcFamRaw
                       )
-                    : Number(quickCharge.row.price_eur || 0);
+                    : qcPrice;
                   setQuickCharge({
                     ...quickCharge,
                     applyFamilyDiscount: checked,
@@ -1198,7 +1328,8 @@ export function AdminTrackingPage() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
