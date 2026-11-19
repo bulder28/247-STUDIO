@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, UserPlus, User, Users, Calendar, Search, CalendarX, WifiOff, AlertTriangle, ChevronDown, Star } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Check, UserPlus, User, Users, Calendar, Search, CalendarX, WifiOff, AlertTriangle, ChevronDown, Star, Pencil, UserMinus, Undo2 } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { Skeleton } from '@/components/KpiCard';
 import { supabase } from '@/lib/supabase';
@@ -39,6 +40,17 @@ interface StudentCard {
   belt: string | null;
   remaining_credits: number | null;
   is_class_pack: boolean;
+  /** Alumno de otro grupo añadido a mano a esta clase (su tarifa no incluye esta disciplina). */
+  is_visitor?: boolean;
+}
+
+/** Alumno activo de la academia, para el buscador de "Añadir alumno". */
+interface AcademyStudent {
+  id: string;
+  full_name: string;
+  alias: string | null;
+  avatar_url: string | null;
+  belt: string | null;
 }
 
 interface AttendanceRecord {
@@ -82,6 +94,16 @@ export function CoachAttendancePage() {
   // Habituales: user_id -> nº de asistencias a ESTA clase en las últimas 3 semanas
   const [regularCounts, setRegularCounts] = useState<Record<string, number>>({});
   const [showOthers, setShowOthers] = useState(false);
+  // "Añadir alumno": alumno de otro grupo que viene a esta clase de forma ocasional
+  const [showAddStudent, setShowAddStudent] = useState(false);
+  const [addQuery, setAddQuery] = useState('');
+  const [academyStudents, setAcademyStudents] = useState<AcademyStudent[]>([]);
+  const [planByUser, setPlanByUser] = useState<Record<string, string>>({});
+  const [addingId, setAddingId] = useState<string | null>(null);
+  // "Editar lista": quitar de ESTA clase a alumnos que no pertenecen a este grupo
+  const [editMode, setEditMode] = useState(false);
+  const [excludedStudents, setExcludedStudents] = useState<StudentCard[]>([]);
+  const [showExcluded, setShowExcluded] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
@@ -212,6 +234,17 @@ export function CoachAttendancePage() {
           .sort((a, b) => a.full_name.localeCompare(b.full_name));
       }
 
+      // Alumnos quitados a mano de esta clase (no pertenecen a este grupo)
+      const { data: exclData } = await supabase
+        .from('class_roster_exclusions')
+        .select('user_id')
+        .eq('schedule_class_id', selected.id);
+      const excludedIds = new Set(((exclData as { user_id: string }[]) ?? []).map((r) => r.user_id));
+      setExcludedStudents(eligibleStudents.filter((s) => excludedIds.has(s.id)));
+      eligibleStudents = eligibleStudents.filter((s) => !excludedIds.has(s.id));
+      setEditMode(false);
+      setShowExcluded(false);
+
       // Historial de esta clase (franja y disciplina) en las últimas 3 semanas, sin contar hoy
       const since = new Date();
       since.setDate(since.getDate() - REGULAR_WINDOW_DAYS);
@@ -235,7 +268,27 @@ export function CoachAttendancePage() {
           .select('id, user_id, guest_name')
           .eq('schedule_class_id', selected.id)
           .eq('attendance_date', todayDate);
-        setAttendances((attData as AttendanceRecord[]) ?? []);
+        const todays = (attData as AttendanceRecord[]) ?? [];
+        setAttendances(todays);
+        const eligibleIds = new Set(eligibleStudents.map((s) => s.id));
+        const visitorIds = todays
+          .map((a) => a.user_id)
+          .filter((id): id is string => Boolean(id) && !eligibleIds.has(id as string));
+        if (visitorIds.length > 0) {
+          const { data: vis } = await supabase
+            .from('profiles')
+            .select('id, full_name, alias, avatar_url, belt')
+            .in('id', visitorIds);
+          eligibleStudents = [
+            ...eligibleStudents,
+            ...((vis as AcademyStudent[]) ?? []).map((v) => ({
+              ...v,
+              remaining_credits: null,
+              is_class_pack: false,
+              is_visitor: true,
+            })),
+          ];
+        }
       } else {
         setAttendances([]);
       }
@@ -329,6 +382,119 @@ export function CoachAttendancePage() {
     }
   };
 
+  const byName = (a: StudentCard, b: StudentCard) => a.full_name.localeCompare(b.full_name);
+
+  const excludeStudent = async (st: StudentCard) => {
+    const selected = allClasses.find((c) => c.id === selectedClassId);
+    if (!selected || !user) return;
+    if (attendancesRef.current.some((a) => a.user_id === st.id)) {
+      showToast(`${st.full_name} está marcado hoy: desmárcalo antes de quitarlo de la clase`, true);
+      return;
+    }
+    if (st.is_visitor) return;
+    const { error } = await supabase
+      .from('class_roster_exclusions')
+      .insert({ schedule_class_id: selected.id, user_id: st.id, created_by: user.id });
+    if (error && error.code !== '23505') {
+      showToast(`No se pudo quitar a ${st.full_name}. Revisa la conexión e inténtalo de nuevo.`, true);
+      return;
+    }
+    setStudents((prev) => prev.filter((s) => s.id !== st.id));
+    setExcludedStudents((prev) => [...prev.filter((s) => s.id !== st.id), st].sort(byName));
+    showToast(`${st.full_name} quitado de esta clase`);
+  };
+
+  const restoreStudent = async (st: StudentCard) => {
+    const selected = allClasses.find((c) => c.id === selectedClassId);
+    if (!selected) return;
+    const { error } = await supabase
+      .from('class_roster_exclusions')
+      .delete()
+      .eq('schedule_class_id', selected.id)
+      .eq('user_id', st.id);
+    if (error) {
+      showToast(`No se pudo volver a añadir a ${st.full_name}.`, true);
+      return;
+    }
+    setExcludedStudents((prev) => prev.filter((s) => s.id !== st.id));
+    setStudents((prev) => (prev.some((s) => s.id === st.id) ? prev : [...prev, st].sort(byName)));
+    showToast(`${st.full_name} vuelve a la lista de esta clase`);
+  };
+
+  const openAddStudent = async () => {
+    setAddQuery('');
+    setShowAddStudent(true);
+    if (academyStudents.length > 0) return;
+    const [profRes, subRes] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, full_name, alias, avatar_url, belt')
+        .eq('role', 'client')
+        .eq('status', 'active')
+        .order('full_name'),
+      supabase
+        .from('subscriptions')
+        .select('user_id, plans(name)')
+        .eq('month_year', currentMonth)
+        .eq('status', 'active'),
+    ]);
+    setAcademyStudents((profRes.data as AcademyStudent[]) ?? []);
+    const map: Record<string, string> = {};
+    ((subRes.data as unknown as { user_id: string; plans: { name: string } | null }[]) ?? []).forEach((r) => {
+      if (r.plans?.name) map[r.user_id] = r.plans.name;
+    });
+    setPlanByUser(map);
+  };
+
+  const addVisitor = async (st: AcademyStudent) => {
+    const selected = allClasses.find((c) => c.id === selectedClassId);
+    if (!selected || !user || !isToday || addingId) return;
+    if (!navigator.onLine) {
+      showToast(`Sin conexión: no se añadió a ${st.full_name}`, true);
+      return;
+    }
+    setAddingId(st.id);
+    try {
+      const { data, error } = await supabase
+        .from('attendances')
+        .insert({
+          user_id: st.id,
+          schedule_class_id: selected.id,
+          discipline_id: selected.discipline_id,
+          attendance_date: todayDate,
+          validated_by: user.id,
+        })
+        .select('id, user_id, guest_name')
+        .single();
+      if (error && error.code !== '23505') {
+        showToast(`No se pudo añadir a ${st.full_name}. Revisa la conexión e inténtalo de nuevo.`, true);
+        return;
+      }
+      if (data) {
+        setAttendances((prev) =>
+          prev.some((a) => a.id === (data as AttendanceRecord).id) ? prev : [...prev, data as AttendanceRecord]
+        );
+      } else {
+        // Ya estaba marcado en esta clase: se sincroniza la lista
+        const { data: fresh } = await supabase
+          .from('attendances')
+          .select('id, user_id, guest_name')
+          .eq('schedule_class_id', selected.id)
+          .eq('attendance_date', todayDate);
+        setAttendances((fresh as AttendanceRecord[]) ?? attendancesRef.current);
+      }
+      setStudents((prev) =>
+        prev.some((s) => s.id === st.id)
+          ? prev
+          : [...prev, { ...st, remaining_credits: null, is_class_pack: false, is_visitor: true }]
+      );
+      setShowAddStudent(false);
+      showToast(`${st.full_name} añadido a la clase · ${attendancesRef.current.filter((a) => a.user_id !== null).length} presentes`);
+    } finally {
+      setAddingId(null);
+    }
+  };
+
   const addGuest = async (e: React.FormEvent) => {
     e.preventDefault();
     const selected = allClasses.find((c) => c.id === selectedClassId);
@@ -383,15 +549,17 @@ export function CoachAttendancePage() {
 
   // Habituales de la franja arriba; el resto plegado. Sin historial (primera vez) se ve todo.
   // Se calcula solo con el historial: marcar hoy a alguien de "Otros" no lo mueve de sitio.
-  const hasRegulars = students.some((s) => regularCounts[s.id]);
+  const visitorStudents = students.filter((s) => s.is_visitor);
+  const groupStudents = students.filter((s) => !s.is_visitor);
+  const hasRegulars = groupStudents.some((s) => regularCounts[s.id]);
   const splitByRegulars = hasRegulars && !searchTerm.trim();
-  const regularStudents = students
+  const regularStudents = groupStudents
     .filter((s) => regularCounts[s.id])
     .sort(
       (a, b) =>
         (regularCounts[b.id] ?? 0) - (regularCounts[a.id] ?? 0) || a.full_name.localeCompare(b.full_name)
     );
-  const otherStudents = students.filter((s) => !regularCounts[s.id]);
+  const otherStudents = groupStudents.filter((s) => !regularCounts[s.id]);
   const othersMarked = otherStudents.filter((s) => attendances.some((a) => a.user_id === s.id)).length;
 
   const renderCard = (st: StudentCard) => {
@@ -405,15 +573,21 @@ export function CoachAttendancePage() {
         whileHover={isToday ? { y: -3, scale: 1.02 } : undefined}
         whileTap={isToday ? { scale: 0.97 } : undefined}
         transition={{ type: 'spring', stiffness: 420, damping: 24 }}
-        onClick={() => toggleStudent(st.id)}
+        onClick={() => (editMode ? excludeStudent(st) : toggleStudent(st.id))}
+        aria-label={editMode ? `Quitar a ${st.full_name} de esta clase` : undefined}
         className={`group relative rounded-2xl p-2.5 sm:p-4 border text-left transition-[color,background-color,border-color,box-shadow,opacity] duration-200 flex flex-col items-center text-center gap-2.5 ${
           checked
             ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-[0_10px_24px_-10px_rgba(16,185,129,0.45)]'
             : isToday
               ? 'bg-white/[0.04] border-white/10 text-slate-200 hover:border-studio-red/70 hover:bg-white/[0.09] hover:shadow-[0_12px_28px_-10px_rgba(220,38,38,0.4)]'
               : 'bg-studio-navy/70 border-white/10 text-slate-200 cursor-default'
-        } ${busy ? 'opacity-60' : ''}`}
+        } ${busy ? 'opacity-60' : ''} ${editMode && !st.is_visitor ? '!border-dashed !border-studio-red/70' : ''}`}
       >
+        {editMode && !st.is_visitor && (
+          <span className="absolute top-1.5 left-1.5 grid place-items-center w-6 h-6 rounded-full bg-studio-red text-white shadow-sm">
+            <UserMinus className="w-3.5 h-3.5" aria-hidden />
+          </span>
+        )}
         {checked && (
           <motion.span
             initial={{ scale: 0 }}
@@ -460,6 +634,11 @@ export function CoachAttendancePage() {
                 : 'Bono agotado (0)'}
             </span>
           )}
+          {st.is_visitor && (
+            <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/15 text-sky-200 border border-sky-400/30">
+              De otro grupo
+            </span>
+          )}
         </div>
       </motion.button>
     );
@@ -483,6 +662,16 @@ export function CoachAttendancePage() {
               <UserPlus className="w-4 h-4 text-studio-red" />
               + Invitado / Clase Prueba
             </button>
+            {isToday && selectedClassId && (
+              <button
+                type="button"
+                onClick={openAddStudent}
+                className="inline-flex items-center justify-center gap-2 min-h-11 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white hover:bg-white/5 shrink-0"
+              >
+                <Users className="w-4 h-4 text-studio-red" />
+                + Añadir alumno
+              </button>
+            )}
           </>
         }
       />
@@ -542,6 +731,96 @@ export function CoachAttendancePage() {
           ))}
         </div>
       )}
+
+      {showAddStudent &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Añadir alumno a la clase"
+            onKeyDown={(e) => e.key === 'Escape' && setShowAddStudent(false)}
+            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
+          >
+            <div className="w-full sm:max-w-md max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl studio-panel border border-white/15 p-5 gap-3 shadow-modal">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-headline text-xl uppercase text-white">Añadir alumno</h2>
+                  <p className="text-xs text-slate-300">
+                    Para un alumno de otro grupo que viene hoy a esta clase. Queda marcado como presente.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddStudent(false)}
+                  aria-label="Cerrar"
+                  className="grid place-items-center min-h-11 min-w-11 rounded-xl text-slate-300 hover:bg-white/10"
+                >
+                  <span aria-hidden>✕</span>
+                </button>
+              </div>
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
+                <input
+                  autoFocus
+                  value={addQuery}
+                  onChange={(e) => setAddQuery(e.target.value)}
+                  placeholder="Nombre del alumno..."
+                  aria-label="Buscar alumno en la academia"
+                  className="w-full min-h-11 rounded-xl studio-field pl-9 pr-3 py-2 text-sm text-white"
+                />
+              </div>
+              <div className="overflow-y-auto -mx-1 px-1 space-y-1.5">
+                {addQuery.trim().length < 2 ? (
+                  <p className="text-xs text-slate-300 py-2">Escribe al menos 2 letras del nombre.</p>
+                ) : (
+                  (() => {
+                    const q = addQuery.trim().toLowerCase();
+                    const found = academyStudents
+                      .filter(
+                        (a) =>
+                          a.full_name.toLowerCase().includes(q) || (a.alias ?? '').toLowerCase().includes(q)
+                      )
+                      .slice(0, 30);
+                    if (found.length === 0) {
+                      return <p className="text-xs text-slate-300 py-2">Ningún alumno activo con ese nombre.</p>;
+                    }
+                    return found.map((a) => {
+                      const inClass = attendances.some((x) => x.user_id === a.id);
+                      const inGroup = students.some((x) => x.id === a.id && !x.is_visitor);
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          disabled={inClass || addingId !== null}
+                          onClick={() => addVisitor(a)}
+                          className="w-full flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.07] disabled:opacity-60 p-2.5 text-left"
+                        >
+                          <span className="w-10 h-10 rounded-full studio-panel-inset border border-white/10 overflow-hidden grid place-items-center shrink-0">
+                            {a.avatar_url ? (
+                              <img src={a.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <User className="w-5 h-5 text-slate-400" aria-hidden />
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-white truncate">{a.full_name}</span>
+                            <span className="block text-xs text-slate-300 truncate">
+                              {planByUser[a.id] ?? 'Sin tarifa este mes'}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-xs font-semibold text-slate-200">
+                            {inClass ? 'Ya está' : addingId === a.id ? 'Añadiendo…' : inGroup ? 'Marcar' : 'Añadir'}
+                          </span>
+                        </button>
+                      );
+                    });
+                  })()
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {showGuestModal && (
         <div className="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
@@ -670,6 +949,28 @@ export function CoachAttendancePage() {
               />
             </div>
           )}
+          {(students.length > 0 || excludedStudents.length > 0) && (
+            <button
+              type="button"
+              onClick={() => setEditMode((v) => !v)}
+              aria-pressed={editMode}
+              className={`inline-flex items-center justify-center gap-2 min-h-11 rounded-xl px-4 text-xs font-semibold border shrink-0 ${
+                editMode
+                  ? 'bg-studio-red border-studio-red text-white'
+                  : 'bg-white/[0.04] border-white/15 text-white hover:bg-white/5'
+              }`}
+            >
+              <Pencil className="w-4 h-4" aria-hidden />
+              {editMode ? 'Terminar de editar' : 'Editar lista'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {editMode && (
+        <div role="status" className="rounded-2xl border border-studio-red/50 bg-studio-red/15 text-red-100 px-4 py-3 text-sm">
+          <strong>Editando la lista de esta clase.</strong> Toca a un alumno que no pertenece a este grupo para
+          quitarlo. Su tarifa no cambia y sigue en sus otras clases; puedes recuperarlo abajo.
         </div>
       )}
 
@@ -696,6 +997,16 @@ export function CoachAttendancePage() {
         </EmptyState>
       ) : (
         <div className="space-y-4">
+          {visitorStudents.length > 0 && !searchTerm.trim() && (
+            <section aria-label="Alumnos de otro grupo" className="space-y-2">
+              <h3 className="text-xs uppercase tracking-wider text-sky-200">
+                De otro grupo ({visitorStudents.length})
+              </h3>
+              <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                {visitorStudents.map(renderCard)}
+              </div>
+            </section>
+          )}
           {splitByRegulars ? (
             <>
               <section aria-label="Habituales de esta clase" className="space-y-2">
@@ -739,11 +1050,41 @@ export function CoachAttendancePage() {
                 </p>
               )}
               <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
-                {visibleStudents.map(renderCard)}
+                {(searchTerm.trim() ? visibleStudents : groupStudents).map(renderCard)}
               </div>
             </>
           )}
         </div>
+      )}
+
+      {excludedStudents.length > 0 && !loading && (
+        <section aria-label="Quitados de esta clase" className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setShowExcluded((v) => !v)}
+            aria-expanded={showExcluded}
+            className="w-full min-h-11 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] px-4 text-sm font-semibold text-slate-300"
+          >
+            <span>Quitados de esta clase ({excludedStudents.length})</span>
+            <ChevronDown className={`w-4 h-4 transition-transform ${showExcluded ? 'rotate-180' : ''}`} aria-hidden />
+          </button>
+          {showExcluded && (
+            <div className="rounded-2xl studio-panel border border-white/10 divide-y divide-white/5">
+              {excludedStudents.map((st) => (
+                <div key={st.id} className="flex items-center justify-between gap-3 px-4 py-2">
+                  <span className="text-sm text-slate-200 truncate">{st.full_name}</span>
+                  <button
+                    type="button"
+                    onClick={() => restoreStudent(st)}
+                    className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-white shrink-0"
+                  >
+                    <Undo2 className="w-4 h-4" aria-hidden /> Volver a añadir
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       {guestList.length > 0 && (
