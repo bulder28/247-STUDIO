@@ -15,7 +15,6 @@ import {
   Maximize,
   Minimize,
   Wallet,
-  Receipt,
   PanelLeftClose,
   PanelLeftOpen,
   ClipboardCheck,
@@ -30,6 +29,7 @@ const navGroups = [
   {
     label: 'Día a día',
     items: [
+      { to: '/admin', label: 'Inicio', icon: LayoutDashboard, end: true },
       { to: '/admin/pasar-lista', label: 'Pasar lista', icon: ClipboardCheck },
       { to: '/admin/seguimiento', label: 'Cobros', icon: CreditCard },
       { to: '/admin/bonos', label: 'Bonos', icon: Ticket },
@@ -37,25 +37,18 @@ const navGroups = [
     ],
   },
   {
-    label: 'Finanzas',
+    label: 'Negocio',
     items: [
-      { to: '/admin/finanzas', label: 'Resumen del mes', icon: Wallet, end: true },
-      { to: '/admin/finanzas/gastos', label: 'Gastos', icon: Receipt },
+      { to: '/admin/finanzas', label: 'Finanzas', icon: Wallet },
+      { to: '/admin/kpis', label: 'KPIs', icon: BarChart3 },
     ],
   },
   {
     label: 'Academia',
     items: [
-      { to: '/admin/horarios', label: 'Editor de horarios', icon: CalendarDays },
-      { to: '/admin/tarifas', label: 'Editor de tarifas', icon: Tags },
-      { to: '/admin/comunicacion', label: 'Crear comunicaciones', icon: MessageSquare },
-    ],
-  },
-  {
-    label: 'Dirección',
-    items: [
-      { to: '/admin', label: 'Resumen', icon: LayoutDashboard, end: true },
-      { to: '/admin/kpis', label: 'KPIs', icon: BarChart3 },
+      { to: '/admin/horarios', label: 'Horarios', icon: CalendarDays },
+      { to: '/admin/tarifas', label: 'Tarifas', icon: Tags },
+      { to: '/admin/comunicacion', label: 'Comunicaciones', icon: MessageSquare },
     ],
   },
 ];

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   BarChart3,
@@ -10,19 +9,12 @@ import {
   CheckCircle2,
   AlertTriangle,
   Flame,
-  ShieldCheck,
-  Ticket,
   RotateCcw,
   Download,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { exportWorkbook } from '@/lib/excel';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
-import {
-  countPendingSignatures,
-  fetchSignatureTasksByUser,
-  type SignatureTask,
-} from '@/lib/studentDocuments';
 import { formatEUR, formatInt, formatMonthLong } from '@/lib/format';
 import { useAmountsHidden } from '@/lib/privacy';
 import { fetchAllRows, getCashMonth } from '@/lib/finance';
@@ -78,13 +70,6 @@ interface ClientProfile {
   is_founder: boolean;
   created_at: string;
   first_training_at: string | null;
-}
-
-interface PackSubRow {
-  id: string;
-  user_id: string;
-  remaining_credits: number | null;
-  plans: { name: string; pack_credits: number | null } | { name: string; pack_credits: number | null }[];
 }
 
 interface DonutSegment {
@@ -276,8 +261,6 @@ export function AdminKpisPage() {
   const [cashByMonth, setCashByMonth] = useState<Record<string, number>>({});
   const [expensesByMonth, setExpensesByMonth] = useState<Record<string, number>>({});
   const [clients, setClients] = useState<ClientProfile[]>([]);
-  const [signTasksByUser, setSignTasksByUser] = useState<Record<string, SignatureTask[]>>({});
-  const [packSubs, setPackSubs] = useState<PackSubRow[]>([]);
 
   const trendMonths = useMemo(
     () => Array.from({ length: trendRange }, (_, i) => shiftMonth(selectedMonth, i - (trendRange - 1))),
@@ -292,7 +275,7 @@ export function AdminKpisPage() {
       const { start, nextEnd } = getMonthRangeBounds(startMonth, selectedMonth);
       let incomplete = false;
 
-      const [discRes, payRows, pastDueRows, attRows, cliRes, signTasks, packRes, cashArr, expRows] =
+      const [discRes, payRows, pastDueRows, attRows, cliRes, cashArr, expRows] =
         await Promise.all([
           supabase.from('disciplines').select('id, name').eq('is_active', true).order('sort_order'),
           // Paginadas: 6–12 meses de cuotas y asistencias superan pronto el límite de 1.000 filas
@@ -340,13 +323,6 @@ export function AdminKpisPage() {
             .from('profiles')
             .select('id, status, belt, birth_date, is_founder, created_at, first_training_at')
             .eq('role', 'client'),
-          fetchSignatureTasksByUser(),
-          supabase
-            .from('subscriptions')
-            .select('id, user_id, remaining_credits, plans!inner(name, is_class_pack, pack_credits)')
-            .eq('month_year', selectedMonth)
-            .eq('status', 'active')
-            .eq('plans.is_class_pack', true),
           Promise.all(trendMonths.map((ym) => getCashMonth(ym).then((c) => c.total).catch(() => 0))),
           fetchAllRows<{ expense_date: string; amount_cents: number; voided_at: string | null }>((from, to) =>
             supabase
@@ -379,8 +355,6 @@ export function AdminKpisPage() {
       setCashByMonth(cashMap);
       setExpensesByMonth(expMap);
       setClients((cliRes.data as ClientProfile[]) ?? []);
-      setSignTasksByUser(signTasks);
-      setPackSubs((packRes.data as unknown as PackSubRow[]) ?? []);
       setLoading(false);
     };
 
@@ -524,24 +498,32 @@ export function AdminKpisPage() {
   const focusMonth = hoveredMonth ?? pinnedMonth ?? selectedMonth;
   const activeTrend = trendData.find((d) => d.ym === focusMonth) ?? trendData[trendData.length - 1];
 
-  // Cumplimiento documental
-  const compliantUsers = clients.filter(
-    (c) =>
-      (c.status === 'active' || c.status === 'paused') &&
-      countPendingSignatures(signTasksByUser[c.id]) === 0
-  ).length;
-  const totalManagedClients = clients.filter(
-    (c) => c.status === 'active' || c.status === 'paused'
-  ).length;
-  const docCompliancePct =
-    totalManagedClients > 0 ? Math.round((compliantUsers / totalManagedClients) * 100) : 100;
-
-  // Bonos
-  const lowCreditPacks = packSubs.filter((s) => (s.remaining_credits ?? 0) <= 2).length;
-  const avgRemainingCredits =
-    packSubs.length > 0
-      ? (packSubs.reduce((s, p) => s + (p.remaining_credits ?? 0), 0) / packSubs.length).toFixed(1)
-      : '0';
+  // Ocupación por disciplina en el mes seleccionado (sobre todas las disciplinas, sin filtrar)
+  const disciplineStats = useMemo(() => {
+    const map: Record<string, { attendances: number; users: Set<string> }> = {};
+    disciplines.forEach((d) => {
+      map[d.id] = { attendances: 0, users: new Set() };
+    });
+    attendances6M
+      .filter((a) => a.attendance_date.startsWith(selectedMonth))
+      .forEach((a) => {
+        const sc = Array.isArray(a.schedule_classes) ? a.schedule_classes[0] : a.schedule_classes;
+        const dId = a.discipline_id ?? sc?.discipline_id ?? null;
+        if (dId && map[dId]) {
+          map[dId].attendances += 1;
+          if (a.user_id) map[dId].users.add(a.user_id);
+        }
+      });
+    return disciplines
+      .map((d) => ({
+        id: d.id,
+        name: d.name,
+        attendances: map[d.id]?.attendances ?? 0,
+        uniqueStudents: map[d.id]?.users.size ?? 0,
+      }))
+      .sort((a, b) => b.attendances - a.attendances);
+  }, [attendances6M, disciplines, selectedMonth]);
+  const totalDiscAttendances = disciplineStats.reduce((s, d) => s + d.attendances, 0);
 
   // Matriz semanal Día × Franja + Top Clases
   const matrixBuckets: Record<string, number> = {};
@@ -1388,92 +1370,48 @@ export function AdminKpisPage() {
         </div>
       </div>
 
-      {/* Fila 3: Embudo Legal/Captación y Bonos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Salud Legal y Embudo */}
-        <section className="rounded-3xl studio-panel border border-white/10 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-headline text-base uppercase text-white flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" /> Salud Legal y Altas
-            </h3>
-            <Link to="/admin/alumnos" className="text-xs text-studio-red-text hover:underline">
-              Ver alumnos
-            </Link>
+      {/* Fila 3: Ocupación por Disciplina */}
+      <section className="rounded-3xl studio-panel border border-white/10 p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-headline text-lg uppercase text-white flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-studio-red" /> Ocupación por Disciplina
+          </h2>
+          <span className="text-xs text-slate-400">
+            {totalDiscAttendances} {totalDiscAttendances === 1 ? 'asistencia' : 'asistencias'}
+          </span>
+        </div>
+        {loading ? (
+          <Skeleton className="h-24 w-full !rounded-2xl" />
+        ) : disciplineStats.length === 0 ? (
+          <p className="text-sm text-slate-400">Sin disciplinas activas configuradas.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+            {disciplineStats.map((d) => {
+              const pct =
+                totalDiscAttendances > 0
+                  ? Math.round((d.attendances / totalDiscAttendances) * 100)
+                  : 0;
+              return (
+                <div key={d.id} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-white font-medium truncate">{d.name}</span>
+                    <span className="text-xs text-slate-300 shrink-0 tabular-nums">
+                      {d.attendances} {d.attendances === 1 ? 'clase' : 'clases'} · {d.uniqueStudents}{' '}
+                      {d.uniqueStudents === 1 ? 'alumno' : 'alumnos'} ({pct}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-2 rounded-full studio-panel-inset overflow-hidden border border-white/5">
+                    <div
+                      className="h-full w-full origin-left bg-gradient-to-r from-studio-cream/60 to-studio-cream transition-transform duration-500 rounded-full"
+                      style={{ transform: `scaleX(${pct / 100})` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-
-          <div className="rounded-2xl studio-panel-inset border border-white/5 p-3.5 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-300">Documentos firmados al día</span>
-              <span className="font-headline text-base text-emerald-300">{docCompliancePct}%</span>
-            </div>
-            <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full"
-                style={{ width: `${docCompliancePct}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-slate-400">
-              {compliantUsers} de {totalManagedClients} alumnos activos/pausados conformes
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5 text-center">
-            <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
-              <p className="font-headline text-2xl text-white">{guestTrials}</p>
-              <p className="text-[11px] text-slate-400">Invitados / Pruebas</p>
-            </div>
-            <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
-              <p className="font-headline text-2xl text-studio-red">{newSignups}</p>
-              <p className="text-[11px] text-slate-400">Altas del mes</p>
-            </div>
-          </div>
-        </section>
-
-        {/* Estado de Bonos */}
-        <section className="rounded-3xl studio-panel border border-white/10 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-headline text-base uppercase text-white flex items-center gap-2">
-              <Ticket className="w-4 h-4 text-sky-400" /> Bonos de Clases
-            </h3>
-            <Link to="/admin/seguimiento" className="text-xs text-studio-red-text hover:underline">
-              Gestionar
-            </Link>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
-              <p className="font-headline text-2xl text-white">{packSubs.length}</p>
-              <p className="text-[10px] uppercase text-slate-400">Activos</p>
-            </div>
-            <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
-              <p className="font-headline text-2xl text-sky-300">{avgRemainingCredits}</p>
-              <p className="text-[10px] uppercase text-slate-400">Media créd.</p>
-            </div>
-            <div className="rounded-2xl studio-panel-inset border border-white/5 p-3">
-              <p className="font-headline text-2xl text-amber-300">{lowCreditPacks}</p>
-              <p className="text-[10px] uppercase text-slate-400">≤ 2 créd.</p>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[11px] text-slate-400">
-              <span>Bonos a punto de agotarse</span>
-              <span className="tabular-nums">
-                {lowCreditPacks} / {packSubs.length}
-              </span>
-            </div>
-            <div className="w-full h-2 rounded-full studio-panel-inset overflow-hidden">
-              <div
-                className="h-full w-full origin-left rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-transform duration-700"
-                style={{
-                  transform: `scaleX(${packSubs.length > 0 ? Math.round((lowCreditPacks / packSubs.length) * 100) / 100 : 0})`,
-                }}
-              />
-            </div>
-            <p className="text-[11px] text-slate-500">
-              Candidatos a renovación en {formatMonthLong(selectedMonth)}.
-            </p>
-          </div>
-        </section>
-      </div>
+        )}
+      </section>
 
       {/* Fila 4: Matriz de Calor Semanal + Top Clases */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

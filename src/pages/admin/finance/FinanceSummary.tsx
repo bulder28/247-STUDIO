@@ -192,17 +192,6 @@ export function FinanceSummary({
                 </p>
                 <p className="text-sm text-slate-300 mt-1">
                   {fixed.confirmed} de {fixed.total} cubiertos
-                  {fixed.confirmed < fixed.total && (
-                    <>
-                      {' · '}
-                      <Link
-                        to={`/admin/finanzas/gastos?mes=${month}`}
-                        className="text-studio-red-text underline underline-offset-2"
-                      >
-                        confirmar pendientes
-                      </Link>
-                    </>
-                  )}
                 </p>
               </>
             )}
