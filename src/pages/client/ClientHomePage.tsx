@@ -670,6 +670,99 @@ export function ClientHomePage() {
         </div>
       </motion.section>
 
+      {/* Confirmar asistencia previa para agilizar entrada al tatami */}
+      <section className="rounded-3xl studio-panel border border-emerald-500/30 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="font-headline text-lg uppercase tracking-wide text-white flex items-center gap-2">
+              <CalendarCheck className="w-5 h-5 text-emerald-400" />
+              ¿Vienes hoy a clase?
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Opcional: confirma antes de venir para agilizar el paso de lista en el tatami.
+            </p>
+          </div>
+          <Link
+            to="/app/horario"
+            className="text-xs font-semibold text-studio-cream hover:underline shrink-0"
+          >
+            Confirmar otros días &rarr;
+          </Link>
+        </div>
+
+        {todayClasses.length === 0 ? (
+          <p className="text-xs text-slate-400">
+            Hoy no hay clases programadas. Puedes confirmar asistencia para los próximos días en{' '}
+            <Link to="/app/horario" className="text-studio-cream underline">
+              Horario
+            </Link>
+            .
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {todayClasses.map((cls) => {
+              const members =
+                linkedChildren.length > 0
+                  ? [
+                      ...linkedChildren.map((k) => ({ id: k.id, label: k.full_name.split(' ')[0] })),
+                      { id: user?.id ?? '', label: 'Yo' },
+                    ].filter((m) => m.id)
+                  : [{ id: user?.id ?? '', label: 'Voy a ir hoy' }].filter((m) => m.id);
+
+              return (
+                <div
+                  key={cls.id}
+                  className="rounded-2xl studio-panel-inset border border-white/10 p-3.5 flex flex-col justify-between gap-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{cls.title}</p>
+                      <p className="text-xs text-slate-400 truncate">Prof. {cls.coach_name}</p>
+                    </div>
+                    <span className="font-headline text-lg text-studio-cream tabular-nums shrink-0">
+                      {cls.start_time.slice(0, 5)}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {members.map((m) => {
+                      const key = preconfKey(m.id, cls.id, todayDate);
+                      const confirmed = preconfSet.has(key);
+                      const busy = Boolean(togglingPreconf[key]);
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => handleToggleTodayPreconf(m.id, cls.id)}
+                          aria-pressed={confirmed}
+                          className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${
+                            confirmed
+                              ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                              : 'bg-white/[0.04] border-white/15 text-slate-200 hover:border-emerald-400/50 hover:text-white'
+                          } disabled:opacity-50`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>
+                            {linkedChildren.length > 0
+                              ? confirmed
+                                ? `${m.label}: Confirmado`
+                                : `Confirmar ${m.label}`
+                              : confirmed
+                                ? 'Asistencia confirmada'
+                                : 'Confirmar asistencia'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {/* Contador visual de Bono (Multipack / Bono 8 clases / Clase Suelta) */}
       {activeSub?.plans?.is_class_pack && (
         <section className="rounded-3xl studio-panel border border-sky-400/30 p-5 space-y-3">
@@ -851,91 +944,6 @@ export function ClientHomePage() {
               </div>
             </div>
           )}
-        </section>
-      )}
-
-      {/* Confirmar asistencia previa para agilizar entrada al tatami */}
-      {todayClasses.length > 0 && (
-        <section className="rounded-3xl studio-panel border border-emerald-500/25 p-5 sm:p-6 space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <h2 className="font-headline text-lg uppercase tracking-wide text-white flex items-center gap-2">
-                <CalendarCheck className="w-5 h-5 text-emerald-400" />
-                ¿Vienes hoy a clase?
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Opcional: confirma antes de venir para agilizar el paso de lista en el tatami.
-              </p>
-            </div>
-            <Link
-              to="/app/horario"
-              className="text-xs font-semibold text-studio-cream hover:underline shrink-0"
-            >
-              Ver toda la semana &rarr;
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {todayClasses.map((cls) => {
-              const members =
-                linkedChildren.length > 0
-                  ? [
-                      ...linkedChildren.map((k) => ({ id: k.id, label: k.full_name.split(' ')[0] })),
-                      { id: user?.id ?? '', label: 'Yo' },
-                    ].filter((m) => m.id)
-                  : [{ id: user?.id ?? '', label: 'Voy a ir hoy' }].filter((m) => m.id);
-
-              return (
-                <div
-                  key={cls.id}
-                  className="rounded-2xl studio-panel-inset border border-white/10 p-3.5 flex flex-col justify-between gap-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{cls.title}</p>
-                      <p className="text-xs text-slate-400 truncate">Prof. {cls.coach_name}</p>
-                    </div>
-                    <span className="font-headline text-lg text-studio-cream tabular-nums shrink-0">
-                      {cls.start_time.slice(0, 5)}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {members.map((m) => {
-                      const key = preconfKey(m.id, cls.id, todayDate);
-                      const confirmed = preconfSet.has(key);
-                      const busy = Boolean(togglingPreconf[key]);
-                      return (
-                        <button
-                          key={m.id}
-                          type="button"
-                          disabled={busy}
-                          onClick={() => handleToggleTodayPreconf(m.id, cls.id)}
-                          aria-pressed={confirmed}
-                          className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${
-                            confirmed
-                              ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
-                              : 'bg-white/[0.04] border-white/15 text-slate-200 hover:border-emerald-400/50 hover:text-white'
-                          } disabled:opacity-50`}
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                          <span>
-                            {linkedChildren.length > 0
-                              ? confirmed
-                                ? `${m.label}: Confirmado`
-                                : `Confirmar ${m.label}`
-                              : confirmed
-                                ? 'Asistencia confirmada'
-                                : 'Confirmar asistencia'}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </section>
       )}
 
