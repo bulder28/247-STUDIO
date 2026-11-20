@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { createPortal } from 'react-dom';
-import { Check, UserPlus, User, Users, Calendar, Search, CalendarX, WifiOff, AlertTriangle, ChevronDown, Star, Pencil, UserMinus, Undo2 } from 'lucide-react';
+import { Check, UserPlus, User, Users, Calendar, Search, CalendarX, WifiOff, AlertTriangle, ChevronDown, Star, Pencil, UserMinus, Undo2, Smartphone } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { Skeleton } from '@/components/KpiCard';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { getLocalDateISO, getLocalTimeHHMM } from '@/lib/dateUtils';
+import { getLocalDateISO, getLocalTimeHHMM, getNextDateForDayOfWeek } from '@/lib/dateUtils';
+import { fetchActivePacks } from '@/lib/classPacks';
 import { PageHeader } from '@/components/PageHeader';
 import { BELT_DISCIPLINE_SLUGS } from '@/lib/belts';
 
@@ -79,6 +80,7 @@ export function CoachAttendancePage() {
   );
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [students, setStudents] = useState<StudentCard[]>([]);
+  const [preconfirmedIds, setPreconfirmedIds] = useState<Set<string>>(new Set());
   const [attendances, setAttendancesState] = useState<AttendanceRecord[]>([]);
   // Copia siempre al día de la lista de presentes. Con toques rápidos varios guardados terminan a la vez:
   // si cada uno rehiciera la lista desde la copia que vio al tocar, se pisarían y algunos alumnos
@@ -293,11 +295,85 @@ export function CoachAttendancePage() {
         setAttendances([]);
       }
 
+      // Pre-confirmaciones desde el móvil para esta clase y fecha (hoy o próxima fecha de ese día)
+      const targetClassDate =
+        selected.day_of_week === todayDayOfWeek
+          ? todayDate
+          : getNextDateForDayOfWeek(selected.day_of_week);
+      const { data: preconfData } = await supabase
+        .from('class_preconfirmations')
+        .select('user_id')
+        .eq('schedule_class_id', selected.id)
+        .eq('class_date', targetClassDate);
+      const preconfSet = new Set(
+        ((preconfData as { user_id: string }[]) ?? []).map((r) => r.user_id)
+      );
+      setPreconfirmedIds(preconfSet);
+
+      const currentEligibleIds = new Set(eligibleStudents.map((s) => s.id));
+      const missingPreconfIds = Array.from(preconfSet).filter((id) => !currentEligibleIds.has(id));
+      if (missingPreconfIds.length > 0) {
+        const { data: preVis } = await supabase
+          .from('profiles')
+          .select('id, full_name, alias, avatar_url, belt')
+          .in('id', missingPreconfIds);
+        eligibleStudents = [
+          ...eligibleStudents,
+          ...((preVis as AcademyStudent[]) ?? []).map((v) => ({
+            ...v,
+            remaining_credits: null,
+            is_class_pack: false,
+            is_visitor: true,
+          })),
+        ];
+      }
+
+      // Bono en vigor de cada alumno: clases que le quedan según su bono real (validez 3 meses)
+      const packMap = await fetchActivePacks(eligibleStudents.map((s) => s.id));
+      eligibleStudents = eligibleStudents.map((s) =>
+        packMap[s.id]
+          ? { ...s, is_class_pack: true, remaining_credits: packMap[s.id].remaining_credits }
+          : s.is_class_pack
+            ? { ...s, remaining_credits: 0 }
+            : s
+      );
+
       setStudents(eligibleStudents);
       setLoading(false);
     };
 
     loadRosterAndAttendances();
+
+    const targetClassDate =
+      selected.day_of_week === todayDayOfWeek
+        ? todayDate
+        : getNextDateForDayOfWeek(selected.day_of_week);
+    const channel = supabase
+      .channel(`preconf-${selected.id}-${targetClassDate}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'class_preconfirmations',
+          filter: `schedule_class_id=eq.${selected.id}`,
+        },
+        async () => {
+          const { data: fresh } = await supabase
+            .from('class_preconfirmations')
+            .select('user_id')
+            .eq('schedule_class_id', selected.id)
+            .eq('class_date', targetClassDate);
+          setPreconfirmedIds(
+            new Set(((fresh as { user_id: string }[]) ?? []).map((r) => r.user_id))
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedClassId, allClasses, currentMonth, todayDate, todayDayOfWeek]);
 
   // El cinturón solo se muestra en las clases de BJJ y Grappling
@@ -305,6 +381,23 @@ export function CoachAttendancePage() {
   const classUsesBelt = disciplines.some(
     (d) => d.id === classDisciplineId && BELT_DISCIPLINE_SLUGS.includes(d.slug)
   );
+
+  /** Relee el bono en vigor del alumno tras marcar o desmarcar (lo descuenta la base de datos). */
+  const refreshPack = async (studentId: string) => {
+    const packMap = await fetchActivePacks([studentId]);
+    const pack = packMap[studentId];
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id !== studentId
+          ? s
+          : pack
+            ? { ...s, is_class_pack: true, remaining_credits: pack.remaining_credits }
+            : s.is_class_pack
+              ? { ...s, remaining_credits: 0 }
+              : s
+      )
+    );
+  };
 
   const toggleStudent = async (studentId: string) => {
     if (!isToday || togglingIds[studentId]) return;
@@ -326,13 +419,7 @@ export function CoachAttendancePage() {
         } else {
           setAttendances((prev) => prev.filter((a) => a.id !== existing.id));
           const nextList = attendancesRef.current;
-          setStudents((prev) =>
-            prev.map((s) =>
-              s.id === studentId && s.is_class_pack && s.remaining_credits !== null
-                ? { ...s, remaining_credits: s.remaining_credits + 1 }
-                : s
-            )
-          );
+          refreshPack(studentId);
           const count = nextList.filter((a) => a.user_id !== null).length;
           showToast(`Asistencia retirada · ${count} presentes`);
         }
@@ -364,13 +451,7 @@ export function CoachAttendancePage() {
             prev.some((a) => a.id === (data as AttendanceRecord).id) ? prev : [...prev, data as AttendanceRecord]
           );
           const nextList = attendancesRef.current;
-          setStudents((prev) =>
-            prev.map((s) =>
-              s.id === studentId && s.is_class_pack && s.remaining_credits !== null
-                ? { ...s, remaining_credits: Math.max(0, s.remaining_credits - 1) }
-                : s
-            )
-          );
+          refreshPack(studentId);
           const count = nextList.filter((a) => a.user_id !== null).length;
           showToast(`Asistencia guardada · ${count} presentes`);
         }
@@ -489,6 +570,7 @@ export function CoachAttendancePage() {
           : [...prev, { ...st, remaining_credits: null, is_class_pack: false, is_visitor: true }]
       );
       setShowAddStudent(false);
+      refreshPack(st.id);
       showToast(`${st.full_name} añadido a la clase · ${attendancesRef.current.filter((a) => a.user_id !== null).length} presentes`);
     } finally {
       setAddingId(null);
@@ -549,6 +631,7 @@ export function CoachAttendancePage() {
 
   // Habituales de la franja arriba; el resto plegado. Sin historial (primera vez) se ve todo.
   // Se calcula solo con el historial: marcar hoy a alguien de "Otros" no lo mueve de sitio.
+  const preconfirmedStudents = visibleStudents.filter((s) => preconfirmedIds.has(s.id));
   const visitorStudents = students.filter((s) => s.is_visitor);
   const groupStudents = students.filter((s) => !s.is_visitor);
   const hasRegulars = groupStudents.some((s) => regularCounts[s.id]);
@@ -631,7 +714,13 @@ export function CoachAttendancePage() {
             >
               {st.remaining_credits > 0
                 ? `Bono: ${st.remaining_credits} ${st.remaining_credits === 1 ? 'clase' : 'clases'}`
-                : 'Bono agotado (0)'}
+                : 'Sin bono en vigor'}
+            </span>
+          )}
+          {preconfirmedIds.has(st.id) && !checked && (
+            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              <Smartphone className="w-2.5 h-2.5" aria-hidden />
+              Pre-confirmado
             </span>
           )}
           {st.is_visitor && (
@@ -930,10 +1019,20 @@ export function CoachAttendancePage() {
                 <strong className="text-white">{memberAttendancesCount}</strong> de{' '}
                 <strong className="text-white">{students.length}</strong> alumnos marcados
                 {guestList.length > 0 ? ` (+${guestList.length} prueba)` : ''}
+                {preconfirmedIds.size > 0 && (
+                  <span className="text-emerald-300 ml-1.5">
+                    · {preconfirmedIds.size} pre-confirmado{preconfirmedIds.size === 1 ? '' : 's'}
+                  </span>
+                )}
               </span>
             ) : (
               <span>
                 <strong className="text-white">{students.length}</strong> alumnos previstos en esta clase
+                {preconfirmedIds.size > 0 && (
+                  <span className="text-emerald-300 ml-1.5">
+                    · {preconfirmedIds.size} pre-confirmado{preconfirmedIds.size === 1 ? '' : 's'}
+                  </span>
+                )}
               </span>
             )}
           </div>
@@ -997,6 +1096,20 @@ export function CoachAttendancePage() {
         </EmptyState>
       ) : (
         <div className="space-y-4">
+          {preconfirmedStudents.length > 0 && (
+            <section
+              aria-label="Pre-confirmados desde el móvil"
+              className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3 sm:p-4 space-y-2.5"
+            >
+              <h3 className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-emerald-300 font-semibold">
+                <Smartphone className="w-3.5 h-3.5" aria-hidden />
+                Pre-confirmados desde el móvil ({preconfirmedStudents.length})
+              </h3>
+              <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                {preconfirmedStudents.map(renderCard)}
+              </div>
+            </section>
+          )}
           {visitorStudents.length > 0 && !searchTerm.trim() && (
             <section aria-label="Alumnos de otro grupo" className="space-y-2">
               <h3 className="text-xs uppercase tracking-wider text-sky-200">

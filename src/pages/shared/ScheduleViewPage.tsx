@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Clock } from 'lucide-react';
+import { CheckCircle2, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { getLocalDateISO, getNextDateForDayOfWeek } from '@/lib/dateUtils';
+import { preconfKey, toggleClassPreconfirmation, type PreconfirmationRow } from '@/lib/preconfirmations';
 import { getDisciplineImage } from '@/lib/disciplineImages';
 import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/KpiCard';
@@ -62,27 +65,92 @@ function LiveClassCard({ cls, live }: { cls: ScheduleClass; live: boolean }) {
 }
 
 export function ScheduleViewPage() {
+  const { user, profile } = useAuth();
+  const isClient = profile?.role === 'client';
   const [classes, setClasses] = useState<ScheduleClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<'all' | number>('all');
+  const [linkedChildren, setLinkedChildren] = useState<{ id: string; full_name: string }[]>([]);
+  const [preconfSet, setPreconfSet] = useState<Set<string>>(new Set());
+  const [togglingPreconf, setTogglingPreconf] = useState<Record<string, boolean>>({});
 
   const now = new Date();
+  const todayDate = getLocalDateISO(now);
   const jsDay = now.getDay();
   const todayDay = jsDay === 0 ? 7 : jsDay;
   const nowTime = now.toTimeString().slice(0, 5);
 
   useEffect(() => {
-    supabase
-      .from('schedule_classes')
-      .select('*, disciplines(name, slug)')
-      .eq('is_active', true)
-      .order('day_of_week')
-      .order('start_time')
-      .then(({ data }) => {
-        setClasses((data as unknown as ScheduleClass[]) ?? []);
-        setLoading(false);
+    const loadSchedule = async () => {
+      const { data } = await supabase
+        .from('schedule_classes')
+        .select('*, disciplines(name, slug)')
+        .eq('is_active', true)
+        .order('day_of_week')
+        .order('start_time');
+      setClasses((data as unknown as ScheduleClass[]) ?? []);
+
+      if (isClient && user?.id) {
+        const { data: kidsData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .eq('guardian_user_id', user.id)
+          .order('full_name');
+        const kids = (kidsData as { id: string; full_name: string }[]) ?? [];
+        setLinkedChildren(kids);
+
+        const familyIds = [user.id, ...kids.map((k) => k.id)];
+        const { data: preconfRows } = await supabase
+          .from('class_preconfirmations')
+          .select('user_id, schedule_class_id, class_date')
+          .gte('class_date', todayDate)
+          .in('user_id', familyIds);
+        setPreconfSet(
+          new Set(
+            ((preconfRows as PreconfirmationRow[]) ?? []).map((r) =>
+              preconfKey(r.user_id, r.schedule_class_id, r.class_date)
+            )
+          )
+        );
+      }
+      setLoading(false);
+    };
+    loadSchedule();
+  }, [isClient, user?.id, todayDate]);
+
+  const handleTogglePreconf = async (targetUserId: string, cls: ScheduleClass) => {
+    if (!user?.id) return;
+    const targetDate = getNextDateForDayOfWeek(cls.day_of_week);
+    const key = preconfKey(targetUserId, cls.id, targetDate);
+    if (togglingPreconf[key]) return;
+    const currentlyConfirmed = preconfSet.has(key);
+
+    setTogglingPreconf((prev) => ({ ...prev, [key]: true }));
+    setPreconfSet((prev) => {
+      const next = new Set(prev);
+      if (currentlyConfirmed) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+    const ok = await toggleClassPreconfirmation({
+      userId: targetUserId,
+      scheduleClassId: cls.id,
+      classDate: targetDate,
+      confirmedBy: user.id,
+      currentlyConfirmed,
+    });
+
+    if (!ok) {
+      setPreconfSet((prev) => {
+        const next = new Set(prev);
+        if (currentlyConfirmed) next.add(key);
+        else next.delete(key);
+        return next;
       });
-  }, []);
+    }
+    setTogglingPreconf((prev) => ({ ...prev, [key]: false }));
+  };
 
   const todayClasses = classes.filter((c) => c.day_of_week === todayDay);
   const currentClass = todayClasses.find(
@@ -230,6 +298,54 @@ export function ScheduleViewPage() {
                             >
                               Prof. {c.coach_name}
                             </p>
+                            {isClient && user?.id && (
+                              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                {(linkedChildren.length > 0
+                                  ? [
+                                      ...linkedChildren.map((k) => ({
+                                        id: k.id,
+                                        label: k.full_name.split(' ')[0],
+                                      })),
+                                      { id: user.id, label: 'Yo' },
+                                    ]
+                                  : [{ id: user.id, label: '' }]
+                                ).map((m) => {
+                                  const targetDate = getNextDateForDayOfWeek(c.day_of_week);
+                                  const key = preconfKey(m.id, c.id, targetDate);
+                                  const confirmed = preconfSet.has(key);
+                                  const busy = Boolean(togglingPreconf[key]);
+                                  return (
+                                    <button
+                                      key={m.id}
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={() => handleTogglePreconf(m.id, c)}
+                                      aria-pressed={confirmed}
+                                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold border transition ${
+                                        confirmed
+                                          ? isToday
+                                            ? 'bg-emerald-700 border-emerald-800 text-white'
+                                            : 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                                          : isToday
+                                            ? 'bg-[#141a2b]/10 border-[#141a2b]/20 text-[#141a2b] hover:bg-[#141a2b]/20'
+                                            : 'bg-white/[0.04] border-white/15 text-slate-300 hover:text-white hover:border-emerald-400/50'
+                                      } disabled:opacity-50`}
+                                    >
+                                      <CheckCircle2 className="w-3 h-3 shrink-0" />
+                                      <span>
+                                        {linkedChildren.length > 0
+                                          ? confirmed
+                                            ? `${m.label}: Voy`
+                                            : m.label
+                                          : confirmed
+                                            ? 'Confirmado'
+                                            : 'Confirmar'}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                           <img
                             src={getDisciplineImage(c.disciplines?.slug, c.title, c.image_key)}

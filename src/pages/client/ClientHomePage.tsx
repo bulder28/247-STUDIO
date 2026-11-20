@@ -18,7 +18,9 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateAge, getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
+import { preconfKey, toggleClassPreconfirmation, type PreconfirmationRow } from '@/lib/preconfirmations';
 import EmptyState from '@/components/EmptyState';
+import { StudentPackCard } from '@/components/StudentPackCard';
 import { CalendarCheck } from 'lucide-react';
 import { FighterRadarChart } from '@/components/FighterRadarChart';
 import { usersWithBeltThisMonth } from '@/lib/belts';
@@ -105,6 +107,14 @@ interface LinkedChildProfile {
   birth_date: string | null;
 }
 
+interface TodayClassOption {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  coach_name: string;
+}
+
 const BELT_STYLES: Record<
   string,
   { bar: string; tip: string; stripe: string; aura: string; ring: string }
@@ -169,6 +179,12 @@ export function ClientHomePage() {
   const [linkedChildren, setLinkedChildren] = useState<LinkedChildProfile[]>([]);
   // Hijos vinculados cuya tarifa del mes tiene cinturón (BJJ y Grappling)
   const [childrenWithBelt, setChildrenWithBelt] = useState<Set<string>>(new Set());
+  const [todayClasses, setTodayClasses] = useState<TodayClassOption[]>([]);
+  const [preconfSet, setPreconfSet] = useState<Set<string>>(new Set());
+  const [togglingPreconf, setTogglingPreconf] = useState<Record<string, boolean>>({});
+  const todayDate = getLocalDateISO();
+  const todayJsDay = new Date().getDay();
+  const todayDayOfWeek = todayJsDay === 0 ? 7 : todayJsDay;
   const [goals, setGoals] = useState(profile?.personal_goals ?? '');
   const [savingGoals, setSavingGoals] = useState(false);
   const [cardSpot, setCardSpot] = useState<{ x: number; y: number } | null>(null);
@@ -185,7 +201,7 @@ export function ClientHomePage() {
   useEffect(() => {
     if (!user) return;
     const loadHome = async () => {
-      const [payRes, statsRes, evRes, signRes, subRes, attRes, kidsRes] = await Promise.all([
+      const [payRes, statsRes, evRes, signRes, subRes, attRes, kidsRes, todayClsRes] = await Promise.all([
         supabase
           .from('v_monthly_payment_status')
           .select('month_year, plan_name, price_eur, effective_status')
@@ -223,6 +239,12 @@ export function ClientHomePage() {
           .select('id, full_name, belt, belt_stripes, status, birth_date')
           .eq('guardian_user_id', user.id)
           .order('full_name'),
+        supabase
+          .from('schedule_classes')
+          .select('id, title, start_time, end_time, coach_name')
+          .eq('is_active', true)
+          .eq('day_of_week', todayDayOfWeek)
+          .order('start_time'),
       ]);
 
       setPaymentRows((payRes.data as PaymentSummary[]) ?? []);
@@ -239,9 +261,57 @@ export function ClientHomePage() {
       const kids = (kidsRes.data as LinkedChildProfile[]) ?? [];
       setLinkedChildren(kids);
       setChildrenWithBelt(await usersWithBeltThisMonth(kids.map((k) => k.id), currentMonth));
+      setTodayClasses((todayClsRes.data as TodayClassOption[]) ?? []);
+
+      const familyIds = [user.id, ...kids.map((k) => k.id)];
+      const { data: preconfRows } = await supabase
+        .from('class_preconfirmations')
+        .select('user_id, schedule_class_id, class_date')
+        .eq('class_date', todayDate)
+        .in('user_id', familyIds);
+      setPreconfSet(
+        new Set(
+          ((preconfRows as PreconfirmationRow[]) ?? []).map((r) =>
+            preconfKey(r.user_id, r.schedule_class_id, r.class_date)
+          )
+        )
+      );
     };
     loadHome();
-  }, [user, currentMonth]);
+  }, [user, currentMonth, todayDate, todayDayOfWeek]);
+
+  const handleToggleTodayPreconf = async (targetUserId: string, classId: string) => {
+    if (!user) return;
+    const key = preconfKey(targetUserId, classId, todayDate);
+    if (togglingPreconf[key]) return;
+    const currentlyConfirmed = preconfSet.has(key);
+
+    setTogglingPreconf((prev) => ({ ...prev, [key]: true }));
+    setPreconfSet((prev) => {
+      const next = new Set(prev);
+      if (currentlyConfirmed) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+    const ok = await toggleClassPreconfirmation({
+      userId: targetUserId,
+      scheduleClassId: classId,
+      classDate: todayDate,
+      confirmedBy: user.id,
+      currentlyConfirmed,
+    });
+
+    if (!ok) {
+      setPreconfSet((prev) => {
+        const next = new Set(prev);
+        if (currentlyConfirmed) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+    }
+    setTogglingPreconf((prev) => ({ ...prev, [key]: false }));
+  };
 
   const payment = paymentRows.find((r) => r.month_year === currentMonth) ?? null;
   const pastDueRows = paymentRows.filter(
@@ -483,6 +553,8 @@ export function ClientHomePage() {
           </div>
         </div>
       )}
+
+      {user && <StudentPackCard userId={user.id} />}
 
       {/* Carnet Oficial del Luchador */}
       <motion.section
@@ -779,6 +851,91 @@ export function ClientHomePage() {
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {/* Confirmar asistencia previa para agilizar entrada al tatami */}
+      {todayClasses.length > 0 && (
+        <section className="rounded-3xl studio-panel border border-emerald-500/25 p-5 sm:p-6 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="font-headline text-lg uppercase tracking-wide text-white flex items-center gap-2">
+                <CalendarCheck className="w-5 h-5 text-emerald-400" />
+                ¿Vienes hoy a clase?
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Opcional: confirma antes de venir para agilizar el paso de lista en el tatami.
+              </p>
+            </div>
+            <Link
+              to="/app/horario"
+              className="text-xs font-semibold text-studio-cream hover:underline shrink-0"
+            >
+              Ver toda la semana &rarr;
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {todayClasses.map((cls) => {
+              const members =
+                linkedChildren.length > 0
+                  ? [
+                      ...linkedChildren.map((k) => ({ id: k.id, label: k.full_name.split(' ')[0] })),
+                      { id: user?.id ?? '', label: 'Yo' },
+                    ].filter((m) => m.id)
+                  : [{ id: user?.id ?? '', label: 'Voy a ir hoy' }].filter((m) => m.id);
+
+              return (
+                <div
+                  key={cls.id}
+                  className="rounded-2xl studio-panel-inset border border-white/10 p-3.5 flex flex-col justify-between gap-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{cls.title}</p>
+                      <p className="text-xs text-slate-400 truncate">Prof. {cls.coach_name}</p>
+                    </div>
+                    <span className="font-headline text-lg text-studio-cream tabular-nums shrink-0">
+                      {cls.start_time.slice(0, 5)}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {members.map((m) => {
+                      const key = preconfKey(m.id, cls.id, todayDate);
+                      const confirmed = preconfSet.has(key);
+                      const busy = Boolean(togglingPreconf[key]);
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => handleToggleTodayPreconf(m.id, cls.id)}
+                          aria-pressed={confirmed}
+                          className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${
+                            confirmed
+                              ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+                              : 'bg-white/[0.04] border-white/15 text-slate-200 hover:border-emerald-400/50 hover:text-white'
+                          } disabled:opacity-50`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>
+                            {linkedChildren.length > 0
+                              ? confirmed
+                                ? `${m.label}: Confirmado`
+                                : `Confirmar ${m.label}`
+                              : confirmed
+                                ? 'Asistencia confirmada'
+                                : 'Confirmar asistencia'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
       )}
 

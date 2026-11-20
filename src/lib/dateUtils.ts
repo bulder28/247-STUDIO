@@ -49,3 +49,15 @@ export function isMinorAge(birthDate?: string | null): boolean {
   return age !== null && age <= 14;
 }
 
+/**
+ * Devuelve la próxima fecha YYYY-MM-DD (incluyendo hoy) para un día de la semana (1=Lun ... 7=Dom).
+ */
+export function getNextDateForDayOfWeek(dayOfWeek: number, from: Date = new Date()): string {
+  const jsDay = from.getDay();
+  const todayDow = jsDay === 0 ? 7 : jsDay;
+  const diff = (dayOfWeek - todayDow + 7) % 7;
+  const target = new Date(from);
+  target.setDate(from.getDate() + diff);
+  return getLocalDateISO(target);
+}
+
