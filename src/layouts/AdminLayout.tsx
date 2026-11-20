@@ -19,8 +19,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ClipboardCheck,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { setAmountsHidden, useAmountsHidden } from '@/lib/privacy';
 
 const navGroups = [
   {
@@ -138,6 +141,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     }
   });
   const location = useLocation();
+  const hideAmounts = useAmountsHidden();
+  const toggleAmounts = () => setAmountsHidden(!hideAmounts);
+  const amountsLabel = hideAmounts ? 'Mostrar importes' : 'Ocultar importes';
+  const AmountsIcon = hideAmounts ? EyeOff : Eye;
 
   const toggleSidebar = () => {
     setSidebarOpen((prev) => {
@@ -218,6 +225,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           </button>
           <button
             type="button"
+            onClick={toggleAmounts}
+            title={amountsLabel}
+            aria-label={amountsLabel}
+            aria-pressed={hideAmounts}
+            className="shrink-0 p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-slate-300 transition"
+          >
+            <AmountsIcon className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
             onClick={toggleSidebar}
             title="Ocultar panel lateral"
             aria-label="Ocultar panel lateral"
@@ -264,6 +281,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <span className="font-headline text-lg uppercase tracking-wide text-studio-cream">247 Studio</span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={toggleAmounts}
+            title={amountsLabel}
+            aria-label={amountsLabel}
+            aria-pressed={hideAmounts}
+            className="grid place-items-center min-h-11 min-w-11 rounded-lg text-slate-300 hover:bg-white/10"
+          >
+            <AmountsIcon className="w-5 h-5" />
+          </button>
           <button
             onClick={() => setMobileOpen((prev) => !prev)}
             className="grid place-items-center min-h-11 min-w-11 rounded-lg text-slate-300 hover:bg-white/10"

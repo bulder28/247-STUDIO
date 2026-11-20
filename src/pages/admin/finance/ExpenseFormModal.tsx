@@ -3,6 +3,9 @@ import { X, Repeat, Ban, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 import { formatEURExact, formatMonthLong } from '@/lib/format';
+
+// En el formulario de gasto el importe se ve siempre: es el que se está escribiendo o anulando
+const ALWAYS = { always: true } as const;
 import {
   EXPENSE_METHODS,
   centsToEur,
@@ -210,7 +213,7 @@ export function ExpenseFormModal({
           recurring_expense_id: fixedTemplate.id,
         });
         if (insErr) throw insErr;
-        onSaved(`${finalConcept} de ${formatMonthLong(month).toLowerCase()} confirmado · ${formatEURExact(centsToEur(cents))}`);
+        onSaved(`${finalConcept} de ${formatMonthLong(month).toLowerCase()} confirmado · ${formatEURExact(centsToEur(cents), ALWAYS)}`);
         return;
       }
 
@@ -226,7 +229,7 @@ export function ExpenseFormModal({
           p_expense_date: date,
         });
         if (rpcErr) throw rpcErr;
-        onSaved(`Gasto fijo guardado · ${formatEURExact(centsToEur(cents))} cada mes`);
+        onSaved(`Gasto fijo guardado · ${formatEURExact(centsToEur(cents), ALWAYS)} cada mes`);
         return;
       }
 
@@ -239,7 +242,7 @@ export function ExpenseFormModal({
         payment_method: method,
       });
       if (insErr) throw insErr;
-      onSaved(`Gasto guardado · ${formatEURExact(centsToEur(cents))}`);
+      onSaved(`Gasto guardado · ${formatEURExact(centsToEur(cents), ALWAYS)}`);
     } catch (err) {
       setError(`No se ha guardado. ${friendlyError(err)}`);
     } finally {
@@ -258,7 +261,7 @@ export function ExpenseFormModal({
       .eq('id', editing.id);
     setSaving(false);
     if (vErr) return fail(`No se ha anulado. ${friendlyError(vErr)}`);
-    onSaved(`Gasto anulado · el resultado sube ${formatEURExact(centsToEur(editing.amount_cents))}`);
+    onSaved(`Gasto anulado · el resultado sube ${formatEURExact(centsToEur(editing.amount_cents), ALWAYS)}`);
   };
 
   /**
@@ -337,7 +340,7 @@ export function ExpenseFormModal({
         {voidOpen && editing ? (
           <div className="space-y-4">
             <p className="text-sm text-slate-200">
-              ¿Anular el gasto de <strong>{formatEURExact(centsToEur(editing.amount_cents))}</strong> (
+              ¿Anular el gasto de <strong>{formatEURExact(centsToEur(editing.amount_cents), ALWAYS)}</strong> (
               {category?.name ?? 'sin categoría'}, {editing.expense_date.split('-').reverse().join('/')})? El resultado
               del mes subirá esa cantidad. Queda registrado, no se borra.
             </p>

@@ -24,6 +24,7 @@ import {
   type SignatureTask,
 } from '@/lib/studentDocuments';
 import { formatEUR, formatInt, formatMonthLong } from '@/lib/format';
+import { useAmountsHidden } from '@/lib/privacy';
 import { fetchAllRows, getCashMonth } from '@/lib/finance';
 import { DeltaBadge, KpiCard, Skeleton } from '@/components/KpiCard';
 import { PageHeader } from '@/components/PageHeader';
@@ -256,6 +257,7 @@ function PowerDonut({
 }
 
 export function AdminKpisPage() {
+  useAmountsHidden(); // repinta los importes al pulsar el ojo
   const currentMonth = getLocalMonthYear();
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');

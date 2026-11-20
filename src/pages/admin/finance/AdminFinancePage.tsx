@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/KpiCard';
 import { getLocalMonthYear } from '@/lib/dateUtils';
 import { formatMonthLong } from '@/lib/format';
+import { useAmountsHidden } from '@/lib/privacy';
 import { shiftMonth } from '@/lib/finance';
 import { useFinanceMonth } from './useFinanceMonth';
 import { FinanceSummary } from './FinanceSummary';
@@ -14,6 +15,7 @@ import { ExpenseFormModal, type ExpenseFormTarget } from './ExpenseFormModal';
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export function AdminFinancePage({ tab }: { tab: 'resumen' | 'gastos' }) {
+  useAmountsHidden(); // repinta los importes al pulsar el ojo
   const currentMonth = getLocalMonthYear();
   const [params, setParams] = useSearchParams();
   const paramMonth = params.get('mes');

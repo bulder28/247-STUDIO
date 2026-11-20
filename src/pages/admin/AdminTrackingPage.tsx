@@ -5,6 +5,7 @@ import { exportWorkbook } from '@/lib/excel';
 import { getLocalDateISO, getLocalMonthYear } from '@/lib/dateUtils';
 import { fetchAllRows, getCashMonth, type CashMonth } from '@/lib/finance';
 import { formatEURExact } from '@/lib/format';
+import { useAmountsHidden } from '@/lib/privacy';
 import { getEffectivePlanPrice, getFamilyDiscountPrice } from '@/lib/pricing';
 import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/KpiCard';
@@ -18,6 +19,9 @@ import {
   type PaymentMethod,
   type PaymentRow,
 } from './collections/types';
+
+// En el diálogo de cobro el importe se ve siempre: hay que saber qué se cobra
+const ALWAYS = { always: true } as const;
 
 interface StudentLatestPlan {
   user_id: string;
@@ -57,6 +61,7 @@ function addMonths(ym: string, offset: number): string {
 }
 
 export function AdminTrackingPage() {
+  useAmountsHidden(); // repinta los importes al pulsar el ojo
   const currentMonth = useMemo(() => getLocalMonthYear(), []);
   // Admite ?mes=YYYY-MM (enlace "Ver cobros" desde Finanzas)
   const [monthYear, setMonthYear] = useState(() => {
@@ -308,7 +313,7 @@ export function AdminTrackingPage() {
       );
       if (ok) {
         showToast(
-          `Cobrado: ${row.full_name} · ${formatEURExact(numAmount)} por ${method}${
+          `Cobrado: ${row.full_name} · ${formatEURExact(numAmount, ALWAYS)} por ${method}${
             applyFamilyDiscount ? ' (con descuento familiar)' : ''
           }${planChanged ? ` · nueva tarifa: ${planById(quickCharge.planId)?.name ?? ''}` : ''}`,
           row
@@ -969,13 +974,14 @@ export function AdminTrackingPage() {
                           Aplica la tarifa familiar en cada mensualidad seleccionada
                           {selectedStudent && (
                             <>
-                              {' '}({formatEURExact(multiPrice)} &rarr;{' '}
+                              {' '}({formatEURExact(multiPrice, ALWAYS)} &rarr;{' '}
                               <strong className="text-white">
                                 {formatEURExact(
                                   getFamilyDiscountPrice(
                                     multiPrice,
                                     multiFamilyRaw
-                                  )
+                                  ),
+                                  ALWAYS
                                 )}
                               </strong>/mes)
                             </>
@@ -1146,7 +1152,7 @@ export function AdminTrackingPage() {
               <p className="text-xs text-slate-400">
                 Cuota mensual base:{' '}
                 <span className="tabular-nums font-medium text-slate-300">
-                  {formatEURExact(qcPrice)}
+                  {formatEURExact(qcPrice, ALWAYS)}
                 </span>
               </p>
             </div>
@@ -1194,13 +1200,14 @@ export function AdminTrackingPage() {
                       'Esta tarifa no tiene PVP familiar predefinido (ajusta el importe si aplica)'
                     ) : (
                       <>
-                        Aplica tarifa familiar de {formatEURExact(qcPrice)} a{' '}
+                        Aplica tarifa familiar de {formatEURExact(qcPrice, ALWAYS)} a{' '}
                         <strong className="text-white">
                           {formatEURExact(
                             getFamilyDiscountPrice(
                               qcPrice,
                               qcFamRaw
-                            )
+                            ),
+                            ALWAYS
                           )}
                         </strong>
                       </>
@@ -1321,7 +1328,7 @@ export function AdminTrackingPage() {
                 ) : (
                   <>
                     <Check className="w-4 h-4" />
-                    Confirmar cobro ({formatEURExact(Number(quickCharge.amount || 0))})
+                    Confirmar cobro ({formatEURExact(Number(quickCharge.amount || 0), ALWAYS)})
                   </>
                 )}
               </button>

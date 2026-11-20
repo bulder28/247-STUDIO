@@ -1,3 +1,5 @@
+import { amountsHidden } from './privacy';
+
 const eurFormatter = new Intl.NumberFormat('es-ES', {
   style: 'currency',
   currency: 'EUR',
@@ -21,8 +23,17 @@ const MONTH_LONG = [
   'Diciembre',
 ];
 
+/** Lo que se ve en lugar de un importe con el modo privado activo. */
+export const HIDDEN_AMOUNT = '••• €';
+
+interface MoneyOptions {
+  /** Mostrar siempre, aunque el modo privado esté activo (p. ej. al confirmar un cobro). */
+  always?: boolean;
+}
+
 /** 1250.4 → "1.250 €" (sin decimales, separador de miles es-ES). */
-export function formatEUR(value: number): string {
+export function formatEUR(value: number, opts?: MoneyOptions): string {
+  if (amountsHidden() && !opts?.always) return HIDDEN_AMOUNT;
   return eurFormatter.format(Number.isFinite(value) ? value : 0);
 }
 
@@ -39,7 +50,8 @@ const eurCentsFormatter = new Intl.NumberFormat('es-ES', {
 });
 
 /** Importes de caja: 62 → "62 €", 38.9 → "38,90 €" (sin decimales si es redondo; si no, siempre 2). */
-export function formatEURExact(value: number): string {
+export function formatEURExact(value: number, opts?: MoneyOptions): string {
+  if (amountsHidden() && !opts?.always) return HIDDEN_AMOUNT;
   const v = Number.isFinite(value) ? value : 0;
   return Math.round(v * 100) % 100 === 0 ? eurWholeFormatter.format(v) : eurCentsFormatter.format(v);
 }

@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabase';
 import { getLocalDateISO, getLocalMonthYear, isMinorAge } from '@/lib/dateUtils';
 import { countPendingSignatures, fetchSignatureTasksByUser } from '@/lib/studentDocuments';
 import { formatEUR, formatEURExact, formatMonthLong } from '@/lib/format';
+import { useAmountsHidden } from '@/lib/privacy';
 import { getCashMonth, type CashMonth } from '@/lib/finance';
 import { usersWithBeltThisMonth } from '@/lib/belts';
 import { DeltaBadge, KpiCard } from '@/components/KpiCard';
@@ -134,6 +135,7 @@ interface TodayAttendance {
 }
 
 export function AdminHomePage() {
+  useAmountsHidden(); // repinta los importes al pulsar el ojo
   const currentMonth = getLocalMonthYear();
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [rows, setRows] = useState<MonthlyRow[]>([]);
