@@ -32,8 +32,11 @@ export function PortalShell({
   const { pathname } = useLocation();
 
   return (
-    <div className="min-h-screen text-slate-100 flex flex-col">
-      <header className="bg-[#272c35]/80 backdrop-blur-xl border-b border-white/[0.07] px-4 sticky top-0 z-30">
+    <div className="min-h-[100dvh] text-slate-100 flex flex-col">
+      <header
+        className="bg-[#272c35]/80 backdrop-blur-xl border-b border-white/[0.07] px-4 sticky top-0 z-30"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
         <div className="max-w-5xl mx-auto h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <img src="/logo.webp" alt="" className="w-14 h-14 rounded-xl object-contain shrink-0" />
@@ -67,9 +70,8 @@ export function PortalShell({
                     <>
                       <span className="relative inline-flex shrink-0">
                         <Icon
-                          className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:text-studio-red ${
-                            hasBadge && ringBell ? 'bell-ring text-studio-cream' : hasBadge ? 'text-studio-cream' : ''
-                          }`}
+                          className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:text-studio-red ${hasBadge && ringBell ? 'bell-ring text-studio-cream' : hasBadge ? 'text-studio-cream' : ''
+                            }`}
                         />
                         {hasBadge && (
                           <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5" aria-hidden>
@@ -162,9 +164,8 @@ export function PortalShell({
                   />
                   <span className="relative inline-flex shrink-0">
                     <Icon
-                      className={`w-5 h-5 ${
-                        hasBadge && ringBell ? 'bell-ring text-studio-cream' : hasBadge ? 'text-studio-cream' : ''
-                      }`}
+                      className={`w-5 h-5 ${hasBadge && ringBell ? 'bell-ring text-studio-cream' : hasBadge ? 'text-studio-cream' : ''
+                        }`}
                     />
                     {hasBadge && (
                       <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5" aria-hidden>

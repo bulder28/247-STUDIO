@@ -46,6 +46,25 @@ document.addEventListener('dragstart', (e) => {
   document.addEventListener(ev, (e) => e.preventDefault())
 );
 
+// Actualización automática de la PWA: recarga limpia al activarse una nueva versión
+// y comprueba actualizaciones cuando el alumno vuelve a abrir la app desde segundo plano.
+if ('serviceWorker' in navigator) {
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        reg?.update().catch(() => {});
+      });
+    }
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

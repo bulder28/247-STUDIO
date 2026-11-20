@@ -55,6 +55,15 @@
     -webkit-touch-callout: default;
   }
 
+  /* Evita el auto-zoom de Safari en iPhone al tocar inputs/selects */
+  @media (max-width: 767px) {
+    input:not([type='checkbox']):not([type='radio']),
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+
   img,
   svg,
   canvas,

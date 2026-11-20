@@ -44,7 +44,13 @@ export function SetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10">
+    <div
+      className="min-h-[100dvh] flex items-center justify-center px-4 py-10"
+      style={{
+        paddingTop: 'calc(2.5rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom))',
+      }}
+    >
       <div className="w-full max-w-md rounded-2xl studio-panel border border-white/10 p-8 shadow-modal">
         <div className="flex flex-col items-center text-center mb-6">
           <img src="/logo.webp" alt="247 STUDIO" className="w-16 h-16 object-contain mb-3 rounded-xl" />

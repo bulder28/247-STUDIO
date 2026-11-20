@@ -94,8 +94,10 @@ export function LoginPage() {
 
   return (
     <div
-      className="min-h-screen relative overflow-hidden flex items-center justify-center px-4 py-10 lg:px-12"
+      className="min-h-[100dvh] relative overflow-hidden flex items-center justify-center px-4 py-10 lg:px-12"
       style={{
+        paddingTop: 'calc(2.5rem + env(safe-area-inset-top))',
+        paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom))',
         background:
           'radial-gradient(circle at 18% 25%, rgba(239, 68, 68, 0.24), transparent 52%), linear-gradient(130deg, #272c35 0%, #373e4a 55%, #47505e 100%)',
       }}

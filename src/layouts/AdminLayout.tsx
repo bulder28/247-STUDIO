@@ -199,7 +199,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen text-slate-100 flex flex-col md:flex-row">
+    <div className="min-h-[100dvh] text-slate-100 flex flex-col md:flex-row">
       {/* Sidebar Desktop */}
       <aside className={`hidden ${sidebarOpen ? 'md:flex' : ''} md:w-60 md:flex-col bg-[#272c35]/80 backdrop-blur-xl border-r border-white/[0.07] shrink-0 sticky top-0 h-screen`}>
         <div className="px-5 pt-6 pb-4 flex items-center gap-3">
@@ -277,7 +277,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* Topbar Mobile */}
-      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-[#272c35]/85 backdrop-blur-xl border-b border-white/[0.07] sticky top-0 z-30">
+      <header
+        className="md:hidden flex items-center justify-between px-4 py-3 bg-[#272c35]/85 backdrop-blur-xl border-b border-white/[0.07] sticky top-0 z-30"
+        style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
+      >
         <div className="flex items-center gap-2.5">
           <img src="/logo.webp" alt="" className="w-12 h-12 rounded-lg object-contain" />
           <span className="font-headline text-lg uppercase tracking-wide text-studio-cream">247 Studio</span>
@@ -312,7 +315,11 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         >
           <div
             className="w-72 max-w-[85vw] h-full bg-[#272c35] border-r border-white/10 p-4 flex flex-col gap-5 animate-studio-in"
-            style={{ animationDelay: '0s' }}
+            style={{
+              animationDelay: '0s',
+              paddingTop: 'calc(1rem + env(safe-area-inset-top))',
+              paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="pt-1 pb-3 border-b border-white/[0.07]">{userChip}</div>
