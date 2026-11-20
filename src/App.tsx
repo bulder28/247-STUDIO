@@ -17,6 +17,7 @@ import { AdminCommunicationPage } from '@/pages/admin/AdminCommunicationPage';
 import { AdminFinancePage } from '@/pages/admin/finance/AdminFinancePage';
 import { CoachAttendancePage } from '@/pages/coach/CoachAttendancePage';
 import { CoachRatingsPage } from '@/pages/coach/CoachRatingsPage';
+import { AdminPacksPage } from '@/pages/admin/AdminPacksPage';
 import { ScheduleViewPage } from '@/pages/shared/ScheduleViewPage';
 import { ForumViewPage } from '@/pages/shared/ForumViewPage';
 import { ClientHomePage } from '@/pages/client/ClientHomePage';
@@ -102,6 +103,7 @@ function AppRoutes() {
                 <Route path="kpis" element={<AdminKpisPage />} />
                 <Route path="pasar-lista" element={<CoachAttendancePage />} />
                 <Route path="seguimiento" element={<AdminTrackingPage />} />
+                <Route path="bonos" element={<AdminPacksPage />} />
                 <Route path="alumnos" element={<AdminStudentsPage />} />
                 <Route path="tarifas" element={<AdminPlansPage />} />
                 <Route path="horarios" element={<AdminSchedulePage />} />

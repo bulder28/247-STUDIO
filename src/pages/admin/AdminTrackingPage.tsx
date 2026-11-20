@@ -346,10 +346,12 @@ export function AdminTrackingPage() {
 
     const { data: prevSubs } = await supabase
       .from('subscriptions')
-      .select('user_id, plan_id, profiles!inner(status)')
+      .select('user_id, plan_id, profiles!inner(status), plans!inner(is_one_off)')
       .eq('month_year', prevMonthYear)
       .eq('status', 'active')
-      .eq('profiles.status', 'active');
+      .eq('profiles.status', 'active')
+      // Bonos y clases sueltas/particulares se pagan una vez: no se copian al mes siguiente
+      .eq('plans.is_one_off', false);
 
     if (prevSubs && prevSubs.length > 0) {
       await supabase.from('subscriptions').upsert(

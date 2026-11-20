@@ -19,6 +19,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ClipboardCheck,
+  Ticket,
   Eye,
   EyeOff,
 } from 'lucide-react';
@@ -31,6 +32,7 @@ const navGroups = [
     items: [
       { to: '/admin/pasar-lista', label: 'Pasar lista', icon: ClipboardCheck },
       { to: '/admin/seguimiento', label: 'Cobros', icon: CreditCard },
+      { to: '/admin/bonos', label: 'Bonos', icon: Ticket },
       { to: '/admin/alumnos', label: 'Alumnos', icon: Users },
     ],
   },
