@@ -321,6 +321,7 @@ export function ClientProfilePage() {
             <label className="block text-xs text-slate-300 uppercase mb-1" htmlFor="pf-12">Nueva contraseña</label>
             <input id="pf-12"
               type="password"
+              autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Mínimo 6 caracteres"
